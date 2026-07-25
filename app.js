@@ -29,6 +29,9 @@ selectedPodKpis = POD_KPI_OPTIONS.map(k => k.id);
 selectedPodStatuses = POD_STATUS_OPTIONS.map(s => s.id);
 let assetsSearchTerm = '';
 let assetsStatusFilter = 'all';
+let assetsCategoryFilter = 'all';
+let nextAssetId = 6;
+let nextAssetDocId = 20;
 let currentDocumentId = null;
 let currentTripFilter = 'all';
 let currentDocFilter = 'all';
@@ -39,7 +42,7 @@ let areaSbSearch = '';
 let areaDropdownOpen = true;
 let areaSelectorHidden = false;
 
-const listRowSelections = { nb: [], sb: [], border: [], pod: [] };
+const listRowSelections = { nb: [], sb: [], border: [], pod: [], assets: [] };
 
 const areasDB = [
     { id: 'kanyaka', name: 'Kanyaka', icon: '🏗️', offloadingPoints: ['Kanyaka', 'Kanyaka Depot', 'Kanyaka Mine'], loadingPoints: ['Kanyaka', 'Kanyaka Depot', 'Kanyaka Mine'] },
@@ -68,12 +71,71 @@ const WORKFLOW_CONFIG = {
 };
 
 const documentsDB = [
-    { id: 1, type: 'Insurance', entity: 'Truck ZAM-4567', trip: 'TR-1024', truck: 'ZAM-4567', expiry: '2025-04-15', issued: '2024-04-15', status: 'expiring', kpi: 'orange', label: 'Expires in 7d', fileName: 'Insurance_ZAM-4567.pdf', category: 'Vehicle Insurance' },
-    { id: 2, type: 'Vignette', entity: 'Truck ZAM-4590', trip: 'TR-1028', truck: 'ZAM-4590', expiry: '2025-04-10', issued: '2024-04-10', status: 'expired', kpi: 'red', label: 'Expired', fileName: 'Vignette_ZAM-4590.pdf', category: 'Border Vignette' },
-    { id: 3, type: 'TR8', entity: 'Trip TR-1024', trip: 'TR-1024', truck: 'ZAM-4567', expiry: '2025-05-01', issued: '2025-04-01', status: 'valid', kpi: 'green', label: 'Valid', fileName: 'TR8_TR-1024.pdf', category: 'Customs TR8' },
-    { id: 4, type: 'Road Tax', entity: 'Truck ZAM-4612', trip: 'TR-1031', truck: 'ZAM-4612', expiry: '2025-04-20', issued: '2024-04-20', status: 'expiring', kpi: 'orange', label: 'Expires in 12d', fileName: 'RoadTax_ZAM-4612.pdf', category: 'Road Tax Certificate' },
-    { id: 5, type: 'Insurance', entity: 'Truck ZAM-4789', trip: 'SB-2045', truck: 'ZAM-4789', expiry: '2025-03-01', issued: '2024-03-01', status: 'expired', kpi: 'red', label: 'Expired', fileName: 'Insurance_ZAM-4789.pdf', category: 'Vehicle Insurance' }
+    { id: 1, type: 'Insurance', entity: 'Truck ZAM-4567', trip: 'TR-1024', truck: 'ZAM-4567', expiry: '2025-04-15', issued: '2024-04-15', status: 'expiring', kpi: 'orange', label: 'Expires in 7d', fileName: 'Insurance_ZAM-4567.pdf', category: 'Vehicle Insurance', assetId: 'AST-001' },
+    { id: 2, type: 'Vignette', entity: 'Truck ZAM-4590', trip: 'TR-1028', truck: 'ZAM-4590', expiry: '2025-04-10', issued: '2024-04-10', status: 'expired', kpi: 'red', label: 'Expired', fileName: 'Vignette_ZAM-4590.pdf', category: 'Border Vignette', assetId: 'AST-002' },
+    { id: 3, type: 'TR8', entity: 'Trip TR-1024', trip: 'TR-1024', truck: 'ZAM-4567', expiry: '2025-05-01', issued: '2025-04-01', status: 'valid', kpi: 'green', label: 'Valid', fileName: 'TR8_TR-1024.pdf', category: 'Customs TR8', assetId: 'AST-001' },
+    { id: 4, type: 'Road Tax', entity: 'Truck ZAM-4612', trip: 'TR-1031', truck: 'ZAM-4612', expiry: '2025-04-20', issued: '2024-04-20', status: 'expiring', kpi: 'orange', label: 'Expires in 12d', fileName: 'RoadTax_ZAM-4612.pdf', category: 'Road Tax Certificate', assetId: 'AST-003' },
+    { id: 5, type: 'Insurance', entity: 'Truck ZAM-4789', trip: 'SB-2045', truck: 'ZAM-4789', expiry: '2025-03-01', issued: '2024-03-01', status: 'expired', kpi: 'red', label: 'Expired', fileName: 'Insurance_ZAM-4789.pdf', category: 'Vehicle Insurance', assetId: 'AST-004' }
 ];
+
+const assetsRegistryDB = [
+    {
+        id: 'AST-001', category: 'vehicle', assetType: 'Truck', name: 'ZAM-4567', status: 'active', acquisitionDate: '2022-03-15',
+        plateNumber: 'ZAM-4567', vin: 'YV2RT40A0NB123456', make: 'Volvo', model: 'FH16', year: 2022,
+        engineNumber: 'D16K750-8891', fuelType: 'Diesel', grossWeight: '56,000 kg', axleConfig: '6x4',
+        trailerPlate: 'TRL-8901', odometer: '245,000 km', color: 'White', assignedDriver: 'John Doe',
+        owner: 'Transport Co A', location: 'Kasumbalesa', notes: 'Primary Kasumbalesa border haulage unit',
+        documents: [
+            { id: 101, type: 'Insurance', fileName: 'Insurance_ZAM-4567.pdf', acquisitionDate: '2024-04-15', expiryDate: '2025-04-15' },
+            { id: 102, type: 'Road Tax', fileName: 'RoadTax_ZAM-4567.pdf', acquisitionDate: '2024-01-10', expiryDate: '2025-01-10' },
+            { id: 103, type: 'Fitness Certificate', fileName: 'Fitness_ZAM-4567.pdf', acquisitionDate: '2024-06-01', expiryDate: '2025-06-01' }
+        ]
+    },
+    {
+        id: 'AST-002', category: 'vehicle', assetType: 'Truck', name: 'ZAM-4590', status: 'active', acquisitionDate: '2021-08-20',
+        plateNumber: 'ZAM-4590', vin: 'YV2RT40A0NB234567', make: 'Scania', model: 'R500', year: 2021,
+        engineNumber: 'DC13-092-4412', fuelType: 'Diesel', grossWeight: '52,000 kg', axleConfig: '6x2',
+        trailerPlate: 'TRL-7720', odometer: '312,000 km', color: 'Blue', assignedDriver: 'Peter Banda',
+        owner: 'ZAM Logistics', location: 'Kanyaka', notes: 'Kanyaka depot operations',
+        documents: [
+            { id: 104, type: 'Vignette', fileName: 'Vignette_ZAM-4590.pdf', acquisitionDate: '2024-04-10', expiryDate: '2025-04-10' },
+            { id: 105, type: 'Insurance', fileName: 'Insurance_ZAM-4590.pdf', acquisitionDate: '2024-04-10', expiryDate: '2025-04-10' }
+        ]
+    },
+    {
+        id: 'AST-003', category: 'vehicle', assetType: 'Trailer', name: 'TRL-4612', status: 'maintenance', acquisitionDate: '2020-11-05',
+        plateNumber: 'TRL-4612', vin: 'TRL9X2KLM4400123', make: 'Afrit', model: 'Super Link', year: 2020,
+        engineNumber: '—', fuelType: '—', grossWeight: '36,000 kg', axleConfig: '3 Axle',
+        trailerPlate: 'TRL-4612', odometer: '—', color: 'Silver', assignedDriver: '—',
+        owner: 'Copper Haul', location: 'Likasi', notes: 'Awaiting brake system service',
+        documents: [
+            { id: 106, type: 'Road Tax', fileName: 'RoadTax_ZAM-4612.pdf', acquisitionDate: '2024-04-20', expiryDate: '2025-04-20' }
+        ]
+    },
+    {
+        id: 'AST-004', category: 'equipment', assetType: 'Computer', name: 'OPS-LAPTOP-01', status: 'active', acquisitionDate: '2023-05-12',
+        serialNumber: 'DL-882910', brand: 'Dell', model: 'Latitude 5540', assignedTo: 'Control Room — Jean Kalenga',
+        department: 'Operations', location: 'Kasumbalesa Control Room', imei: '', notes: 'Border clearance workstation',
+        documents: [
+            { id: 107, type: 'Warranty', fileName: 'Warranty_OPS-LAPTOP-01.pdf', acquisitionDate: '2023-05-12', expiryDate: '2026-05-12' },
+            { id: 108, type: 'Software Licence', fileName: 'Licence_OPS-LAPTOP-01.pdf', acquisitionDate: '2024-01-01', expiryDate: '2025-12-31' }
+        ]
+    },
+    {
+        id: 'AST-005', category: 'equipment', assetType: 'Cellphone', name: 'DRV-PHONE-14', status: 'active', acquisitionDate: '2024-02-18',
+        serialNumber: 'SM-A546-9912', brand: 'Samsung', model: 'Galaxy A54', assignedTo: 'Driver — Mike Johnson',
+        department: 'Fleet Communications', location: 'Mobile', imei: '356789012345678', notes: 'Driver dispatch phone',
+        documents: [
+            { id: 109, type: 'Device Insurance', fileName: 'Insurance_DRV-PHONE-14.pdf', acquisitionDate: '2024-02-18', expiryDate: '2025-02-18' }
+        ]
+    }
+];
+
+function syncAllAssetDocumentsToGlobalRegistry() {
+    assetsRegistryDB.forEach(asset => {
+        (asset.documents || []).forEach(doc => syncAssetDocumentToGlobalRegistry(doc, asset));
+    });
+}
 
 const recentActivityNB = [
     { trip: 'TR-1024', truck: 'ZAM-4567', area: 'Kasumbalesa', status: 'Border', kpi: 'orange', days: 2, listFilter: 'nb-border-kasumbalesa' },
@@ -1048,6 +1110,33 @@ const LIST_EXPORT_CONFIG = {
             getKPILabel(p.kpi),
             getPODStageStatus(p)
         ]
+    },
+    assets: {
+        title: 'Assets & Equipment',
+        filenamePrefix: 'Assets_Equipment',
+        getData: getFilteredAssetsRegistry,
+        getRowId: a => a.id,
+        headers: ['Asset ID', 'Category', 'Type', 'Name', 'Plate / Serial', 'Make', 'Model', 'Year', 'Assigned To', 'Location', 'Acquisition Date', 'Status', 'Documents', 'Nearest Expiry', 'Doc Status'],
+        mapRow: a => {
+            const summary = getAssetDocumentsSummary(a);
+            return [
+                a.id,
+                a.category === 'vehicle' ? 'Vehicle' : 'Equipment',
+                a.assetType,
+                a.name,
+                a.category === 'vehicle' ? (a.plateNumber || '—') : (a.serialNumber || '—'),
+                a.make || a.brand || '—',
+                a.model || '—',
+                a.year || '—',
+                a.category === 'vehicle' ? (a.assignedDriver || a.owner || '—') : (a.assignedTo || '—'),
+                a.location || '—',
+                a.acquisitionDate || '—',
+                formatAssetStatus(a.status),
+                summary.count,
+                summary.nearestExpiry || '—',
+                summary.worstLabel || '—'
+            ];
+        }
     }
 };
 
@@ -2375,53 +2464,174 @@ function renderAreaPage(container, areaName) {
     container.innerHTML = `<div class="page-header"><h1>🏢 ${areaName} Area</h1></div><div class="table-container"><div class="table-header"><h3>Trucks in ${areaName} (${trips.length})</h3></div><table><thead><tr><th>Trip</th><th>Truck</th><th>Driver</th><th>Direction</th><th>Status</th><th>Actions</th></tr></thead><tbody>${trips.map(t=>`<tr><td>${t.tripNumber}</td><td>${t.truck}</td><td>${t.driver}</td><td><span class="status-badge blue">${t.direction}</span></td><td><span class="status-badge ${t.kpi}">${t.status}</span></td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}')">💬 Comment</button></td></tr>`).join('')||'<tr><td colspan="6">No trucks</td></tr>'}</tbody></table></div>`;
 }
 
-function renderAssetsTableRows(items) {
-    if (!items.length) {
-        return '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-secondary);">No equipment or documents match your search</td></tr>';
-    }
-    return items.map(d => `
-        <tr>
-            <td>${renderDocumentLink(d)}</td>
-            <td>${d.entity}</td>
-            <td>${d.trip}</td>
-            <td>${d.truck}</td>
-            <td>${d.expiry}</td>
-            <td><span class="kpi-indicator ${d.kpi}"></span> ${d.label}</td>
-            <td><button class="btn btn-outline btn-sm" onclick="navigateToDocuments('${d.status}')">👁️</button></td>
-        </tr>
-    `).join('');
+function renderAreaPage(container, areaName) {
+    const trips = Object.values(tripsDB).filter(t=>t.area===areaName);
+    container.innerHTML = `<div class="page-header"><h1>🏢 ${areaName} Area</h1></div><div class="table-container"><div class="table-header"><h3>Trucks in ${areaName} (${trips.length})</h3></div><table><thead><tr><th>Trip</th><th>Truck</th><th>Driver</th><th>Direction</th><th>Status</th><th>Actions</th></tr></thead><tbody>${trips.map(t=>`<tr><td>${t.tripNumber}</td><td>${t.truck}</td><td>${t.driver}</td><td><span class="status-badge blue">${t.direction}</span></td><td><span class="status-badge ${t.kpi}">${t.status}</span></td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}')">💬 Comment</button></td></tr>`).join('')||'<tr><td colspan="6">No trucks</td></tr>'}</tbody></table></div>`;
 }
 
-function getFilteredAssets() {
+// ============================================
+// ASSETS & EQUIPMENT REGISTRY
+// ============================================
+function computeDocumentMeta(acquisitionDate, expiryDate) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expiry = new Date(expiryDate);
+    if (isNaN(expiry.getTime())) return { status: 'valid', kpi: 'green', label: 'Valid' };
+    const days = Math.ceil((expiry - today) / 86400000);
+    if (days < 0) return { status: 'expired', kpi: 'red', label: 'Expired' };
+    if (days <= 30) return { status: 'expiring', kpi: 'orange', label: `Expires in ${days}d` };
+    return { status: 'valid', kpi: 'green', label: 'Valid' };
+}
+
+function enrichAssetDocument(doc) {
+    const meta = computeDocumentMeta(doc.acquisitionDate, doc.expiryDate);
+    return { ...doc, ...meta };
+}
+
+function getAssetById(assetId) {
+    return assetsRegistryDB.find(a => a.id === assetId);
+}
+
+function formatAssetStatus(status) {
+    const map = { active: 'Active', maintenance: 'Maintenance', retired: 'Retired', lost: 'Lost / Stolen' };
+    return map[status] || status;
+}
+
+function getAssetDocumentsSummary(asset) {
+    const docs = (asset.documents || []).map(enrichAssetDocument);
+    if (!docs.length) return { count: 0, nearestExpiry: null, worstKpi: 'green', worstLabel: 'No documents' };
+    const sorted = [...docs].sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
+    const worst = docs.reduce((w, d) => {
+        const rank = { red: 3, orange: 2, green: 1 };
+        return rank[d.kpi] > rank[w.kpi] ? d : w;
+    }, docs[0]);
+    return {
+        count: docs.length,
+        nearestExpiry: sorted[0].expiryDate,
+        worstKpi: worst.kpi,
+        worstLabel: worst.label
+    };
+}
+
+function getAssetRegistryStats() {
+    const allDocs = assetsRegistryDB.flatMap(a => (a.documents || []).map(enrichAssetDocument));
+    return {
+        vehicles: assetsRegistryDB.filter(a => a.category === 'vehicle').length,
+        equipment: assetsRegistryDB.filter(a => a.category === 'equipment').length,
+        valid: allDocs.filter(d => d.status === 'valid').length,
+        expiring: allDocs.filter(d => d.status === 'expiring').length,
+        expired: allDocs.filter(d => d.status === 'expired').length
+    };
+}
+
+function syncAssetDocumentToGlobalRegistry(doc, asset) {
+    const enriched = enrichAssetDocument(doc);
+    const entityLabel = asset.category === 'vehicle'
+        ? `${asset.assetType} ${asset.plateNumber || asset.name}`
+        : `${asset.assetType} ${asset.name}`;
+    const existing = documentsDB.find(d => d.id === doc.id);
+    const record = {
+        id: doc.id,
+        type: doc.type,
+        entity: entityLabel,
+        trip: '—',
+        truck: asset.plateNumber || asset.name,
+        expiry: doc.expiryDate,
+        issued: doc.acquisitionDate,
+        status: enriched.status,
+        kpi: enriched.kpi,
+        label: enriched.label,
+        fileName: doc.fileName,
+        category: doc.type,
+        assetId: asset.id
+    };
+    if (existing) Object.assign(existing, record);
+    else documentsDB.push(record);
+}
+
+function generateAssetId() {
+    nextAssetId += 1;
+    return `AST-${String(nextAssetId).padStart(3, '0')}`;
+}
+
+function generateAssetDocumentId() {
+    nextAssetDocId += 1;
+    return nextAssetDocId;
+}
+
+function getFilteredAssetsRegistry() {
     const search = assetsSearchTerm || (document.getElementById('assetsSearchInput')?.value || '').trim();
     const status = assetsStatusFilter || document.getElementById('assetsStatusFilter')?.value || 'all';
-    let items = [...documentsDB];
-    if (status !== 'all') items = items.filter(d => d.status === status);
+    const category = assetsCategoryFilter || document.getElementById('assetsCategoryFilter')?.value || 'all';
+    let items = [...assetsRegistryDB];
+
+    if (category !== 'all') items = items.filter(a => a.category === category);
+    if (status !== 'all') items = items.filter(a => a.status === status);
     if (search) {
         const term = search.toLowerCase();
-        items = items.filter(d =>
-            d.type.toLowerCase().includes(term) ||
-            d.entity.toLowerCase().includes(term) ||
-            d.trip.toLowerCase().includes(term) ||
-            d.truck.toLowerCase().includes(term) ||
-            d.expiry.includes(term) ||
-            d.label.toLowerCase().includes(term) ||
-            d.status.toLowerCase().includes(term)
+        items = items.filter(a =>
+            a.id.toLowerCase().includes(term) ||
+            a.name.toLowerCase().includes(term) ||
+            a.assetType.toLowerCase().includes(term) ||
+            (a.plateNumber && a.plateNumber.toLowerCase().includes(term)) ||
+            (a.serialNumber && a.serialNumber.toLowerCase().includes(term)) ||
+            (a.make && a.make.toLowerCase().includes(term)) ||
+            (a.brand && a.brand.toLowerCase().includes(term)) ||
+            (a.model && a.model.toLowerCase().includes(term)) ||
+            (a.assignedDriver && a.assignedDriver.toLowerCase().includes(term)) ||
+            (a.assignedTo && a.assignedTo.toLowerCase().includes(term)) ||
+            (a.location && a.location.toLowerCase().includes(term)) ||
+            (a.documents || []).some(d =>
+                d.type.toLowerCase().includes(term) ||
+                d.fileName.toLowerCase().includes(term)
+            )
         );
     }
     return items;
 }
 
+function renderAssetDocumentsCell(asset) {
+    const summary = getAssetDocumentsSummary(asset);
+    if (!summary.count) return '<span class="text-muted">No documents</span>';
+    return `<span class="status-badge ${summary.worstKpi}">${summary.count} doc${summary.count !== 1 ? 's' : ''}</span><br><small style="color:var(--text-secondary);">${summary.nearestExpiry} · ${summary.worstLabel}</small>`;
+}
+
+function renderAssetsTableRows(items) {
+    if (!items.length) {
+        return '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text-secondary);">No assets or equipment match your search</td></tr>';
+    }
+    return items.map(a => `
+        <tr>
+            <td style="width:36px;text-align:center;">${renderListRowCheckbox('assets', a.id)}</td>
+            <td><strong>${a.id}</strong></td>
+            <td>${a.category === 'vehicle' ? '🚛 Vehicle' : '💻 Equipment'}</td>
+            <td>${a.assetType}</td>
+            <td><strong>${a.name}</strong><br><small style="color:var(--text-secondary);">${a.category === 'vehicle' ? (a.plateNumber || '—') : (a.serialNumber || '—')}</small></td>
+            <td>${a.category === 'vehicle' ? `${a.make || '—'} ${a.model || ''}`.trim() : `${a.brand || '—'} ${a.model || ''}`.trim()}</td>
+            <td>${a.category === 'vehicle' ? (a.assignedDriver || a.owner || '—') : (a.assignedTo || '—')}</td>
+            <td>${a.acquisitionDate || '—'}</td>
+            <td>${renderAssetDocumentsCell(a)}</td>
+            <td><span class="status-badge ${a.status === 'active' ? 'green' : a.status === 'maintenance' ? 'orange' : 'red'}">${formatAssetStatus(a.status)}</span></td>
+            <td>
+                <button class="btn btn-outline btn-sm" onclick="openAssetDetailModal('${a.id}')" title="View details">👁️</button>
+                <button class="btn btn-primary btn-sm" onclick="openAddAssetDocumentModal('${a.id}')" title="Add document">📄</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
 function renderAssetsTableRowsFiltered() {
-    const items = getFilteredAssets();
+    const items = getFilteredAssetsRegistry();
     const countEl = document.getElementById('assetsTableCount');
-    if (countEl) countEl.textContent = `${items.length} record${items.length !== 1 ? 's' : ''}`;
+    if (countEl) countEl.textContent = `${items.length} asset${items.length !== 1 ? 's' : ''}`;
+    updateListSelectionUI('assets');
     return renderAssetsTableRows(items);
 }
 
 function refreshAssetsTable() {
     assetsSearchTerm = document.getElementById('assetsSearchInput')?.value || '';
     assetsStatusFilter = document.getElementById('assetsStatusFilter')?.value || 'all';
+    assetsCategoryFilter = document.getElementById('assetsCategoryFilter')?.value || 'all';
     const body = document.getElementById('assetsTableBody');
     if (body) body.innerHTML = renderAssetsTableRowsFiltered();
 }
@@ -2429,15 +2639,234 @@ function refreshAssetsTable() {
 function clearAssetsFilters() {
     assetsSearchTerm = '';
     assetsStatusFilter = 'all';
+    assetsCategoryFilter = 'all';
     const search = document.getElementById('assetsSearchInput');
     const status = document.getElementById('assetsStatusFilter');
+    const category = document.getElementById('assetsCategoryFilter');
     if (search) search.value = '';
     if (status) status.value = 'all';
+    if (category) category.value = 'all';
     refreshAssetsTable();
 }
 
+function populateAssetDocumentAssetSelect(selectedId) {
+    const select = document.getElementById('assetDocAssetSelect');
+    if (!select) return;
+    select.innerHTML = assetsRegistryDB.map(a => `
+        <option value="${a.id}" ${a.id === selectedId ? 'selected' : ''}>${a.id} — ${a.name} (${a.assetType})</option>
+    `).join('');
+}
+
+function openAddVehicleModal() {
+    document.getElementById('vehicleForm').reset();
+    document.getElementById('vehicleAcquisitionDate').value = new Date().toISOString().slice(0, 10);
+    openModal('assetVehicleModal');
+}
+
+function openAddEquipmentModal() {
+    document.getElementById('equipmentForm').reset();
+    document.getElementById('equipmentAcquisitionDate').value = new Date().toISOString().slice(0, 10);
+    openModal('assetEquipmentModal');
+}
+
+function openAddAssetDocumentModal(assetId) {
+    populateAssetDocumentAssetSelect(assetId || assetsRegistryDB[0]?.id);
+    document.getElementById('assetDocumentForm').reset();
+    if (assetId) document.getElementById('assetDocAssetSelect').value = assetId;
+    document.getElementById('assetDocAcquisitionDate').value = new Date().toISOString().slice(0, 10);
+    const expiry = new Date();
+    expiry.setFullYear(expiry.getFullYear() + 1);
+    document.getElementById('assetDocExpiryDate').value = expiry.toISOString().slice(0, 10);
+    openModal('assetDocumentModal');
+}
+
+function submitAddVehicle() {
+    const plate = document.getElementById('vehiclePlate').value.trim();
+    const make = document.getElementById('vehicleMake').value.trim();
+    const model = document.getElementById('vehicleModel').value.trim();
+    if (!plate || !make || !model) {
+        showToast('Plate number, make, and model are required', 'warning');
+        return;
+    }
+    const asset = {
+        id: generateAssetId(),
+        category: 'vehicle',
+        assetType: document.getElementById('vehicleType').value,
+        name: plate,
+        status: document.getElementById('vehicleStatus').value,
+        acquisitionDate: document.getElementById('vehicleAcquisitionDate').value,
+        plateNumber: plate,
+        vin: document.getElementById('vehicleVin').value.trim(),
+        make,
+        model,
+        year: document.getElementById('vehicleYear').value || '',
+        engineNumber: document.getElementById('vehicleEngine').value.trim(),
+        fuelType: document.getElementById('vehicleFuel').value,
+        grossWeight: document.getElementById('vehicleGrossWeight').value.trim(),
+        axleConfig: document.getElementById('vehicleAxle').value.trim(),
+        trailerPlate: document.getElementById('vehicleTrailerPlate').value.trim(),
+        odometer: document.getElementById('vehicleOdometer').value.trim(),
+        color: document.getElementById('vehicleColor').value.trim(),
+        assignedDriver: document.getElementById('vehicleDriver').value.trim(),
+        owner: document.getElementById('vehicleOwner').value.trim(),
+        location: document.getElementById('vehicleLocation').value.trim(),
+        notes: document.getElementById('vehicleNotes').value.trim(),
+        documents: []
+    };
+    assetsRegistryDB.unshift(asset);
+    closeModal('assetVehicleModal');
+    if (currentPage === 'assets') refreshAssetsTable();
+    else navigateTo('assets');
+    showToast(`Vehicle ${plate} added to registry`, 'success');
+}
+
+function submitAddEquipment() {
+    const name = document.getElementById('equipmentName').value.trim();
+    const brand = document.getElementById('equipmentBrand').value.trim();
+    const model = document.getElementById('equipmentModel').value.trim();
+    if (!name || !brand || !model) {
+        showToast('Asset name, brand, and model are required', 'warning');
+        return;
+    }
+    const asset = {
+        id: generateAssetId(),
+        category: 'equipment',
+        assetType: document.getElementById('equipmentType').value,
+        name,
+        status: document.getElementById('equipmentStatus').value,
+        acquisitionDate: document.getElementById('equipmentAcquisitionDate').value,
+        serialNumber: document.getElementById('equipmentSerial').value.trim(),
+        brand,
+        model,
+        assignedTo: document.getElementById('equipmentAssignedTo').value.trim(),
+        department: document.getElementById('equipmentDepartment').value.trim(),
+        location: document.getElementById('equipmentLocation').value.trim(),
+        imei: document.getElementById('equipmentImei').value.trim(),
+        notes: document.getElementById('equipmentNotes').value.trim(),
+        documents: []
+    };
+    assetsRegistryDB.unshift(asset);
+    closeModal('assetEquipmentModal');
+    if (currentPage === 'assets') refreshAssetsTable();
+    else navigateTo('assets');
+    showToast(`${asset.assetType} ${name} added to registry`, 'success');
+}
+
+function submitAddAssetDocument() {
+    const assetId = document.getElementById('assetDocAssetSelect').value;
+    const asset = getAssetById(assetId);
+    if (!asset) {
+        showToast('Please select a valid asset', 'warning');
+        return;
+    }
+    const type = document.getElementById('assetDocType').value.trim();
+    const fileName = document.getElementById('assetDocFileName').value.trim();
+    const acquisitionDate = document.getElementById('assetDocAcquisitionDate').value;
+    const expiryDate = document.getElementById('assetDocExpiryDate').value;
+    if (!type || !fileName || !acquisitionDate || !expiryDate) {
+        showToast('Document type, file name, acquisition date, and expiry date are required', 'warning');
+        return;
+    }
+    if (new Date(expiryDate) < new Date(acquisitionDate)) {
+        showToast('Expiry date must be on or after acquisition date', 'warning');
+        return;
+    }
+    const doc = {
+        id: generateAssetDocumentId(),
+        type,
+        fileName,
+        acquisitionDate,
+        expiryDate,
+        notes: document.getElementById('assetDocNotes').value.trim()
+    };
+    if (!asset.documents) asset.documents = [];
+    asset.documents.push(doc);
+    syncAssetDocumentToGlobalRegistry(doc, asset);
+    closeModal('assetDocumentModal');
+    if (currentPage === 'assets') refreshAssetsTable();
+    showToast(`Document added to ${asset.name}`, 'success');
+}
+
+function renderAssetDetailContent(asset) {
+    const docs = (asset.documents || []).map(enrichAssetDocument);
+    const vehicleSpecs = asset.category === 'vehicle' ? `
+        <div class="asset-spec-grid">
+            <div><span class="spec-label">Plate Number</span><strong>${asset.plateNumber || '—'}</strong></div>
+            <div><span class="spec-label">VIN</span><strong>${asset.vin || '—'}</strong></div>
+            <div><span class="spec-label">Make / Model</span><strong>${asset.make || '—'} ${asset.model || ''}</strong></div>
+            <div><span class="spec-label">Year</span><strong>${asset.year || '—'}</strong></div>
+            <div><span class="spec-label">Engine No.</span><strong>${asset.engineNumber || '—'}</strong></div>
+            <div><span class="spec-label">Fuel Type</span><strong>${asset.fuelType || '—'}</strong></div>
+            <div><span class="spec-label">Gross Weight</span><strong>${asset.grossWeight || '—'}</strong></div>
+            <div><span class="spec-label">Axle Config</span><strong>${asset.axleConfig || '—'}</strong></div>
+            <div><span class="spec-label">Trailer Plate</span><strong>${asset.trailerPlate || '—'}</strong></div>
+            <div><span class="spec-label">Odometer</span><strong>${asset.odometer || '—'}</strong></div>
+            <div><span class="spec-label">Color</span><strong>${asset.color || '—'}</strong></div>
+            <div><span class="spec-label">Assigned Driver</span><strong>${asset.assignedDriver || '—'}</strong></div>
+            <div><span class="spec-label">Owner</span><strong>${asset.owner || '—'}</strong></div>
+        </div>
+    ` : `
+        <div class="asset-spec-grid">
+            <div><span class="spec-label">Serial Number</span><strong>${asset.serialNumber || '—'}</strong></div>
+            <div><span class="spec-label">Brand / Model</span><strong>${asset.brand || '—'} ${asset.model || ''}</strong></div>
+            <div><span class="spec-label">IMEI</span><strong>${asset.imei || '—'}</strong></div>
+            <div><span class="spec-label">Assigned To</span><strong>${asset.assignedTo || '—'}</strong></div>
+            <div><span class="spec-label">Department</span><strong>${asset.department || '—'}</strong></div>
+        </div>
+    `;
+
+    return `
+        <div class="asset-detail-header">
+            <div>
+                <h4 style="margin:0 0 4px;">${asset.name}</h4>
+                <div style="color:var(--text-secondary);font-size:13px;">${asset.id} · ${asset.assetType} · Acquired ${asset.acquisitionDate || '—'}</div>
+            </div>
+            <span class="status-badge ${asset.status === 'active' ? 'green' : asset.status === 'maintenance' ? 'orange' : 'red'}">${formatAssetStatus(asset.status)}</span>
+        </div>
+        <div style="margin:16px 0 8px;font-weight:600;">Specifications</div>
+        ${vehicleSpecs}
+        <div style="margin:8px 0;"><span class="spec-label">Location</span> <strong>${asset.location || '—'}</strong></div>
+        ${asset.notes ? `<div style="margin-top:8px;padding:10px;background:#f7fafc;border-radius:8px;font-size:13px;"><strong>Notes:</strong> ${asset.notes}</div>` : ''}
+        <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 10px;">
+            <div style="font-weight:600;">Documents (${docs.length})</div>
+            <button type="button" class="btn btn-primary btn-sm" onclick="closeModal('assetDetailModal'); openAddAssetDocumentModal('${asset.id}')">+ Add Document</button>
+        </div>
+        ${docs.length ? `
+            <table style="width:100%;font-size:13px;">
+                <thead><tr style="background:#f7fafc;">
+                    <th style="padding:8px;text-align:left;">Type</th>
+                    <th style="padding:8px;text-align:left;">File</th>
+                    <th style="padding:8px;text-align:left;">Acquired</th>
+                    <th style="padding:8px;text-align:left;">Expires</th>
+                    <th style="padding:8px;text-align:left;">Status</th>
+                </tr></thead>
+                <tbody>
+                    ${docs.map(d => `
+                        <tr>
+                            <td style="padding:8px;">${d.type}</td>
+                            <td style="padding:8px;">${d.fileName}</td>
+                            <td style="padding:8px;">${d.acquisitionDate}</td>
+                            <td style="padding:8px;">${d.expiryDate}</td>
+                            <td style="padding:8px;"><span class="status-badge ${d.kpi}">${d.label}</span></td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        ` : '<p style="color:var(--text-secondary);font-size:13px;">No documents attached yet.</p>'}
+    `;
+}
+
+function openAssetDetailModal(assetId) {
+    const asset = getAssetById(assetId);
+    if (!asset) return;
+    document.getElementById('assetDetailTitle').textContent = `${asset.category === 'vehicle' ? '🚛' : '💻'} ${asset.name} — Details`;
+    document.getElementById('assetDetailBody').innerHTML = renderAssetDetailContent(asset);
+    openModal('assetDetailModal');
+}
+
 function renderAssets(container) {
-    const items = getFilteredAssets();
+    const items = getFilteredAssetsRegistry();
+    const stats = getAssetRegistryStats();
     container.innerHTML = `
         <div class="page-header">
             <h1>🚗 Assets & Equipment</h1>
@@ -2445,32 +2874,46 @@ function renderAssets(container) {
         </div>
         ${renderKpiTargetsBanner('equipment')}
         <div class="kpi-grid">
-            <div class="kpi-card green" onclick="navigateToDocuments('valid')"><div class="kpi-header"><span class="kpi-title">Valid Documents</span></div><div class="kpi-value">${documentsDB.filter(d => d.status === 'valid').length}</div></div>
-            <div class="kpi-card orange" onclick="navigateToDocuments('expiring')"><div class="kpi-header"><span class="kpi-title">Expiring Soon</span></div><div class="kpi-value">${documentsDB.filter(d => d.status === 'expiring').length}</div></div>
-            <div class="kpi-card red" onclick="navigateToDocuments('expired')"><div class="kpi-header"><span class="kpi-title">Expired</span></div><div class="kpi-value">${documentsDB.filter(d => d.status === 'expired').length}</div></div>
+            <div class="kpi-card green"><div class="kpi-header"><span class="kpi-title">🚛 Vehicles</span></div><div class="kpi-value">${stats.vehicles}</div></div>
+            <div class="kpi-card blue"><div class="kpi-header"><span class="kpi-title">💻 Equipment</span></div><div class="kpi-value">${stats.equipment}</div></div>
+            <div class="kpi-card green" onclick="navigateToDocuments('valid')"><div class="kpi-header"><span class="kpi-title">Valid Documents</span></div><div class="kpi-value">${stats.valid}</div></div>
+            <div class="kpi-card orange" onclick="navigateToDocuments('expiring')"><div class="kpi-header"><span class="kpi-title">Expiring Soon</span></div><div class="kpi-value">${stats.expiring}</div></div>
+            <div class="kpi-card red" onclick="navigateToDocuments('expired')"><div class="kpi-header"><span class="kpi-title">Expired</span></div><div class="kpi-value">${stats.expired}</div></div>
+        </div>
+
+        <div class="assets-action-bar">
+            <button class="btn btn-primary" onclick="openAddVehicleModal()">🚛 Add Vehicle</button>
+            <button class="btn btn-primary" onclick="openAddEquipmentModal()">💻 Add Equipment</button>
+            <button class="btn btn-outline" onclick="openAddAssetDocumentModal()">📄 Add Document</button>
         </div>
 
         <div class="filters-bar">
-            <div class="filter-group"><label>Status:</label><select id="assetsStatusFilter" onchange="refreshAssetsTable()"><option value="all"${assetsStatusFilter === 'all' ? ' selected' : ''}>All</option><option value="valid"${assetsStatusFilter === 'valid' ? ' selected' : ''}>🟢 Valid</option><option value="expiring"${assetsStatusFilter === 'expiring' ? ' selected' : ''}>🟠 Expiring Soon</option><option value="expired"${assetsStatusFilter === 'expired' ? ' selected' : ''}>🔴 Expired</option></select></div>
+            <div class="filter-group"><label>Category:</label><select id="assetsCategoryFilter" onchange="refreshAssetsTable()"><option value="all"${assetsCategoryFilter === 'all' ? ' selected' : ''}>All</option><option value="vehicle"${assetsCategoryFilter === 'vehicle' ? ' selected' : ''}>🚛 Vehicles</option><option value="equipment"${assetsCategoryFilter === 'equipment' ? ' selected' : ''}>💻 Equipment</option></select></div>
+            <div class="filter-group"><label>Status:</label><select id="assetsStatusFilter" onchange="refreshAssetsTable()"><option value="all"${assetsStatusFilter === 'all' ? ' selected' : ''}>All</option><option value="active"${assetsStatusFilter === 'active' ? ' selected' : ''}>Active</option><option value="maintenance"${assetsStatusFilter === 'maintenance' ? ' selected' : ''}>Maintenance</option><option value="retired"${assetsStatusFilter === 'retired' ? ' selected' : ''}>Retired</option></select></div>
             <div class="search-filter" style="flex:2;">
                 <span>🔍</span>
-                <input type="text" id="assetsSearchInput" placeholder="Search by type, entity, trip, truck, expiry..." value="${assetsSearchTerm}" onkeyup="refreshAssetsTable()">
+                <input type="text" id="assetsSearchInput" placeholder="Search by ID, plate, serial, make, model, assigned to..." value="${assetsSearchTerm}" onkeyup="refreshAssetsTable()">
             </div>
             <button class="btn btn-outline btn-sm" onclick="clearAssetsFilters()">Clear</button>
         </div>
 
         <div class="table-container">
             <div class="table-header">
-                <h3>Equipment & Document Registry</h3>
-                <div style="display:flex;align-items:center;gap:12px;">
-                    <span id="assetsTableCount" style="color:var(--text-secondary);">${items.length} record${items.length !== 1 ? 's' : ''}</span>
-                    <button class="btn btn-primary btn-sm" onclick="navigateToDocuments('all')">View All Documents</button>
+                <h3>Assets & Equipment Registry</h3>
+                <div class="table-header-actions">
+                    <span id="assetsTableCount" style="color:var(--text-secondary);">${items.length} asset${items.length !== 1 ? 's' : ''}</span>
+                    ${renderExportToolbar('assets')}
                 </div>
             </div>
-            <table>
-                <thead><tr><th>Type</th><th>Entity</th><th>Trip</th><th>Truck</th><th>Expiry</th><th>Status</th><th>Actions</th></tr></thead>
-                <tbody id="assetsTableBody">${renderAssetsTableRowsFiltered()}</tbody>
-            </table>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead><tr>
+                        <th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all assets" onchange="toggleAllListRows('assets', this.checked)"></th>
+                        <th>Asset ID</th><th>Category</th><th>Type</th><th>Name / ID No.</th><th>Make / Brand</th><th>Assigned To</th><th>Acquired</th><th>Documents</th><th>Status</th><th>Actions</th>
+                    </tr></thead>
+                    <tbody id="assetsTableBody">${renderAssetsTableRowsFiltered()}</tbody>
+                </table>
+            </div>
         </div>
         <button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">⬅️ Back to Dashboard</button>
     `;
@@ -2734,6 +3177,7 @@ function showToast(message,type='success'){ const toast=document.getElementById(
 // INIT
 // ============================================
 document.addEventListener('DOMContentLoaded',function(){
+    syncAllAssetDocumentsToGlobalRegistry();
     navigateTo('dashboard');
     document.querySelectorAll('.modal-overlay').forEach(overlay=>{ overlay.addEventListener('click',function(e){ if(e.target===this)this.classList.remove('show'); }); });
     document.addEventListener('click',function(event){ const ap=document.getElementById('alertPanel'); const nb=document.querySelector('.notification-btn'); if(ap&&nb&&!ap.contains(event.target)&&!nb.contains(event.target)&&ap.classList.contains('show'))ap.classList.remove('show'); });

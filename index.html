@@ -920,6 +920,7 @@
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 2000; }
         .modal-overlay.show { display: flex; }
         .modal { background: white; border-radius: 12px; width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+        .modal.modal-lg { max-width: 920px; }
         .modal-header { padding: 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: white; z-index: 1; }
         .modal-body { padding: 20px; }
         .modal-footer { padding: 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; position: sticky; bottom: 0; background: white; }
@@ -948,6 +949,43 @@
         .form-control:focus { outline: none; border-color: var(--primary-light); box-shadow: 0 0 0 3px rgba(43,108,176,0.1); }
         select.form-control { background: white; }
         textarea.form-control { resize: vertical; }
+        .form-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0 16px;
+        }
+        @media (max-width: 700px) {
+            .form-grid-2 { grid-template-columns: 1fr; }
+        }
+        .assets-action-bar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .asset-spec-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .asset-spec-grid .spec-label,
+        .spec-label {
+            display: block;
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin-bottom: 2px;
+        }
+        .asset-detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
 
         .file-upload-area { border: 2px dashed var(--border); border-radius: 8px; padding: 25px; text-align: center; cursor: pointer; transition: all 0.2s; background: #fafbfc; }
         .file-upload-area:hover { border-color: var(--primary-light); background: #f7fafc; }
@@ -1271,6 +1309,94 @@
                 <div class="form-group"><label>Select Excel File <span class="required">*</span></label><input type="file" class="form-control" accept=".xlsx,.xls,.csv"></div>
             </div>
             <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('uploadModal')">Cancel</button><button class="btn btn-primary" onclick="handleUpload()">📤 Upload</button></div>
+        </div>
+    </div>
+
+    <!-- ADD VEHICLE MODAL -->
+    <div class="modal-overlay" id="assetVehicleModal">
+        <div class="modal modal-lg">
+            <div class="modal-header"><h3>🚛 Add New Vehicle</h3><button class="btn btn-outline" onclick="closeModal('assetVehicleModal')">✕</button></div>
+            <div class="modal-body">
+                <form id="vehicleForm" onsubmit="event.preventDefault(); submitAddVehicle();">
+                    <div class="form-grid-2">
+                        <div class="form-group"><label>Vehicle Type <span class="required">*</span></label><select class="form-control" id="vehicleType"><option>Truck</option><option>Trailer</option><option>Horse</option><option>Light Vehicle</option></select></div>
+                        <div class="form-group"><label>Plate Number <span class="required">*</span></label><input type="text" class="form-control" id="vehiclePlate" placeholder="e.g. ZAM-4567" required></div>
+                        <div class="form-group"><label>Make <span class="required">*</span></label><input type="text" class="form-control" id="vehicleMake" placeholder="e.g. Volvo" required></div>
+                        <div class="form-group"><label>Model <span class="required">*</span></label><input type="text" class="form-control" id="vehicleModel" placeholder="e.g. FH16" required></div>
+                        <div class="form-group"><label>Year</label><input type="number" class="form-control" id="vehicleYear" min="1990" max="2030" placeholder="2022"></div>
+                        <div class="form-group"><label>VIN / Chassis No.</label><input type="text" class="form-control" id="vehicleVin" placeholder="Vehicle identification number"></div>
+                        <div class="form-group"><label>Engine Number</label><input type="text" class="form-control" id="vehicleEngine"></div>
+                        <div class="form-group"><label>Fuel Type</label><select class="form-control" id="vehicleFuel"><option>Diesel</option><option>Petrol</option><option>Electric</option><option>Hybrid</option><option>LPG</option></select></div>
+                        <div class="form-group"><label>Gross Weight</label><input type="text" class="form-control" id="vehicleGrossWeight" placeholder="e.g. 56,000 kg"></div>
+                        <div class="form-group"><label>Axle Configuration</label><input type="text" class="form-control" id="vehicleAxle" placeholder="e.g. 6x4"></div>
+                        <div class="form-group"><label>Trailer Plate</label><input type="text" class="form-control" id="vehicleTrailerPlate" placeholder="Linked trailer plate"></div>
+                        <div class="form-group"><label>Odometer</label><input type="text" class="form-control" id="vehicleOdometer" placeholder="e.g. 245,000 km"></div>
+                        <div class="form-group"><label>Color</label><input type="text" class="form-control" id="vehicleColor"></div>
+                        <div class="form-group"><label>Assigned Driver</label><input type="text" class="form-control" id="vehicleDriver"></div>
+                        <div class="form-group"><label>Owner / Company</label><input type="text" class="form-control" id="vehicleOwner"></div>
+                        <div class="form-group"><label>Location</label><input type="text" class="form-control" id="vehicleLocation" placeholder="e.g. Kasumbalesa"></div>
+                        <div class="form-group"><label>Acquisition Date</label><input type="date" class="form-control" id="vehicleAcquisitionDate"></div>
+                        <div class="form-group"><label>Status</label><select class="form-control" id="vehicleStatus"><option value="active">Active</option><option value="maintenance">Maintenance</option><option value="retired">Retired</option><option value="lost">Lost / Stolen</option></select></div>
+                    </div>
+                    <div class="form-group"><label>Notes</label><textarea class="form-control" id="vehicleNotes" rows="2" placeholder="Additional vehicle details..."></textarea></div>
+                </form>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('assetVehicleModal')">Cancel</button><button class="btn btn-primary" onclick="submitAddVehicle()">💾 Save Vehicle</button></div>
+        </div>
+    </div>
+
+    <!-- ADD EQUIPMENT MODAL -->
+    <div class="modal-overlay" id="assetEquipmentModal">
+        <div class="modal modal-lg">
+            <div class="modal-header"><h3>💻 Add New Equipment</h3><button class="btn btn-outline" onclick="closeModal('assetEquipmentModal')">✕</button></div>
+            <div class="modal-body">
+                <form id="equipmentForm" onsubmit="event.preventDefault(); submitAddEquipment();">
+                    <div class="form-grid-2">
+                        <div class="form-group"><label>Equipment Type <span class="required">*</span></label><select class="form-control" id="equipmentType"><option>Computer</option><option>Laptop</option><option>Cellphone</option><option>Tablet</option><option>Printer</option><option>Scanner</option><option>Radio</option><option>GPS Device</option><option>Other</option></select></div>
+                        <div class="form-group"><label>Asset Name / Tag <span class="required">*</span></label><input type="text" class="form-control" id="equipmentName" placeholder="e.g. OPS-LAPTOP-01" required></div>
+                        <div class="form-group"><label>Brand <span class="required">*</span></label><input type="text" class="form-control" id="equipmentBrand" placeholder="e.g. Dell" required></div>
+                        <div class="form-group"><label>Model <span class="required">*</span></label><input type="text" class="form-control" id="equipmentModel" placeholder="e.g. Latitude 5540" required></div>
+                        <div class="form-group"><label>Serial Number</label><input type="text" class="form-control" id="equipmentSerial"></div>
+                        <div class="form-group"><label>IMEI (phones/tablets)</label><input type="text" class="form-control" id="equipmentImei"></div>
+                        <div class="form-group"><label>Assigned To</label><input type="text" class="form-control" id="equipmentAssignedTo" placeholder="Person or department"></div>
+                        <div class="form-group"><label>Department</label><input type="text" class="form-control" id="equipmentDepartment"></div>
+                        <div class="form-group"><label>Location</label><input type="text" class="form-control" id="equipmentLocation"></div>
+                        <div class="form-group"><label>Acquisition Date</label><input type="date" class="form-control" id="equipmentAcquisitionDate"></div>
+                        <div class="form-group"><label>Status</label><select class="form-control" id="equipmentStatus"><option value="active">Active</option><option value="maintenance">Maintenance</option><option value="retired">Retired</option><option value="lost">Lost / Stolen</option></select></div>
+                    </div>
+                    <div class="form-group"><label>Notes</label><textarea class="form-control" id="equipmentNotes" rows="2"></textarea></div>
+                </form>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('assetEquipmentModal')">Cancel</button><button class="btn btn-primary" onclick="submitAddEquipment()">💾 Save Equipment</button></div>
+        </div>
+    </div>
+
+    <!-- ADD ASSET DOCUMENT MODAL -->
+    <div class="modal-overlay" id="assetDocumentModal">
+        <div class="modal">
+            <div class="modal-header"><h3>📄 Add Document to Asset</h3><button class="btn btn-outline" onclick="closeModal('assetDocumentModal')">✕</button></div>
+            <div class="modal-body">
+                <form id="assetDocumentForm" onsubmit="event.preventDefault(); submitAddAssetDocument();">
+                    <div class="form-group"><label>Link to Asset <span class="required">*</span></label><select class="form-control" id="assetDocAssetSelect"></select></div>
+                    <div class="form-group"><label>Document Type <span class="required">*</span></label><input type="text" class="form-control" id="assetDocType" list="assetDocTypeList" placeholder="e.g. Insurance, Warranty, Road Tax"><datalist id="assetDocTypeList"><option value="Insurance"><option value="Road Tax"><option value="Fitness Certificate"><option value="Vignette"><option value="Warranty"><option value="Software Licence"><option value="Device Insurance"><option value="Registration"></datalist></div>
+                    <div class="form-group"><label>File Name <span class="required">*</span></label><input type="text" class="form-control" id="assetDocFileName" placeholder="e.g. Insurance_ZAM-4567.pdf"></div>
+                    <div class="form-grid-2">
+                        <div class="form-group"><label>Acquisition Date <span class="required">*</span></label><input type="date" class="form-control" id="assetDocAcquisitionDate"></div>
+                        <div class="form-group"><label>Expiry Date <span class="required">*</span></label><input type="date" class="form-control" id="assetDocExpiryDate"></div>
+                    </div>
+                    <div class="form-group"><label>Notes</label><textarea class="form-control" id="assetDocNotes" rows="2"></textarea></div>
+                </form>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('assetDocumentModal')">Cancel</button><button class="btn btn-primary" onclick="submitAddAssetDocument()">💾 Save Document</button></div>
+        </div>
+    </div>
+
+    <!-- ASSET DETAIL MODAL -->
+    <div class="modal-overlay" id="assetDetailModal">
+        <div class="modal modal-lg">
+            <div class="modal-header"><h3 id="assetDetailTitle">Asset Details</h3><button class="btn btn-outline" onclick="closeModal('assetDetailModal')">✕</button></div>
+            <div class="modal-body" id="assetDetailBody"></div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('assetDetailModal')">Close</button></div>
         </div>
     </div>
 
