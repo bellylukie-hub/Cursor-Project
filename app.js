@@ -37,6 +37,7 @@ let pendingAreaIds = [];
 let areaNbSearch = '';
 let areaSbSearch = '';
 let areaDropdownOpen = true;
+let areaSelectorHidden = false;
 
 const areasDB = [
     { id: 'kanyaka', name: 'Kanyaka', icon: '🏗️', offloadingPoints: ['Kanyaka', 'Kanyaka Depot', 'Kanyaka Mine'], loadingPoints: ['Kanyaka', 'Kanyaka Depot', 'Kanyaka Mine'] },
@@ -383,7 +384,8 @@ function navigateToAreaBrowser(areaIds) {
     pendingAreaIds = [...selectedAreaIds];
     areaNbSearch = '';
     areaSbSearch = '';
-    areaDropdownOpen = !(areaIds && areaIds.length);
+    areaSelectorHidden = !!(areaIds && areaIds.length);
+    areaDropdownOpen = !areaSelectorHidden;
     navigateTo('area-browser');
 }
 
@@ -443,6 +445,7 @@ function toggleAreaDropdown() {
 
 function openAreaDropdown() {
     pendingAreaIds = [...selectedAreaIds];
+    areaSelectorHidden = false;
     areaDropdownOpen = true;
     updateAreaDropdownUI();
 }
@@ -452,14 +455,22 @@ function closeAreaDropdown() {
     updateAreaDropdownUI();
 }
 
+function hideAreaSelectorAfterSubmit() {
+    areaSelectorHidden = true;
+    areaDropdownOpen = false;
+    updateAreaDropdownUI();
+}
+
 function updateAreaDropdownUI() {
+    const wrap = document.getElementById('areaDropdownWrap');
     const panel = document.getElementById('areaDropdownPanel');
     const summary = document.getElementById('areaSelectorSummary');
     const triggerLabel = document.getElementById('areaDropdownTriggerLabel');
     const chevron = document.getElementById('areaDropdownChevron');
 
+    if (wrap) wrap.classList.toggle('hidden', areaSelectorHidden);
     if (panel) panel.classList.toggle('open', areaDropdownOpen);
-    if (summary) summary.classList.toggle('hidden', areaDropdownOpen);
+    if (summary) summary.classList.toggle('hidden', !areaSelectorHidden);
     if (triggerLabel) triggerLabel.textContent = getAreaDropdownTriggerLabel();
     if (chevron) chevron.textContent = areaDropdownOpen ? '▲' : '▼';
 
@@ -605,7 +616,7 @@ function submitAreaSelection() {
         return;
     }
     selectedAreaIds = [...pendingAreaIds];
-    closeAreaDropdown();
+    hideAreaSelectorAfterSubmit();
     refreshAreaBrowserPanels();
     showToast(`Showing trucks for ${selectedAreaIds.length} area${selectedAreaIds.length !== 1 ? 's' : ''}`, 'success');
 }
@@ -636,7 +647,7 @@ function renderAreaBrowser(container) {
             </div>
         </div>
 
-        <div id="areaSelectorSummary" class="area-selector-summary${areaDropdownOpen ? ' hidden' : ''}">
+        <div id="areaSelectorSummary" class="area-selector-summary${areaSelectorHidden ? '' : ' hidden'}">
             <div>
                 <strong>📍 Selected Areas:</strong>
                 <span id="areaSelectorSummaryText">${selectedLabels.length ? selectedLabels.join(' · ') : 'No areas selected'}</span>
@@ -644,7 +655,7 @@ function renderAreaBrowser(container) {
             <button class="btn btn-outline btn-sm" onclick="expandAreaSelector()">Change Areas</button>
         </div>
 
-        <div class="area-dropdown-wrap">
+        <div id="areaDropdownWrap" class="area-dropdown-wrap${areaSelectorHidden ? ' hidden' : ''}">
             <button type="button" class="area-dropdown-trigger" onclick="toggleAreaDropdown()" aria-expanded="${areaDropdownOpen}">
                 <span class="area-dropdown-trigger-title">📍 Select Areas</span>
                 <span class="area-dropdown-trigger-value" id="areaDropdownTriggerLabel">${getAreaDropdownTriggerLabel()}</span>
@@ -671,7 +682,8 @@ function renderAreaBrowser(container) {
                 <div class="area-dropdown-footer">
                     <div class="area-filter-hint">
                         <strong>NB:</strong> Trucks shown by <em>offloading point</em>.<br>
-                        <strong>SB:</strong> Trucks shown if <em>in the area</em> or <em>loading point</em> matches.
+                        <strong>SB:</strong> Trucks shown if <em>in the area</em> or <em>loading point</em> matches.<br>
+                        <em>Dropdown auto-hides after you submit your area selection.</em>
                     </div>
                     <button type="button" class="btn btn-primary" onclick="submitAreaSelection()">✓ Submit Selection</button>
                 </div>
