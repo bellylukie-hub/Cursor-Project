@@ -106,7 +106,8 @@ app.post("/api/trips/:id/statuses", auth, (req, res) => {
   db.prepare("INSERT INTO status_events(trip_id,status,event_at,problem,person_contacted,action_taken,expected_at,notes,created_by) VALUES(?,?,?,?,?,?,?,?,?)").run(trip.id,v.status,at,v.problem||"",v.person_contacted||"",v.action_taken||"",v.expected_at||"",v.notes||"",req.user.id);
   const fields = [v.status === "POD sent to invoice team" ? "pod_completed_at=?" : null, v.status === "Exited to Zambia" ? "exit_zambia_at=?" : null].filter(Boolean);
   const complete = (trip.direction === "NB" && v.status === "POD sent to invoice team") || (trip.direction === "SB" && v.status === "Exited to Zambia");
-  db.prepare(`UPDATE trips SET current_status=?, ${fields.join(",")}${complete ? ", completed_at=?" : ""} WHERE id=?`).run(v.status, ...fields.map(() => at), ...(complete ? [at] : []), trip.id);
+  const assignments = ["current_status=?", ...fields, ...(complete ? ["completed_at=?"] : [])];
+  db.prepare(`UPDATE trips SET ${assignments.join(",")} WHERE id=?`).run(v.status, ...fields.map(() => at), ...(complete ? [at] : []), trip.id);
   audit(req, "STATUS_UPDATE", "trip", trip.id, v.status);
   res.json({ ok: true });
 });

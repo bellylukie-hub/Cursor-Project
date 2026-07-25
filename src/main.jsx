@@ -5,7 +5,7 @@ import "./styles.css";
 const API = "/api";
 const api = async (path, options = {}, token) => {
   const isForm = options.body instanceof FormData;
-  const r = await fetch(API + path, { ...options, headers: { ...(isForm ? {} : {"Content-Type":"application/json"}), ...(token ? {Authorization:`Bearer ${token}`} : {} } });
+  const r = await fetch(API + path, { ...options, headers: { ...(isForm ? {} : {"Content-Type":"application/json"}), ...(token ? {Authorization:`Bearer ${token}`} : {}) } });
   const data = r.headers.get("content-type")?.includes("application/json") ? await r.json() : r;
   if (!r.ok) throw new Error(data.error || "Request failed");
   return data;
