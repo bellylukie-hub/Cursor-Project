@@ -72,6 +72,8 @@ function filterTrips(direction, searchTerm) {
 function renderDashboard(container) {
     const nbTrips = filterTrips('NB', dashboardSearchTerm);
     const sbTrips = filterTrips('SB', dashboardSearchTerm);
+    const orangeCount = Object.values(tripsDB).filter(t => t.kpi === 'orange').length;
+    const redCount = Object.values(tripsDB).filter(t => t.kpi === 'red').length;
 
     container.innerHTML = `
         <div class="page-header">
@@ -79,26 +81,53 @@ function renderDashboard(container) {
             <div class="breadcrumb">Home / Dashboard / Overview</div>
         </div>
 
-        <div class="kpi-grid">
-            <div class="kpi-card blue">
-                <div class="kpi-header"><span class="kpi-title">Active NB Trucks</span><span class="kpi-icon">🚛</span></div>
-                <div class="kpi-value">${nbTrips.length}</div>
-                <div class="kpi-trend">Target: 14 days turnaround</div>
-            </div>
-            <div class="kpi-card blue">
-                <div class="kpi-header"><span class="kpi-title">Active SB Trucks</span><span class="kpi-icon">🚛</span></div>
-                <div class="kpi-value">${sbTrips.length}</div>
-                <div class="kpi-trend">Target: ≤8 days dispatch</div>
-            </div>
-            <div class="kpi-card orange">
-                <div class="kpi-header"><span class="kpi-title">Priority Alerts</span><span class="kpi-icon">⚠️</span></div>
-                <div class="kpi-value">${Object.values(tripsDB).filter(t=>t.kpi==='orange').length}</div>
-                <div class="kpi-trend negative">Requires attention</div>
-            </div>
-            <div class="kpi-card red">
-                <div class="kpi-header"><span class="kpi-title">Overdue Actions</span><span class="kpi-icon">🔴</span></div>
-                <div class="kpi-value">${Object.values(tripsDB).filter(t=>t.kpi==='red').length}</div>
-                <div class="kpi-trend negative">Immediate action required</div>
+        <div class="page-content">
+            <div class="page active" id="page-dashboard">
+                <div class="dashboard-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Trucks in DRC</div>
+                        <div class="stat-value">187</div>
+                        <span class="stat-change green"><i class="fas fa-arrow-up"></i> +12 today</span>
+                        <i class="fas fa-truck stat-icon"></i>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">NB Outstanding</div>
+                        <div class="stat-value">64</div>
+                        <span class="stat-change orange"><i class="fas fa-exclamation-triangle"></i> 12 at risk</span>
+                        <i class="fas fa-arrow-up stat-icon"></i>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">SB Outstanding</div>
+                        <div class="stat-value">52</div>
+                        <span class="stat-change green"><i class="fas fa-check"></i> 8 completed</span>
+                        <i class="fas fa-arrow-down stat-icon"></i>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">POD Pending</div>
+                        <div class="stat-value">31</div>
+                        <span class="stat-change red"><i class="fas fa-clock"></i> 6 overdue</span>
+                        <i class="fas fa-file-alt stat-icon"></i>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Orange Alerts</div>
+                        <div class="stat-value" style="color:var(--orange);">${orangeCount}</div>
+                        <span class="stat-change orange">Priority attention</span>
+                        <i class="fas fa-exclamation-circle stat-icon" style="color:var(--orange);"></i>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Red Alerts</div>
+                        <div class="stat-value" style="color:var(--red);">${redCount}</div>
+                        <span class="stat-change red">Escalated</span>
+                        <i class="fas fa-times-circle stat-icon" style="color:var(--red);"></i>
+                    </div>
+                </div>
+
+                <div class="kpi-row">
+                    <div class="kpi-mini"><div class="kpi-value green">86%</div><div class="kpi-label">NB On-Time</div></div>
+                    <div class="kpi-mini"><div class="kpi-value orange">72%</div><div class="kpi-label">SB On-Time</div></div>
+                    <div class="kpi-mini"><div class="kpi-value green">92%</div><div class="kpi-label">POD Collection</div></div>
+                    <div class="kpi-mini"><div class="kpi-value red">14d</div><div class="kpi-label">Avg Turnaround</div></div>
+                </div>
             </div>
         </div>
 
@@ -229,12 +258,6 @@ function refreshDashboard() {
     if (nbBody) nbBody.innerHTML = renderDashboardTableRows(nbTrips);
     if (sbBody) sbBody.innerHTML = renderDashboardTableRows(sbTrips);
     if (countEl) countEl.textContent = nbTrips.length + sbTrips.length;
-
-    const kpiCards = document.querySelectorAll('.kpi-card .kpi-value');
-    if (kpiCards.length >= 2) {
-        kpiCards[0].textContent = nbTrips.length;
-        kpiCards[1].textContent = sbTrips.length;
-    }
 }
 
 // ============================================
