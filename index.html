@@ -376,6 +376,93 @@
         }
         .border-tag.whisky { background: #f3effc; color: var(--whisky-color); }
 
+        /* POD PERFORMANCE */
+        .pod-stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .pod-stat-item {
+            background: white;
+            border-radius: 12px;
+            padding: 20px 16px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 2px solid transparent;
+        }
+        .pod-stat-item:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary-light);
+        }
+        .pod-stat-item .pod-stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 6px;
+        }
+        .pod-stat-item .pod-stat-value.green { color: var(--green); }
+        .pod-stat-item .pod-stat-value.orange { color: var(--orange); }
+        .pod-stat-item .pod-stat-value.red { color: var(--red); }
+        .pod-stat-item .pod-stat-value.blue { color: var(--primary-light); }
+        .pod-stat-item .pod-stat-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+        .pod-stat-item .pod-stat-sub {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        .pod-stat-item .pod-stat-icon {
+            font-size: 20px;
+            margin-bottom: 8px;
+            opacity: 0.7;
+        }
+        .stat-card-clickable { cursor: pointer; }
+        .stat-card-clickable:hover { border: 2px solid var(--primary-light); }
+        .kpi-mini-clickable { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+        .kpi-mini-clickable:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+        .pod-filter-tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .pod-filter-tab {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: white;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .pod-filter-tab:hover { border-color: var(--primary-light); background: #f7fafc; }
+        .pod-filter-tab.active {
+            background: var(--primary-light);
+            color: white;
+            border-color: var(--primary-light);
+        }
+        .pod-filter-tab .tab-count {
+            display: inline-block;
+            background: rgba(0,0,0,0.1);
+            padding: 1px 7px;
+            border-radius: 10px;
+            font-size: 11px;
+            margin-left: 4px;
+        }
+        .pod-filter-tab.active .tab-count { background: rgba(255,255,255,0.25); }
+        .pod-stage-icon { font-size: 16px; }
+        .pod-stage-icon.done { color: var(--green); }
+        .pod-stage-icon.pending { color: #cbd5e0; }
+        .pod-stage-icon.late { color: var(--red); }
+
         /* DASHBOARD SECTION HEADERS */
         .section-header {
             display: flex; justify-content: space-between; align-items: center;

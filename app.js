@@ -6,6 +6,22 @@ let currentCommentTrip = null;
 let selectedCommentType = 'normal';
 let uploadedFiles = [];
 let dashboardSearchTerm = '';
+let currentPODFilter = 'all';
+
+const podDB = [
+    { trip:'NB-2024-031', truck:'MNO012DRC', driver:'David Mukendi', area:'Kanyaka', offloadingPoint:'Kanyaka Depot', owner:'Transport Co A', collected:true, collectedOnTime:true, collectedDate:'2026-07-19 14:00', hoursToCollect:28, scanned:true, scannedDate:'2026-07-19 16:30', scannedBy:'Agent Mwila', uploaded:true, uploadedDate:'2026-07-20 09:00', sentToInvoicing:true, sentDate:'2026-07-21 10:00', kpi:'green' },
+    { trip:'NB-2024-015', truck:'XYZ789DRC', driver:'Sarah Smith', area:'Kolwezi', offloadingPoint:'Kolwezi Mine', owner:'Transport Co B', collected:false, collectedOnTime:false, collectedDate:null, hoursToCollect:null, scanned:false, scannedDate:null, scannedBy:null, uploaded:false, uploadedDate:null, sentToInvoicing:false, sentDate:null, kpi:'orange', overdue:true },
+    { trip:'NB-2024-022', truck:'GHI789DRC', driver:'Jean Pierre', area:'Lubumbashi', offloadingPoint:'Lubumbashi', owner:'Transport Co C', collected:false, collectedOnTime:false, collectedDate:null, hoursToCollect:null, scanned:false, scannedDate:null, scannedBy:null, uploaded:false, uploadedDate:null, sentToInvoicing:false, sentDate:null, kpi:'red', overdue:true },
+    { trip:'TR-1028', truck:'ZAM-4590', driver:'Peter Banda', area:'Kanyaka', offloadingPoint:'Kanyaka Depot', owner:'ZAM Logistics', collected:true, collectedOnTime:true, collectedDate:'2026-07-22 11:00', hoursToCollect:22, scanned:true, scannedDate:'2026-07-22 14:00', scannedBy:'Ruth Mwansa', uploaded:true, uploadedDate:'2026-07-23 08:00', sentToInvoicing:true, sentDate:'2026-07-23 15:00', kpi:'green' },
+    { trip:'TR-1031', truck:'ZAM-4612', driver:'Joseph Kabwe', area:'Likasi', offloadingPoint:'Likasi Mine', owner:'Copper Haul', collected:true, collectedOnTime:false, collectedDate:'2026-07-20 18:00', hoursToCollect:56, scanned:true, scannedDate:'2026-07-21 09:00', scannedBy:'Patrick Tshimanga', uploaded:true, uploadedDate:'2026-07-22 10:00', sentToInvoicing:false, sentDate:null, kpi:'orange' },
+    { trip:'TR-1045', truck:'ZAM-4650', driver:'Marie Mwamba', area:'Kolwezi', offloadingPoint:'KCC Mine', owner:'Mine Trans', collected:true, collectedOnTime:true, collectedDate:'2026-07-23 08:00', hoursToCollect:18, scanned:true, scannedDate:'2026-07-23 10:00', scannedBy:'Jean Kalenga', uploaded:false, uploadedDate:null, sentToInvoicing:false, sentDate:null, kpi:'orange' },
+    { trip:'TR-1052', truck:'ZAM-4678', driver:'Mike Johnson', area:'Kasumbalesa', offloadingPoint:'Kolwezi Mine', owner:'Transport Co A', collected:true, collectedOnTime:true, collectedDate:'2026-07-24 07:00', hoursToCollect:30, scanned:false, scannedDate:null, scannedBy:null, uploaded:false, uploadedDate:null, sentToInvoicing:false, sentDate:null, kpi:'orange' },
+    { trip:'TR-1058', truck:'ZAM-4690', driver:'Sarah Smith', area:'Lubumbashi', offloadingPoint:'Lubumbashi', owner:'Transport Co B', collected:true, collectedOnTime:true, collectedDate:'2026-07-24 12:00', hoursToCollect:36, scanned:true, scannedDate:'2026-07-24 15:00', scannedBy:'Inspector Kabwe', uploaded:true, uploadedDate:'2026-07-25 09:00', sentToInvoicing:false, sentDate:null, kpi:'green' },
+    { trip:'TR-1063', truck:'ZAM-4701', driver:'David Mukendi', area:'Kanyaka', offloadingPoint:'Kanyaka Depot', owner:'Transport Co A', collected:false, collectedOnTime:false, collectedDate:null, hoursToCollect:null, scanned:false, scannedDate:null, scannedBy:null, uploaded:false, uploadedDate:null, sentToInvoicing:false, sentDate:null, kpi:'orange', overdue:false },
+    { trip:'TR-1070', truck:'ZAM-4712', driver:'Jean Pierre', area:'Kolwezi', offloadingPoint:'Kolwezi Mine', owner:'Transport Co C', collected:true, collectedOnTime:true, collectedDate:'2026-07-21 16:00', hoursToCollect:40, scanned:true, scannedDate:'2026-07-22 08:00', scannedBy:'Officer Kalaba', uploaded:true, uploadedDate:'2026-07-22 14:00', sentToInvoicing:true, sentDate:'2026-07-23 09:00', kpi:'green' },
+    { trip:'TR-1075', truck:'ZAM-4720', driver:'Peter Mwansa', area:'Likasi', offloadingPoint:'Likasi Mine', owner:'Copper Haul', collected:true, collectedOnTime:true, collectedDate:'2026-07-22 10:00', hoursToCollect:24, scanned:true, scannedDate:'2026-07-22 13:00', scannedBy:'Agent Mwila', uploaded:false, uploadedDate:null, sentToInvoicing:false, sentDate:null, kpi:'orange' },
+    { trip:'TR-1080', truck:'ZAM-4733', driver:'Ruth Mwansa', area:'Kasumbalesa', offloadingPoint:'KCC Mine', owner:'Mine Trans', collected:false, collectedOnTime:false, collectedDate:null, hoursToCollect:null, scanned:false, scannedDate:null, scannedBy:null, uploaded:false, uploadedDate:null, sentToInvoicing:false, sentDate:null, kpi:'red', overdue:true }
+];
 
 const borderPerformanceData = {
     NB: {
@@ -78,13 +94,64 @@ function navigateTo(page) {
         case 'kasumbalesa-whisky': renderKasumbalesaWhisky(ca); break;
         case 'sakania': renderBorderDetail(ca,'Sakania'); break;
         case 'mokambo': renderBorderDetail(ca,'Mokambo'); break;
-        case 'pod-management': renderPODManagement(ca); break;
+        case 'pod-management':
+            if (page === 'pod-management' && currentPage !== 'pod-management') {
+                currentPODFilter = 'all';
+            }
+            renderPODManagement(ca);
+            break;
         case 'kanyaka': renderAreaPage(ca,'Kanyaka'); break;
         case 'kolwezi': renderAreaPage(ca,'Kolwezi'); break;
         case 'runner-fees': renderRunnerFees(ca); break;
         case 'reports': renderReports(ca); break;
         default: renderDashboard(ca);
     }
+}
+
+function navigateToPOD(filter) {
+    currentPODFilter = filter || 'all';
+    navigateTo('pod-management');
+}
+
+function getPODStats() {
+    const items = podDB;
+    return {
+        total: items.length,
+        collectedOnTime: items.filter(p => p.collected && p.collectedOnTime).length,
+        collectedLate: items.filter(p => p.collected && !p.collectedOnTime).length,
+        scanned: items.filter(p => p.scanned).length,
+        uploaded: items.filter(p => p.uploaded).length,
+        sentInvoicing: items.filter(p => p.sentToInvoicing).length,
+        pending: items.filter(p => !p.collected).length,
+        overdue: items.filter(p => p.overdue).length
+    };
+}
+
+function filterPODItems(filter) {
+    switch (filter) {
+        case 'collected-on-time': return podDB.filter(p => p.collected && p.collectedOnTime);
+        case 'collected-late': return podDB.filter(p => p.collected && !p.collectedOnTime);
+        case 'scanned': return podDB.filter(p => p.scanned);
+        case 'uploaded': return podDB.filter(p => p.uploaded);
+        case 'sent-invoicing': return podDB.filter(p => p.sentToInvoicing);
+        case 'pending': return podDB.filter(p => !p.collected);
+        case 'overdue': return podDB.filter(p => p.overdue);
+        default: return podDB;
+    }
+}
+
+function getPODFilterLabel(filter) {
+    const labels = {
+        all: 'All POD Items',
+        'collected-on-time': 'Collected On-Time (≤48h)',
+        'collected-late': 'Collected Late (>48h)',
+        scanned: 'Scanned PODs',
+        uploaded: 'Uploaded PODs',
+        'sent-invoicing': 'Sent to POD Mgmt & Invoicing',
+        pending: 'Pending Collection',
+        overdue: 'Overdue PODs'
+    };
+    return labels[filter] || 'All POD Items';
 }
 
 // ============================================
@@ -199,7 +266,56 @@ function renderBorderPerformanceCard(direction, data) {
     `;
 }
 
+function renderPODDashboardSection() {
+    const s = getPODStats();
+    return `
+        <div class="section-title-bar">
+            <h2><i class="fas fa-file-signature"></i> POD Performance</h2>
+            <button class="card-action" onclick="navigateToPOD('all')">POD Management →</button>
+        </div>
+        <div class="pod-stat-grid">
+            <div class="pod-stat-item" onclick="navigateToPOD('collected-on-time')" title="View collected on-time list">
+                <div class="pod-stat-icon">✅</div>
+                <div class="pod-stat-value green">${s.collectedOnTime}</div>
+                <div class="pod-stat-label">Collected On-Time</div>
+                <div class="pod-stat-sub">Target: ≤48 hours</div>
+            </div>
+            <div class="pod-stat-item" onclick="navigateToPOD('scanned')" title="View scanned POD list">
+                <div class="pod-stat-icon">🔍</div>
+                <div class="pod-stat-value blue">${s.scanned}</div>
+                <div class="pod-stat-label">Scanned</div>
+                <div class="pod-stat-sub">${s.collectedLate} collected late</div>
+            </div>
+            <div class="pod-stat-item" onclick="navigateToPOD('uploaded')" title="View uploaded POD list">
+                <div class="pod-stat-icon">📤</div>
+                <div class="pod-stat-value blue">${s.uploaded}</div>
+                <div class="pod-stat-label">Uploaded</div>
+                <div class="pod-stat-sub">Documents in system</div>
+            </div>
+            <div class="pod-stat-item" onclick="navigateToPOD('sent-invoicing')" title="View sent to invoicing list">
+                <div class="pod-stat-icon">📨</div>
+                <div class="pod-stat-value green">${s.sentInvoicing}</div>
+                <div class="pod-stat-label">Sent to Invoicing</div>
+                <div class="pod-stat-sub">POD Mgmt & Invoicing team</div>
+            </div>
+            <div class="pod-stat-item" onclick="navigateToPOD('pending')" title="View pending collection list">
+                <div class="pod-stat-icon">⏳</div>
+                <div class="pod-stat-value orange">${s.pending}</div>
+                <div class="pod-stat-label">Pending Collection</div>
+                <div class="pod-stat-sub">Awaiting POD pickup</div>
+            </div>
+            <div class="pod-stat-item" onclick="navigateToPOD('overdue')" title="View overdue POD list">
+                <div class="pod-stat-icon">🔴</div>
+                <div class="pod-stat-value red">${s.overdue}</div>
+                <div class="pod-stat-label">Overdue</div>
+                <div class="pod-stat-sub">Action required</div>
+            </div>
+        </div>
+    `;
+}
+
 function renderDashboard(container) {
+    const podStats = getPODStats();
     container.innerHTML = `
         <div class="page-header">
             <h1>📊 Operations Dashboard</h1>
@@ -227,10 +343,10 @@ function renderDashboard(container) {
                         <span class="stat-change green"><i class="fas fa-check"></i> 8 completed</span>
                         <i class="fas fa-arrow-down stat-icon"></i>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card stat-card-clickable" onclick="navigateToPOD('pending')" title="View pending POD list">
                         <div class="stat-label">POD Pending</div>
-                        <div class="stat-value">31</div>
-                        <span class="stat-change red"><i class="fas fa-clock"></i> 6 overdue</span>
+                        <div class="stat-value">${podStats.pending}</div>
+                        <span class="stat-change red"><i class="fas fa-clock"></i> ${podStats.overdue} overdue</span>
                         <i class="fas fa-file-alt stat-icon"></i>
                     </div>
                     <div class="stat-card">
@@ -250,7 +366,10 @@ function renderDashboard(container) {
                 <div class="kpi-row">
                     <div class="kpi-mini"><div class="kpi-value green">86%</div><div class="kpi-label">NB On-Time</div></div>
                     <div class="kpi-mini"><div class="kpi-value orange">72%</div><div class="kpi-label">SB On-Time</div></div>
-                    <div class="kpi-mini"><div class="kpi-value green">92%</div><div class="kpi-label">POD Collection</div></div>
+                    <div class="kpi-mini kpi-mini-clickable" onclick="navigateToPOD('collected-on-time')" title="View POD collected on-time">
+                        <div class="kpi-value green">${Math.round((podStats.collectedOnTime / podStats.total) * 100)}%</div>
+                        <div class="kpi-label">POD Collection</div>
+                    </div>
                     <div class="kpi-mini"><div class="kpi-value red">14d</div><div class="kpi-label">Avg Turnaround</div></div>
                 </div>
 
@@ -262,6 +381,8 @@ function renderDashboard(container) {
                     ${renderBorderPerformanceCard('NB', borderPerformanceData.NB)}
                     ${renderBorderPerformanceCard('SB', borderPerformanceData.SB)}
                 </div>
+
+                ${renderPODDashboardSection()}
 
                 <div class="row">
                     <div class="card">
@@ -597,8 +718,132 @@ function renderBorderDetail(container, borderName) {
         <button class="btn btn-outline mt-20" onclick="navigateTo('border-clearance')">⬅️ Back</button>`;
 }
 
+function renderPODStageIcon(done, late) {
+    if (done) return '<span class="pod-stage-icon done">✅</span>';
+    if (late) return '<span class="pod-stage-icon late">❌</span>';
+    return '<span class="pod-stage-icon pending">⬜</span>';
+}
+
+function renderPODTableRows(items) {
+    if (!items.length) {
+        return '<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--text-secondary);">No POD items match this filter</td></tr>';
+    }
+    return items.map(p => `
+        <tr>
+            <td><strong>${p.trip}</strong></td>
+            <td>${p.truck}</td>
+            <td>${p.driver}</td>
+            <td>${p.area}</td>
+            <td>${p.offloadingPoint}</td>
+            <td style="text-align:center;">${p.collected ? renderPODStageIcon(true) + (p.collectedOnTime ? '<br><small style="color:var(--green);">On-time</small>' : '<br><small style="color:var(--orange);">Late</small>') : renderPODStageIcon(false, p.overdue)}</td>
+            <td style="text-align:center;">${renderPODStageIcon(p.scanned)}${p.scannedDate ? `<br><small>${p.scannedDate.split(' ')[0]}</small>` : ''}</td>
+            <td style="text-align:center;">${renderPODStageIcon(p.uploaded)}${p.uploadedDate ? `<br><small>${p.uploadedDate.split(' ')[0]}</small>` : ''}</td>
+            <td style="text-align:center;">${renderPODStageIcon(p.sentToInvoicing)}${p.sentDate ? `<br><small>${p.sentDate.split(' ')[0]}</small>` : ''}</td>
+            <td>${p.collected && p.hoursToCollect ? p.hoursToCollect + 'h' : '—'}</td>
+            <td><span class="status-badge ${p.kpi}"><span class="dot"></span> ${p.kpi === 'green' ? 'On Track' : p.kpi === 'orange' ? 'Priority' : 'Overdue'}</span></td>
+            <td><button class="btn btn-primary btn-sm" onclick="openCommentModal('${p.trip}')">💬</button></td>
+        </tr>
+    `).join('');
+}
+
+function renderPODFilterTabs(activeFilter) {
+    const s = getPODStats();
+    const tabs = [
+        { id: 'all', label: 'All', count: s.total },
+        { id: 'collected-on-time', label: 'On-Time', count: s.collectedOnTime },
+        { id: 'scanned', label: 'Scanned', count: s.scanned },
+        { id: 'uploaded', label: 'Uploaded', count: s.uploaded },
+        { id: 'sent-invoicing', label: 'Sent to Invoicing', count: s.sentInvoicing },
+        { id: 'pending', label: 'Pending', count: s.pending },
+        { id: 'overdue', label: 'Overdue', count: s.overdue }
+    ];
+    return tabs.map(t => `
+        <button class="pod-filter-tab${activeFilter === t.id ? ' active' : ''}" onclick="navigateToPOD('${t.id}')">
+            ${t.label}<span class="tab-count">${t.count}</span>
+        </button>
+    `).join('');
+}
+
 function renderPODManagement(container) {
-    container.innerHTML = `<div class="page-header"><h1>📋 POD Management</h1></div><div class="table-container"><div class="table-header"><h3>POD Collection Status</h3></div><table><thead><tr><th>Trip</th><th>Truck</th><th>Status</th><th>Actions</th></tr></thead><tbody><tr><td>NB-2024-015</td><td>XYZ789DRC</td><td><span class="status-badge orange">Pending</span></td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('NB-2024-015')">💬 Comment</button></td></tr></tbody></table></div>`;
+    const filter = currentPODFilter;
+    const items = filterPODItems(filter);
+    const stats = getPODStats();
+
+    container.innerHTML = `
+        <div class="page-header">
+            <h1>📋 POD Management & Invoicing</h1>
+            <div class="breadcrumb">
+                <a href="#" onclick="navigateTo('dashboard')">Home</a>
+                <span>›</span>
+                <strong>POD Management</strong>
+                <span>›</span>
+                <strong>${getPODFilterLabel(filter)}</strong>
+            </div>
+        </div>
+
+        <div class="pod-stat-grid" style="margin-bottom:24px;">
+            <div class="pod-stat-item" onclick="navigateToPOD('collected-on-time')">
+                <div class="pod-stat-value green">${stats.collectedOnTime}</div>
+                <div class="pod-stat-label">Collected On-Time</div>
+            </div>
+            <div class="pod-stat-item" onclick="navigateToPOD('scanned')">
+                <div class="pod-stat-value blue">${stats.scanned}</div>
+                <div class="pod-stat-label">Scanned</div>
+            </div>
+            <div class="pod-stat-item" onclick="navigateToPOD('uploaded')">
+                <div class="pod-stat-value blue">${stats.uploaded}</div>
+                <div class="pod-stat-label">Uploaded</div>
+            </div>
+            <div class="pod-stat-item" onclick="navigateToPOD('sent-invoicing')">
+                <div class="pod-stat-value green">${stats.sentInvoicing}</div>
+                <div class="pod-stat-label">Sent to Invoicing</div>
+            </div>
+            <div class="pod-stat-item" onclick="navigateToPOD('pending')">
+                <div class="pod-stat-value orange">${stats.pending}</div>
+                <div class="pod-stat-label">Pending</div>
+            </div>
+            <div class="pod-stat-item" onclick="navigateToPOD('overdue')">
+                <div class="pod-stat-value red">${stats.overdue}</div>
+                <div class="pod-stat-label">Overdue</div>
+            </div>
+        </div>
+
+        <div class="pod-filter-tabs">${renderPODFilterTabs(filter)}</div>
+
+        <div class="table-container">
+            <div class="table-header">
+                <h3>${getPODFilterLabel(filter)}</h3>
+                <span style="color:var(--text-secondary);">${items.length} item${items.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Trip #</th>
+                            <th>Truck</th>
+                            <th>Driver</th>
+                            <th>Area</th>
+                            <th>Offloading Point</th>
+                            <th>Collected</th>
+                            <th>Scanned</th>
+                            <th>Uploaded</th>
+                            <th>Sent to Invoicing</th>
+                            <th>Hours</th>
+                            <th>KPI</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>${renderPODTableRows(items)}</tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="background:#e8f0fe;padding:15px;border-radius:8px;margin-top:20px;border-left:4px solid var(--primary-light);font-size:13px;">
+            <strong>📋 POD Workflow:</strong> Offloading Complete → POD Collected (≤48h) → Scanned → Uploaded → Sent to POD Management & Invoicing Team
+        </div>
+
+        <button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">⬅️ Back to Dashboard</button>
+    `;
 }
 
 function renderAreaPage(container, areaName) {
