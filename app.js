@@ -32,6 +32,7 @@ let assetsStatusFilter = 'all';
 let assetsCategoryFilter = 'all';
 let nextAssetId = 6;
 let nextAssetDocId = 20;
+let assetDocUploadedFile = null;
 let currentDocumentId = null;
 let currentTripFilter = 'all';
 let currentDocFilter = 'all';
@@ -2672,12 +2673,69 @@ function openAddEquipmentModal() {
 function openAddAssetDocumentModal(assetId) {
     populateAssetDocumentAssetSelect(assetId || assetsRegistryDB[0]?.id);
     document.getElementById('assetDocumentForm').reset();
+    clearAssetDocUpload();
     if (assetId) document.getElementById('assetDocAssetSelect').value = assetId;
     document.getElementById('assetDocAcquisitionDate').value = new Date().toISOString().slice(0, 10);
     const expiry = new Date();
     expiry.setFullYear(expiry.getFullYear() + 1);
     document.getElementById('assetDocExpiryDate').value = expiry.toISOString().slice(0, 10);
     openModal('assetDocumentModal');
+}
+
+function clearAssetDocUpload() {
+    assetDocUploadedFile = null;
+    const input = document.getElementById('assetDocFileInput');
+    const list = document.getElementById('assetDocFileList');
+    const area = document.getElementById('assetDocUploadArea');
+    if (input) input.value = '';
+    if (list) list.innerHTML = '';
+    if (area) area.classList.remove('has-file');
+}
+
+function handleAssetDocFileSelect(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+        showToast('File is too large. Maximum size is 10 MB.', 'warning');
+        event.target.value = '';
+        return;
+    }
+
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/msword'];
+    const allowedExt = /\.(pdf|jpe?g|png|docx?)$/i;
+    if (!allowedTypes.includes(file.type) && !allowedExt.test(file.name)) {
+        showToast('Please upload PDF, JPG, PNG, or DOC/DOCX files only', 'warning');
+        event.target.value = '';
+        return;
+    }
+
+    assetDocUploadedFile = {
+        name: file.name,
+        size: (file.size / 1024).toFixed(1) + ' KB',
+        type: file.type || 'application/octet-stream'
+    };
+
+    const fileNameInput = document.getElementById('assetDocFileName');
+    if (fileNameInput && !fileNameInput.value.trim()) {
+        fileNameInput.value = file.name;
+    }
+
+    const list = document.getElementById('assetDocFileList');
+    const area = document.getElementById('assetDocUploadArea');
+    if (list) {
+        list.innerHTML = `<div class="file-item"><span>📄 ${assetDocUploadedFile.name} (${assetDocUploadedFile.size})</span><span class="remove-file" onclick="removeAssetDocFile()">✕</span></div>`;
+    }
+    if (area) area.classList.add('has-file');
+}
+
+function removeAssetDocFile() {
+    clearAssetDocUpload();
+    const fileNameInput = document.getElementById('assetDocFileName');
+    if (fileNameInput) fileNameInput.value = '';
 }
 
 function submitAddVehicle() {
@@ -2763,8 +2821,16 @@ function submitAddAssetDocument() {
     const fileName = document.getElementById('assetDocFileName').value.trim();
     const acquisitionDate = document.getElementById('assetDocAcquisitionDate').value;
     const expiryDate = document.getElementById('assetDocExpiryDate').value;
-    if (!type || !fileName || !acquisitionDate || !expiryDate) {
-        showToast('Document type, file name, acquisition date, and expiry date are required', 'warning');
+    if (!type || !acquisitionDate || !expiryDate) {
+        showToast('Document type, acquisition date, and expiry date are required', 'warning');
+        return;
+    }
+    if (!assetDocUploadedFile) {
+        showToast('Please upload the document file', 'warning');
+        return;
+    }
+    if (!fileName) {
+        showToast('File name is required', 'warning');
         return;
     }
     if (new Date(expiryDate) < new Date(acquisitionDate)) {
@@ -2777,14 +2843,19 @@ function submitAddAssetDocument() {
         fileName,
         acquisitionDate,
         expiryDate,
-        notes: document.getElementById('assetDocNotes').value.trim()
+        notes: document.getElementById('assetDocNotes').value.trim(),
+        uploaded: true,
+        uploadedAt: new Date().toISOString(),
+        fileSize: assetDocUploadedFile.size,
+        fileType: assetDocUploadedFile.type
     };
     if (!asset.documents) asset.documents = [];
     asset.documents.push(doc);
     syncAssetDocumentToGlobalRegistry(doc, asset);
+    clearAssetDocUpload();
     closeModal('assetDocumentModal');
     if (currentPage === 'assets') refreshAssetsTable();
-    showToast(`Document added to ${asset.name}`, 'success');
+    showToast(`Document uploaded and linked to ${asset.name}`, 'success');
 }
 
 function renderAssetDetailContent(asset) {
@@ -2844,10 +2915,16 @@ function renderAssetDetailContent(asset) {
                     ${docs.map(d => `
                         <tr>
                             <td style="padding:8px;">${d.type}</td>
-                            <td style="padding:8px;">${d.fileName}</td>
+                            <td style="padding:8px;">
+                                ${d.fileName}
+                                ${d.uploaded ? '<br><small style="color:var(--green);">📎 File uploaded</small>' : ''}
+                            </td>
                             <td style="padding:8px;">${d.acquisitionDate}</td>
                             <td style="padding:8px;">${d.expiryDate}</td>
-                            <td style="padding:8px;"><span class="status-badge ${d.kpi}">${d.label}</span></td>
+                            <td style="padding:8px;">
+                                <span class="status-badge ${d.kpi}">${d.label}</span>
+                                ${d.uploaded ? `<br><button type="button" class="btn btn-outline btn-sm" style="margin-top:4px;" onclick="showToast('📄 Opening ${d.fileName}...','success')">📥 Open</button>` : ''}
+                            </td>
                         </tr>
                     `).join('')}
                 </tbody>
