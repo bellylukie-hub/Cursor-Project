@@ -7,6 +7,50 @@ let selectedCommentType = 'normal';
 let uploadedFiles = [];
 let dashboardSearchTerm = '';
 
+const borderPerformanceData = {
+    NB: {
+        borders: [
+            { name: 'Kasumbalesa KBP', icon: '🅺', tag: 'kbp', pct: 85, avgHours: 12, targetHours: 48, trucks: 23, kpi: 'green' },
+            { name: 'Kasumbalesa Whisky', icon: '🥃', tag: 'whisky', pct: 62, avgHours: 52, targetHours: 72, trucks: 15, kpi: 'orange' },
+            { name: 'Sakania', icon: '📍', tag: '', pct: 78, avgHours: 40, targetHours: 48, trucks: 8, kpi: 'orange' },
+            { name: 'Mokambo', icon: '📍', tag: '', pct: 55, avgHours: 78, targetHours: 72, trucks: 5, kpi: 'red' }
+        ],
+        areas: [
+            { name: 'Kasumbalesa', pct: 85, kpi: 'green' },
+            { name: 'Kanyaka', pct: 72, kpi: 'orange' },
+            { name: 'Kolwezi', pct: 91, kpi: 'green' },
+            { name: 'Lubumbashi', pct: 63, kpi: 'red' }
+        ],
+        users: [
+            { name: 'Jean Kalenga', initials: 'JK', area: 'Kasumbalesa KBP', trucks: 34, avgTime: '11h', onTime: 92, kpi: 'green' },
+            { name: 'Marie Mwamba', initials: 'MM', area: 'KBP Brigade', trucks: 28, avgTime: '14h', onTime: 88, kpi: 'green' },
+            { name: 'Patrick Tshimanga', initials: 'PT', area: 'KBP Scan Bay', trucks: 31, avgTime: '18h', onTime: 76, kpi: 'orange' },
+            { name: 'Inspector Kabwe', initials: 'IK', area: 'Sakania', trucks: 19, avgTime: '38h', onTime: 71, kpi: 'orange' },
+            { name: 'Officer Kalaba', initials: 'OK', area: 'Mokambo', trucks: 12, avgTime: '68h', onTime: 54, kpi: 'red' }
+        ]
+    },
+    SB: {
+        borders: [
+            { name: 'Kasumbalesa Exit', icon: '📍', tag: '', pct: 88, avgHours: 10, targetHours: 48, trucks: 18, kpi: 'green' },
+            { name: 'Sakania Exit', icon: '📍', tag: '', pct: 72, avgHours: 44, targetHours: 48, trucks: 11, kpi: 'orange' },
+            { name: 'Mokambo Exit', icon: '📍', tag: '', pct: 65, avgHours: 55, targetHours: 72, trucks: 7, kpi: 'orange' }
+        ],
+        areas: [
+            { name: 'Kanyaka Loading', pct: 78, kpi: 'green' },
+            { name: 'Dispatch / Escort', pct: 65, kpi: 'orange' },
+            { name: 'Border Exit', pct: 88, kpi: 'green' },
+            { name: 'Following-on List', pct: 55, kpi: 'red' }
+        ],
+        users: [
+            { name: 'David Mukendi', initials: 'DM', area: 'Kanyaka Loading', trucks: 26, avgTime: '6h', onTime: 90, kpi: 'green' },
+            { name: 'Joseph Kabwe', initials: 'JK', area: 'Kolwezi Mine', trucks: 22, avgTime: '32h', onTime: 82, kpi: 'green' },
+            { name: 'Mike Johnson', initials: 'MJ', area: 'Dispatch/Escort', trucks: 18, avgTime: '5d', onTime: 74, kpi: 'orange' },
+            { name: 'Ruth Mwansa', initials: 'RM', area: 'Kasumbalesa Exit', trucks: 24, avgTime: '14h', onTime: 86, kpi: 'green' },
+            { name: 'Pierre Lumumba', initials: 'PL', area: 'Following-on List', trucks: 15, avgTime: '3h', onTime: 58, kpi: 'red' }
+        ]
+    }
+};
+
 const tripsDB = {
     'NB-2024-001': { tripNumber:'NB-2024-001',truck:'ABC123DRC',driver:'John Doe',direction:'NB',area:'Kasumbalesa',owner:'Transport Co A',entryBorder:'Kasumbalesa',offloadingPoint:'Kolwezi Mine',status:'KBP Process',daysInDRC:5,kpi:'orange',borderProcess:'KBP',workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}},
     'NB-2024-008': { tripNumber:'NB-2024-008',truck:'JKL012DRC',driver:'Peter Mwansa',direction:'NB',area:'Kasumbalesa',owner:'Transport Co D',entryBorder:'Kasumbalesa',offloadingPoint:'KCC Mine',status:'Whisky Process',daysInDRC:3,kpi:'orange',borderProcess:'Whisky',workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}},
@@ -69,6 +113,92 @@ function filterTrips(direction, searchTerm) {
 // ============================================
 // DASHBOARD WITH NB & SB VIEWS AND SEARCH
 // ============================================
+function getPerfColor(kpi) {
+    return kpi === 'green' ? 'green' : kpi === 'orange' ? 'orange' : 'red';
+}
+
+function renderPerfBar(item) {
+    const color = getPerfColor(item.kpi);
+    const meta = item.avgHours !== undefined
+        ? `${item.trucks} trucks · Avg ${item.avgHours}h / ${item.targetHours}h`
+        : `On-time performance`;
+    return `
+        <div class="perf-item">
+            <div class="perf-item-header">
+                <span class="perf-name">${item.icon ? item.icon + ' ' : ''}${item.name}</span>
+                <span class="perf-pct" style="color:var(--${color});">${item.pct}%</span>
+            </div>
+            <div class="perf-bar"><div class="perf-bar-fill ${color}" style="width:${item.pct}%;"></div></div>
+            <div class="perf-meta" style="font-size:11px;color:var(--text-secondary);margin-top:4px;">${meta}</div>
+        </div>
+    `;
+}
+
+function renderAreaPerfBar(item) {
+    const color = getPerfColor(item.kpi);
+    return `
+        <div class="perf-item">
+            <div class="perf-item-header">
+                <span class="perf-name">${item.name}</span>
+                <span class="perf-pct" style="color:var(--${color});">${item.pct}%</span>
+            </div>
+            <div class="perf-bar"><div class="perf-bar-fill ${color}" style="width:${item.pct}%;"></div></div>
+        </div>
+    `;
+}
+
+function renderUserPerfRows(users) {
+    return users.map(u => `
+        <tr>
+            <td><span class="perf-user-name"><span class="user-avatar-sm">${u.initials}</span>${u.name}</span></td>
+            <td><span class="border-tag${u.area.includes('Whisky') ? ' whisky' : ''}">${u.area}</span></td>
+            <td>${u.trucks}</td>
+            <td>${u.avgTime}</td>
+            <td>${u.onTime}%</td>
+            <td><span class="perf-kpi-pill ${u.kpi}">${u.kpi === 'green' ? 'On Track' : u.kpi === 'orange' ? 'Priority' : 'Overdue'}</span></td>
+        </tr>
+    `).join('');
+}
+
+function renderBorderPerformanceCard(direction, data) {
+    const isNB = direction === 'NB';
+    const icon = isNB ? 'fa-arrow-up' : 'fa-arrow-down';
+    const iconColor = isNB ? 'var(--green)' : 'var(--orange)';
+    const borderLabel = isNB ? 'Entry Borders' : 'Exit Borders';
+    const targetNote = isNB ? 'Target: 48–72h clearance' : 'Target: ≤48h exit';
+
+    return `
+        <div class="card border-perf-card">
+            <div class="card-header">
+                <h3><i class="fas ${icon}" style="color:${iconColor};"></i> ${direction} – Border & Area Performance</h3>
+                <button class="card-action" onclick="navigateTo('${isNB ? 'nb-operations' : 'sb-operations'}')">Details →</button>
+            </div>
+            <div class="card-body">
+                <div class="perf-section-label"><i class="fas fa-map-marker-alt"></i> ${borderLabel} <span class="text-muted text-sm">(${targetNote})</span></div>
+                ${data.borders.map(renderPerfBar).join('')}
+
+                <div class="perf-section-label"><i class="fas fa-building"></i> Area Performance</div>
+                ${data.areas.map(renderAreaPerfBar).join('')}
+
+                <div class="perf-section-label"><i class="fas fa-users"></i> User Performance by Area</div>
+                <table class="perf-user-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Area</th>
+                            <th>Trucks</th>
+                            <th>Avg Time</th>
+                            <th>On-Time</th>
+                            <th>KPI</th>
+                        </tr>
+                    </thead>
+                    <tbody>${renderUserPerfRows(data.users)}</tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
+
 function renderDashboard(container) {
     container.innerHTML = `
         <div class="page-header">
@@ -122,6 +252,15 @@ function renderDashboard(container) {
                     <div class="kpi-mini"><div class="kpi-value orange">72%</div><div class="kpi-label">SB On-Time</div></div>
                     <div class="kpi-mini"><div class="kpi-value green">92%</div><div class="kpi-label">POD Collection</div></div>
                     <div class="kpi-mini"><div class="kpi-value red">14d</div><div class="kpi-label">Avg Turnaround</div></div>
+                </div>
+
+                <div class="section-title-bar">
+                    <h2><i class="fas fa-border-all"></i> Border & Area Performance</h2>
+                    <button class="card-action" onclick="navigateTo('border-clearance')">Full Border Report →</button>
+                </div>
+                <div class="row">
+                    ${renderBorderPerformanceCard('NB', borderPerformanceData.NB)}
+                    ${renderBorderPerformanceCard('SB', borderPerformanceData.SB)}
                 </div>
 
                 <div class="row">
