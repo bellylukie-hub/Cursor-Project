@@ -355,19 +355,18 @@ function renderDocumentLink(doc, label) {
 
 function navigateToBorder(borderKey) {
     const map = {
-        'kasumbalesa-kbp': 'kasumbalesa-detail',
-        'kasumbalesa-whisky': 'kasumbalesa-whisky',
-        'sakania': 'sakania-nb',
-        'sakania-nb': 'sakania-nb',
-        'mokambo': 'mokambo-nb',
-        'mokambo-nb': 'mokambo-nb',
-        'kasumbalesa-exit': 'sb-kasumbalesa',
-        'sakania-exit': 'sb-sakania',
-        'mokambo-exit': 'sb-mokambo'
+        'kasumbalesa-kbp': 'nb-border-kasumbalesa',
+        'kasumbalesa-whisky': 'nb-border-kasumbalesa',
+        'sakania': 'nb-border-sakania',
+        'sakania-nb': 'nb-border-sakania',
+        'mokambo': 'nb-border-mokambo',
+        'mokambo-nb': 'nb-border-mokambo',
+        'kasumbalesa-exit': 'sb-border-kasumbalesa',
+        'sakania-exit': 'sb-border-sakania',
+        'mokambo-exit': 'sb-border-mokambo'
     };
     const target = map[borderKey];
-    if (typeof target === 'function') target();
-    else if (target) navigateTo(target);
+    if (target) navigateToTripList(target);
     else navigateToTripList('all');
 }
 
