@@ -8,6 +8,8 @@ let uploadedFiles = [];
 let dashboardSearchTerm = '';
 let currentPODFilter = 'all';
 let podSearchTerm = '';
+let assetsSearchTerm = '';
+let assetsStatusFilter = 'all';
 let currentTripFilter = 'all';
 let currentDocFilter = 'all';
 let selectedAreaIds = [];
@@ -1634,7 +1636,7 @@ function renderPODStageIcon(done, late) {
 
 function renderPODTableRows(items) {
     if (!items.length) {
-        return '<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--text-secondary);">No POD items match this filter</td></tr>';
+        return '<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--text-secondary);">No POD items match your search</td></tr>';
     }
     return items.map(p => `
         <tr>
@@ -1803,7 +1805,69 @@ function renderAreaPage(container, areaName) {
     container.innerHTML = `<div class="page-header"><h1>🏢 ${areaName} Area</h1></div><div class="table-container"><div class="table-header"><h3>Trucks in ${areaName} (${trips.length})</h3></div><table><thead><tr><th>Trip</th><th>Truck</th><th>Driver</th><th>Direction</th><th>Status</th><th>Actions</th></tr></thead><tbody>${trips.map(t=>`<tr><td>${t.tripNumber}</td><td>${t.truck}</td><td>${t.driver}</td><td><span class="status-badge blue">${t.direction}</span></td><td><span class="status-badge ${t.kpi}">${t.status}</span></td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}')">💬 Comment</button></td></tr>`).join('')||'<tr><td colspan="6">No trucks</td></tr>'}</tbody></table></div>`;
 }
 
+function renderAssetsTableRows(items) {
+    if (!items.length) {
+        return '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-secondary);">No equipment or documents match your search</td></tr>';
+    }
+    return items.map(d => `
+        <tr>
+            <td>${d.type}</td>
+            <td>${d.entity}</td>
+            <td>${d.trip}</td>
+            <td>${d.truck}</td>
+            <td>${d.expiry}</td>
+            <td><span class="kpi-indicator ${d.kpi}"></span> ${d.label}</td>
+            <td><button class="btn btn-outline btn-sm" onclick="navigateToDocuments('${d.status}')">👁️</button></td>
+        </tr>
+    `).join('');
+}
+
+function getFilteredAssets() {
+    const search = assetsSearchTerm || (document.getElementById('assetsSearchInput')?.value || '').trim();
+    const status = assetsStatusFilter || document.getElementById('assetsStatusFilter')?.value || 'all';
+    let items = [...documentsDB];
+    if (status !== 'all') items = items.filter(d => d.status === status);
+    if (search) {
+        const term = search.toLowerCase();
+        items = items.filter(d =>
+            d.type.toLowerCase().includes(term) ||
+            d.entity.toLowerCase().includes(term) ||
+            d.trip.toLowerCase().includes(term) ||
+            d.truck.toLowerCase().includes(term) ||
+            d.expiry.includes(term) ||
+            d.label.toLowerCase().includes(term) ||
+            d.status.toLowerCase().includes(term)
+        );
+    }
+    return items;
+}
+
+function renderAssetsTableRowsFiltered() {
+    const items = getFilteredAssets();
+    const countEl = document.getElementById('assetsTableCount');
+    if (countEl) countEl.textContent = `${items.length} record${items.length !== 1 ? 's' : ''}`;
+    return renderAssetsTableRows(items);
+}
+
+function refreshAssetsTable() {
+    assetsSearchTerm = document.getElementById('assetsSearchInput')?.value || '';
+    assetsStatusFilter = document.getElementById('assetsStatusFilter')?.value || 'all';
+    const body = document.getElementById('assetsTableBody');
+    if (body) body.innerHTML = renderAssetsTableRowsFiltered();
+}
+
+function clearAssetsFilters() {
+    assetsSearchTerm = '';
+    assetsStatusFilter = 'all';
+    const search = document.getElementById('assetsSearchInput');
+    const status = document.getElementById('assetsStatusFilter');
+    if (search) search.value = '';
+    if (status) status.value = 'all';
+    refreshAssetsTable();
+}
+
 function renderAssets(container) {
+    const items = getFilteredAssets();
     container.innerHTML = `
         <div class="page-header">
             <h1>🚗 Assets & Equipment</h1>
@@ -1811,27 +1875,31 @@ function renderAssets(container) {
         </div>
         ${renderKpiTargetsBanner('equipment')}
         <div class="kpi-grid">
-            <div class="kpi-card green"><div class="kpi-header"><span class="kpi-title">Valid Documents</span></div><div class="kpi-value">${documentsDB.filter(d => d.status === 'valid').length}</div></div>
-            <div class="kpi-card orange"><div class="kpi-header"><span class="kpi-title">Expiring Soon</span></div><div class="kpi-value">${documentsDB.filter(d => d.status === 'expiring').length}</div></div>
-            <div class="kpi-card red"><div class="kpi-header"><span class="kpi-title">Expired</span></div><div class="kpi-value">${documentsDB.filter(d => d.status === 'expired').length}</div></div>
+            <div class="kpi-card green" onclick="navigateToDocuments('valid')"><div class="kpi-header"><span class="kpi-title">Valid Documents</span></div><div class="kpi-value">${documentsDB.filter(d => d.status === 'valid').length}</div></div>
+            <div class="kpi-card orange" onclick="navigateToDocuments('expiring')"><div class="kpi-header"><span class="kpi-title">Expiring Soon</span></div><div class="kpi-value">${documentsDB.filter(d => d.status === 'expiring').length}</div></div>
+            <div class="kpi-card red" onclick="navigateToDocuments('expired')"><div class="kpi-header"><span class="kpi-title">Expired</span></div><div class="kpi-value">${documentsDB.filter(d => d.status === 'expired').length}</div></div>
         </div>
+
+        <div class="filters-bar">
+            <div class="filter-group"><label>Status:</label><select id="assetsStatusFilter" onchange="refreshAssetsTable()"><option value="all">All</option><option value="valid">🟢 Valid</option><option value="expiring">🟠 Expiring Soon</option><option value="expired">🔴 Expired</option></select></div>
+            <div class="search-filter" style="flex:2;">
+                <span>🔍</span>
+                <input type="text" id="assetsSearchInput" placeholder="Search by type, entity, trip, truck, expiry..." value="${assetsSearchTerm}" onkeyup="refreshAssetsTable()">
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="clearAssetsFilters()">Clear</button>
+        </div>
+
         <div class="table-container">
-            <div class="table-header"><h3>Equipment & Document Registry</h3><button class="btn btn-primary btn-sm" onclick="navigateToDocuments('all')">View All Documents</button></div>
+            <div class="table-header">
+                <h3>Equipment & Document Registry</h3>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <span id="assetsTableCount" style="color:var(--text-secondary);">${items.length} record${items.length !== 1 ? 's' : ''}</span>
+                    <button class="btn btn-primary btn-sm" onclick="navigateToDocuments('all')">View All Documents</button>
+                </div>
+            </div>
             <table>
                 <thead><tr><th>Type</th><th>Entity</th><th>Trip</th><th>Truck</th><th>Expiry</th><th>Status</th><th>Actions</th></tr></thead>
-                <tbody>
-                    ${documentsDB.map(d => `
-                        <tr>
-                            <td>${d.type}</td>
-                            <td>${d.entity}</td>
-                            <td>${d.trip}</td>
-                            <td>${d.truck}</td>
-                            <td>${d.expiry}</td>
-                            <td><span class="kpi-indicator ${d.kpi}"></span> ${d.label}</td>
-                            <td><button class="btn btn-outline btn-sm" onclick="navigateToDocuments('${d.status}')">👁️</button></td>
-                        </tr>
-                    `).join('')}
-                </tbody>
+                <tbody id="assetsTableBody">${renderAssetsTableRowsFiltered()}</tbody>
             </table>
         </div>
         <button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">⬅️ Back to Dashboard</button>
