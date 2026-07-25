@@ -39,6 +39,8 @@ let areaSbSearch = '';
 let areaDropdownOpen = true;
 let areaSelectorHidden = false;
 
+const listRowSelections = { nb: [], sb: [], border: [], pod: [] };
+
 const areasDB = [
     { id: 'kanyaka', name: 'Kanyaka', icon: '🏗️', offloadingPoints: ['Kanyaka', 'Kanyaka Depot', 'Kanyaka Mine'], loadingPoints: ['Kanyaka', 'Kanyaka Depot', 'Kanyaka Mine'] },
     { id: 'kolwezi', name: 'Kolwezi', icon: '⛏️', offloadingPoints: ['Kolwezi', 'Kolwezi Mine', 'KCC Mine'], loadingPoints: ['Kolwezi', 'Kolwezi Mine', 'KCC Mine'] },
@@ -891,6 +893,192 @@ function getPODFilterLabel(filter) {
 }
 
 // ============================================
+// EXCEL EXPORT & ROW SELECTION
+// ============================================
+function formatExportDate() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function escapeCsvCell(value) {
+    const text = value == null ? '' : String(value);
+    if (/[",\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+    return text;
+}
+
+function downloadExcelCsv(filename, headers, rows) {
+    const lines = [
+        headers.map(escapeCsvCell).join(','),
+        ...rows.map(row => row.map(escapeCsvCell).join(','))
+    ];
+    const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+}
+
+function toggleListRowSelection(listKey, rowId, checked) {
+    if (!listRowSelections[listKey]) listRowSelections[listKey] = [];
+    if (checked && !listRowSelections[listKey].includes(rowId)) {
+        listRowSelections[listKey].push(rowId);
+    } else if (!checked) {
+        listRowSelections[listKey] = listRowSelections[listKey].filter(id => id !== rowId);
+    }
+    updateListSelectionUI(listKey);
+}
+
+function toggleAllListRows(listKey, checked) {
+    const config = LIST_EXPORT_CONFIG[listKey];
+    if (!config) return;
+    const ids = config.getData().map(config.getRowId);
+    listRowSelections[listKey] = checked ? [...ids] : [];
+    document.querySelectorAll(`input.list-row-checkbox[data-list="${listKey}"]`).forEach(cb => {
+        cb.checked = checked;
+    });
+    updateListSelectionUI(listKey);
+}
+
+function updateListSelectionUI(listKey) {
+    const count = listRowSelections[listKey]?.length || 0;
+    const countEl = document.getElementById(`${listKey}SelectionCount`);
+    const selectedBtn = document.getElementById(`${listKey}ExportSelectedBtn`);
+    if (countEl) countEl.textContent = count ? `${count} selected` : '';
+    if (selectedBtn) selectedBtn.disabled = count === 0;
+}
+
+function renderExportToolbar(listKey) {
+    const count = listRowSelections[listKey]?.length || 0;
+    return `
+        <div class="export-toolbar">
+            <span id="${listKey}SelectionCount" class="export-selection-count">${count ? `${count} selected` : ''}</span>
+            <button type="button" id="${listKey}ExportSelectedBtn" class="btn btn-outline btn-sm" onclick="exportListData('${listKey}', 'selected')" ${count ? '' : 'disabled'}>📥 Export Selected</button>
+            <button type="button" class="btn btn-success btn-sm" onclick="exportListData('${listKey}', 'all')">📥 Export All</button>
+        </div>
+    `;
+}
+
+function renderListRowCheckbox(listKey, rowId) {
+    const checked = (listRowSelections[listKey] || []).includes(rowId);
+    return `<input type="checkbox" class="list-row-checkbox" data-list="${listKey}" value="${rowId}" ${checked ? 'checked' : ''} onchange="toggleListRowSelection('${listKey}', '${rowId}', this.checked)" aria-label="Select row ${rowId}">`;
+}
+
+function getNBOperationsFilteredTrips() {
+    const area = document.getElementById('nbAreaFilter')?.value || 'all';
+    const border = document.getElementById('nbBorderFilter')?.value || 'all';
+    const kpi = document.getElementById('nbKPIFilter')?.value || 'all';
+    const search = document.getElementById('nbSearchInput')?.value || '';
+    let trips = filterTrips('NB', search);
+    if (area !== 'all') trips = trips.filter(t => t.area === area);
+    if (border !== 'all') trips = trips.filter(t => t.entryBorder === border);
+    if (kpi !== 'all') trips = trips.filter(t => t.kpi === kpi);
+    return trips;
+}
+
+function getSBOperationsFilteredTrips() {
+    const area = document.getElementById('sbAreaFilter')?.value || 'all';
+    const border = document.getElementById('sbBorderFilter')?.value || 'all';
+    const kpi = document.getElementById('sbKPIFilter')?.value || 'all';
+    const search = document.getElementById('sbSearchInput')?.value || '';
+    let trips = filterTrips('SB', search);
+    if (area !== 'all') trips = trips.filter(t => t.area === area);
+    if (border !== 'all') trips = trips.filter(t => t.exitBorder === border);
+    if (kpi !== 'all') trips = trips.filter(t => t.kpi === kpi);
+    return trips;
+}
+
+function getPODCollectedLabel(p) {
+    if (p.collected) return p.collectedOnTime ? 'Yes (On-time)' : 'Yes (Late)';
+    if (p.overdue) return 'Overdue';
+    return 'No';
+}
+
+const LIST_EXPORT_CONFIG = {
+    nb: {
+        title: 'NB Operations',
+        filenamePrefix: 'NB_Operations',
+        getData: getNBOperationsFilteredTrips,
+        getRowId: t => t.tripNumber,
+        headers: ['Trip #', 'Truck', 'Owner', 'Driver', 'Border', 'Offloading', 'Area', 'Status', 'Days in DRC', 'KPI'],
+        mapRow: t => [
+            t.tripNumber, t.truck, t.owner, t.driver,
+            t.entryBorder || '-', t.offloadingPoint || '-', t.area || '-',
+            t.status, t.daysInDRC, getKPILabel(t.kpi)
+        ]
+    },
+    sb: {
+        title: 'SB Operations',
+        filenamePrefix: 'SB_Operations',
+        getData: getSBOperationsFilteredTrips,
+        getRowId: t => t.tripNumber,
+        headers: ['Trip #', 'Truck', 'Owner', 'Driver', 'Loading Point', 'Exit Border', 'Area', 'Status', 'Days in DRC', 'KPI'],
+        mapRow: t => [
+            t.tripNumber, t.truck, t.owner, t.driver,
+            t.loadingPoint || '-', t.exitBorder || '-', t.area || '-',
+            t.status, t.daysInDRC, getKPILabel(t.kpi)
+        ]
+    },
+    border: {
+        title: 'Border Clearance',
+        filenamePrefix: 'Border_Clearance',
+        getData: filterBorderClearanceTrucks,
+        getRowId: t => t.trip,
+        headers: ['Trip #', 'Truck', 'Driver', 'Direction', 'Border', 'Process', 'Status', 'Hours', 'Target', 'KPI'],
+        mapRow: t => [
+            t.trip, t.truck, t.driver, t.direction, t.border, t.process,
+            t.status, t.hours, t.target, t.kpiLabel
+        ]
+    },
+    pod: {
+        title: 'POD Management',
+        filenamePrefix: 'POD_Management',
+        getData: getFilteredPODItems,
+        getRowId: p => p.trip,
+        headers: ['Trip #', 'Truck', 'Driver', 'Area', 'Offloading Point', 'Owner', 'Collected', 'Scanned', 'Uploaded', 'Sent to Invoicing', 'Hours to Collect', 'KPI', 'Stage Status'],
+        mapRow: p => [
+            p.trip, p.truck, p.driver, p.area, p.offloadingPoint, p.owner || '',
+            getPODCollectedLabel(p),
+            p.scanned ? 'Yes' : 'No',
+            p.uploaded ? 'Yes' : 'No',
+            p.sentToInvoicing ? 'Yes' : 'No',
+            p.collected && p.hoursToCollect ? `${p.hoursToCollect}h` : '',
+            getKPILabel(p.kpi),
+            getPODStageStatus(p)
+        ]
+    }
+};
+
+function exportListData(listKey, mode) {
+    const config = LIST_EXPORT_CONFIG[listKey];
+    if (!config) return;
+
+    const allRows = config.getData();
+    let rows = allRows;
+
+    if (mode === 'selected') {
+        const selected = listRowSelections[listKey] || [];
+        rows = allRows.filter(r => selected.includes(config.getRowId(r)));
+        if (!rows.length) {
+            showToast('Please select at least one row to export', 'warning');
+            return;
+        }
+    }
+
+    if (!rows.length) {
+        showToast('No data to export for the current filters', 'warning');
+        return;
+    }
+
+    const sheetRows = rows.map(config.mapRow);
+    const filename = `${config.filenamePrefix}_${mode === 'selected' ? 'selected' : 'all'}_${formatExportDate()}.csv`;
+    downloadExcelCsv(filename, config.headers, sheetRows);
+    showToast(`Exported ${rows.length} row${rows.length !== 1 ? 's' : ''} from ${config.title}`, 'success');
+}
+
+// ============================================
 // FILTER FUNCTION
 // ============================================
 function filterTrips(direction, searchTerm) {
@@ -1205,12 +1393,14 @@ function renderDashboard(container) {
     `;
 }
 
-function renderDashboardTableRows(trips) {
+function renderDashboardTableRows(trips, listKey) {
+    const colSpan = listKey ? 12 : 11;
     if (trips.length === 0) {
-        return '<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--text-secondary);">No trucks match the current search/filter criteria</td></tr>';
+        return `<tr><td colspan="${colSpan}" style="text-align:center;padding:20px;color:var(--text-secondary);">No trucks match the current search/filter criteria</td></tr>`;
     }
     return trips.map(t => `
         <tr>
+            ${listKey ? `<td style="width:36px;text-align:center;">${renderListRowCheckbox(listKey, t.tripNumber)}</td>` : ''}
             <td><strong>${t.tripNumber}</strong></td>
             <td>${t.truck}</td>
             <td>${t.owner}</td>
@@ -1265,27 +1455,27 @@ function renderNBOperations(container) {
             <button class="btn btn-primary" onclick="openUploadModal('NB')">📤 Upload NB Data</button>
         </div>
         <div class="table-container">
-            <div class="table-header"><h3>Active NB Trucks</h3><span id="nbTableCount" style="color:var(--text-secondary);">${trips.length} trucks</span></div>
-            <table><thead><tr><th>Trip #</th><th>Truck</th><th>Owner</th><th>Driver</th><th>Border</th><th>Offloading</th><th>Area</th><th>Status</th><th>Days</th><th>KPI</th><th>Actions</th></tr></thead>
+            <div class="table-header">
+                <h3>Active NB Trucks</h3>
+                <div class="table-header-actions">
+                    <span id="nbTableCount" style="color:var(--text-secondary);">${trips.length} trucks</span>
+                    ${renderExportToolbar('nb')}
+                </div>
+            </div>
+            <table><thead><tr>
+                <th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all NB trucks" onchange="toggleAllListRows('nb', this.checked)"></th>
+                <th>Trip #</th><th>Truck</th><th>Owner</th><th>Driver</th><th>Border</th><th>Offloading</th><th>Area</th><th>Status</th><th>Days</th><th>KPI</th><th>Actions</th>
+            </tr></thead>
             <tbody id="nbTableBody">${renderNBTableRowsFiltered()}</tbody></table>
         </div>`;
 }
 
 function renderNBTableRowsFiltered() {
-    const area = document.getElementById('nbAreaFilter')?.value || 'all';
-    const border = document.getElementById('nbBorderFilter')?.value || 'all';
-    const kpi = document.getElementById('nbKPIFilter')?.value || 'all';
-    const search = document.getElementById('nbSearchInput')?.value || '';
-
-    let trips = filterTrips('NB', search);
-    if (area !== 'all') trips = trips.filter(t => t.area === area);
-    if (border !== 'all') trips = trips.filter(t => t.entryBorder === border);
-    if (kpi !== 'all') trips = trips.filter(t => t.kpi === kpi);
-
+    const trips = getNBOperationsFilteredTrips();
     const countEl = document.getElementById('nbTableCount');
     if (countEl) countEl.textContent = `${trips.length} trucks`;
-
-    return renderDashboardTableRows(trips);
+    updateListSelectionUI('nb');
+    return renderDashboardTableRows(trips, 'nb');
 }
 
 function refreshNBTable() {
@@ -1325,27 +1515,27 @@ function renderSBOperations(container) {
             <button class="btn btn-primary" onclick="openUploadModal('SB')">📤 Upload SB Data</button>
         </div>
         <div class="table-container">
-            <div class="table-header"><h3>Active SB Trucks</h3><span id="sbTableCount" style="color:var(--text-secondary);">${trips.length} trucks</span></div>
-            <table><thead><tr><th>Trip #</th><th>Truck</th><th>Owner</th><th>Driver</th><th>Loading Point</th><th>Exit Border</th><th>Area</th><th>Status</th><th>Days</th><th>KPI</th><th>Actions</th></tr></thead>
+            <div class="table-header">
+                <h3>Active SB Trucks</h3>
+                <div class="table-header-actions">
+                    <span id="sbTableCount" style="color:var(--text-secondary);">${trips.length} trucks</span>
+                    ${renderExportToolbar('sb')}
+                </div>
+            </div>
+            <table><thead><tr>
+                <th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all SB trucks" onchange="toggleAllListRows('sb', this.checked)"></th>
+                <th>Trip #</th><th>Truck</th><th>Owner</th><th>Driver</th><th>Loading Point</th><th>Exit Border</th><th>Area</th><th>Status</th><th>Days</th><th>KPI</th><th>Actions</th>
+            </tr></thead>
             <tbody id="sbTableBody">${renderSBTableRowsFiltered()}</tbody></table>
         </div>`;
 }
 
 function renderSBTableRowsFiltered() {
-    const area = document.getElementById('sbAreaFilter')?.value || 'all';
-    const border = document.getElementById('sbBorderFilter')?.value || 'all';
-    const kpi = document.getElementById('sbKPIFilter')?.value || 'all';
-    const search = document.getElementById('sbSearchInput')?.value || '';
-
-    let trips = filterTrips('SB', search);
-    if (area !== 'all') trips = trips.filter(t => t.area === area);
-    if (border !== 'all') trips = trips.filter(t => t.exitBorder === border);
-    if (kpi !== 'all') trips = trips.filter(t => t.kpi === kpi);
-
+    const trips = getSBOperationsFilteredTrips();
     const countEl = document.getElementById('sbTableCount');
     if (countEl) countEl.textContent = `${trips.length} trucks`;
-
-    return renderDashboardTableRows(trips);
+    updateListSelectionUI('sb');
+    return renderDashboardTableRows(trips, 'sb');
 }
 
 function refreshSBTable() {
@@ -1366,10 +1556,11 @@ function clearSBFilters() {
 // ============================================
 function renderBorderTableRows(rows) {
     if (!rows.length) {
-        return '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text-secondary);">No trucks match your search</td></tr>';
+        return '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text-secondary);">No trucks match your search</td></tr>';
     }
     return rows.map(t => `
         <tr>
+            <td style="width:36px;text-align:center;">${renderListRowCheckbox('border', t.trip)}</td>
             <td><strong>${t.trip}</strong></td>
             <td>${t.truck}</td>
             <td><span class="status-badge blue">${t.direction}</span></td>
@@ -1415,6 +1606,7 @@ function renderBorderTableRowsFiltered() {
     const rows = filterBorderClearanceTrucks();
     const countEl = document.getElementById('borderTableCount');
     if (countEl) countEl.textContent = `${rows.length} truck${rows.length !== 1 ? 's' : ''}`;
+    updateListSelectionUI('border');
     return renderBorderTableRows(rows);
 }
 
@@ -1472,8 +1664,17 @@ function renderBorderClearanceOverview(container) {
         </div>
 
         <div class="table-container">
-            <div class="table-header"><h3>All Border Trucks</h3><span id="borderTableCount" style="color:var(--text-secondary);">${total} trucks</span></div>
-            <table><thead><tr><th>Trip #</th><th>Truck</th><th>Direction</th><th>Border</th><th>Process</th><th>Status</th><th>Hours</th><th>Target</th><th>KPI</th><th>Actions</th></tr></thead>
+            <div class="table-header">
+                <h3>All Border Trucks</h3>
+                <div class="table-header-actions">
+                    <span id="borderTableCount" style="color:var(--text-secondary);">${total} trucks</span>
+                    ${renderExportToolbar('border')}
+                </div>
+            </div>
+            <table><thead><tr>
+                <th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all border trucks" onchange="toggleAllListRows('border', this.checked)"></th>
+                <th>Trip #</th><th>Truck</th><th>Direction</th><th>Border</th><th>Process</th><th>Status</th><th>Hours</th><th>Target</th><th>KPI</th><th>Actions</th>
+            </tr></thead>
             <tbody id="borderTableBody">${renderBorderTableRowsFiltered()}</tbody></table>
         </div>
 
@@ -1876,10 +2077,11 @@ function renderPODTableRows(items) {
                 : noStatus
                     ? 'Select at least one status checkbox to display POD items'
                     : 'No POD items match your search or filters';
-        return `<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--text-secondary);">${msg}</td></tr>`;
+        return `<tr><td colspan="13" style="text-align:center;padding:24px;color:var(--text-secondary);">${msg}</td></tr>`;
     }
     return items.map(p => `
         <tr>
+            <td style="width:36px;text-align:center;">${renderListRowCheckbox('pod', p.trip)}</td>
             <td><strong>${p.trip}</strong></td>
             <td>${p.truck}</td>
             <td>${p.driver}</td>
@@ -2049,6 +2251,7 @@ function renderPODTableRowsFiltered() {
     const items = getFilteredPODItems();
     const countEl = document.getElementById('podTableCount');
     if (countEl) countEl.textContent = `${items.length} item${items.length !== 1 ? 's' : ''}`;
+    updateListSelectionUI('pod');
     return renderPODTableRows(items);
 }
 
@@ -2130,12 +2333,16 @@ function renderPODManagement(container) {
         <div class="table-container">
             <div class="table-header">
                 <h3>${getPODFilterLabel(filter)}</h3>
-                <span id="podTableCount" style="color:var(--text-secondary);">${items.length} item${items.length !== 1 ? 's' : ''}</span>
+                <div class="table-header-actions">
+                    <span id="podTableCount" style="color:var(--text-secondary);">${items.length} item${items.length !== 1 ? 's' : ''}</span>
+                    ${renderExportToolbar('pod')}
+                </div>
             </div>
             <div style="overflow-x:auto;">
                 <table>
                     <thead>
                         <tr>
+                            <th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all POD items" onchange="toggleAllListRows('pod', this.checked)"></th>
                             <th>Trip #</th>
                             <th>Truck</th>
                             <th>Driver</th>
