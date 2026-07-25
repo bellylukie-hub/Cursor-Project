@@ -22,6 +22,22 @@ const areasDB = [
 ];
 selectedAreaIds = areasDB.map(a => a.id);
 
+const WORKFLOW_CONFIG = {
+    NB: [
+        { key: 'border', label: 'Border Clearance' },
+        { key: 'kanyaka', label: 'Kanyaka Transit' },
+        { key: 'offloading', label: 'Offloading' },
+        { key: 'pod', label: 'POD Collection' }
+    ],
+    SB: [
+        { key: 'loadingPlan', label: 'Loading Plan' },
+        { key: 'loadingProcess', label: 'Loading Process' },
+        { key: 'dispatch', label: 'Dispatch/Escort' },
+        { key: 'kanyaka', label: 'Kanyaka SB' },
+        { key: 'border', label: 'Border Exit' }
+    ]
+};
+
 const documentsDB = [
     { id: 1, type: 'Insurance', entity: 'Truck ZAM-4567', trip: 'TR-1024', truck: 'ZAM-4567', expiry: '2025-04-15', status: 'expiring', kpi: 'orange', label: 'Expires in 7d' },
     { id: 2, type: 'Vignette', entity: 'Truck ZAM-4590', trip: 'TR-1028', truck: 'ZAM-4590', expiry: '2025-04-10', status: 'expired', kpi: 'red', label: 'Expired' },
@@ -183,19 +199,19 @@ const borderPerformanceData = {
 };
 
 const tripsDB = {
-    'NB-2024-001': { tripNumber:'NB-2024-001',truck:'ABC123DRC',driver:'John Doe',direction:'NB',area:'Kasumbalesa',owner:'Transport Co A',entryBorder:'Kasumbalesa',offloadingPoint:'Kolwezi Mine',status:'KBP Process',daysInDRC:5,kpi:'orange',borderProcess:'KBP',workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}},
+    'NB-2024-001': { tripNumber:'NB-2024-001',truck:'ABC123DRC',driver:'John Doe',direction:'NB',area:'Kasumbalesa',owner:'Transport Co A',entryBorder:'Kasumbalesa',offloadingPoint:'Kolwezi Mine',status:'KBP Process',daysInDRC:5,kpi:'orange',borderProcess:'KBP',workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'},workflowDates:{border:'2026-07-23T08:00'}},
     'NB-2024-008': { tripNumber:'NB-2024-008',truck:'JKL012DRC',driver:'Peter Mwansa',direction:'NB',area:'Kasumbalesa',owner:'Transport Co D',entryBorder:'Kasumbalesa',offloadingPoint:'KCC Mine',status:'Whisky Process',daysInDRC:3,kpi:'orange',borderProcess:'Whisky',workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}},
-    'NB-2024-015': { tripNumber:'NB-2024-015',truck:'XYZ789DRC',driver:'Sarah Smith',direction:'NB',area:'Kolwezi',owner:'Transport Co B',entryBorder:'Sakania',offloadingPoint:'Kolwezi Mine',status:'Offloading',daysInDRC:12,kpi:'orange',workflow:{border:'completed',kanyaka:'completed',offloading:'current',pod:'pending'}},
+    'NB-2024-015': { tripNumber:'NB-2024-015',truck:'XYZ789DRC',driver:'Sarah Smith',direction:'NB',area:'Kolwezi',owner:'Transport Co B',entryBorder:'Sakania',offloadingPoint:'Kolwezi Mine',status:'Offloading',daysInDRC:12,kpi:'orange',workflow:{border:'completed',kanyaka:'completed',offloading:'current',pod:'pending'},workflowDates:{border:'2026-07-18T10:00',kanyaka:'2026-07-20T14:00',offloading:'2026-07-24T09:00'}},
     'NB-2024-022': { tripNumber:'NB-2024-022',truck:'GHI789DRC',driver:'Jean Pierre',direction:'NB',area:'Lubumbashi',owner:'Transport Co C',entryBorder:'Mokambo',offloadingPoint:'Lubumbashi',status:'POD Missing',daysInDRC:15,kpi:'red',workflow:{border:'completed',kanyaka:'completed',offloading:'completed',pod:'current'}},
     'NB-2024-031': { tripNumber:'NB-2024-031',truck:'MNO012DRC',driver:'David Mukendi',direction:'NB',area:'Kanyaka',owner:'Transport Co A',entryBorder:'Kasumbalesa',offloadingPoint:'Kanyaka Depot',status:'In Transit',daysInDRC:8,kpi:'green',workflow:{border:'completed',kanyaka:'current',offloading:'pending',pod:'pending'}},
-    'SB-2024-003': { tripNumber:'SB-2024-003',truck:'DEF456DRC',driver:'Mike Johnson',direction:'SB',area:'Kanyaka',owner:'Transport Co A',loadingPoint:'Kanyaka',exitBorder:'Kasumbalesa',status:'Loading Process',daysInDRC:3,kpi:'green',workflow:{loadingPlan:'completed',loadingProcess:'current',dispatch:'pending',kanyaka:'pending',border:'pending'}},
+    'SB-2024-003': { tripNumber:'SB-2024-003',truck:'DEF456DRC',driver:'Mike Johnson',direction:'SB',area:'Kanyaka',owner:'Transport Co A',loadingPoint:'Kanyaka',exitBorder:'Kasumbalesa',status:'Loading Process',daysInDRC:3,kpi:'green',workflow:{loadingPlan:'completed',loadingProcess:'current',dispatch:'pending',kanyaka:'pending',border:'pending'},workflowDates:{loadingPlan:'2026-07-22T07:00',loadingProcess:'2026-07-23T11:00'}},
     'SB-2024-005': { tripNumber:'SB-2024-005',truck:'MNO345DRC',driver:'David Mukendi',direction:'SB',area:'Kanyaka',owner:'Transport Co B',loadingPoint:'Kanyaka Mine',exitBorder:'Sakania',status:'Loading Delay',daysInDRC:2,kpi:'orange',workflow:{loadingPlan:'completed',loadingProcess:'current',dispatch:'pending',kanyaka:'pending',border:'pending'}},
     'SB-2024-012': { tripNumber:'SB-2024-012',truck:'PQR678DRC',driver:'Joseph Kabwe',direction:'SB',area:'Kolwezi',owner:'Transport Co C',loadingPoint:'Kolwezi Mine',exitBorder:'Mokambo',status:'Dispatch Ready',daysInDRC:5,kpi:'green',workflow:{loadingPlan:'completed',loadingProcess:'completed',dispatch:'current',kanyaka:'pending',border:'pending'}},
     'NB-2024-042': { tripNumber:'NB-2024-042',truck:'RST890DRC',driver:'Alice Bwalya',direction:'NB',area:'Kasumbalesa',owner:'Transport Co D',entryBorder:'Kasumbalesa',offloadingPoint:'Kolwezi Mine',status:'Border Clearance',daysInDRC:4,kpi:'green',addedToday:true,workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}},
     'NB-2024-043': { tripNumber:'NB-2024-043',truck:'UVW123DRC',driver:'Paul Chanda',direction:'NB',area:'Kolwezi',owner:'Transport Co B',entryBorder:'Sakania',offloadingPoint:'KCC Mine',status:'In Transit',daysInDRC:6,kpi:'green',addedToday:true,workflow:{border:'completed',kanyaka:'completed',offloading:'pending',pod:'pending'}},
     'NB-2024-044': { tripNumber:'NB-2024-044',truck:'XYZ456DRC',driver:'Grace Mutale',direction:'NB',area:'Lubumbashi',owner:'Transport Co A',entryBorder:'Mokambo',offloadingPoint:'Lubumbashi',status:'Offloading',daysInDRC:11,kpi:'orange',workflow:{border:'completed',kanyaka:'completed',offloading:'current',pod:'pending'}},
     'NB-2024-045': { tripNumber:'NB-2024-045',truck:'ABC789DRC',driver:'Henry Sampa',direction:'NB',area:'Kanyaka',owner:'Transport Co C',entryBorder:'Kasumbalesa',offloadingPoint:'Kanyaka Depot',status:'POD Collection',daysInDRC:9,kpi:'orange',workflow:{border:'completed',kanyaka:'completed',offloading:'completed',pod:'current'}},
-    'SB-2024-018': { tripNumber:'SB-2024-018',truck:'DEF321DRC',driver:'Linda Phiri',direction:'SB',area:'Kanyaka',owner:'Transport Co B',loadingPoint:'Kanyaka Mine',exitBorder:'Kasumbalesa',status:'Border Exit',daysInDRC:7,kpi:'green',workflow:{loadingPlan:'completed',loadingProcess:'completed',dispatch:'completed',kanyaka:'completed',border:'current'}},
+    'SB-2024-018': { tripNumber:'SB-2024-018',truck:'DEF321DRC',driver:'Linda Phiri',direction:'SB',area:'Kanyaka',owner:'Transport Co B',loadingPoint:'Kanyaka Mine',exitBorder:'Kasumbalesa',status:'Border Exit',daysInDRC:7,kpi:'green',workflow:{loadingPlan:'completed',loadingProcess:'completed',dispatch:'completed',kanyaka:'completed',border:'current'},workflowDates:{loadingPlan:'2026-07-17T08:00',loadingProcess:'2026-07-19T16:00',dispatch:'2026-07-22T10:00',kanyaka:'2026-07-23T14:00',border:'2026-07-25T09:00'}},
     'SB-2024-019': { tripNumber:'SB-2024-019',truck:'GHI654DRC',driver:'Oscar Mwale',direction:'SB',area:'Kolwezi',owner:'Transport Co A',loadingPoint:'Kolwezi Mine',exitBorder:'Sakania',status:'Loading Process',daysInDRC:2,kpi:'orange',addedToday:true,workflow:{loadingPlan:'completed',loadingProcess:'current',dispatch:'pending',kanyaka:'pending',border:'pending'}},
     'SB-2024-020': { tripNumber:'SB-2024-020',truck:'JKL987DRC',driver:'Nancy Banda',direction:'SB',area:'Kanyaka',owner:'Transport Co D',loadingPoint:'Kanyaka',exitBorder:'Mokambo',status:'Dispatch/Escort',daysInDRC:6,kpi:'orange',workflow:{loadingPlan:'completed',loadingProcess:'completed',dispatch:'current',kanyaka:'pending',border:'pending'}},
     'NB-2024-046': { tripNumber:'NB-2024-046',truck:'MNO741DRC',driver:'Victor Lungu',direction:'NB',area:'Kasumbalesa',owner:'Transport Co D',entryBorder:'Kasumbalesa',offloadingPoint:'KCC Mine',status:'Whisky Process',daysInDRC:3,kpi:'orange',addedToday:true,workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}},
@@ -1788,6 +1804,82 @@ function renderReports(container) {
 // ============================================
 // COMMENT MODAL FUNCTIONS
 // ============================================
+function formatWorkflowDate(isoStr) {
+    if (!isoStr) return '';
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return isoStr;
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ' ' +
+        d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+function getDefaultWorkflow(direction) {
+    const steps = WORKFLOW_CONFIG[direction] || WORKFLOW_CONFIG.NB;
+    const workflow = {};
+    steps.forEach((s, i) => { workflow[s.key] = i === 0 ? 'current' : 'pending'; });
+    return workflow;
+}
+
+function renderWorkflowStatus(trip) {
+    const direction = trip.direction || 'NB';
+    const steps = WORKFLOW_CONFIG[direction] || WORKFLOW_CONFIG.NB;
+    const workflow = trip.workflow || getDefaultWorkflow(direction);
+    const dates = trip.workflowDates || {};
+
+    return steps.map((step, i) => {
+        const state = workflow[step.key] || 'pending';
+        const dateHtml = dates[step.key]
+            ? `<span class="workflow-date">${formatWorkflowDate(dates[step.key])}</span>`
+            : (state === 'current' ? '<span class="workflow-date">In progress</span>' : '');
+        const arrow = i < steps.length - 1
+            ? `<span class="workflow-arrow ${state === 'completed' ? 'completed' : 'pending'}">→</span>`
+            : '';
+        return `<div class="workflow-step ${state}"><span class="step-label">${step.label}</span>${dateHtml}</div>${arrow}`;
+    }).join('');
+}
+
+function toggleStatusDateField() {
+    const status = document.getElementById('modalStatusUpdate').value;
+    const group = document.getElementById('statusDateGroup');
+    const dateInput = document.getElementById('statusDate');
+    if (!group || !dateInput) return;
+    if (status) {
+        group.style.display = 'block';
+        if (!dateInput.value) dateInput.value = new Date().toISOString().slice(0, 16);
+    } else {
+        group.style.display = 'block';
+        dateInput.value = '';
+    }
+}
+
+function validateFollowUpDate() {
+    const followUpEl = document.getElementById('followUpDate');
+    const expectedEl = document.getElementById('expectedCompletion');
+    const hint = document.getElementById('followUpHint');
+    if (!followUpEl || !expectedEl || !hint) return true;
+
+    const followUp = followUpEl.value;
+    const expected = expectedEl.value;
+
+    if (!followUp || !expected) {
+        hint.textContent = 'Must be before expected completion date';
+        hint.className = 'field-hint';
+        followUpEl.classList.remove('invalid');
+        return !followUp ? false : true;
+    }
+
+    if (new Date(followUp) >= new Date(expected)) {
+        hint.textContent = '⚠️ Follow-up date must be before expected completion date';
+        hint.className = 'field-hint error';
+        followUpEl.classList.add('invalid');
+        return false;
+    }
+
+    hint.textContent = '✓ Follow-up date is valid';
+    hint.className = 'field-hint success';
+    followUpEl.classList.remove('invalid');
+    return true;
+}
+
 function openCommentModal(tripNumber) {
     currentCommentTrip = tripNumber;
     const trip = tripsDB[tripNumber] || {tripNumber:tripNumber,truck:'Unknown',driver:'Unknown',kpi:'green'};
@@ -1802,24 +1894,37 @@ function openCommentModal(tripNumber) {
     document.getElementById('personContacted').value = '';
     document.getElementById('solutionTaken').value = '';
     document.getElementById('expectedCompletion').value = '';
+    document.getElementById('followUpDate').value = '';
+    document.getElementById('statusDate').value = '';
     uploadedFiles = [];
     document.getElementById('fileList').innerHTML = '';
     document.getElementById('fileUploadArea').classList.remove('has-file');
     document.getElementById('validationMessage').classList.remove('show');
+    document.getElementById('followUpHint').textContent = 'Must be before expected completion date';
+    document.getElementById('followUpHint').className = 'field-hint';
+    document.getElementById('followUpDate').classList.remove('invalid');
+
+    const workflowEl = document.getElementById('workflowStatus');
+    if (workflowEl) workflowEl.innerHTML = renderWorkflowStatus(trip);
 
     updateCommentTypeUI();
 
     const now = new Date();
-    now.setHours(now.getHours()+24);
-    document.getElementById('expectedCompletion').value = now.toISOString().slice(0,16);
+    const expected = new Date(now);
+    expected.setHours(expected.getHours() + 24);
+    const followUp = new Date(now);
+    followUp.setHours(followUp.getHours() + 12);
+    document.getElementById('expectedCompletion').value = expected.toISOString().slice(0, 16);
+    document.getElementById('followUpDate').value = followUp.toISOString().slice(0, 16);
 
     const statusSelect = document.getElementById('modalStatusUpdate');
     statusSelect.innerHTML = '<option value="">No status change</option>';
-    if (trip.direction==='NB') {
+    if (trip.direction === 'NB') {
         statusSelect.innerHTML += '<option>Border Clearance Complete</option><option>Arrived at Kanyaka</option><option>Offloading Complete</option><option>POD Collected</option>';
-    } else if (trip.direction==='SB') {
+    } else if (trip.direction === 'SB') {
         statusSelect.innerHTML += '<option>Loading Complete</option><option>Dispatched</option><option>Arrived at Kanyaka SB</option><option>Border Exit Complete</option>';
     }
+    toggleStatusDateField();
 
     document.getElementById('commentModalTitle').textContent = `💬 Add Comment - ${trip.tripNumber}`;
     openModal('commentModal');
@@ -1887,10 +1992,27 @@ function submitComment() {
         const c = document.getElementById('personContacted').value;
         const s = document.getElementById('solutionTaken').value;
         const e = document.getElementById('expectedCompletion').value;
-        if(!p.trim()||!c.trim()||!s.trim()||!e){
-            document.getElementById('validationMessage').textContent = '⚠️ All structured comment fields are required.';
+        const f = document.getElementById('followUpDate').value;
+        if (!p.trim() || !c.trim() || !s.trim() || !e || !f) {
+            document.getElementById('validationMessage').textContent = '⚠️ All structured comment fields are required (including follow-up date).';
             document.getElementById('validationMessage').classList.add('show');
             return;
+        }
+        if (!validateFollowUpDate()) {
+            document.getElementById('validationMessage').textContent = '⚠️ Follow-up date must be before the expected completion date.';
+            document.getElementById('validationMessage').classList.add('show');
+            return;
+        }
+    }
+    const statusUpdate = document.getElementById('modalStatusUpdate').value;
+    const statusDate = document.getElementById('statusDate').value;
+    if (statusUpdate && statusDate) {
+        const trip = tripsDB[currentCommentTrip];
+        if (trip) {
+            if (!trip.workflowDates) trip.workflowDates = {};
+            const stepKeys = (WORKFLOW_CONFIG[trip.direction] || WORKFLOW_CONFIG.NB).map(s => s.key);
+            const currentKey = stepKeys.find(k => trip.workflow && trip.workflow[k] === 'current');
+            if (currentKey) trip.workflowDates[currentKey] = statusDate;
         }
     }
     document.getElementById('validationMessage').classList.remove('show');

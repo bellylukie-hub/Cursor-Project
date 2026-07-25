@@ -769,12 +769,34 @@
         .search-filter input { border: none; background: transparent; outline: none; flex: 1; font-size: 13px; }
 
         /* WORKFLOW */
-        .workflow-status { display: flex; align-items: center; gap: 5px; margin: 15px 0; flex-wrap: wrap; }
-        .workflow-step { padding: 5px 10px; border-radius: 4px; font-size: 11px; background: #e2e8f0; color: #718096; }
-        .workflow-step.completed { background: #c6f6d5; color: #276749; }
-        .workflow-step.current { background: #ebf4ff; color: #2b6cb0; font-weight: 600; }
-        .workflow-step.pending { background: #f7fafc; color: #a0aec0; }
-        .workflow-arrow { color: #a0aec0; }
+        .workflow-status { display: flex; align-items: center; gap: 6px; margin: 10px 0 5px; flex-wrap: wrap; }
+        .workflow-step {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 8px 12px; border-radius: 6px; font-size: 11px; min-width: 72px;
+            transition: all 0.2s ease; border: 2px solid transparent;
+        }
+        .workflow-step .step-label { font-weight: 600; white-space: nowrap; }
+        .workflow-step .workflow-date { font-size: 9px; margin-top: 3px; opacity: 0.95; }
+        .workflow-step.completed {
+            background: #38a169; color: #fff; border-color: #276749;
+            box-shadow: 0 2px 6px rgba(56, 161, 105, 0.45);
+        }
+        .workflow-step.current {
+            background: #2b6cb0; color: #fff; border-color: #1a4f8b;
+            box-shadow: 0 3px 8px rgba(43, 108, 176, 0.5);
+            transform: scale(1.06); font-weight: 700;
+        }
+        .workflow-step.pending {
+            background: rgba(226, 232, 240, 0.45); color: rgba(113, 128, 150, 0.55);
+            border-color: rgba(203, 213, 224, 0.6); opacity: 0.65;
+        }
+        .workflow-arrow { font-size: 14px; font-weight: 700; flex-shrink: 0; }
+        .workflow-arrow.completed { color: #38a169; }
+        .workflow-arrow.pending { color: rgba(160, 174, 192, 0.45); }
+        .field-hint { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+        .field-hint.error { color: var(--danger); }
+        .field-hint.success { color: var(--success); }
+        .form-control.invalid { border-color: var(--danger); box-shadow: 0 0 0 2px rgba(229, 62, 62, 0.15); }
 
         /* BORDER DETAIL STYLES */
         .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
@@ -1028,6 +1050,12 @@
                     <div><strong>KPI:</strong> <span id="modalKPIDisplay"></span></div>
                 </div>
                 <div class="form-group">
+                    <label>Workflow Progress</label>
+                    <div class="workflow-status" id="workflowStatus">
+                        <!-- Dynamically filled -->
+                    </div>
+                </div>
+                <div class="form-group">
                     <label>Comment Type <span class="required">*</span></label>
                     <div class="comment-type-selector" id="commentTypeSelector">
                         <div class="comment-type-option green-option" onclick="selectCommentType('normal', this)" data-type="normal">
@@ -1045,10 +1073,12 @@
                         <div class="form-group"><label>Problem Description <span class="required">*</span></label><textarea class="form-control" rows="3" id="problemDescription" placeholder="Describe the problem in detail..."></textarea></div>
                         <div class="form-group"><label>Person Contacted for Solution <span class="required">*</span></label><input type="text" class="form-control" id="personContacted" placeholder="Name and role of person contacted"></div>
                         <div class="form-group"><label>Solution / Action Taken <span class="required">*</span></label><textarea class="form-control" rows="2" id="solutionTaken" placeholder="What solution or action has been taken..."></textarea></div>
-                        <div class="form-group"><label>Expected Date/Time for Completion <span class="required">*</span></label><input type="datetime-local" class="form-control" id="expectedCompletion"></div>
+                        <div class="form-group"><label>Follow-up Date <span class="required">*</span></label><input type="datetime-local" class="form-control" id="followUpDate" onchange="validateFollowUpDate()" oninput="validateFollowUpDate()"><div class="field-hint" id="followUpHint">Must be before expected completion date</div></div>
+                        <div class="form-group"><label>Expected Date/Time for Completion <span class="required">*</span></label><input type="datetime-local" class="form-control" id="expectedCompletion" onchange="validateFollowUpDate()" oninput="validateFollowUpDate()"></div>
                     </div>
                 </div>
-                <div class="form-group"><label>Update Status (Optional)</label><select class="form-control" id="modalStatusUpdate"><option value="">No status change</option></select></div>
+                <div class="form-group"><label>Update Status (Optional)</label><select class="form-control" id="modalStatusUpdate" onchange="toggleStatusDateField()"><option value="">No status change</option></select></div>
+                <div class="form-group" id="statusDateGroup"><label>Status Date (Optional)</label><input type="datetime-local" class="form-control" id="statusDate"><div class="field-hint">Date and time when this status was reached</div></div>
                 <div class="form-group">
                     <label>Upload Documents / Images</label>
                     <div class="file-upload-area" id="fileUploadArea" onclick="document.getElementById('fileInput').click()">
