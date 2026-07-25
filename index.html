@@ -208,6 +208,15 @@
         }
 
         /* POD status checkbox filters */
+        .pod-filter-panels {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 900px) {
+            .pod-filter-panels { grid-template-columns: 1fr; }
+        }
         .pod-status-filter-panel {
             background: white;
             padding: 14px 18px;

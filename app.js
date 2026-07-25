@@ -8,9 +8,14 @@ let uploadedFiles = [];
 let dashboardSearchTerm = '';
 let currentPODFilter = 'all';
 let podSearchTerm = '';
-let podKpiFilter = 'all';
+let selectedPodKpis = [];
 let selectedPodStatuses = [];
 
+const POD_KPI_OPTIONS = [
+    { id: 'green', label: '🟢 On Track' },
+    { id: 'orange', label: '🟠 Priority' },
+    { id: 'red', label: '🔴 Overdue' }
+];
 const POD_STATUS_OPTIONS = [
     { id: 'pending', label: 'Pending Collection' },
     { id: 'collected-on-time', label: 'Collected On-Time' },
@@ -20,6 +25,7 @@ const POD_STATUS_OPTIONS = [
     { id: 'sent-invoicing', label: 'Sent to Invoicing' },
     { id: 'overdue', label: 'Overdue' }
 ];
+selectedPodKpis = POD_KPI_OPTIONS.map(k => k.id);
 selectedPodStatuses = POD_STATUS_OPTIONS.map(s => s.id);
 let assetsSearchTerm = '';
 let assetsStatusFilter = 'all';
@@ -1723,7 +1729,16 @@ function renderPODStageIcon(done, late) {
 
 function renderPODTableRows(items) {
     if (!items.length) {
-        return '<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--text-secondary);">No POD items match your search</td></tr>';
+        const noKpi = selectedPodKpis.length === 0;
+        const noStatus = selectedPodStatuses.length === 0;
+        const msg = noKpi && noStatus
+            ? 'Select at least one KPI and one status checkbox to display POD items'
+            : noKpi
+                ? 'Select at least one KPI checkbox to display POD items'
+                : noStatus
+                    ? 'Select at least one status checkbox to display POD items'
+                    : 'No POD items match your search or filters';
+        return `<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--text-secondary);">${msg}</td></tr>`;
     }
     return items.map(p => `
         <tr>
@@ -1770,6 +1785,13 @@ function getPODStageStatus(p) {
     return 'pending';
 }
 
+function syncSelectedPodKpisFromDOM() {
+    const boxes = document.querySelectorAll('.pod-kpi-checkbox input');
+    if (!boxes.length) return selectedPodKpis;
+    selectedPodKpis = Array.from(boxes).filter(cb => cb.checked).map(cb => cb.value);
+    return selectedPodKpis;
+}
+
 function syncSelectedPodStatusesFromDOM() {
     const boxes = document.querySelectorAll('.pod-status-checkbox input');
     if (!boxes.length) return selectedPodStatuses;
@@ -1777,26 +1799,67 @@ function syncSelectedPodStatusesFromDOM() {
     return selectedPodStatuses;
 }
 
-function renderPODStatusFilters() {
+function renderPODFilterPanels() {
     return `
-        <div class="pod-status-filter-panel" id="podStatusFilters">
-            <div class="pod-status-filter-header">
-                <label>Status — choose which to display</label>
-                <div style="display:flex;gap:8px;">
-                    <button type="button" class="btn btn-outline btn-sm" onclick="selectAllPodStatuses()">Select All</button>
-                    <button type="button" class="btn btn-outline btn-sm" onclick="clearAllPodStatuses()">Clear All</button>
+        <div class="pod-filter-panels" id="podFilterPanels">
+            <div class="pod-status-filter-panel">
+                <div class="pod-status-filter-header">
+                    <label>KPI — choose which to display</label>
+                    <div style="display:flex;gap:8px;">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="selectAllPodKpis()">Select All</button>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="clearAllPodKpis()">Clear All</button>
+                    </div>
+                </div>
+                <div class="pod-status-checkbox-grid">
+                    ${POD_KPI_OPTIONS.map(k => `
+                        <label class="pod-status-checkbox pod-kpi-checkbox">
+                            <input type="checkbox" value="${k.id}" ${selectedPodKpis.includes(k.id) ? 'checked' : ''} onchange="togglePodKpi('${k.id}', this.checked)">
+                            <span>${k.label}</span>
+                        </label>
+                    `).join('')}
                 </div>
             </div>
-            <div class="pod-status-checkbox-grid">
-                ${POD_STATUS_OPTIONS.map(s => `
-                    <label class="pod-status-checkbox">
-                        <input type="checkbox" value="${s.id}" ${selectedPodStatuses.includes(s.id) ? 'checked' : ''} onchange="togglePodStatus('${s.id}', this.checked)">
-                        <span>${s.label}</span>
-                    </label>
-                `).join('')}
+            <div class="pod-status-filter-panel" id="podStatusFilters">
+                <div class="pod-status-filter-header">
+                    <label>Status — choose which to display</label>
+                    <div style="display:flex;gap:8px;">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="selectAllPodStatuses()">Select All</button>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="clearAllPodStatuses()">Clear All</button>
+                    </div>
+                </div>
+                <div class="pod-status-checkbox-grid">
+                    ${POD_STATUS_OPTIONS.map(s => `
+                        <label class="pod-status-checkbox">
+                            <input type="checkbox" value="${s.id}" ${selectedPodStatuses.includes(s.id) ? 'checked' : ''} onchange="togglePodStatus('${s.id}', this.checked)">
+                            <span>${s.label}</span>
+                        </label>
+                    `).join('')}
+                </div>
             </div>
         </div>
     `;
+}
+
+function togglePodKpi(kpiId, checked) {
+    if (checked && !selectedPodKpis.includes(kpiId)) selectedPodKpis.push(kpiId);
+    else if (!checked) selectedPodKpis = selectedPodKpis.filter(id => id !== kpiId);
+    refreshPODTable();
+}
+
+function selectAllPodKpis() {
+    selectedPodKpis = POD_KPI_OPTIONS.map(k => k.id);
+    document.querySelectorAll('.pod-kpi-checkbox input').forEach(cb => { cb.checked = true; });
+    refreshPODTable();
+}
+
+function clearAllPodKpis() {
+    selectedPodKpis = [];
+    document.querySelectorAll('.pod-kpi-checkbox input').forEach(cb => { cb.checked = false; });
+    refreshPODTable();
+}
+
+function renderPODStatusFilters() {
+    return renderPODFilterPanels();
 }
 
 function togglePodStatus(statusId, checked) {
@@ -1819,12 +1882,14 @@ function clearAllPodStatuses() {
 
 function getFilteredPODItems() {
     const search = podSearchTerm || (document.getElementById('podSearchInput')?.value || '').trim();
-    const kpi = podKpiFilter || document.getElementById('podKpiFilter')?.value || 'all';
+    const kpis = syncSelectedPodKpisFromDOM();
     const statuses = syncSelectedPodStatusesFromDOM();
     let items = filterPODItems(currentPODFilter);
 
-    if (kpi !== 'all') items = items.filter(p => p.kpi === kpi);
-    if (statuses.length === 0) return [];
+    if (kpis.length === 0 || statuses.length === 0) return [];
+    if (kpis.length < POD_KPI_OPTIONS.length) {
+        items = items.filter(p => kpis.includes(p.kpi));
+    }
     if (statuses.length < POD_STATUS_OPTIONS.length) {
         items = items.filter(p => statuses.includes(getPODStageStatus(p)));
     }
@@ -1851,7 +1916,7 @@ function renderPODTableRowsFiltered() {
 
 function refreshPODTable() {
     podSearchTerm = document.getElementById('podSearchInput')?.value || '';
-    podKpiFilter = document.getElementById('podKpiFilter')?.value || 'all';
+    syncSelectedPodKpisFromDOM();
     syncSelectedPodStatusesFromDOM();
     const body = document.getElementById('podTableBody');
     if (body) body.innerHTML = renderPODTableRowsFiltered();
@@ -1859,13 +1924,12 @@ function refreshPODTable() {
 
 function clearPODFilters() {
     podSearchTerm = '';
-    podKpiFilter = 'all';
+    selectedPodKpis = POD_KPI_OPTIONS.map(k => k.id);
     selectedPodStatuses = POD_STATUS_OPTIONS.map(s => s.id);
     const input = document.getElementById('podSearchInput');
-    const kpi = document.getElementById('podKpiFilter');
     if (input) input.value = '';
-    if (kpi) kpi.value = 'all';
-    document.querySelectorAll('.pod-status-checkbox input').forEach(cb => { cb.checked = true; });
+    document.querySelectorAll('.pod-kpi-checkbox input').forEach(cb => { cb.checked = true; });
+    document.querySelectorAll('.pod-status-checkbox:not(.pod-kpi-checkbox) input').forEach(cb => { cb.checked = true; });
     refreshPODTable();
 }
 
@@ -1916,15 +1980,14 @@ function renderPODManagement(container) {
         <div class="pod-filter-tabs">${renderPODFilterTabs(filter)}</div>
 
         <div class="filters-bar">
-            <div class="search-filter" style="flex:2;">
+            <div class="search-filter" style="flex:1;">
                 <span>🔍</span>
                 <input type="text" id="podSearchInput" placeholder="Search by Trip#, Truck, Driver, Area, Offloading Point..." value="${podSearchTerm}" onkeyup="refreshPODTable()">
             </div>
-            <div class="filter-group"><label>KPI:</label><select id="podKpiFilter" onchange="refreshPODTable()"><option value="all"${podKpiFilter === 'all' ? ' selected' : ''}>All</option><option value="green"${podKpiFilter === 'green' ? ' selected' : ''}>🟢 On Track</option><option value="orange"${podKpiFilter === 'orange' ? ' selected' : ''}>🟠 Priority</option><option value="red"${podKpiFilter === 'red' ? ' selected' : ''}>🔴 Overdue</option></select></div>
-            <button class="btn btn-outline btn-sm" onclick="clearPODFilters()">Clear</button>
+            <button class="btn btn-outline btn-sm" onclick="clearPODFilters()">Clear All Filters</button>
         </div>
 
-        ${renderPODStatusFilters()}
+        ${renderPODFilterPanels()}
 
         <div class="table-container">
             <div class="table-header">
