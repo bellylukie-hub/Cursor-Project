@@ -9,6 +9,18 @@ let dashboardSearchTerm = '';
 let currentPODFilter = 'all';
 let currentTripFilter = 'all';
 let currentDocFilter = 'all';
+let selectedAreaIds = [];
+let areaNbSearch = '';
+let areaSbSearch = '';
+
+const areasDB = [
+    { id: 'kanyaka', name: 'Kanyaka', icon: '🏗️', offloadingPoints: ['Kanyaka', 'Kanyaka Depot', 'Kanyaka Mine'], loadingPoints: ['Kanyaka', 'Kanyaka Depot', 'Kanyaka Mine'] },
+    { id: 'kolwezi', name: 'Kolwezi', icon: '⛏️', offloadingPoints: ['Kolwezi', 'Kolwezi Mine', 'KCC Mine'], loadingPoints: ['Kolwezi', 'Kolwezi Mine', 'KCC Mine'] },
+    { id: 'lubumbashi', name: 'Lubumbashi', icon: '🏙️', offloadingPoints: ['Lubumbashi'], loadingPoints: ['Lubumbashi'] },
+    { id: 'likasi', name: 'Likasi', icon: '⛏️', offloadingPoints: ['Likasi', 'Likasi Mine'], loadingPoints: ['Likasi', 'Likasi Mine'] },
+    { id: 'kasumbalesa', name: 'Kasumbalesa', icon: '🛂', offloadingPoints: ['Kasumbalesa'], loadingPoints: ['Kasumbalesa'] }
+];
+selectedAreaIds = areasDB.map(a => a.id);
 
 const documentsDB = [
     { id: 1, type: 'Insurance', entity: 'Truck ZAM-4567', trip: 'TR-1024', truck: 'ZAM-4567', expiry: '2025-04-15', status: 'expiring', kpi: 'orange', label: 'Expires in 7d' },
@@ -203,6 +215,7 @@ function navigateTo(page) {
         case 'document-alerts': renderDocumentAlerts(ca); break;
         case 'kanyaka': renderAreaPage(ca,'Kanyaka'); break;
         case 'kolwezi': renderAreaPage(ca,'Kolwezi'); break;
+        case 'area-browser': renderAreaBrowser(ca); break;
         case 'runner-fees': renderRunnerFees(ca); break;
         case 'reports': renderReports(ca); break;
         default: renderDashboard(ca);
@@ -246,6 +259,233 @@ function navigateToAreaList(areaName) {
     const pageMap = { Kanyaka: 'kanyaka', Kolwezi: 'kolwezi' };
     if (pageMap[areaName]) navigateTo(pageMap[areaName]);
     else navigateToTripList('area-' + areaName.toLowerCase().replace(/\s+/g, '-').replace(/\//g, ''));
+}
+
+function navigateToAreaBrowser(areaIds) {
+    selectedAreaIds = areaIds && areaIds.length ? [...areaIds] : areasDB.map(a => a.id);
+    areaNbSearch = '';
+    areaSbSearch = '';
+    navigateTo('area-browser');
+}
+
+function getSelectedAreas() {
+    return areasDB.filter(a => selectedAreaIds.includes(a.id));
+}
+
+function pointMatchesList(point, points) {
+    if (!point) return false;
+    const p = point.toLowerCase();
+    return points.some(op => {
+        const o = op.toLowerCase();
+        return p.includes(o) || o.includes(p);
+    });
+}
+
+function tripMatchesNBArea(trip, areaConfig) {
+    return pointMatchesList(trip.offloadingPoint, areaConfig.offloadingPoints);
+}
+
+function tripMatchesSBArea(trip, areaConfig) {
+    const loadMatch = pointMatchesList(trip.loadingPoint, areaConfig.loadingPoints);
+    const areaMatch = trip.area && trip.area.toLowerCase() === areaConfig.name.toLowerCase();
+    return loadMatch || areaMatch;
+}
+
+function filterNBTrucksByAreas(searchTerm) {
+    const areas = getSelectedAreas();
+    if (!areas.length) return [];
+    let trips = Object.values(tripsDB).filter(t => {
+        if (t.direction !== 'NB') return false;
+        return areas.some(area => tripMatchesNBArea(t, area));
+    });
+    if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        trips = trips.filter(t =>
+            t.tripNumber.toLowerCase().includes(term) ||
+            t.truck.toLowerCase().includes(term) ||
+            t.driver.toLowerCase().includes(term) ||
+            (t.offloadingPoint && t.offloadingPoint.toLowerCase().includes(term)) ||
+            (t.area && t.area.toLowerCase().includes(term)) ||
+            t.status.toLowerCase().includes(term) ||
+            (t.owner && t.owner.toLowerCase().includes(term))
+        );
+    }
+    return trips;
+}
+
+function filterSBTrucksByAreas(searchTerm) {
+    const areas = getSelectedAreas();
+    if (!areas.length) return [];
+    let trips = Object.values(tripsDB).filter(t => {
+        if (t.direction !== 'SB') return false;
+        return areas.some(area => tripMatchesSBArea(t, area));
+    });
+    if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        trips = trips.filter(t =>
+            t.tripNumber.toLowerCase().includes(term) ||
+            t.truck.toLowerCase().includes(term) ||
+            t.driver.toLowerCase().includes(term) ||
+            (t.loadingPoint && t.loadingPoint.toLowerCase().includes(term)) ||
+            (t.area && t.area.toLowerCase().includes(term)) ||
+            t.status.toLowerCase().includes(term) ||
+            (t.owner && t.owner.toLowerCase().includes(term))
+        );
+    }
+    return trips;
+}
+
+function renderAreaBrowserTableRows(trips, direction) {
+    if (!trips.length) {
+        return `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-secondary);">No trucks match the selected areas</td></tr>`;
+    }
+    return trips.map(t => `
+        <tr>
+            <td><strong>${t.tripNumber}</strong></td>
+            <td>${t.truck}</td>
+            <td>${t.driver}</td>
+            <td>${direction === 'NB' ? (t.offloadingPoint || '—') : (t.loadingPoint || '—')}</td>
+            <td>${t.area || '—'}</td>
+            <td><span class="status-badge ${t.kpi}">${t.status}</span></td>
+            <td><button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}')">💬</button></td>
+        </tr>
+    `).join('');
+}
+
+function refreshAreaBrowserPanels() {
+    const nbTrips = filterNBTrucksByAreas(areaNbSearch);
+    const sbTrips = filterSBTrucksByAreas(areaSbSearch);
+    const nbBody = document.getElementById('areaNbTableBody');
+    const sbBody = document.getElementById('areaSbTableBody');
+    const nbCount = document.getElementById('areaNbCount');
+    const sbCount = document.getElementById('areaSbCount');
+    if (nbBody) nbBody.innerHTML = renderAreaBrowserTableRows(nbTrips, 'NB');
+    if (sbBody) sbBody.innerHTML = renderAreaBrowserTableRows(sbTrips, 'SB');
+    if (nbCount) nbCount.textContent = `${nbTrips.length} truck${nbTrips.length !== 1 ? 's' : ''}`;
+    if (sbCount) sbCount.textContent = `${sbTrips.length} truck${sbTrips.length !== 1 ? 's' : ''}`;
+}
+
+function toggleAreaSelection(areaId, checked) {
+    if (checked && !selectedAreaIds.includes(areaId)) selectedAreaIds.push(areaId);
+    else if (!checked) selectedAreaIds = selectedAreaIds.filter(id => id !== areaId);
+    refreshAreaBrowserPanels();
+}
+
+function selectAllAreas() {
+    selectedAreaIds = areasDB.map(a => a.id);
+    document.querySelectorAll('.area-checkbox-item input').forEach(cb => { cb.checked = true; });
+    refreshAreaBrowserPanels();
+}
+
+function clearAllAreas() {
+    selectedAreaIds = [];
+    document.querySelectorAll('.area-checkbox-item input').forEach(cb => { cb.checked = false; });
+    refreshAreaBrowserPanels();
+}
+
+function handleAreaNbSearch(value) {
+    areaNbSearch = value;
+    refreshAreaBrowserPanels();
+}
+
+function handleAreaSbSearch(value) {
+    areaSbSearch = value;
+    refreshAreaBrowserPanels();
+}
+
+function renderAreaBrowser(container) {
+    const nbTrips = filterNBTrucksByAreas(areaNbSearch);
+    const sbTrips = filterSBTrucksByAreas(areaSbSearch);
+
+    container.innerHTML = `
+        <div class="page-header">
+            <h1>🗺️ Area Trucks Browser</h1>
+            <div class="breadcrumb">
+                <a href="#" onclick="navigateTo('dashboard')">Home</a> <span>›</span>
+                <span>Areas</span> <span>›</span>
+                <strong>Area Trucks</strong>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span>📍 Select Areas</span>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-outline btn-sm" onclick="selectAllAreas()">Select All</button>
+                    <button class="btn btn-outline btn-sm" onclick="clearAllAreas()">Clear All</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="area-checkbox-grid">
+                    ${areasDB.map(area => `
+                        <label class="area-checkbox-item">
+                            <input type="checkbox" value="${area.id}" ${selectedAreaIds.includes(area.id) ? 'checked' : ''}
+                                onchange="toggleAreaSelection('${area.id}', this.checked)">
+                            <span>${area.icon} ${area.name}</span>
+                        </label>
+                    `).join('')}
+                </div>
+                <div class="area-filter-hint">
+                    <strong>NB:</strong> Trucks shown by <em>offloading point</em> — even if the truck is currently in another area.<br>
+                    <strong>SB:</strong> Trucks shown if they are <em>in the area</em> or their <em>loading point</em> matches the selected area.
+                </div>
+            </div>
+        </div>
+
+        <div class="area-trucks-grid">
+            <div class="area-trucks-panel nb-panel">
+                <div class="panel-header">
+                    <h3>🔼 North Bound (NB) <span id="areaNbCount" style="font-weight:400;color:var(--text-secondary);font-size:13px;">${nbTrips.length} truck${nbTrips.length !== 1 ? 's' : ''}</span></h3>
+                    <div class="panel-search">
+                        <span>🔍</span>
+                        <input type="text" placeholder="Filter NB trucks..." value="${areaNbSearch}"
+                            onkeyup="handleAreaNbSearch(this.value)">
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <table style="width:100%;font-size:13px;">
+                        <thead><tr style="background:#f7fafc;">
+                            <th style="padding:10px;text-align:left;">Trip</th>
+                            <th style="padding:10px;text-align:left;">Truck</th>
+                            <th style="padding:10px;text-align:left;">Driver</th>
+                            <th style="padding:10px;text-align:left;">Offloading</th>
+                            <th style="padding:10px;text-align:left;">Current Area</th>
+                            <th style="padding:10px;text-align:left;">Status</th>
+                            <th style="padding:10px;"></th>
+                        </tr></thead>
+                        <tbody id="areaNbTableBody">${renderAreaBrowserTableRows(nbTrips, 'NB')}</tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="area-trucks-panel sb-panel">
+                <div class="panel-header">
+                    <h3>🔽 South Bound (SB) <span id="areaSbCount" style="font-weight:400;color:var(--text-secondary);font-size:13px;">${sbTrips.length} truck${sbTrips.length !== 1 ? 's' : ''}</span></h3>
+                    <div class="panel-search">
+                        <span>🔍</span>
+                        <input type="text" placeholder="Filter SB trucks..." value="${areaSbSearch}"
+                            onkeyup="handleAreaSbSearch(this.value)">
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <table style="width:100%;font-size:13px;">
+                        <thead><tr style="background:#f7fafc;">
+                            <th style="padding:10px;text-align:left;">Trip</th>
+                            <th style="padding:10px;text-align:left;">Truck</th>
+                            <th style="padding:10px;text-align:left;">Driver</th>
+                            <th style="padding:10px;text-align:left;">Loading</th>
+                            <th style="padding:10px;text-align:left;">Current Area</th>
+                            <th style="padding:10px;text-align:left;">Status</th>
+                            <th style="padding:10px;"></th>
+                        </tr></thead>
+                        <tbody id="areaSbTableBody">${renderAreaBrowserTableRows(sbTrips, 'SB')}</tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">⬅️ Back to Dashboard</button>
+    `;
 }
 
 function getDashboardStats() {
