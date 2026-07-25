@@ -8,6 +8,8 @@ let uploadedFiles = [];
 let dashboardSearchTerm = '';
 let currentPODFilter = 'all';
 let podSearchTerm = '';
+let podKpiFilter = 'all';
+let podStatusFilter = 'all';
 let assetsSearchTerm = '';
 let assetsStatusFilter = 'all';
 let currentDocumentId = null;
@@ -1748,9 +1750,24 @@ function renderPODFilterTabs(activeFilter) {
     `).join('');
 }
 
+function getPODStageStatus(p) {
+    if (p.sentToInvoicing) return 'sent-invoicing';
+    if (p.uploaded) return 'uploaded';
+    if (p.scanned) return 'scanned';
+    if (p.collected) return p.collectedOnTime ? 'collected-on-time' : 'collected-late';
+    if (p.overdue) return 'overdue';
+    return 'pending';
+}
+
 function getFilteredPODItems() {
     const search = podSearchTerm || (document.getElementById('podSearchInput')?.value || '').trim();
+    const kpi = podKpiFilter || document.getElementById('podKpiFilter')?.value || 'all';
+    const status = podStatusFilter || document.getElementById('podStatusFilter')?.value || 'all';
     let items = filterPODItems(currentPODFilter);
+
+    if (kpi !== 'all') items = items.filter(p => p.kpi === kpi);
+    if (status !== 'all') items = items.filter(p => getPODStageStatus(p) === status);
+
     if (!search) return items;
     const term = search.toLowerCase();
     return items.filter(p =>
@@ -1773,14 +1790,22 @@ function renderPODTableRowsFiltered() {
 
 function refreshPODTable() {
     podSearchTerm = document.getElementById('podSearchInput')?.value || '';
+    podKpiFilter = document.getElementById('podKpiFilter')?.value || 'all';
+    podStatusFilter = document.getElementById('podStatusFilter')?.value || 'all';
     const body = document.getElementById('podTableBody');
     if (body) body.innerHTML = renderPODTableRowsFiltered();
 }
 
-function clearPODSearch() {
+function clearPODFilters() {
     podSearchTerm = '';
+    podKpiFilter = 'all';
+    podStatusFilter = 'all';
     const input = document.getElementById('podSearchInput');
+    const kpi = document.getElementById('podKpiFilter');
+    const status = document.getElementById('podStatusFilter');
     if (input) input.value = '';
+    if (kpi) kpi.value = 'all';
+    if (status) status.value = 'all';
     refreshPODTable();
 }
 
@@ -1835,7 +1860,9 @@ function renderPODManagement(container) {
                 <span>🔍</span>
                 <input type="text" id="podSearchInput" placeholder="Search by Trip#, Truck, Driver, Area, Offloading Point..." value="${podSearchTerm}" onkeyup="refreshPODTable()">
             </div>
-            <button class="btn btn-outline btn-sm" onclick="clearPODSearch()">Clear</button>
+            <div class="filter-group"><label>KPI:</label><select id="podKpiFilter" onchange="refreshPODTable()"><option value="all"${podKpiFilter === 'all' ? ' selected' : ''}>All</option><option value="green"${podKpiFilter === 'green' ? ' selected' : ''}>🟢 On Track</option><option value="orange"${podKpiFilter === 'orange' ? ' selected' : ''}>🟠 Priority</option><option value="red"${podKpiFilter === 'red' ? ' selected' : ''}>🔴 Overdue</option></select></div>
+            <div class="filter-group"><label>Status:</label><select id="podStatusFilter" onchange="refreshPODTable()"><option value="all"${podStatusFilter === 'all' ? ' selected' : ''}>All</option><option value="pending"${podStatusFilter === 'pending' ? ' selected' : ''}>Pending Collection</option><option value="collected-on-time"${podStatusFilter === 'collected-on-time' ? ' selected' : ''}>Collected On-Time</option><option value="collected-late"${podStatusFilter === 'collected-late' ? ' selected' : ''}>Collected Late</option><option value="scanned"${podStatusFilter === 'scanned' ? ' selected' : ''}>Scanned</option><option value="uploaded"${podStatusFilter === 'uploaded' ? ' selected' : ''}>Uploaded</option><option value="sent-invoicing"${podStatusFilter === 'sent-invoicing' ? ' selected' : ''}>Sent to Invoicing</option><option value="overdue"${podStatusFilter === 'overdue' ? ' selected' : ''}>Overdue</option></select></div>
+            <button class="btn btn-outline btn-sm" onclick="clearPODFilters()">Clear</button>
         </div>
 
         <div class="table-container">
