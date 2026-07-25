@@ -10,6 +10,7 @@ let currentPODFilter = 'all';
 let podSearchTerm = '';
 let assetsSearchTerm = '';
 let assetsStatusFilter = 'all';
+let currentDocumentId = null;
 let currentTripFilter = 'all';
 let currentDocFilter = 'all';
 let selectedAreaIds = [];
@@ -42,11 +43,11 @@ const WORKFLOW_CONFIG = {
 };
 
 const documentsDB = [
-    { id: 1, type: 'Insurance', entity: 'Truck ZAM-4567', trip: 'TR-1024', truck: 'ZAM-4567', expiry: '2025-04-15', status: 'expiring', kpi: 'orange', label: 'Expires in 7d' },
-    { id: 2, type: 'Vignette', entity: 'Truck ZAM-4590', trip: 'TR-1028', truck: 'ZAM-4590', expiry: '2025-04-10', status: 'expired', kpi: 'red', label: 'Expired' },
-    { id: 3, type: 'TR8', entity: 'Trip TR-1024', trip: 'TR-1024', truck: 'ZAM-4567', expiry: '2025-05-01', status: 'valid', kpi: 'green', label: 'Valid' },
-    { id: 4, type: 'Road Tax', entity: 'Truck ZAM-4612', trip: 'TR-1031', truck: 'ZAM-4612', expiry: '2025-04-20', status: 'expiring', kpi: 'orange', label: 'Expires in 12d' },
-    { id: 5, type: 'Insurance', entity: 'Truck ZAM-4789', trip: 'SB-2045', truck: 'ZAM-4789', expiry: '2025-03-01', status: 'expired', kpi: 'red', label: 'Expired' }
+    { id: 1, type: 'Insurance', entity: 'Truck ZAM-4567', trip: 'TR-1024', truck: 'ZAM-4567', expiry: '2025-04-15', issued: '2024-04-15', status: 'expiring', kpi: 'orange', label: 'Expires in 7d', fileName: 'Insurance_ZAM-4567.pdf', category: 'Vehicle Insurance' },
+    { id: 2, type: 'Vignette', entity: 'Truck ZAM-4590', trip: 'TR-1028', truck: 'ZAM-4590', expiry: '2025-04-10', issued: '2024-04-10', status: 'expired', kpi: 'red', label: 'Expired', fileName: 'Vignette_ZAM-4590.pdf', category: 'Border Vignette' },
+    { id: 3, type: 'TR8', entity: 'Trip TR-1024', trip: 'TR-1024', truck: 'ZAM-4567', expiry: '2025-05-01', issued: '2025-04-01', status: 'valid', kpi: 'green', label: 'Valid', fileName: 'TR8_TR-1024.pdf', category: 'Customs TR8' },
+    { id: 4, type: 'Road Tax', entity: 'Truck ZAM-4612', trip: 'TR-1031', truck: 'ZAM-4612', expiry: '2025-04-20', issued: '2024-04-20', status: 'expiring', kpi: 'orange', label: 'Expires in 12d', fileName: 'RoadTax_ZAM-4612.pdf', category: 'Road Tax Certificate' },
+    { id: 5, type: 'Insurance', entity: 'Truck ZAM-4789', trip: 'SB-2045', truck: 'ZAM-4789', expiry: '2025-03-01', issued: '2024-03-01', status: 'expired', kpi: 'red', label: 'Expired', fileName: 'Insurance_ZAM-4789.pdf', category: 'Vehicle Insurance' }
 ];
 
 const recentActivityNB = [
@@ -296,6 +297,7 @@ function navigateTo(page) {
         case 'pod-management': renderPODManagement(ca); break;
         case 'trip-list': renderTripList(ca); break;
         case 'document-alerts': renderDocumentAlerts(ca); break;
+        case 'document-detail': renderDocumentDetail(ca); break;
         case 'kanyaka': renderAreaPage(ca,'Kanyaka'); break;
         case 'kolwezi': renderAreaPage(ca,'Kolwezi'); break;
         case 'area-browser': renderAreaBrowser(ca); break;
@@ -319,6 +321,16 @@ function navigateToTripList(filter) {
 function navigateToDocuments(filter) {
     currentDocFilter = filter || 'all';
     navigateTo('document-alerts');
+}
+
+function navigateToDocument(docId) {
+    currentDocumentId = docId;
+    navigateTo('document-detail');
+}
+
+function renderDocumentLink(doc, label) {
+    const text = label || doc.type;
+    return `<a href="#" class="doc-link" onclick="event.preventDefault(); navigateToDocument(${doc.id})" title="View ${doc.fileName || doc.type}">${text}</a>`;
 }
 
 function navigateToBorder(borderKey) {
@@ -1016,8 +1028,8 @@ function renderDashboard(container) {
                             <thead><tr><th>Document</th><th>Entity</th><th>Expiry</th><th>Status</th></tr></thead>
                             <tbody>
                                 ${documentsDB.slice(0, 3).map(d => `
-                                <tr class="table-row-clickable" onclick="event.stopPropagation();navigateToDocuments('${d.status === 'expiring' ? 'expiring' : d.status === 'expired' ? 'expired' : 'valid'}')" title="View document list">
-                                    <td>${d.type}</td>
+                                <tr class="table-row-clickable" onclick="event.stopPropagation();navigateToDocument(${d.id})" title="View ${d.fileName || d.type}">
+                                    <td>${renderDocumentLink(d)}</td>
                                     <td>${d.entity}</td>
                                     <td>${d.expiry}</td>
                                     <td><span class="status-badge ${d.kpi}"><span class="dot"></span> ${d.label}</span></td>
@@ -1610,13 +1622,16 @@ function renderDocumentAlerts(container) {
                     <tbody>
                         ${docs.length ? docs.map(d => `
                             <tr>
-                                <td><strong>${d.type}</strong></td>
+                                <td>${renderDocumentLink(d)}</td>
                                 <td>${d.entity}</td>
                                 <td>${d.trip}</td>
                                 <td>${d.truck}</td>
                                 <td>${d.expiry}</td>
                                 <td><span class="status-badge ${d.kpi}"><span class="dot"></span> ${d.label}</span></td>
-                                <td><button class="btn btn-primary btn-sm" onclick="openCommentModal('${d.trip}')">💬</button></td>
+                                <td>
+                                    <button class="btn btn-outline btn-sm" onclick="navigateToDocument(${d.id})">👁️ View</button>
+                                    <button class="btn btn-primary btn-sm" onclick="openCommentModal('${d.trip}')">💬</button>
+                                </td>
                             </tr>
                         `).join('') : '<tr><td colspan="7" style="text-align:center;padding:24px;">No documents match this filter</td></tr>'}
                     </tbody>
@@ -1625,6 +1640,65 @@ function renderDocumentAlerts(container) {
         </div>
 
         <button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">⬅️ Back to Dashboard</button>
+    `;
+}
+
+function renderDocumentDetail(container) {
+    const doc = documentsDB.find(d => d.id === currentDocumentId);
+    if (!doc) {
+        navigateToDocuments('all');
+        return;
+    }
+
+    const trip = tripsDB[doc.trip];
+    const daysToExpiry = Math.ceil((new Date(doc.expiry) - new Date()) / (1000 * 60 * 60 * 24));
+
+    container.innerHTML = `
+        <div class="page-header">
+            <h1>📄 ${doc.type} — ${doc.entity}</h1>
+            <div class="breadcrumb">
+                <a href="#" onclick="navigateTo('dashboard')">Home</a>
+                <span>›</span>
+                <a href="#" onclick="navigateToDocuments('all')">Document Expiry Alerts</a>
+                <span>›</span>
+                <strong>${doc.type}</strong>
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+            <div class="card-header">
+                <span>Document Details</span>
+                <span class="status-badge ${doc.kpi}"><span class="dot"></span> ${doc.label}</span>
+            </div>
+            <div class="card-body">
+                <div class="info-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:20px;">
+                    <div><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Document Type</div><div style="font-weight:600;">${doc.type}</div></div>
+                    <div><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Category</div><div style="font-weight:600;">${doc.category || '—'}</div></div>
+                    <div><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Entity</div><div style="font-weight:600;">${doc.entity}</div></div>
+                    <div><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Trip</div><div style="font-weight:600;">${doc.trip}</div></div>
+                    <div><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Truck</div><div style="font-weight:600;">${doc.truck}</div></div>
+                    <div><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Issued</div><div style="font-weight:600;">${doc.issued || '—'}</div></div>
+                    <div><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Expiry Date</div><div style="font-weight:600;color:${doc.kpi === 'red' ? 'var(--danger)' : doc.kpi === 'orange' ? 'var(--warning)' : 'var(--success)'};">${doc.expiry}</div></div>
+                    <div><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Days to Expiry</div><div style="font-weight:600;">${daysToExpiry >= 0 ? daysToExpiry + ' days' : Math.abs(daysToExpiry) + ' days overdue'}</div></div>
+                </div>
+
+                <div class="doc-preview-box">
+                    <div class="doc-preview-icon">📄</div>
+                    <div>
+                        <div style="font-weight:600;font-size:15px;">${doc.fileName || doc.type + '.pdf'}</div>
+                        <div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">${doc.category || 'Document'} · Linked to ${doc.entity}</div>
+                        ${trip ? `<div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">Trip status: ${trip.status} · ${trip.direction}</div>` : ''}
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="showToast('📄 Opening ${doc.fileName || doc.type}...','success')">📥 Open Document</button>
+                </div>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+            <button class="btn btn-outline" onclick="navigateToDocuments('${doc.status}')">⬅️ Back to Document Alerts</button>
+            <button class="btn btn-outline" onclick="navigateTo('assets')">🚗 Assets & Equipment</button>
+            ${trip ? `<button class="btn btn-primary" onclick="openCommentModal('${doc.trip}')">💬 Comment on Trip ${doc.trip}</button>` : ''}
+        </div>
     `;
 }
 
@@ -1811,7 +1885,7 @@ function renderAssetsTableRows(items) {
     }
     return items.map(d => `
         <tr>
-            <td>${d.type}</td>
+            <td>${renderDocumentLink(d)}</td>
             <td>${d.entity}</td>
             <td>${d.trip}</td>
             <td>${d.truck}</td>
@@ -1881,7 +1955,7 @@ function renderAssets(container) {
         </div>
 
         <div class="filters-bar">
-            <div class="filter-group"><label>Status:</label><select id="assetsStatusFilter" onchange="refreshAssetsTable()"><option value="all">All</option><option value="valid">🟢 Valid</option><option value="expiring">🟠 Expiring Soon</option><option value="expired">🔴 Expired</option></select></div>
+            <div class="filter-group"><label>Status:</label><select id="assetsStatusFilter" onchange="refreshAssetsTable()"><option value="all"${assetsStatusFilter === 'all' ? ' selected' : ''}>All</option><option value="valid"${assetsStatusFilter === 'valid' ? ' selected' : ''}>🟢 Valid</option><option value="expiring"${assetsStatusFilter === 'expiring' ? ' selected' : ''}>🟠 Expiring Soon</option><option value="expired"${assetsStatusFilter === 'expired' ? ' selected' : ''}>🔴 Expired</option></select></div>
             <div class="search-filter" style="flex:2;">
                 <span>🔍</span>
                 <input type="text" id="assetsSearchInput" placeholder="Search by type, entity, trip, truck, expiry..." value="${assetsSearchTerm}" onkeyup="refreshAssetsTable()">
