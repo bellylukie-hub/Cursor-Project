@@ -7,6 +7,28 @@ let selectedCommentType = 'normal';
 let uploadedFiles = [];
 let dashboardSearchTerm = '';
 let currentPODFilter = 'all';
+let currentTripFilter = 'all';
+let currentDocFilter = 'all';
+
+const documentsDB = [
+    { id: 1, type: 'Insurance', entity: 'Truck ZAM-4567', trip: 'TR-1024', truck: 'ZAM-4567', expiry: '2025-04-15', status: 'expiring', kpi: 'orange', label: 'Expires in 7d' },
+    { id: 2, type: 'Vignette', entity: 'Truck ZAM-4590', trip: 'TR-1028', truck: 'ZAM-4590', expiry: '2025-04-10', status: 'expired', kpi: 'red', label: 'Expired' },
+    { id: 3, type: 'TR8', entity: 'Trip TR-1024', trip: 'TR-1024', truck: 'ZAM-4567', expiry: '2025-05-01', status: 'valid', kpi: 'green', label: 'Valid' },
+    { id: 4, type: 'Road Tax', entity: 'Truck ZAM-4612', trip: 'TR-1031', truck: 'ZAM-4612', expiry: '2025-04-20', status: 'expiring', kpi: 'orange', label: 'Expires in 12d' },
+    { id: 5, type: 'Insurance', entity: 'Truck ZAM-4789', trip: 'SB-2045', truck: 'ZAM-4789', expiry: '2025-03-01', status: 'expired', kpi: 'red', label: 'Expired' }
+];
+
+const recentActivityNB = [
+    { trip: 'TR-1024', truck: 'ZAM-4567', area: 'Kasumbalesa', status: 'Border', kpi: 'orange', days: 2, listFilter: 'nb-border-kasumbalesa' },
+    { trip: 'TR-1028', truck: 'ZAM-4590', area: 'Kanyaka', status: 'POD Ready', kpi: 'green', days: 1, listFilter: 'area-kanyaka' },
+    { trip: 'TR-1031', truck: 'ZAM-4612', area: 'Likasi', status: 'Offloading', kpi: 'red', days: 5, listFilter: 'orange' }
+];
+
+const recentActivitySB = [
+    { trip: 'SB-2045', truck: 'ZAM-4789', area: 'Kolwezi', status: 'Loading', kpi: 'orange', days: 3, listFilter: 'sb' },
+    { trip: 'SB-2049', truck: 'ZAM-4801', area: 'Kanyaka', status: 'Dispatched', kpi: 'green', days: 1, listFilter: 'sb-green' },
+    { trip: 'SB-2053', truck: 'ZAM-4823', area: 'Border', status: 'Exit Pending', kpi: 'red', days: 6, listFilter: 'red' }
+];
 
 const podDB = [
     { trip:'NB-2024-031', truck:'MNO012DRC', driver:'David Mukendi', area:'Kanyaka', offloadingPoint:'Kanyaka Depot', owner:'Transport Co A', collected:true, collectedOnTime:true, collectedDate:'2026-07-19 14:00', hoursToCollect:28, scanned:true, scannedDate:'2026-07-19 16:30', scannedBy:'Agent Mwila', uploaded:true, uploadedDate:'2026-07-20 09:00', sentToInvoicing:true, sentDate:'2026-07-21 10:00', kpi:'green' },
@@ -75,7 +97,16 @@ const tripsDB = {
     'NB-2024-031': { tripNumber:'NB-2024-031',truck:'MNO012DRC',driver:'David Mukendi',direction:'NB',area:'Kanyaka',owner:'Transport Co A',entryBorder:'Kasumbalesa',offloadingPoint:'Kanyaka Depot',status:'In Transit',daysInDRC:8,kpi:'green',workflow:{border:'completed',kanyaka:'current',offloading:'pending',pod:'pending'}},
     'SB-2024-003': { tripNumber:'SB-2024-003',truck:'DEF456DRC',driver:'Mike Johnson',direction:'SB',area:'Kanyaka',owner:'Transport Co A',loadingPoint:'Kanyaka',exitBorder:'Kasumbalesa',status:'Loading Process',daysInDRC:3,kpi:'green',workflow:{loadingPlan:'completed',loadingProcess:'current',dispatch:'pending',kanyaka:'pending',border:'pending'}},
     'SB-2024-005': { tripNumber:'SB-2024-005',truck:'MNO345DRC',driver:'David Mukendi',direction:'SB',area:'Kanyaka',owner:'Transport Co B',loadingPoint:'Kanyaka Mine',exitBorder:'Sakania',status:'Loading Delay',daysInDRC:2,kpi:'orange',workflow:{loadingPlan:'completed',loadingProcess:'current',dispatch:'pending',kanyaka:'pending',border:'pending'}},
-    'SB-2024-012': { tripNumber:'SB-2024-012',truck:'PQR678DRC',driver:'Joseph Kabwe',direction:'SB',area:'Kolwezi',owner:'Transport Co C',loadingPoint:'Kolwezi Mine',exitBorder:'Mokambo',status:'Dispatch Ready',daysInDRC:5,kpi:'green',workflow:{loadingPlan:'completed',loadingProcess:'completed',dispatch:'current',kanyaka:'pending',border:'pending'}}
+    'SB-2024-012': { tripNumber:'SB-2024-012',truck:'PQR678DRC',driver:'Joseph Kabwe',direction:'SB',area:'Kolwezi',owner:'Transport Co C',loadingPoint:'Kolwezi Mine',exitBorder:'Mokambo',status:'Dispatch Ready',daysInDRC:5,kpi:'green',workflow:{loadingPlan:'completed',loadingProcess:'completed',dispatch:'current',kanyaka:'pending',border:'pending'}},
+    'NB-2024-042': { tripNumber:'NB-2024-042',truck:'RST890DRC',driver:'Alice Bwalya',direction:'NB',area:'Kasumbalesa',owner:'Transport Co D',entryBorder:'Kasumbalesa',offloadingPoint:'Kolwezi Mine',status:'Border Clearance',daysInDRC:4,kpi:'green',addedToday:true,workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}},
+    'NB-2024-043': { tripNumber:'NB-2024-043',truck:'UVW123DRC',driver:'Paul Chanda',direction:'NB',area:'Kolwezi',owner:'Transport Co B',entryBorder:'Sakania',offloadingPoint:'KCC Mine',status:'In Transit',daysInDRC:6,kpi:'green',addedToday:true,workflow:{border:'completed',kanyaka:'completed',offloading:'pending',pod:'pending'}},
+    'NB-2024-044': { tripNumber:'NB-2024-044',truck:'XYZ456DRC',driver:'Grace Mutale',direction:'NB',area:'Lubumbashi',owner:'Transport Co A',entryBorder:'Mokambo',offloadingPoint:'Lubumbashi',status:'Offloading',daysInDRC:11,kpi:'orange',workflow:{border:'completed',kanyaka:'completed',offloading:'current',pod:'pending'}},
+    'NB-2024-045': { tripNumber:'NB-2024-045',truck:'ABC789DRC',driver:'Henry Sampa',direction:'NB',area:'Kanyaka',owner:'Transport Co C',entryBorder:'Kasumbalesa',offloadingPoint:'Kanyaka Depot',status:'POD Collection',daysInDRC:9,kpi:'orange',workflow:{border:'completed',kanyaka:'completed',offloading:'completed',pod:'current'}},
+    'SB-2024-018': { tripNumber:'SB-2024-018',truck:'DEF321DRC',driver:'Linda Phiri',direction:'SB',area:'Kanyaka',owner:'Transport Co B',loadingPoint:'Kanyaka Mine',exitBorder:'Kasumbalesa',status:'Border Exit',daysInDRC:7,kpi:'green',workflow:{loadingPlan:'completed',loadingProcess:'completed',dispatch:'completed',kanyaka:'completed',border:'current'}},
+    'SB-2024-019': { tripNumber:'SB-2024-019',truck:'GHI654DRC',driver:'Oscar Mwale',direction:'SB',area:'Kolwezi',owner:'Transport Co A',loadingPoint:'Kolwezi Mine',exitBorder:'Sakania',status:'Loading Process',daysInDRC:2,kpi:'orange',addedToday:true,workflow:{loadingPlan:'completed',loadingProcess:'current',dispatch:'pending',kanyaka:'pending',border:'pending'}},
+    'SB-2024-020': { tripNumber:'SB-2024-020',truck:'JKL987DRC',driver:'Nancy Banda',direction:'SB',area:'Kanyaka',owner:'Transport Co D',loadingPoint:'Kanyaka',exitBorder:'Mokambo',status:'Dispatch/Escort',daysInDRC:6,kpi:'orange',workflow:{loadingPlan:'completed',loadingProcess:'completed',dispatch:'current',kanyaka:'pending',border:'pending'}},
+    'NB-2024-046': { tripNumber:'NB-2024-046',truck:'MNO741DRC',driver:'Victor Lungu',direction:'NB',area:'Kasumbalesa',owner:'Transport Co D',entryBorder:'Kasumbalesa',offloadingPoint:'KCC Mine',status:'Whisky Process',daysInDRC:3,kpi:'orange',addedToday:true,workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}},
+    'NB-2024-047': { tripNumber:'NB-2024-047',truck:'PQR852DRC',driver:'Emma Zulu',direction:'NB',area:'Kolwezi',owner:'Transport Co B',entryBorder:'Sakania',offloadingPoint:'Kolwezi Mine',status:'Border Clearance',daysInDRC:2,kpi:'green',addedToday:true,workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}}
 };
 
 // ============================================
@@ -94,12 +125,9 @@ function navigateTo(page) {
         case 'kasumbalesa-whisky': renderKasumbalesaWhisky(ca); break;
         case 'sakania': renderBorderDetail(ca,'Sakania'); break;
         case 'mokambo': renderBorderDetail(ca,'Mokambo'); break;
-        case 'pod-management':
-            if (page === 'pod-management' && currentPage !== 'pod-management') {
-                currentPODFilter = 'all';
-            }
-            renderPODManagement(ca);
-            break;
+        case 'pod-management': renderPODManagement(ca); break;
+        case 'trip-list': renderTripList(ca); break;
+        case 'document-alerts': renderDocumentAlerts(ca); break;
         case 'kanyaka': renderAreaPage(ca,'Kanyaka'); break;
         case 'kolwezi': renderAreaPage(ca,'Kolwezi'); break;
         case 'runner-fees': renderRunnerFees(ca); break;
@@ -111,6 +139,139 @@ function navigateTo(page) {
 function navigateToPOD(filter) {
     currentPODFilter = filter || 'all';
     navigateTo('pod-management');
+}
+
+function navigateToTripList(filter) {
+    currentTripFilter = filter || 'all';
+    navigateTo('trip-list');
+}
+
+function navigateToDocuments(filter) {
+    currentDocFilter = filter || 'all';
+    navigateTo('document-alerts');
+}
+
+function navigateToBorder(borderKey) {
+    const map = {
+        'kasumbalesa-kbp': 'kasumbalesa-detail',
+        'kasumbalesa-whisky': 'kasumbalesa-whisky',
+        'sakania': 'sakania',
+        'mokambo': 'mokambo',
+        'kasumbalesa-exit': () => navigateToTripList('sb-border-kasumbalesa'),
+        'sakania-exit': () => navigateToTripList('sb-border-sakania'),
+        'mokambo-exit': () => navigateToTripList('sb-border-mokambo')
+    };
+    const target = map[borderKey];
+    if (typeof target === 'function') target();
+    else if (target) navigateTo(target);
+    else navigateToTripList('all');
+}
+
+function navigateToAreaList(areaName) {
+    const pageMap = { Kanyaka: 'kanyaka', Kolwezi: 'kolwezi' };
+    if (pageMap[areaName]) navigateTo(pageMap[areaName]);
+    else navigateToTripList('area-' + areaName.toLowerCase().replace(/\s+/g, '-').replace(/\//g, ''));
+}
+
+function getDashboardStats() {
+    const all = Object.values(tripsDB);
+    const nb = all.filter(t => t.direction === 'NB');
+    const sb = all.filter(t => t.direction === 'SB');
+    return {
+        total: all.length,
+        nb: nb.length,
+        sb: sb.length,
+        orange: all.filter(t => t.kpi === 'orange').length,
+        red: all.filter(t => t.kpi === 'red').length,
+        nbGreen: nb.filter(t => t.kpi === 'green').length,
+        sbGreen: sb.filter(t => t.kpi === 'green').length,
+        nbAtRisk: nb.filter(t => t.kpi !== 'green').length,
+        sbCompleted: sb.filter(t => t.kpi === 'green').length,
+        todayNew: all.filter(t => t.addedToday).length,
+        nbOnTimePct: nb.length ? Math.round((nb.filter(t => t.kpi === 'green').length / nb.length) * 100) : 0,
+        sbOnTimePct: sb.length ? Math.round((sb.filter(t => t.kpi === 'green').length / sb.length) * 100) : 0,
+        avgTurnaround: all.length ? Math.round(all.reduce((s, t) => s + t.daysInDRC, 0) / all.length) : 0
+    };
+}
+
+function filterTripsByDashboard(filter) {
+    let trips = Object.values(tripsDB);
+    switch (filter) {
+        case 'nb': return trips.filter(t => t.direction === 'NB');
+        case 'sb': return trips.filter(t => t.direction === 'SB');
+        case 'orange': return trips.filter(t => t.kpi === 'orange');
+        case 'red': return trips.filter(t => t.kpi === 'red');
+        case 'nb-green': return trips.filter(t => t.direction === 'NB' && t.kpi === 'green');
+        case 'sb-green': return trips.filter(t => t.direction === 'SB' && t.kpi === 'green');
+        case 'nb-at-risk': return trips.filter(t => t.direction === 'NB' && t.kpi !== 'green');
+        case 'sb-completed': return trips.filter(t => t.direction === 'SB' && t.kpi === 'green');
+        case 'today': return trips.filter(t => t.addedToday);
+        case 'turnaround': return [...trips].sort((a, b) => b.daysInDRC - a.daysInDRC);
+        case 'nb-border-kasumbalesa': return trips.filter(t => t.direction === 'NB' && t.entryBorder === 'Kasumbalesa');
+        case 'nb-border-sakania': return trips.filter(t => t.direction === 'NB' && t.entryBorder === 'Sakania');
+        case 'nb-border-mokambo': return trips.filter(t => t.direction === 'NB' && t.entryBorder === 'Mokambo');
+        case 'sb-border-kasumbalesa': return trips.filter(t => t.direction === 'SB' && t.exitBorder === 'Kasumbalesa');
+        case 'sb-border-sakania': return trips.filter(t => t.direction === 'SB' && t.exitBorder === 'Sakania');
+        case 'sb-border-mokambo': return trips.filter(t => t.direction === 'SB' && t.exitBorder === 'Mokambo');
+        default:
+            if (filter.startsWith('area-')) {
+                const area = filter.replace('area-', '').replace(/-/g, ' ');
+                return trips.filter(t => t.area && t.area.toLowerCase().includes(area.split(' ')[0]));
+            }
+            return trips;
+    }
+}
+
+function getTripFilterLabel(filter) {
+    const labels = {
+        all: 'All Active Trucks',
+        nb: 'North Bound (NB) Trucks',
+        sb: 'South Bound (SB) Trucks',
+        orange: 'Priority Alerts (Orange)',
+        red: 'Overdue Alerts (Red)',
+        'nb-green': 'NB On-Time Trucks',
+        'sb-green': 'SB On-Time Trucks',
+        'nb-at-risk': 'NB At Risk',
+        'sb-completed': 'SB Completed / On Track',
+        today: 'Trucks Added Today',
+        turnaround: 'Turnaround — Sorted by Days in DRC',
+        'nb-border-kasumbalesa': 'NB Trucks — Kasumbalesa Border',
+        'nb-border-sakania': 'NB Trucks — Sakania Border',
+        'nb-border-mokambo': 'NB Trucks — Mokambo Border',
+        'sb-border-kasumbalesa': 'SB Trucks — Kasumbalesa Exit',
+        'sb-border-sakania': 'SB Trucks — Sakania Exit',
+        'sb-border-mokambo': 'SB Trucks — Mokambo Exit'
+    };
+    if (labels[filter]) return labels[filter];
+    if (filter.startsWith('area-')) return `Trucks in ${filter.replace('area-', '').replace(/-/g, ' ')}`;
+    return 'Truck List';
+}
+
+function filterDocuments(filter) {
+    switch (filter) {
+        case 'expiring': return documentsDB.filter(d => d.status === 'expiring');
+        case 'expired': return documentsDB.filter(d => d.status === 'expired');
+        case 'valid': return documentsDB.filter(d => d.status === 'valid');
+        default: return documentsDB;
+    }
+}
+
+function getDocFilterLabel(filter) {
+    const labels = { all: 'All Documents', expiring: 'Documents Expiring Soon', expired: 'Expired Documents', valid: 'Valid Documents' };
+    return labels[filter] || 'Documents';
+}
+
+function getBorderNavKey(name, direction) {
+    const n = name.toLowerCase();
+    if (n.includes('kbp')) return 'kasumbalesa-kbp';
+    if (n.includes('whisky')) return 'kasumbalesa-whisky';
+    if (direction === 'SB' && n.includes('kasumbalesa')) return 'kasumbalesa-exit';
+    if (direction === 'SB' && n.includes('sakania')) return 'sakania-exit';
+    if (direction === 'SB' && n.includes('mokambo')) return 'mokambo-exit';
+    if (n.includes('sakania')) return 'sakania';
+    if (n.includes('mokambo')) return 'mokambo';
+    if (n.includes('kasumbalesa')) return 'nb-border-kasumbalesa';
+    return 'all';
 }
 
 function getPODStats() {
@@ -184,27 +345,32 @@ function getPerfColor(kpi) {
     return kpi === 'green' ? 'green' : kpi === 'orange' ? 'orange' : 'red';
 }
 
-function renderPerfBar(item) {
+function renderPerfBar(item, direction) {
     const color = getPerfColor(item.kpi);
     const meta = item.avgHours !== undefined
         ? `${item.trucks} trucks · Avg ${item.avgHours}h / ${item.targetHours}h`
         : `On-time performance`;
+    const borderKey = getBorderNavKey(item.name, direction);
+    const clickAction = (borderKey === 'kasumbalesa-kbp' || borderKey === 'kasumbalesa-whisky' || borderKey === 'sakania' || borderKey === 'mokambo')
+        ? `navigateToBorder('${borderKey}')`
+        : `navigateToTripList('${direction === 'NB' ? 'nb' : 'sb'}-border-${item.name.toLowerCase().replace(/\s+exit/i, '').split(' ')[0]}')`;
     return `
-        <div class="perf-item">
+        <div class="perf-item perf-item-clickable" onclick="${clickAction}" title="Click to view truck list">
             <div class="perf-item-header">
                 <span class="perf-name">${item.icon ? item.icon + ' ' : ''}${item.name}</span>
                 <span class="perf-pct" style="color:var(--${color});">${item.pct}%</span>
             </div>
             <div class="perf-bar"><div class="perf-bar-fill ${color}" style="width:${item.pct}%;"></div></div>
-            <div class="perf-meta" style="font-size:11px;color:var(--text-secondary);margin-top:4px;">${meta}</div>
+            <div class="perf-meta" style="font-size:11px;color:var(--text-secondary);margin-top:4px;">${meta} · <span style="color:var(--primary-light);">View list →</span></div>
         </div>
     `;
 }
 
-function renderAreaPerfBar(item) {
+function renderAreaPerfBar(item, direction) {
     const color = getPerfColor(item.kpi);
+    const areaKey = item.name.split('/')[0].trim().split(' ')[0];
     return `
-        <div class="perf-item">
+        <div class="perf-item perf-item-clickable" onclick="navigateToAreaList('${areaKey}')" title="Click to view trucks in ${item.name}">
             <div class="perf-item-header">
                 <span class="perf-name">${item.name}</span>
                 <span class="perf-pct" style="color:var(--${color});">${item.pct}%</span>
@@ -214,9 +380,9 @@ function renderAreaPerfBar(item) {
     `;
 }
 
-function renderUserPerfRows(users) {
+function renderUserPerfRows(users, direction) {
     return users.map(u => `
-        <tr>
+        <tr class="table-row-clickable" onclick="navigateToAreaList('${u.area.split(' ')[0]}')" title="View trucks in ${u.area}">
             <td><span class="perf-user-name"><span class="user-avatar-sm">${u.initials}</span>${u.name}</span></td>
             <td><span class="border-tag${u.area.includes('Whisky') ? ' whisky' : ''}">${u.area}</span></td>
             <td>${u.trucks}</td>
@@ -242,10 +408,10 @@ function renderBorderPerformanceCard(direction, data) {
             </div>
             <div class="card-body">
                 <div class="perf-section-label"><i class="fas fa-map-marker-alt"></i> ${borderLabel} <span class="text-muted text-sm">(${targetNote})</span></div>
-                ${data.borders.map(renderPerfBar).join('')}
+                ${data.borders.map(b => renderPerfBar(b, direction)).join('')}
 
                 <div class="perf-section-label"><i class="fas fa-building"></i> Area Performance</div>
-                ${data.areas.map(renderAreaPerfBar).join('')}
+                ${data.areas.map(a => renderAreaPerfBar(a, direction)).join('')}
 
                 <div class="perf-section-label"><i class="fas fa-users"></i> User Performance by Area</div>
                 <table class="perf-user-table">
@@ -259,7 +425,7 @@ function renderBorderPerformanceCard(direction, data) {
                             <th>KPI</th>
                         </tr>
                     </thead>
-                    <tbody>${renderUserPerfRows(data.users)}</tbody>
+                    <tbody>${renderUserPerfRows(data.users, direction)}</tbody>
                 </table>
             </div>
         </div>
@@ -316,6 +482,9 @@ function renderPODDashboardSection() {
 
 function renderDashboard(container) {
     const podStats = getPODStats();
+    const stats = getDashboardStats();
+    const docExpiring = documentsDB.filter(d => d.status === 'expiring' || d.status === 'expired').length;
+
     container.innerHTML = `
         <div class="page-header">
             <h1>📊 Operations Dashboard</h1>
@@ -325,52 +494,61 @@ function renderDashboard(container) {
         <div class="page-content">
             <div class="page active" id="page-dashboard">
                 <div class="dashboard-grid">
-                    <div class="stat-card">
+                    <div class="stat-card stat-card-clickable" onclick="navigateToTripList('all')" title="View all active trucks">
                         <div class="stat-label">Total Trucks in DRC</div>
-                        <div class="stat-value">187</div>
-                        <span class="stat-change green"><i class="fas fa-arrow-up"></i> +12 today</span>
+                        <div class="stat-value">${stats.total}</div>
+                        <span class="stat-change green"><i class="fas fa-arrow-up"></i> +${stats.todayNew} today</span>
                         <i class="fas fa-truck stat-icon"></i>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card stat-card-clickable" onclick="navigateToTripList('nb')" title="View NB outstanding trucks">
                         <div class="stat-label">NB Outstanding</div>
-                        <div class="stat-value">64</div>
-                        <span class="stat-change orange"><i class="fas fa-exclamation-triangle"></i> 12 at risk</span>
+                        <div class="stat-value">${stats.nb}</div>
+                        <span class="stat-change orange" onclick="event.stopPropagation();navigateToTripList('nb-at-risk')"><i class="fas fa-exclamation-triangle"></i> ${stats.nbAtRisk} at risk</span>
                         <i class="fas fa-arrow-up stat-icon"></i>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card stat-card-clickable" onclick="navigateToTripList('sb')" title="View SB outstanding trucks">
                         <div class="stat-label">SB Outstanding</div>
-                        <div class="stat-value">52</div>
-                        <span class="stat-change green"><i class="fas fa-check"></i> 8 completed</span>
+                        <div class="stat-value">${stats.sb}</div>
+                        <span class="stat-change green" onclick="event.stopPropagation();navigateToTripList('sb-completed')"><i class="fas fa-check"></i> ${stats.sbCompleted} on track</span>
                         <i class="fas fa-arrow-down stat-icon"></i>
                     </div>
                     <div class="stat-card stat-card-clickable" onclick="navigateToPOD('pending')" title="View pending POD list">
                         <div class="stat-label">POD Pending</div>
                         <div class="stat-value">${podStats.pending}</div>
-                        <span class="stat-change red"><i class="fas fa-clock"></i> ${podStats.overdue} overdue</span>
+                        <span class="stat-change red" onclick="event.stopPropagation();navigateToPOD('overdue')"><i class="fas fa-clock"></i> ${podStats.overdue} overdue</span>
                         <i class="fas fa-file-alt stat-icon"></i>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card stat-card-clickable" onclick="navigateToTripList('orange')" title="View priority alerts">
                         <div class="stat-label">Orange Alerts</div>
-                        <div class="stat-value" style="color:var(--orange);">8</div>
+                        <div class="stat-value" style="color:var(--orange);">${stats.orange}</div>
                         <span class="stat-change orange">Priority attention</span>
                         <i class="fas fa-exclamation-circle stat-icon" style="color:var(--orange);"></i>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card stat-card-clickable" onclick="navigateToTripList('red')" title="View overdue alerts">
                         <div class="stat-label">Red Alerts</div>
-                        <div class="stat-value" style="color:var(--red);">3</div>
+                        <div class="stat-value" style="color:var(--red);">${stats.red}</div>
                         <span class="stat-change red">Escalated</span>
                         <i class="fas fa-times-circle stat-icon" style="color:var(--red);"></i>
                     </div>
                 </div>
 
                 <div class="kpi-row">
-                    <div class="kpi-mini"><div class="kpi-value green">86%</div><div class="kpi-label">NB On-Time</div></div>
-                    <div class="kpi-mini"><div class="kpi-value orange">72%</div><div class="kpi-label">SB On-Time</div></div>
+                    <div class="kpi-mini kpi-mini-clickable" onclick="navigateToTripList('nb-green')" title="View NB on-time trucks">
+                        <div class="kpi-value green">${stats.nbOnTimePct}%</div>
+                        <div class="kpi-label">NB On-Time</div>
+                    </div>
+                    <div class="kpi-mini kpi-mini-clickable" onclick="navigateToTripList('sb-green')" title="View SB on-time trucks">
+                        <div class="kpi-value orange">${stats.sbOnTimePct}%</div>
+                        <div class="kpi-label">SB On-Time</div>
+                    </div>
                     <div class="kpi-mini kpi-mini-clickable" onclick="navigateToPOD('collected-on-time')" title="View POD collected on-time">
-                        <div class="kpi-value green">${Math.round((podStats.collectedOnTime / podStats.total) * 100)}%</div>
+                        <div class="kpi-value green">${podStats.total ? Math.round((podStats.collectedOnTime / podStats.total) * 100) : 0}%</div>
                         <div class="kpi-label">POD Collection</div>
                     </div>
-                    <div class="kpi-mini"><div class="kpi-value red">14d</div><div class="kpi-label">Avg Turnaround</div></div>
+                    <div class="kpi-mini kpi-mini-clickable" onclick="navigateToTripList('turnaround')" title="View trucks by turnaround days">
+                        <div class="kpi-value red">${stats.avgTurnaround}d</div>
+                        <div class="kpi-label">Avg Turnaround</div>
+                    </div>
                 </div>
 
                 <div class="section-title-bar">
@@ -394,9 +572,14 @@ function renderDashboard(container) {
                             <table>
                                 <thead><tr><th>Trip</th><th>Truck</th><th>Area</th><th>Status</th><th>Days</th></tr></thead>
                                 <tbody>
-                                    <tr><td><a class="truck-link">TR-1024</a></td><td>ZAM-4567</td><td>Kasumbalesa</td><td><span class="status-badge orange"><span class="dot"></span> Border</span></td><td>2d</td></tr>
-                                    <tr><td><a class="truck-link">TR-1028</a></td><td>ZAM-4590</td><td>Kanyaka</td><td><span class="status-badge green"><span class="dot"></span> POD Ready</span></td><td>1d</td></tr>
-                                    <tr><td><a class="truck-link">TR-1031</a></td><td>ZAM-4612</td><td>Likasi</td><td><span class="status-badge red"><span class="dot"></span> Offloading</span></td><td>5d</td></tr>
+                                    ${recentActivityNB.map(r => `
+                                    <tr class="table-row-clickable" onclick="navigateToTripList('${r.listFilter}')" title="View related truck list">
+                                        <td><a class="truck-link" onclick="event.stopPropagation();navigateToTripList('${r.listFilter}')">${r.trip}</a></td>
+                                        <td>${r.truck}</td>
+                                        <td>${r.area}</td>
+                                        <td><span class="status-badge ${r.kpi}"><span class="dot"></span> ${r.status}</span></td>
+                                        <td>${r.days}d</td>
+                                    </tr>`).join('')}
                                 </tbody>
                             </table>
                         </div>
@@ -410,27 +593,36 @@ function renderDashboard(container) {
                             <table>
                                 <thead><tr><th>Trip</th><th>Truck</th><th>Area</th><th>Status</th><th>Days</th></tr></thead>
                                 <tbody>
-                                    <tr><td><a class="truck-link">SB-2045</a></td><td>ZAM-4789</td><td>Kolwezi</td><td><span class="status-badge orange"><span class="dot"></span> Loading</span></td><td>3d</td></tr>
-                                    <tr><td><a class="truck-link">SB-2049</a></td><td>ZAM-4801</td><td>Kanyaka</td><td><span class="status-badge green"><span class="dot"></span> Dispatched</span></td><td>1d</td></tr>
-                                    <tr><td><a class="truck-link">SB-2053</a></td><td>ZAM-4823</td><td>Border</td><td><span class="status-badge red"><span class="dot"></span> Exit Pending</span></td><td>6d</td></tr>
+                                    ${recentActivitySB.map(r => `
+                                    <tr class="table-row-clickable" onclick="navigateToTripList('${r.listFilter}')" title="View related truck list">
+                                        <td><a class="truck-link" onclick="event.stopPropagation();navigateToTripList('${r.listFilter}')">${r.trip}</a></td>
+                                        <td>${r.truck}</td>
+                                        <td>${r.area}</td>
+                                        <td><span class="status-badge ${r.kpi}"><span class="dot"></span> ${r.status}</span></td>
+                                        <td>${r.days}d</td>
+                                    </tr>`).join('')}
                                 </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
 
-                <div class="card">
+                <div class="card card-clickable" onclick="navigateToDocuments('expiring')">
                     <div class="card-header">
                         <h3><i class="fas fa-file-alt"></i> Document Expiry Alerts</h3>
-                        <span class="card-action text-sm text-muted">3 expiring soon</span>
+                        <span class="card-action text-sm text-muted" onclick="event.stopPropagation();navigateToDocuments('all')">${docExpiring} expiring soon →</span>
                     </div>
                     <div class="card-body table-wrap">
                         <table>
                             <thead><tr><th>Document</th><th>Entity</th><th>Expiry</th><th>Status</th></tr></thead>
                             <tbody>
-                                <tr><td>Insurance</td><td>Truck ZAM-4567</td><td>2025-04-15</td><td><span class="status-badge orange"><span class="dot"></span> Expires in 7d</span></td></tr>
-                                <tr><td>Vignette</td><td>Truck ZAM-4590</td><td>2025-04-10</td><td><span class="status-badge red"><span class="dot"></span> Expired</span></td></tr>
-                                <tr><td>TR8</td><td>Trip TR-1024</td><td>2025-05-01</td><td><span class="status-badge green"><span class="dot"></span> Valid</span></td></tr>
+                                ${documentsDB.slice(0, 3).map(d => `
+                                <tr class="table-row-clickable" onclick="event.stopPropagation();navigateToDocuments('${d.status === 'expiring' ? 'expiring' : d.status === 'expired' ? 'expired' : 'valid'}')" title="View document list">
+                                    <td>${d.type}</td>
+                                    <td>${d.entity}</td>
+                                    <td>${d.expiry}</td>
+                                    <td><span class="status-badge ${d.kpi}"><span class="dot"></span> ${d.label}</span></td>
+                                </tr>`).join('')}
                             </tbody>
                         </table>
                     </div>
@@ -716,6 +908,133 @@ function renderBorderDetail(container, borderName) {
         <div class="frozen-truck-bar"><div class="truck-info-group"><div class="truck-info-item"><span class="truck-info-label">Trip</span><span class="truck-info-value large">${trip.tripNumber}</span></div><div class="truck-info-item"><span class="truck-info-label">Truck</span><span class="truck-info-value large">${trip.truck}</span></div><div class="truck-info-item"><span class="truck-info-label">Driver</span><span class="truck-info-value">${trip.driver}</span></div><div class="truck-info-item"><span class="truck-info-label">Hours</span><span class="truck-info-value">${trip.daysInDRC*8}</span></div></div><span class="kpi-badge ${trip.kpi}">${trip.kpi==='red'?'🔴 OVERDUE':'🟠 PRIORITY'}</span></div>
         <div class="card"><div class="card-header"><h3>Active Trucks at ${borderName}</h3><button class="btn btn-primary btn-sm" onclick="openCommentModal('${trip.tripNumber}')">💬 Add Comment</button></div><div class="card-body"><p>Detailed border view for ${borderName}.</p></div></div>
         <button class="btn btn-outline mt-20" onclick="navigateTo('border-clearance')">⬅️ Back</button>`;
+}
+
+function renderTripListFilterTabs(activeFilter) {
+    const tabs = [
+        { id: 'all', label: 'All', count: Object.keys(tripsDB).length },
+        { id: 'nb', label: 'NB', count: filterTripsByDashboard('nb').length },
+        { id: 'sb', label: 'SB', count: filterTripsByDashboard('sb').length },
+        { id: 'orange', label: 'Priority', count: filterTripsByDashboard('orange').length },
+        { id: 'red', label: 'Overdue', count: filterTripsByDashboard('red').length },
+        { id: 'today', label: 'Added Today', count: filterTripsByDashboard('today').length }
+    ];
+    return tabs.map(t => `
+        <button class="pod-filter-tab${activeFilter === t.id ? ' active' : ''}" onclick="navigateToTripList('${t.id}')">
+            ${t.label}<span class="tab-count">${t.count}</span>
+        </button>
+    `).join('');
+}
+
+function renderTripList(container) {
+    const filter = currentTripFilter;
+    const trips = filterTripsByDashboard(filter);
+
+    container.innerHTML = `
+        <div class="page-header">
+            <h1>🚛 ${getTripFilterLabel(filter)}</h1>
+            <div class="breadcrumb">
+                <a href="#" onclick="navigateTo('dashboard')">Home</a>
+                <span>›</span>
+                <a href="#" onclick="navigateTo('dashboard')">Dashboard</a>
+                <span>›</span>
+                <strong>${getTripFilterLabel(filter)}</strong>
+            </div>
+        </div>
+
+        <div class="pod-filter-tabs">${renderTripListFilterTabs(filter)}</div>
+
+        <div class="table-container">
+            <div class="table-header">
+                <h3>${getTripFilterLabel(filter)}</h3>
+                <span style="color:var(--text-secondary);">${trips.length} truck${trips.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Trip #</th><th>Truck</th><th>Owner</th><th>Driver</th>
+                            <th>Direction</th><th>Area</th><th>Border</th><th>Status</th>
+                            <th>Days</th><th>KPI</th><th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${trips.length ? trips.map(t => `
+                            <tr>
+                                <td><strong>${t.tripNumber}</strong></td>
+                                <td>${t.truck}</td>
+                                <td>${t.owner}</td>
+                                <td>${t.driver}</td>
+                                <td><span class="status-badge blue">${t.direction}</span></td>
+                                <td>${t.area || '-'}</td>
+                                <td>${t.direction === 'NB' ? (t.entryBorder || '-') : (t.exitBorder || '-')}</td>
+                                <td><span class="status-badge ${t.kpi}">${t.status}</span></td>
+                                <td>${t.daysInDRC}</td>
+                                <td><span class="kpi-indicator ${t.kpi}"></span> ${getKPILabel(t.kpi)}</td>
+                                <td><button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}')">💬</button></td>
+                            </tr>
+                        `).join('') : '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text-secondary);">No trucks match this filter</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">⬅️ Back to Dashboard</button>
+    `;
+}
+
+function renderDocumentAlerts(container) {
+    const filter = currentDocFilter;
+    const docs = filterDocuments(filter);
+
+    container.innerHTML = `
+        <div class="page-header">
+            <h1>📄 Document Expiry Alerts</h1>
+            <div class="breadcrumb">
+                <a href="#" onclick="navigateTo('dashboard')">Home</a>
+                <span>›</span>
+                <a href="#" onclick="navigateTo('dashboard')">Dashboard</a>
+                <span>›</span>
+                <strong>${getDocFilterLabel(filter)}</strong>
+            </div>
+        </div>
+
+        <div class="pod-filter-tabs">
+            <button class="pod-filter-tab${filter === 'all' ? ' active' : ''}" onclick="navigateToDocuments('all')">All<span class="tab-count">${documentsDB.length}</span></button>
+            <button class="pod-filter-tab${filter === 'expiring' ? ' active' : ''}" onclick="navigateToDocuments('expiring')">Expiring Soon<span class="tab-count">${filterDocuments('expiring').length}</span></button>
+            <button class="pod-filter-tab${filter === 'expired' ? ' active' : ''}" onclick="navigateToDocuments('expired')">Expired<span class="tab-count">${filterDocuments('expired').length}</span></button>
+            <button class="pod-filter-tab${filter === 'valid' ? ' active' : ''}" onclick="navigateToDocuments('valid')">Valid<span class="tab-count">${filterDocuments('valid').length}</span></button>
+        </div>
+
+        <div class="table-container">
+            <div class="table-header">
+                <h3>${getDocFilterLabel(filter)}</h3>
+                <span style="color:var(--text-secondary);">${docs.length} document${docs.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead>
+                        <tr><th>Document</th><th>Entity</th><th>Trip</th><th>Truck</th><th>Expiry Date</th><th>Status</th><th>Action</th></tr>
+                    </thead>
+                    <tbody>
+                        ${docs.length ? docs.map(d => `
+                            <tr>
+                                <td><strong>${d.type}</strong></td>
+                                <td>${d.entity}</td>
+                                <td>${d.trip}</td>
+                                <td>${d.truck}</td>
+                                <td>${d.expiry}</td>
+                                <td><span class="status-badge ${d.kpi}"><span class="dot"></span> ${d.label}</span></td>
+                                <td><button class="btn btn-primary btn-sm" onclick="openCommentModal('${d.trip}')">💬</button></td>
+                            </tr>
+                        `).join('') : '<tr><td colspan="7" style="text-align:center;padding:24px;">No documents match this filter</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">⬅️ Back to Dashboard</button>
+    `;
 }
 
 function renderPODStageIcon(done, late) {

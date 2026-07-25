@@ -423,10 +423,16 @@
             margin-bottom: 8px;
             opacity: 0.7;
         }
-        .stat-card-clickable { cursor: pointer; }
-        .stat-card-clickable:hover { border: 2px solid var(--primary-light); }
+        .stat-card-clickable { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s; }
+        .stat-card-clickable:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); border: 2px solid var(--primary-light); }
         .kpi-mini-clickable { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
         .kpi-mini-clickable:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+        .perf-item-clickable { cursor: pointer; border-radius: 6px; padding: 4px; margin: -4px; transition: background 0.2s; }
+        .perf-item-clickable:hover { background: #f7fafc; }
+        .card-clickable { cursor: pointer; transition: box-shadow 0.2s; }
+        .card-clickable:hover { box-shadow: var(--shadow-lg); }
+        .table-row-clickable { cursor: pointer; }
+        .table-row-clickable:hover { background: #f0f4ff !important; }
         .pod-filter-tabs {
             display: flex;
             gap: 8px;
@@ -732,7 +738,7 @@
                     <a class="nav-item" onclick="navigateTo('border-clearance')" data-page="border-clearance">
                         <span class="icon">🛂</span> Border Clearance <span class="badge warning">12</span>
                     </a>
-                    <a class="nav-item" onclick="navigateTo('pod-management')" data-page="pod-management">
+                    <a class="nav-item" onclick="navigateToPOD('all')" data-page="pod-management">
                         <span class="icon">📋</span> POD Management
                     </a>
                 </div>
