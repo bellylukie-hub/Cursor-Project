@@ -62,6 +62,17 @@
         .nav-item .icon { margin-right: 12px; font-size: 18px; width: 24px; text-align: center; }
         .nav-item .badge { margin-left: auto; background: var(--danger); color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
         .nav-item .badge.warning { background: var(--warning); color: #000; }
+        .nav-section-title.sub {
+            padding: 6px 20px 6px 32px;
+            font-size: 10px;
+            margin-bottom: 4px;
+            color: #4a6fa5;
+        }
+        .nav-item.sub-item {
+            padding: 10px 20px 10px 36px;
+            font-size: 13px;
+        }
+        .nav-item.sub-item .icon { font-size: 15px; width: 20px; }
 
         /* MAIN CONTENT */
         .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -738,23 +749,31 @@
                     <a class="nav-item" onclick="navigateTo('border-clearance')" data-page="border-clearance">
                         <span class="icon">🛂</span> Border Clearance <span class="badge warning">12</span>
                     </a>
-                    <a class="nav-item" onclick="navigateToPOD('all')" data-page="pod-management">
-                        <span class="icon">📋</span> POD Management
-                    </a>
-                </div>
-                <div class="nav-section">
-                    <div class="nav-section-title">Border Details</div>
-                    <a class="nav-item" onclick="navigateTo('kasumbalesa-detail')" data-page="kasumbalesa-detail">
+                    <div class="nav-section-title sub">NB Clearance (Entry)</div>
+                    <a class="nav-item sub-item" onclick="navigateTo('kasumbalesa-detail')" data-page="kasumbalesa-detail">
                         <span class="icon">🅺</span> Kasumbalesa KBP <span class="badge">7</span>
                     </a>
-                    <a class="nav-item" onclick="navigateTo('kasumbalesa-whisky')" data-page="kasumbalesa-whisky">
+                    <a class="nav-item sub-item" onclick="navigateTo('kasumbalesa-whisky')" data-page="kasumbalesa-whisky">
                         <span class="icon">🥃</span> Kasumbalesa Whisky
                     </a>
-                    <a class="nav-item" onclick="navigateTo('sakania')" data-page="sakania">
-                        <span class="icon">📍</span> Sakania
+                    <a class="nav-item sub-item" onclick="navigateTo('sakania-nb')" data-page="sakania-nb">
+                        <span class="icon">📍</span> Sakania NB Process
                     </a>
-                    <a class="nav-item" onclick="navigateTo('mokambo')" data-page="mokambo">
-                        <span class="icon">📍</span> Mokambo
+                    <a class="nav-item sub-item" onclick="navigateTo('mokambo-nb')" data-page="mokambo-nb">
+                        <span class="icon">📍</span> Mokambo NB Process
+                    </a>
+                    <div class="nav-section-title sub">SB Clearance (Exit)</div>
+                    <a class="nav-item sub-item" onclick="navigateTo('sb-kasumbalesa')" data-page="sb-kasumbalesa">
+                        <span class="icon">🔽</span> Kasumbalesa Exit
+                    </a>
+                    <a class="nav-item sub-item" onclick="navigateTo('sb-sakania')" data-page="sb-sakania">
+                        <span class="icon">🔽</span> Sakania Exit
+                    </a>
+                    <a class="nav-item sub-item" onclick="navigateTo('sb-mokambo')" data-page="sb-mokambo">
+                        <span class="icon">🔽</span> Mokambo Exit
+                    </a>
+                    <a class="nav-item" onclick="navigateToPOD('all')" data-page="pod-management">
+                        <span class="icon">📋</span> POD Management
                     </a>
                 </div>
                 <div class="nav-section">

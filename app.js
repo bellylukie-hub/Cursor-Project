@@ -30,6 +30,74 @@ const recentActivitySB = [
     { trip: 'SB-2053', truck: 'ZAM-4823', area: 'Border', status: 'Exit Pending', kpi: 'red', days: 6, listFilter: 'red' }
 ];
 
+let currentBorderTabPrefix = 'kbp';
+
+const KBP_STEP_TEMPLATE = [
+    { title: 'TRUCK ARRIVAL & ENTRY - {prefix} Parking', area: '{prefix} Gate' },
+    { title: 'DOCUMENT SUBMISSION TO BRIGADE OFFICER', area: '{prefix} Brigade Office' },
+    { title: 'TRUCK SCANNING - {prefix} Scan Bay', area: '{prefix} Scan Bay' },
+    { title: 'GREEN STAMPING - Customs Inspector', area: 'Customs Office' },
+    { title: 'RED STAMPING - Another Customs Inspector', area: 'Customs Office' },
+    { title: 'CROSS-CHECKING - Customs Control Room', area: 'Control Room' },
+    { title: 'DRIVER CONTACT DETAILS - {prefix} Admin', area: '{prefix} Admin' }
+];
+
+const nbBorderConfigs = {
+    'kasumbalesa-kbp': {
+        pageId: 'kasumbalesa-detail', tabPrefix: 'kbp', icon: '🅺', processName: 'KBP Process',
+        borderName: 'Kasumbalesa', locationPrefix: 'KBP', tripId: 'NB-2024-001',
+        trip: 'NB-1001', truck: 'ABC 123', trailer: 'TRL-456', driver: 'John Doe', owner: 'XYZ Transport',
+        kpi: 'green', kpiLabel: '🟢 ON TRACK', timeValue: '3:35', timePct: 7.5, targetHours: 48,
+        totalTime: '3 HRS 35 MINS', timeStatus: '🟢 UNDER TIME - EXCELLENT',
+        completedSteps: 7, finalApproval: true
+    },
+    'sakania-nb': {
+        pageId: 'sakania-nb', tabPrefix: 'sakania-nb', icon: '📍', processName: 'NB BN Process',
+        borderName: 'Sakania', locationPrefix: 'Sakania', tripId: 'NB-2024-015',
+        trip: 'NB-2024-015', truck: 'XYZ789DRC', trailer: 'TRL-890', driver: 'Sarah Smith', owner: 'Transport Co B',
+        kpi: 'orange', kpiLabel: '🟠 PRIORITY', timeValue: '40:00', timePct: 83, targetHours: 48,
+        totalTime: '40 HRS', timeStatus: '🟠 APPROACHING DEADLINE', timeClass: 'warning',
+        completedSteps: 5, finalApproval: false
+    },
+    'mokambo-nb': {
+        pageId: 'mokambo-nb', tabPrefix: 'mokambo-nb', icon: '📍', processName: 'NB BN Process',
+        borderName: 'Mokambo', locationPrefix: 'Mokambo', tripId: 'NB-2024-022',
+        trip: 'NB-2024-022', truck: 'GHI789DRC', trailer: 'TRL-334', driver: 'Jean Pierre', owner: 'Transport Co C',
+        kpi: 'red', kpiLabel: '🔴 OVERDUE', timeValue: '78:00', timePct: 108, targetHours: 72,
+        totalTime: '78 HRS', timeStatus: '🔴 OVER TARGET - ACTION REQUIRED', timeClass: 'danger',
+        completedSteps: 4, finalApproval: false
+    }
+};
+
+const sbBorderConfigs = {
+    'sb-kasumbalesa': {
+        pageId: 'sb-kasumbalesa', tabPrefix: 'sb-kas', borderName: 'Kasumbalesa', tripId: 'SB-2024-003',
+        trip: 'SB-2024-003', truck: 'DEF456DRC', driver: 'Mike Johnson', owner: 'Transport Co A',
+        kpi: 'green', kpiLabel: '🟢 ON TRACK', timeValue: '24:00', targetHours: 48, completedSteps: 5
+    },
+    'sb-sakania': {
+        pageId: 'sb-sakania', tabPrefix: 'sb-sak', borderName: 'Sakania', tripId: 'SB-2024-005',
+        trip: 'SB-2024-005', truck: 'MNO345DRC', driver: 'David Mukendi', owner: 'Transport Co B',
+        kpi: 'orange', kpiLabel: '🟠 PRIORITY', timeValue: '44:00', targetHours: 48, completedSteps: 4
+    },
+    'sb-mokambo': {
+        pageId: 'sb-mokambo', tabPrefix: 'sb-mok', borderName: 'Mokambo', tripId: 'SB-2024-012',
+        trip: 'SB-2024-012', truck: 'PQR678DRC', driver: 'Joseph Kabwe', owner: 'Transport Co C',
+        kpi: 'orange', kpiLabel: '🟠 PRIORITY', timeValue: '36:00', targetHours: 72, completedSteps: 3
+    }
+};
+
+const SB_CLEARANCE_STEPS = [
+    'Arrived at Exit Border',
+    'Gov List Uploaded',
+    'Customs Declaration Submitted',
+    'Duty / SEGUCE Payment',
+    'Brigade Stamp Applied',
+    'Seal Verification',
+    'Documents Handed to Driver',
+    'Exit to Zambia — Complete'
+];
+
 const podDB = [
     { trip:'NB-2024-031', truck:'MNO012DRC', driver:'David Mukendi', area:'Kanyaka', offloadingPoint:'Kanyaka Depot', owner:'Transport Co A', collected:true, collectedOnTime:true, collectedDate:'2026-07-19 14:00', hoursToCollect:28, scanned:true, scannedDate:'2026-07-19 16:30', scannedBy:'Agent Mwila', uploaded:true, uploadedDate:'2026-07-20 09:00', sentToInvoicing:true, sentDate:'2026-07-21 10:00', kpi:'green' },
     { trip:'NB-2024-015', truck:'XYZ789DRC', driver:'Sarah Smith', area:'Kolwezi', offloadingPoint:'Kolwezi Mine', owner:'Transport Co B', collected:false, collectedOnTime:false, collectedDate:null, hoursToCollect:null, scanned:false, scannedDate:null, scannedBy:null, uploaded:false, uploadedDate:null, sentToInvoicing:false, sentDate:null, kpi:'orange', overdue:true },
@@ -121,10 +189,15 @@ function navigateTo(page) {
         case 'nb-operations': renderNBOperations(ca); break;
         case 'sb-operations': renderSBOperations(ca); break;
         case 'border-clearance': renderBorderClearanceOverview(ca); break;
-        case 'kasumbalesa-detail': renderKasumbalesaKBPDetail(ca); break;
+        case 'kasumbalesa-detail': renderNBKBPBorderDetail(ca, nbBorderConfigs['kasumbalesa-kbp']); break;
         case 'kasumbalesa-whisky': renderKasumbalesaWhisky(ca); break;
-        case 'sakania': renderBorderDetail(ca,'Sakania'); break;
-        case 'mokambo': renderBorderDetail(ca,'Mokambo'); break;
+        case 'sakania-nb': renderNBKBPBorderDetail(ca, nbBorderConfigs['sakania-nb']); break;
+        case 'mokambo-nb': renderNBKBPBorderDetail(ca, nbBorderConfigs['mokambo-nb']); break;
+        case 'sakania': renderNBKBPBorderDetail(ca, nbBorderConfigs['sakania-nb']); break;
+        case 'mokambo': renderNBKBPBorderDetail(ca, nbBorderConfigs['mokambo-nb']); break;
+        case 'sb-kasumbalesa': renderSBClearanceDetail(ca, sbBorderConfigs['sb-kasumbalesa']); break;
+        case 'sb-sakania': renderSBClearanceDetail(ca, sbBorderConfigs['sb-sakania']); break;
+        case 'sb-mokambo': renderSBClearanceDetail(ca, sbBorderConfigs['sb-mokambo']); break;
         case 'pod-management': renderPODManagement(ca); break;
         case 'trip-list': renderTripList(ca); break;
         case 'document-alerts': renderDocumentAlerts(ca); break;
@@ -155,11 +228,13 @@ function navigateToBorder(borderKey) {
     const map = {
         'kasumbalesa-kbp': 'kasumbalesa-detail',
         'kasumbalesa-whisky': 'kasumbalesa-whisky',
-        'sakania': 'sakania',
-        'mokambo': 'mokambo',
-        'kasumbalesa-exit': () => navigateToTripList('sb-border-kasumbalesa'),
-        'sakania-exit': () => navigateToTripList('sb-border-sakania'),
-        'mokambo-exit': () => navigateToTripList('sb-border-mokambo')
+        'sakania': 'sakania-nb',
+        'sakania-nb': 'sakania-nb',
+        'mokambo': 'mokambo-nb',
+        'mokambo-nb': 'mokambo-nb',
+        'kasumbalesa-exit': 'sb-kasumbalesa',
+        'sakania-exit': 'sb-sakania',
+        'mokambo-exit': 'sb-mokambo'
     };
     const target = map[borderKey];
     if (typeof target === 'function') target();
@@ -265,12 +340,14 @@ function getBorderNavKey(name, direction) {
     const n = name.toLowerCase();
     if (n.includes('kbp')) return 'kasumbalesa-kbp';
     if (n.includes('whisky')) return 'kasumbalesa-whisky';
-    if (direction === 'SB' && n.includes('kasumbalesa')) return 'kasumbalesa-exit';
-    if (direction === 'SB' && n.includes('sakania')) return 'sakania-exit';
-    if (direction === 'SB' && n.includes('mokambo')) return 'mokambo-exit';
-    if (n.includes('sakania')) return 'sakania';
-    if (n.includes('mokambo')) return 'mokambo';
-    if (n.includes('kasumbalesa')) return 'nb-border-kasumbalesa';
+    if (direction === 'SB') {
+        if (n.includes('kasumbalesa')) return 'kasumbalesa-exit';
+        if (n.includes('sakania')) return 'sakania-exit';
+        if (n.includes('mokambo')) return 'mokambo-exit';
+    }
+    if (n.includes('sakania')) return 'sakania-nb';
+    if (n.includes('mokambo')) return 'mokambo-nb';
+    if (n.includes('kasumbalesa')) return 'kasumbalesa-kbp';
     return 'all';
 }
 
@@ -351,9 +428,7 @@ function renderPerfBar(item, direction) {
         ? `${item.trucks} trucks · Avg ${item.avgHours}h / ${item.targetHours}h`
         : `On-time performance`;
     const borderKey = getBorderNavKey(item.name, direction);
-    const clickAction = (borderKey === 'kasumbalesa-kbp' || borderKey === 'kasumbalesa-whisky' || borderKey === 'sakania' || borderKey === 'mokambo')
-        ? `navigateToBorder('${borderKey}')`
-        : `navigateToTripList('${direction === 'NB' ? 'nb' : 'sb'}-border-${item.name.toLowerCase().replace(/\s+exit/i, '').split(' ')[0]}')`;
+    const clickAction = `navigateToBorder('${borderKey}')`;
     return `
         <div class="perf-item perf-item-clickable" onclick="${clickAction}" title="Click to view truck list">
             <div class="perf-item-header">
@@ -450,7 +525,7 @@ function renderPODDashboardSection() {
                 <div class="pod-stat-icon">🔍</div>
                 <div class="pod-stat-value blue">${s.scanned}</div>
                 <div class="pod-stat-label">Scanned</div>
-                <div class="pod-stat-sub">${s.collectedLate} collected late</div>
+                <div class="pod-stat-sub">${s.collectedLate} <span style="color:var(--primary-light);cursor:pointer;" onclick="event.stopPropagation();navigateToPOD('collected-late')">collected late →</span></div>
             </div>
             <div class="pod-stat-item" onclick="navigateToPOD('uploaded')" title="View uploaded POD list">
                 <div class="pod-stat-icon">📤</div>
@@ -651,9 +726,11 @@ function renderDashboardTableRows(trips) {
             <td>
                 <button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}')">💬 Comment</button>
                 ${t.entryBorder === 'Kasumbalesa' ? `<button class="btn btn-outline btn-sm" onclick="navigateTo('kasumbalesa-detail')">👁️</button>` :
-                  t.entryBorder === 'Sakania' ? `<button class="btn btn-outline btn-sm" onclick="navigateTo('sakania')">👁️</button>` :
-                  t.entryBorder === 'Mokambo' ? `<button class="btn btn-outline btn-sm" onclick="navigateTo('mokambo')">👁️</button>` :
-                  t.exitBorder ? `<button class="btn btn-outline btn-sm" onclick="navigateTo('${t.exitBorder.toLowerCase()}')">👁️</button>` : ''}
+                  t.entryBorder === 'Sakania' ? `<button class="btn btn-outline btn-sm" onclick="navigateTo('sakania-nb')">👁️</button>` :
+                  t.entryBorder === 'Mokambo' ? `<button class="btn btn-outline btn-sm" onclick="navigateTo('mokambo-nb')">👁️</button>` :
+                  t.exitBorder === 'Kasumbalesa' ? `<button class="btn btn-outline btn-sm" onclick="navigateTo('sb-kasumbalesa')">👁️</button>` :
+                  t.exitBorder === 'Sakania' ? `<button class="btn btn-outline btn-sm" onclick="navigateTo('sb-sakania')">👁️</button>` :
+                  t.exitBorder === 'Mokambo' ? `<button class="btn btn-outline btn-sm" onclick="navigateTo('sb-mokambo')">👁️</button>` : ''}
             </td>
         </tr>
     `).join('');
@@ -794,91 +871,212 @@ function clearSBFilters() {
 // ============================================
 function renderBorderClearanceOverview(container) {
     container.innerHTML = `
-        <div class="page-header"><h1>🛂 Border Clearance Operations</h1><div class="breadcrumb"><a href="#" onclick="navigateTo('dashboard')">Home</a> <span>›</span> <strong>Border Clearance</strong></div></div>
-        <div class="kpi-grid">
-            <div class="kpi-card green" onclick="navigateTo('kasumbalesa-detail')"><div class="kpi-header"><span class="kpi-title">🅺 Kasumbalesa KBP</span></div><div class="kpi-value">23</div><div class="kpi-trend">Target: 48h | Avg: 12h</div></div>
-            <div class="kpi-card orange" onclick="navigateTo('kasumbalesa-whisky')"><div class="kpi-header"><span class="kpi-title">🥃 Kasumbalesa Whisky</span></div><div class="kpi-value">15</div><div class="kpi-trend negative">Target: 72h | Avg: 52h</div></div>
-            <div class="kpi-card orange" onclick="navigateTo('sakania')"><div class="kpi-header"><span class="kpi-title">📍 Sakania</span></div><div class="kpi-value">8</div><div class="kpi-trend negative">Target: 48h | Avg: 40h</div></div>
-            <div class="kpi-card red" onclick="navigateTo('mokambo')"><div class="kpi-header"><span class="kpi-title">📍 Mokambo</span></div><div class="kpi-value">5</div><div class="kpi-trend negative">Target: 72h | Avg: 78h</div></div>
+        <div class="page-header">
+            <h1>🛂 Border Clearance Operations</h1>
+            <div class="breadcrumb"><a href="#" onclick="navigateTo('dashboard')">Home</a> <span>›</span> <strong>Border Clearance</strong></div>
         </div>
+
+        <div class="section-title-bar" style="margin-top:0;">
+            <h2><i class="fas fa-arrow-up" style="color:var(--green);"></i> NB Clearance (Entry — North Bound)</h2>
+        </div>
+        <div class="kpi-grid">
+            <div class="kpi-card green" onclick="navigateTo('kasumbalesa-detail')"><div class="kpi-header"><span class="kpi-title">🅺 Kasumbalesa KBP</span></div><div class="kpi-value">23</div><div class="kpi-trend">BN Process · Target: 48h | Avg: 12h</div></div>
+            <div class="kpi-card orange" onclick="navigateTo('kasumbalesa-whisky')"><div class="kpi-header"><span class="kpi-title">🥃 Kasumbalesa Whisky</span></div><div class="kpi-value">15</div><div class="kpi-trend negative">Whisky Process · Target: 72h</div></div>
+            <div class="kpi-card orange" onclick="navigateTo('sakania-nb')"><div class="kpi-header"><span class="kpi-title">📍 Sakania NB</span></div><div class="kpi-value">8</div><div class="kpi-trend negative">BN Process (KBP sequence) · Target: 48h</div></div>
+            <div class="kpi-card red" onclick="navigateTo('mokambo-nb')"><div class="kpi-header"><span class="kpi-title">📍 Mokambo NB</span></div><div class="kpi-value">5</div><div class="kpi-trend negative">BN Process (KBP sequence) · Target: 72h</div></div>
+        </div>
+
+        <div class="section-title-bar">
+            <h2><i class="fas fa-arrow-down" style="color:var(--orange);"></i> SB Clearance (Exit — South Bound)</h2>
+        </div>
+        <div class="kpi-grid">
+            <div class="kpi-card green" onclick="navigateTo('sb-kasumbalesa')"><div class="kpi-header"><span class="kpi-title">🔽 Kasumbalesa Exit</span></div><div class="kpi-value">18</div><div class="kpi-trend">SB Exit Process · Target: 48h</div></div>
+            <div class="kpi-card orange" onclick="navigateTo('sb-sakania')"><div class="kpi-header"><span class="kpi-title">🔽 Sakania Exit</span></div><div class="kpi-value">11</div><div class="kpi-trend negative">SB Exit Process · Target: 48h</div></div>
+            <div class="kpi-card orange" onclick="navigateTo('sb-mokambo')"><div class="kpi-header"><span class="kpi-title">🔽 Mokambo Exit</span></div><div class="kpi-value">7</div><div class="kpi-trend negative">SB Exit Process · Target: 72h</div></div>
+        </div>
+
         <div class="table-container">
             <div class="table-header"><h3>All Border Trucks</h3></div>
-            <table><thead><tr><th>Trip #</th><th>Truck</th><th>Border</th><th>Process</th><th>Status</th><th>Hours</th><th>Target</th><th>KPI</th><th>Actions</th></tr></thead>
+            <table><thead><tr><th>Trip #</th><th>Truck</th><th>Direction</th><th>Border</th><th>Process</th><th>Status</th><th>Hours</th><th>Target</th><th>KPI</th><th>Actions</th></tr></thead>
             <tbody>
-                <tr><td><strong>NB-2024-001</strong></td><td>ABC123DRC</td><td>Kasumbalesa</td><td><span class="status-badge kbp">🅺 KBP</span></td><td>Cross-checking</td><td>38</td><td>48h</td><td><span class="kpi-indicator orange"></span> Priority</td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('NB-2024-001')">💬 Comment</button> <button class="btn btn-outline btn-sm" onclick="navigateTo('kasumbalesa-detail')">👁️</button></td></tr>
-                <tr><td><strong>NB-2024-008</strong></td><td>JKL012DRC</td><td>Kasumbalesa</td><td><span class="status-badge whisky">🥃 Whisky</span></td><td>TR8 Issued</td><td>52</td><td>72h</td><td><span class="kpi-indicator orange"></span> Priority</td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('NB-2024-008')">💬 Comment</button> <button class="btn btn-outline btn-sm" onclick="navigateTo('kasumbalesa-whisky')">👁️</button></td></tr>
-                <tr><td><strong>NB-2024-015</strong></td><td>XYZ789DRC</td><td>Sakania</td><td><span class="status-badge blue">Standard</span></td><td>Documents Handed</td><td>40</td><td>48h</td><td><span class="kpi-indicator orange"></span> Priority</td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('NB-2024-015')">💬 Comment</button> <button class="btn btn-outline btn-sm" onclick="navigateTo('sakania')">👁️</button></td></tr>
-                <tr><td><strong>NB-2024-022</strong></td><td>GHI789DRC</td><td>Mokambo</td><td><span class="status-badge red">IM4</span></td><td>Duty Payment</td><td>78</td><td>72h</td><td><span class="kpi-indicator red"></span> Overdue</td><td><button class="btn btn-danger btn-sm" onclick="openCommentModal('NB-2024-022')">💬 Urgent</button> <button class="btn btn-outline btn-sm" onclick="navigateTo('mokambo')">👁️</button></td></tr>
+                <tr><td><strong>NB-2024-001</strong></td><td>ABC123DRC</td><td><span class="status-badge blue">NB</span></td><td>Kasumbalesa</td><td><span class="status-badge kbp">🅺 KBP</span></td><td>Cross-checking</td><td>38</td><td>48h</td><td><span class="kpi-indicator orange"></span> Priority</td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('NB-2024-001')">💬</button> <button class="btn btn-outline btn-sm" onclick="navigateTo('kasumbalesa-detail')">👁️</button></td></tr>
+                <tr><td><strong>NB-2024-008</strong></td><td>JKL012DRC</td><td><span class="status-badge blue">NB</span></td><td>Kasumbalesa</td><td><span class="status-badge whisky">🥃 Whisky</span></td><td>TR8 Issued</td><td>52</td><td>72h</td><td><span class="kpi-indicator orange"></span> Priority</td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('NB-2024-008')">💬</button> <button class="btn btn-outline btn-sm" onclick="navigateTo('kasumbalesa-whisky')">👁️</button></td></tr>
+                <tr><td><strong>NB-2024-015</strong></td><td>XYZ789DRC</td><td><span class="status-badge blue">NB</span></td><td>Sakania</td><td><span class="status-badge blue">BN Process</span></td><td>Cross-checking</td><td>40</td><td>48h</td><td><span class="kpi-indicator orange"></span> Priority</td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('NB-2024-015')">💬</button> <button class="btn btn-outline btn-sm" onclick="navigateTo('sakania-nb')">👁️</button></td></tr>
+                <tr><td><strong>NB-2024-022</strong></td><td>GHI789DRC</td><td><span class="status-badge blue">NB</span></td><td>Mokambo</td><td><span class="status-badge blue">BN Process</span></td><td>Red Stamping</td><td>78</td><td>72h</td><td><span class="kpi-indicator red"></span> Overdue</td><td><button class="btn btn-danger btn-sm" onclick="openCommentModal('NB-2024-022')">💬</button> <button class="btn btn-outline btn-sm" onclick="navigateTo('mokambo-nb')">👁️</button></td></tr>
+                <tr><td><strong>SB-2024-003</strong></td><td>DEF456DRC</td><td><span class="status-badge blue">SB</span></td><td>Kasumbalesa</td><td><span class="status-badge green">SB Exit</span></td><td>Seal Verification</td><td>24</td><td>48h</td><td><span class="kpi-indicator green"></span> On Track</td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('SB-2024-003')">💬</button> <button class="btn btn-outline btn-sm" onclick="navigateTo('sb-kasumbalesa')">👁️</button></td></tr>
+                <tr><td><strong>SB-2024-005</strong></td><td>MNO345DRC</td><td><span class="status-badge blue">SB</span></td><td>Sakania</td><td><span class="status-badge orange">SB Exit</span></td><td>Customs Declaration</td><td>44</td><td>48h</td><td><span class="kpi-indicator orange"></span> Priority</td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('SB-2024-005')">💬</button> <button class="btn btn-outline btn-sm" onclick="navigateTo('sb-sakania')">👁️</button></td></tr>
+                <tr><td><strong>SB-2024-012</strong></td><td>PQR678DRC</td><td><span class="status-badge blue">SB</span></td><td>Mokambo</td><td><span class="status-badge orange">SB Exit</span></td><td>Gov List Upload</td><td>36</td><td>72h</td><td><span class="kpi-indicator orange"></span> Priority</td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('SB-2024-012')">💬</button> <button class="btn btn-outline btn-sm" onclick="navigateTo('sb-mokambo')">👁️</button></td></tr>
             </tbody></table>
+        </div>
+
+        <div style="background:#e8f0fe;padding:15px;border-radius:8px;margin-top:20px;border-left:4px solid var(--primary-light);font-size:13px;">
+            <strong>📋 NB BN Process (Sakania & Mokambo):</strong> Same sequential steps as Kasumbalesa KBP — Arrival → Brigade → Scanning → Green Stamp → Red Stamp → Cross-check → Driver Details → Final Approval
         </div>`;
 }
 
 // ============================================
-// KASUMBALESA KBP DETAIL WITH FROZEN BAR
+// NB KBP / BN BORDER DETAIL (shared sequential process)
 // ============================================
-function renderKasumbalesaKBPDetail(container) {
-    container.innerHTML = `
-        <div class="page-header"><h1>🅺 Kasumbalesa Border - KBP Process Detail</h1><div class="breadcrumb"><a href="#" onclick="navigateTo('dashboard')">Home</a> <span>›</span> <a href="#" onclick="navigateTo('border-clearance')">Border Clearance</a> <span>›</span> <strong>Truck: ABC 123 | Trip: NB-1001</strong></div></div>
-        <div class="frozen-truck-bar">
-            <div class="truck-info-group">
-                <div class="truck-info-item"><span class="truck-info-label">Trip Number</span><span class="truck-info-value large">NB-1001</span></div>
-                <div class="truck-info-item"><span class="truck-info-label">Truck</span><span class="truck-info-value large">ABC 123</span></div>
-                <div class="truck-info-item"><span class="truck-info-label">Trailer</span><span class="truck-info-value">TRL-456</span></div>
-                <div class="truck-info-item"><span class="truck-info-label">Driver</span><span class="truck-info-value">John Doe</span></div>
-                <div class="truck-info-item"><span class="truck-info-label">Direction</span><span class="truck-info-value">🔼 North Bound</span></div>
-                <div class="truck-info-item"><span class="truck-info-label">Owner</span><span class="truck-info-value">XYZ Transport</span></div>
-            </div>
-            <div style="display:flex;align-items:center;gap:15px;">
-                <span class="kpi-badge green">🟢 ON TRACK</span>
-                <button class="btn btn-success btn-sm" onclick="openCommentModal('NB-2024-001')" style="background:white;color:#1a365d;">💬 Add Comment</button>
-            </div>
-        </div>
-        <div class="card"><div class="card-header"><span>⏱️ Time Tracking</span><span style="display:inline-flex;align-items:center;gap:4px;"><span class="kpi-dot green"></span> UNDER TIME</span></div><div class="card-body"><div class="time-tracker"><div class="time-circle"><span class="time-value">3:35</span><span class="time-label">HRS : MINS</span></div><div class="progress-bar-container"><div style="display:flex;justify-content:space-between;"><span>Total: <strong>3 HRS 35 MINS</strong></span><span>Target: <strong>48 HRS</strong></span></div><div class="progress-bar"><div class="progress-fill" style="width:7.5%;"></div></div><div style="display:flex;justify-content:space-between;font-size:0.8em;color:var(--text-secondary);"><span>7.5% Used</span><span>44 HRS 25 MINS remaining</span></div><div style="margin-top:8px;">🟢 UNDER TIME - EXCELLENT</div></div></div></div></div>
-        <div class="tabs"><div class="tab active" onclick="switchBorderTab('kbp-steps',this)">🅺 KBP Steps</div><div class="tab" onclick="switchBorderTab('kbp-documents',this)">📁 Docs (7)</div><div class="tab" onclick="switchBorderTab('kbp-comments',this)">💬 Comments (3)</div><div class="tab" onclick="switchBorderTab('kbp-logs',this)">📋 Activity Log</div></div>
-        <div id="tab-kbp-steps">${renderKBPSteps()}</div>
-        <div id="tab-kbp-documents" style="display:none;">${renderDocumentsTab()}</div>
-        <div id="tab-kbp-comments" style="display:none;">${renderCommentsTab()}</div>
-        <div id="tab-kbp-logs" style="display:none;">${renderActivityLogTab()}</div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:20px;"><button class="btn btn-outline" onclick="navigateTo('border-clearance')">⬅️ Back</button><button class="btn btn-outline" onclick="window.print()">🖨️ Print</button><button class="btn btn-primary" onclick="openCommentModal('NB-2024-001')">💬 Add Comment</button></div>`;
+function buildKBPSteps(config) {
+    const users = ['Jean Kalenga', 'Marie Mwamba', 'Patrick Tshimanga', 'Inspector Kabwe', 'Inspector Mwape', 'Officer Kalaba', 'Ruth Mwansa'];
+    const times = ['08:00', '08:30', '09:15', '09:30', '10:15', '11:00', '11:30'];
+    const durations = ['8 Mins', '30 Mins', '45 Mins', '45 Mins', '50 Mins', '45 Mins', '5 Mins'];
+    const prefix = config.locationPrefix;
+
+    return KBP_STEP_TEMPLATE.map((tmpl, i) => {
+        const stepNum = i + 1;
+        const completed = stepNum <= config.completedSteps;
+        const current = stepNum === config.completedSteps + 1;
+        const status = completed ? 'completed' : current ? 'in-progress' : 'pending';
+        const title = '📌 ' + tmpl.title.replace(/\{prefix\}/g, prefix);
+        const area = tmpl.area.replace(/\{prefix\}/g, prefix);
+        return {
+            num: stepNum, title, time: `15/07/2026 ${times[i]}`, duration: durations[i],
+            target: i === 1 ? '4 HRS' : (i === 3 || i === 4 ? '1 HR' : null),
+            user: users[i], area, status,
+            action: completed ? (current ? 'In progress' : 'Completed') : 'Pending',
+            detail: completed ? `Step ${stepNum} at ${config.borderName} — ${area}` : 'Awaiting completion'
+        };
+    });
 }
 
-function renderKBPSteps() {
-    const steps = [
-        {num:1,title:'📌 TRUCK ARRIVAL & ENTRY - KBP Parking',time:'15/07/2026 08:00',duration:'8 Mins',user:'Jean Kalenga',area:'KBP Gate',action:'Truck entered KBP Parking',detail:'Entry Time: 08:00 | Doc: Entry_ABC123.pdf'},
-        {num:2,title:'📌 DOCUMENT SUBMISSION TO BRIGADE OFFICER',time:'15/07/2026 08:30',duration:'30 Mins',target:'4 HRS',user:'Marie Mwamba',area:'KBP Brigade Office',action:'Documents submitted',detail:'Titre ☑ | POD ☑ | Officer: Col. Mutombo'},
-        {num:3,title:'📌 TRUCK SCANNING - KBP Scan Bay',time:'15/07/2026 09:15',duration:'45 Mins',user:'Patrick Tshimanga',area:'KBP Scan Bay',action:'Scanning completed - PASS',detail:'Scan ID: KBP-SCAN-0034 | Result: PASS ✅'},
-        {num:4,title:'📌 GREEN STAMPING - Customs Inspector',time:'15/07/2026 09:30',duration:'45 Mins',target:'1 HR',user:'Inspector Kabwe',area:'Customs Office',action:'Green stamp applied',detail:'Ref: GS-20260715-089 | Runner: David Mwila'},
-        {num:5,title:'📌 RED STAMPING - Another Customs Inspector',time:'15/07/2026 10:15',duration:'50 Mins',target:'1 HR',user:'Inspector Mwape',area:'Customs Office',action:'Red stamp applied',detail:'Ref: RS-20260715-156'},
-        {num:6,title:'📌 CROSS-CHECKING - Customs Control Room',time:'15/07/2026 11:00',duration:'45 Mins',user:'Officer Kalaba',area:'Control Room',action:'Cross-checking completed',detail:'Ref: CC-20260715-234 | APPROVED ✅'},
-        {num:7,title:'📌 DRIVER CONTACT DETAILS - KBP Admin',time:'15/07/2026 11:30',duration:'5 Mins',user:'Ruth Mwansa',area:'KBP Admin',action:'Driver details recorded',detail:'WhatsApp: +260 977 123456 | DRC: +243 812 345678'}
-    ];
-    let html = steps.map((s,i) => `
-        <div class="step-container completed"><div class="step-header completed" onclick="toggleStep(this)"><div class="step-number">${s.num}</div><div class="step-info"><div class="step-title">${s.title}</div><div class="step-meta"><span>✅ Completed</span><span>📅 ${s.time}</span>${s.target?`<span>🎯 Target: ${s.target}</span>`:''}<span>⏱️ ${s.duration}</span></div></div><div class="step-status-icon">✅</div></div>
-        <div class="step-body${i===0?' open':''}"><div class="user-log"><div class="user-info-row"><span class="user-tag">👤 ${s.user}</span><span class="area-tag">📍 ${s.area}</span></div><div class="log-entry"><div class="log-time">📅 ${s.time}</div><div class="log-action">✅ ${s.action}</div><div class="log-detail">📝 ${s.detail}</div></div></div></div></div>
-    `).join('');
-    html += `<div class="step-container completed" style="border:2px solid var(--success);"><div class="step-header completed" onclick="toggleStep(this)" style="background:#f0fff4;"><div class="step-number" style="background:#276749;font-size:1.2em;">✓</div><div class="step-info"><div class="step-title" style="font-size:1em;">🅺 KBP PROCESS - FINAL APPROVAL</div><div class="step-meta"><span>✅ COMPLETED</span><span>📅 15/07/2026 11:35</span><span>⏱️ TOTAL: 3 HRS 35 MINS</span><span>🎯 TARGET: 48 HRS</span></div></div><div class="step-status-icon">🏆</div></div><div class="step-body"><div class="user-log"><div class="user-info-row"><span class="user-tag">👤 Pierre Lumumba</span><span class="area-tag">📍 KBP Supervisor Office</span></div><div class="log-entry"><div class="log-time">📅 15/07/2026 11:35</div><div class="log-action">✅ KBP Process APPROVED - 3.5 HRS</div><div class="log-detail">All 7 steps verified | Status: 🟢 EXCELLENT | Next: NB Transit</div></div></div></div></div>`;
+function renderKBPStepsForConfig(config) {
+    const steps = buildKBPSteps(config);
+    const prefix = config.tabPrefix;
+    let html = steps.map((s, i) => {
+        const statusClass = s.status === 'completed' ? 'completed' : s.status === 'in-progress' ? 'in-progress' : 'pending';
+        const statusIcon = s.status === 'completed' ? '✅' : s.status === 'in-progress' ? '🔄' : '⏳';
+        const statusLabel = s.status === 'completed' ? '✅ Completed' : s.status === 'in-progress' ? '🔄 In Progress' : '⏳ Pending';
+        return `
+        <div class="step-container ${statusClass}"><div class="step-header ${statusClass}" onclick="toggleStep(this)"><div class="step-number">${s.num}</div><div class="step-info"><div class="step-title">${s.title}</div><div class="step-meta"><span>${statusLabel}</span><span>📅 ${s.time}</span>${s.target ? `<span>🎯 Target: ${s.target}</span>` : ''}<span>⏱️ ${s.duration}</span></div></div><div class="step-status-icon">${statusIcon}</div></div>
+        <div class="step-body${i === 0 ? ' open' : ''}"><div class="user-log"><div class="user-info-row"><span class="user-tag">👤 ${s.user}</span><span class="area-tag">📍 ${s.area}</span></div><div class="log-entry"><div class="log-time">📅 ${s.time}</div><div class="log-action">${statusIcon} ${s.action}</div><div class="log-detail">📝 ${s.detail}</div></div></div></div></div>`;
+    }).join('');
+
+    if (config.finalApproval) {
+        html += `<div class="step-container completed" style="border:2px solid var(--success);"><div class="step-header completed" onclick="toggleStep(this)" style="background:#f0fff4;"><div class="step-number" style="background:#276749;font-size:1.2em;">✓</div><div class="step-info"><div class="step-title" style="font-size:1em;">${config.icon} ${config.processName} — FINAL APPROVAL</div><div class="step-meta"><span>✅ COMPLETED</span><span>📅 15/07/2026 11:35</span><span>⏱️ TOTAL: ${config.totalTime}</span><span>🎯 TARGET: ${config.targetHours} HRS</span></div></div><div class="step-status-icon">🏆</div></div><div class="step-body"><div class="user-log"><div class="log-entry"><div class="log-action">✅ ${config.processName} APPROVED at ${config.borderName}</div><div class="log-detail">All steps verified | ${config.timeStatus}</div></div></div></div></div>`;
+    }
     return html;
 }
 
-function renderDocumentsTab() {
-    const docs = ['Entry_ABC123.pdf','Submission_Receipt.pdf','Scan_Report.pdf','Green_Stamped.pdf','Red_Stamped.pdf','CrossCheck_Report.pdf','Driver_Details.pdf'];
-    return `<div class="card"><div class="card-header"><span>📁 Documents</span><button class="btn btn-primary btn-sm" onclick="openCommentModal('NB-2024-001')">+ Upload</button></div><div class="card-body"><div class="doc-list">${docs.map(d=>`<div class="doc-item"><span class="doc-icon">📄</span><div><div class="doc-name">${d}</div><div class="doc-uploader">👤 KBP Officer</div></div><button class="btn btn-outline btn-sm">👁️</button></div>`).join('')}</div></div>`;
+function renderBorderDocsTab(config) {
+    const docs = ['Entry.pdf', 'Submission_Receipt.pdf', 'Scan_Report.pdf', 'Green_Stamped.pdf', 'Red_Stamped.pdf', 'CrossCheck_Report.pdf', 'Driver_Details.pdf'];
+    return `<div class="card"><div class="card-header"><span>📁 Documents — ${config.borderName}</span><button class="btn btn-primary btn-sm" onclick="openCommentModal('${config.tripId}')">+ Upload</button></div><div class="card-body"><div class="doc-list">${docs.map(d => `<div class="doc-item"><span class="doc-icon">📄</span><div><div class="doc-name">${config.borderName}_${d}</div><div class="doc-uploader">👤 Border Officer</div></div><button class="btn btn-outline btn-sm">👁️</button></div>`).join('')}</div></div></div>`;
 }
 
-function renderCommentsTab() {
-    return `<div class="card"><div class="card-header"><span>💬 Comments & Issues Log</span><button class="btn btn-primary btn-sm" onclick="openCommentModal('NB-2024-001')">+ Add Comment</button></div><div class="card-body">
-        <div class="user-log" style="margin-bottom:12px;"><div style="font-weight:600;">👤 Inspector Kabwe - Customs Office</div><div style="font-size:0.8em;color:var(--text-secondary);">📅 15/07/2026 09:45 | 🟠 Problem Report</div><div style="margin-top:8px;"><strong>Problem:</strong> Missing stamp on Titre<br><strong>Person Contacted:</strong> Col. Mutombo<br><strong>Solution:</strong> Supplementary stamp verification<br><strong>Expected Completion:</strong> 15/07/2026 10:00</div></div>
-        <div class="user-log" style="margin-bottom:12px;"><div style="font-weight:600;">👤 Marie Mwamba - KBP Brigade</div><div style="font-size:0.8em;color:var(--text-secondary);">📅 15/07/2026 08:35 | 💬 Normal Comment</div><div style="margin-top:8px;">Documents submitted on time. All paperwork in order.</div></div>
-        <div class="user-log"><div style="font-weight:600;">👤 Pierre Lumumba (Supervisor)</div><div style="font-size:0.8em;color:var(--text-secondary);">📅 15/07/2026 11:35 | 💬 Normal Comment</div><div style="margin-top:8px;">All processes completed. 🟢 EXCELLENT - 7.5% of time used.</div></div>
-    </div></div>`;
+function renderBorderCommentsTab(config) {
+    return `<div class="card"><div class="card-header"><span>💬 Comments — ${config.borderName}</span><button class="btn btn-primary btn-sm" onclick="openCommentModal('${config.tripId}')">+ Add Comment</button></div><div class="card-body"><div class="user-log"><div style="font-weight:600;">👤 Border Officer — ${config.borderName}</div><div style="font-size:0.8em;color:var(--text-secondary);margin-top:4px;">BN Process clearance in progress for ${config.trip}</div></div></div></div>`;
 }
 
-function renderActivityLogTab() {
-    return `<div class="card"><div class="card-header"><span>📋 Complete Activity Log</span></div><div class="card-body" style="max-height:500px;overflow-y:auto;"><table style="width:100%;font-size:0.85em;"><thead><tr style="background:#f7fafc;"><th style="padding:8px;">Time</th><th style="padding:8px;">Area</th><th style="padding:8px;">User</th><th style="padding:8px;">Action</th></tr></thead><tbody>${['08:00|KBP Gate|Jean Kalenga|Truck entered','08:30|KBP Brigade|Marie Mwamba|Docs submitted','09:15|KBP Scan|Patrick Tshimanga|Scan PASS','09:30|Customs|Inspector Kabwe|Green stamp','10:15|Customs|Inspector Mwape|Red stamp','11:00|Control Room|Officer Kalaba|Cross-check APPROVED','11:30|KBP Admin|Ruth Mwansa|Driver details','11:35|Supervisor|Pierre Lumumba|KBP APPROVED'].map(r=>`<tr><td style="padding:8px;">${r.split('|')[0]}</td><td style="padding:8px;">${r.split('|')[1]}</td><td style="padding:8px;">${r.split('|')[2]}</td><td style="padding:8px;">${r.split('|')[3]}</td></tr>`).join('')}</tbody></table></div></div>`;
+function renderBorderLogsTab(config) {
+    const steps = buildKBPSteps(config).filter(s => s.status !== 'pending');
+    return `<div class="card"><div class="card-header"><span>📋 Activity Log — ${config.borderName}</span></div><div class="card-body" style="max-height:500px;overflow-y:auto;"><table style="width:100%;font-size:0.85em;"><thead><tr style="background:#f7fafc;"><th style="padding:8px;">Time</th><th style="padding:8px;">Area</th><th style="padding:8px;">User</th><th style="padding:8px;">Action</th></tr></thead><tbody>${steps.map(s => `<tr><td style="padding:8px;">${s.time.split(' ')[1]}</td><td style="padding:8px;">${s.area}</td><td style="padding:8px;">${s.user}</td><td style="padding:8px;">${s.action}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
+
+function renderNBKBPBorderDetail(container, config) {
+    currentBorderTabPrefix = config.tabPrefix;
+    const p = config.tabPrefix;
+    const timeClass = config.timeClass || 'green';
+    const fillPct = Math.min(config.timePct, 100);
+
+    container.innerHTML = `
+        <div class="page-header">
+            <h1>${config.icon} ${config.borderName} Border — ${config.processName}</h1>
+            <div class="breadcrumb">
+                <a href="#" onclick="navigateTo('dashboard')">Home</a> <span>›</span>
+                <a href="#" onclick="navigateTo('border-clearance')">Border Clearance</a> <span>›</span>
+                <span>NB Clearance</span> <span>›</span>
+                <strong>${config.borderName} — Trip: ${config.trip}</strong>
+            </div>
+        </div>
+        <div class="frozen-truck-bar">
+            <div class="truck-info-group">
+                <div class="truck-info-item"><span class="truck-info-label">Trip Number</span><span class="truck-info-value large">${config.trip}</span></div>
+                <div class="truck-info-item"><span class="truck-info-label">Truck</span><span class="truck-info-value large">${config.truck}</span></div>
+                <div class="truck-info-item"><span class="truck-info-label">Trailer</span><span class="truck-info-value">${config.trailer}</span></div>
+                <div class="truck-info-item"><span class="truck-info-label">Driver</span><span class="truck-info-value">${config.driver}</span></div>
+                <div class="truck-info-item"><span class="truck-info-label">Direction</span><span class="truck-info-value">🔼 North Bound</span></div>
+                <div class="truck-info-item"><span class="truck-info-label">Owner</span><span class="truck-info-value">${config.owner}</span></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:15px;">
+                <span class="kpi-badge ${config.kpi}">${config.kpiLabel}</span>
+                <button class="btn btn-success btn-sm" onclick="openCommentModal('${config.tripId}')" style="background:white;color:#1a365d;">💬 Add Comment</button>
+            </div>
+        </div>
+        <div class="card"><div class="card-header"><span>⏱️ Time Tracking</span><span style="display:inline-flex;align-items:center;gap:4px;"><span class="kpi-dot ${config.kpi}"></span> ${config.timeStatus}</span></div>
+        <div class="card-body"><div class="time-tracker"><div class="time-circle ${timeClass}"><span class="time-value">${config.timeValue}</span><span class="time-label">HRS : MINS</span></div>
+        <div class="progress-bar-container"><div style="display:flex;justify-content:space-between;"><span>Total: <strong>${config.totalTime}</strong></span><span>Target: <strong>${config.targetHours} HRS</strong></span></div>
+        <div class="progress-bar"><div class="progress-fill ${timeClass}" style="width:${fillPct}%;"></div></div>
+        <div style="margin-top:8px;">${config.timeStatus}</div></div></div></div></div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchBorderTab('${p}-steps',this)">${config.icon} BN Steps (${config.completedSteps}/7)</div>
+            <div class="tab" onclick="switchBorderTab('${p}-documents',this)">📁 Docs (7)</div>
+            <div class="tab" onclick="switchBorderTab('${p}-comments',this)">💬 Comments</div>
+            <div class="tab" onclick="switchBorderTab('${p}-logs',this)">📋 Activity Log</div>
+        </div>
+        <div id="tab-${p}-steps">${renderKBPStepsForConfig(config)}</div>
+        <div id="tab-${p}-documents" style="display:none;">${renderBorderDocsTab(config)}</div>
+        <div id="tab-${p}-comments" style="display:none;">${renderBorderCommentsTab(config)}</div>
+        <div id="tab-${p}-logs" style="display:none;">${renderBorderLogsTab(config)}</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:20px;">
+            <button class="btn btn-outline" onclick="navigateTo('border-clearance')">⬅️ Back to Border Clearance</button>
+            <button class="btn btn-outline" onclick="window.print()">🖨️ Print</button>
+            <button class="btn btn-primary" onclick="openCommentModal('${config.tripId}')">💬 Add Comment</button>
+        </div>`;
 }
 
 // ============================================
-// KASUMBALESA WHISKY
+// SB BORDER CLEARANCE DETAIL
+// ============================================
+function renderSBStepsForConfig(config) {
+    return SB_CLEARANCE_STEPS.map((name, i) => {
+        const stepNum = i + 1;
+        const completed = stepNum <= config.completedSteps;
+        const current = stepNum === config.completedSteps + 1;
+        const status = completed ? 'completed' : current ? 'in-progress' : 'pending';
+        const statusIcon = completed ? '✅' : current ? '🔄' : '⏳';
+        const statusLabel = completed ? '✅ Completed' : current ? '🔄 In Progress' : '⏳ Pending';
+        return `<div class="step-container ${status}"><div class="step-header ${status}" onclick="toggleStep(this)"><div class="step-number">${stepNum}</div><div class="step-info"><div class="step-title">📌 ${name}</div><div class="step-meta"><span>${statusLabel}</span>${completed ? '<span>📅 15/07/2026</span>' : ''}</div></div><div class="step-status-icon">${statusIcon}</div></div></div>`;
+    }).join('');
+}
+
+function renderSBClearanceDetail(container, config) {
+    currentBorderTabPrefix = config.tabPrefix;
+    const p = config.tabPrefix;
+
+    container.innerHTML = `
+        <div class="page-header">
+            <h1>🔽 ${config.borderName} Border — SB Exit Clearance</h1>
+            <div class="breadcrumb">
+                <a href="#" onclick="navigateTo('dashboard')">Home</a> <span>›</span>
+                <a href="#" onclick="navigateTo('border-clearance')">Border Clearance</a> <span>›</span>
+                <span>SB Clearance</span> <span>›</span>
+                <strong>${config.borderName} Exit — Trip: ${config.trip}</strong>
+            </div>
+        </div>
+        <div class="frozen-truck-bar">
+            <div class="truck-info-group">
+                <div class="truck-info-item"><span class="truck-info-label">Trip</span><span class="truck-info-value large">${config.trip}</span></div>
+                <div class="truck-info-item"><span class="truck-info-label">Truck</span><span class="truck-info-value large">${config.truck}</span></div>
+                <div class="truck-info-item"><span class="truck-info-label">Driver</span><span class="truck-info-value">${config.driver}</span></div>
+                <div class="truck-info-item"><span class="truck-info-label">Owner</span><span class="truck-info-value">${config.owner}</span></div>
+                <div class="truck-info-item"><span class="truck-info-label">Direction</span><span class="truck-info-value">🔽 South Bound</span></div>
+                <div class="truck-info-item"><span class="truck-info-label">Hours at Border</span><span class="truck-info-value">${config.timeValue}</span></div>
+            </div>
+            <span class="kpi-badge ${config.kpi}">${config.kpiLabel}</span>
+        </div>
+        <div class="card">
+            <div class="card-header"><span>🔽 SB Exit Clearance Steps (${config.completedSteps}/${SB_CLEARANCE_STEPS.length})</span><button class="btn btn-primary btn-sm" onclick="openCommentModal('${config.tripId}')">💬 Add Comment</button></div>
+            <div class="card-body">${renderSBStepsForConfig(config)}</div>
+        </div>
+        <div style="background:#fffaf0;padding:15px;border-radius:8px;margin-top:20px;border-left:4px solid var(--warning);font-size:13px;">
+            <strong>📋 SB Exit Target:</strong> ≤${config.targetHours} hours from arrival at ${config.borderName} border to Date Exit to Zambia
+        </div>
+        <button class="btn btn-outline mt-20" onclick="navigateTo('border-clearance')">⬅️ Back to Border Clearance</button>`;
+}
+
+// ============================================
+// KASUMBALESA WHISKY (NB — separate process)
 // ============================================
 function renderKasumbalesaWhisky(container) {
     container.innerHTML = `
@@ -901,15 +1099,6 @@ function renderWhiskySteps() {
 // ============================================
 // OTHER PAGES
 // ============================================
-function renderBorderDetail(container, borderName) {
-    const trip = borderName==='Sakania'?tripsDB['NB-2024-015']:tripsDB['NB-2024-022'];
-    container.innerHTML = `
-        <div class="page-header"><h1>📍 ${borderName} Border Detail</h1><div class="breadcrumb"><a href="#" onclick="navigateTo('dashboard')">Home</a> <span>›</span> <a href="#" onclick="navigateTo('border-clearance')">Border Clearance</a> <span>›</span> <strong>${borderName}</strong></div></div>
-        <div class="frozen-truck-bar"><div class="truck-info-group"><div class="truck-info-item"><span class="truck-info-label">Trip</span><span class="truck-info-value large">${trip.tripNumber}</span></div><div class="truck-info-item"><span class="truck-info-label">Truck</span><span class="truck-info-value large">${trip.truck}</span></div><div class="truck-info-item"><span class="truck-info-label">Driver</span><span class="truck-info-value">${trip.driver}</span></div><div class="truck-info-item"><span class="truck-info-label">Hours</span><span class="truck-info-value">${trip.daysInDRC*8}</span></div></div><span class="kpi-badge ${trip.kpi}">${trip.kpi==='red'?'🔴 OVERDUE':'🟠 PRIORITY'}</span></div>
-        <div class="card"><div class="card-header"><h3>Active Trucks at ${borderName}</h3><button class="btn btn-primary btn-sm" onclick="openCommentModal('${trip.tripNumber}')">💬 Add Comment</button></div><div class="card-body"><p>Detailed border view for ${borderName}.</p></div></div>
-        <button class="btn btn-outline mt-20" onclick="navigateTo('border-clearance')">⬅️ Back</button>`;
-}
-
 function renderTripListFilterTabs(activeFilter) {
     const tabs = [
         { id: 'all', label: 'All', count: Object.keys(tripsDB).length },
@@ -1299,10 +1488,14 @@ function submitComment() {
 // ============================================
 function getKPILabel(kpi){ switch(kpi){case'green':return'On Track';case'orange':return'Priority';case'red':return'Overdue';default:return'Unknown';} }
 function toggleStep(header){ const body=header.nextElementSibling; if(body&&body.classList.contains('step-body')) body.classList.toggle('open'); }
-function switchBorderTab(tabId,tabElement){
-    ['kbp-steps','kbp-documents','kbp-comments','kbp-logs'].forEach(id=>{const el=document.getElementById('tab-'+id);if(el)el.style.display=id===tabId?'block':'none';});
-    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-    if(tabElement)tabElement.classList.add('active');
+function switchBorderTab(tabId, tabElement) {
+    const p = currentBorderTabPrefix;
+    [`${p}-steps`, `${p}-documents`, `${p}-comments`, `${p}-logs`].forEach(id => {
+        const el = document.getElementById('tab-' + id);
+        if (el) el.style.display = id === tabId ? 'block' : 'none';
+    });
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    if (tabElement) tabElement.classList.add('active');
 }
 function openUploadModal(direction){ document.getElementById('uploadType').value=direction; document.getElementById('uploadModalTitle').textContent=`📤 Upload ${direction} Data`; openModal('uploadModal'); }
 function handleUpload(){ showToast('✅ Upload complete!','success'); closeModal('uploadModal'); }
