@@ -33,9 +33,10 @@ let currentDocumentId = null;
 let currentTripFilter = 'all';
 let currentDocFilter = 'all';
 let selectedAreaIds = [];
+let pendingAreaIds = [];
 let areaNbSearch = '';
 let areaSbSearch = '';
-let areaSelectorCollapsed = false;
+let areaDropdownOpen = true;
 
 const areasDB = [
     { id: 'kanyaka', name: 'Kanyaka', icon: '🏗️', offloadingPoints: ['Kanyaka', 'Kanyaka Depot', 'Kanyaka Mine'], loadingPoints: ['Kanyaka', 'Kanyaka Depot', 'Kanyaka Mine'] },
@@ -45,6 +46,7 @@ const areasDB = [
     { id: 'kasumbalesa', name: 'Kasumbalesa', icon: '🛂', offloadingPoints: ['Kasumbalesa'], loadingPoints: ['Kasumbalesa'] }
 ];
 selectedAreaIds = areasDB.map(a => a.id);
+pendingAreaIds = [...selectedAreaIds];
 
 const WORKFLOW_CONFIG = {
     NB: [
@@ -378,9 +380,10 @@ function navigateToAreaList(areaName) {
 
 function navigateToAreaBrowser(areaIds) {
     selectedAreaIds = areaIds && areaIds.length ? [...areaIds] : areasDB.map(a => a.id);
+    pendingAreaIds = [...selectedAreaIds];
     areaNbSearch = '';
     areaSbSearch = '';
-    areaSelectorCollapsed = !!(areaIds && areaIds.length);
+    areaDropdownOpen = !(areaIds && areaIds.length);
     navigateTo('area-browser');
 }
 
@@ -422,29 +425,63 @@ function getSelectedAreaLabels() {
     return areasDB.filter(a => selectedAreaIds.includes(a.id)).map(a => `${a.icon} ${a.name}`);
 }
 
-function collapseAreaSelector() {
-    areaSelectorCollapsed = true;
-    const panel = document.getElementById('areaSelectorPanel');
+function getPendingAreaLabels() {
+    return areasDB.filter(a => pendingAreaIds.includes(a.id)).map(a => `${a.icon} ${a.name}`);
+}
+
+function getAreaDropdownTriggerLabel() {
+    if (areaDropdownOpen) return 'Choose areas below, then click Submit';
+    const labels = getSelectedAreaLabels();
+    return labels.length ? labels.join(' · ') : 'No areas selected';
+}
+
+function toggleAreaDropdown() {
+    areaDropdownOpen = !areaDropdownOpen;
+    if (areaDropdownOpen) pendingAreaIds = [...selectedAreaIds];
+    updateAreaDropdownUI();
+}
+
+function openAreaDropdown() {
+    pendingAreaIds = [...selectedAreaIds];
+    areaDropdownOpen = true;
+    updateAreaDropdownUI();
+}
+
+function closeAreaDropdown() {
+    areaDropdownOpen = false;
+    updateAreaDropdownUI();
+}
+
+function updateAreaDropdownUI() {
+    const panel = document.getElementById('areaDropdownPanel');
     const summary = document.getElementById('areaSelectorSummary');
-    if (panel) panel.classList.add('collapsed');
-    if (summary) {
-        summary.classList.remove('hidden');
+    const triggerLabel = document.getElementById('areaDropdownTriggerLabel');
+    const chevron = document.getElementById('areaDropdownChevron');
+
+    if (panel) panel.classList.toggle('open', areaDropdownOpen);
+    if (summary) summary.classList.toggle('hidden', areaDropdownOpen);
+    if (triggerLabel) triggerLabel.textContent = getAreaDropdownTriggerLabel();
+    if (chevron) chevron.textContent = areaDropdownOpen ? '▲' : '▼';
+
+    const labelEl = document.getElementById('areaSelectorSummaryText');
+    if (labelEl) {
         const labels = getSelectedAreaLabels();
-        const labelEl = document.getElementById('areaSelectorSummaryText');
-        if (labelEl) {
-            labelEl.textContent = labels.length
-                ? labels.join(' · ')
-                : 'No areas selected — choose at least one area';
-        }
+        labelEl.textContent = labels.length
+            ? labels.join(' · ')
+            : 'No areas selected — choose at least one area';
     }
+
+    document.querySelectorAll('.area-checkbox-item input').forEach(cb => {
+        cb.checked = pendingAreaIds.includes(cb.value);
+    });
+}
+
+function collapseAreaSelector() {
+    closeAreaDropdown();
 }
 
 function expandAreaSelector() {
-    areaSelectorCollapsed = false;
-    const panel = document.getElementById('areaSelectorPanel');
-    const summary = document.getElementById('areaSelectorSummary');
-    if (panel) panel.classList.remove('collapsed');
-    if (summary) summary.classList.add('hidden');
+    openAreaDropdown();
 }
 
 function getSelectedAreas() {
@@ -547,25 +584,30 @@ function refreshAreaBrowserPanels() {
     if (sbCount) sbCount.textContent = `${sbTrips.length} truck${sbTrips.length !== 1 ? 's' : ''}`;
 }
 
-function toggleAreaSelection(areaId, checked) {
-    if (checked && !selectedAreaIds.includes(areaId)) selectedAreaIds.push(areaId);
-    else if (!checked) selectedAreaIds = selectedAreaIds.filter(id => id !== areaId);
-    collapseAreaSelector();
-    refreshAreaBrowserPanels();
+function togglePendingArea(areaId, checked) {
+    if (checked && !pendingAreaIds.includes(areaId)) pendingAreaIds.push(areaId);
+    else if (!checked) pendingAreaIds = pendingAreaIds.filter(id => id !== areaId);
 }
 
-function selectAllAreas() {
-    selectedAreaIds = areasDB.map(a => a.id);
+function selectAllPendingAreas() {
+    pendingAreaIds = areasDB.map(a => a.id);
     document.querySelectorAll('.area-checkbox-item input').forEach(cb => { cb.checked = true; });
-    collapseAreaSelector();
-    refreshAreaBrowserPanels();
 }
 
-function clearAllAreas() {
-    selectedAreaIds = [];
+function clearAllPendingAreas() {
+    pendingAreaIds = [];
     document.querySelectorAll('.area-checkbox-item input').forEach(cb => { cb.checked = false; });
-    collapseAreaSelector();
+}
+
+function submitAreaSelection() {
+    if (!pendingAreaIds.length) {
+        showToast('Please select at least one area', 'warning');
+        return;
+    }
+    selectedAreaIds = [...pendingAreaIds];
+    closeAreaDropdown();
     refreshAreaBrowserPanels();
+    showToast(`Showing trucks for ${selectedAreaIds.length} area${selectedAreaIds.length !== 1 ? 's' : ''}`, 'success');
 }
 
 function handleAreaNbSearch(value) {
@@ -582,6 +624,7 @@ function renderAreaBrowser(container) {
     const nbTrips = filterNBTrucksByAreas(areaNbSearch);
     const sbTrips = filterSBTrucksByAreas(areaSbSearch);
     const selectedLabels = getSelectedAreaLabels();
+    if (!pendingAreaIds.length) pendingAreaIds = [...selectedAreaIds];
 
     container.innerHTML = `
         <div class="page-header">
@@ -593,7 +636,7 @@ function renderAreaBrowser(container) {
             </div>
         </div>
 
-        <div id="areaSelectorSummary" class="area-selector-summary${areaSelectorCollapsed ? '' : ' hidden'}">
+        <div id="areaSelectorSummary" class="area-selector-summary${areaDropdownOpen ? ' hidden' : ''}">
             <div>
                 <strong>📍 Selected Areas:</strong>
                 <span id="areaSelectorSummaryText">${selectedLabels.length ? selectedLabels.join(' · ') : 'No areas selected'}</span>
@@ -601,33 +644,41 @@ function renderAreaBrowser(container) {
             <button class="btn btn-outline btn-sm" onclick="expandAreaSelector()">Change Areas</button>
         </div>
 
-        <div class="card area-selector-panel${areaSelectorCollapsed ? ' collapsed' : ''}" id="areaSelectorPanel">
-            <div class="card-header">
-                <span>📍 Select Areas</span>
-                <div style="display:flex;gap:8px;">
-                    <button class="btn btn-outline btn-sm" onclick="selectAllAreas()">Select All</button>
-                    <button class="btn btn-outline btn-sm" onclick="clearAllAreas()">Clear All</button>
+        <div class="area-dropdown-wrap">
+            <button type="button" class="area-dropdown-trigger" onclick="toggleAreaDropdown()" aria-expanded="${areaDropdownOpen}">
+                <span class="area-dropdown-trigger-title">📍 Select Areas</span>
+                <span class="area-dropdown-trigger-value" id="areaDropdownTriggerLabel">${getAreaDropdownTriggerLabel()}</span>
+                <span class="area-dropdown-chevron" id="areaDropdownChevron">${areaDropdownOpen ? '▲' : '▼'}</span>
+            </button>
+
+            <div id="areaDropdownPanel" class="area-dropdown-panel${areaDropdownOpen ? ' open' : ''}">
+                <div class="area-dropdown-header">
+                    <span>Area list</span>
+                    <div class="area-dropdown-quick-actions">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="selectAllPendingAreas()">Select All</button>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="clearAllPendingAreas()">Clear All</button>
+                    </div>
                 </div>
-            </div>
-            <div class="card-body">
-                <div class="area-checkbox-grid area-checkbox-scroll">
+                <div class="area-checkbox-list area-checkbox-scroll">
                     ${areasDB.map(area => `
                         <label class="area-checkbox-item">
-                            <input type="checkbox" value="${area.id}" ${selectedAreaIds.includes(area.id) ? 'checked' : ''}
-                                onchange="toggleAreaSelection('${area.id}', this.checked)">
+                            <input type="checkbox" value="${area.id}" ${pendingAreaIds.includes(area.id) ? 'checked' : ''}
+                                onchange="togglePendingArea('${area.id}', this.checked)">
                             <span>${area.icon} ${area.name}</span>
                         </label>
                     `).join('')}
                 </div>
-                <div class="area-filter-hint">
-                    <strong>NB:</strong> Trucks shown by <em>offloading point</em> — even if the truck is currently in another area.<br>
-                    <strong>SB:</strong> Trucks shown if they are <em>in the area</em> or their <em>loading point</em> matches the selected area.<br>
-                    <em>Area list auto-hides after you tick your selection — use "Change Areas" to modify.</em>
+                <div class="area-dropdown-footer">
+                    <div class="area-filter-hint">
+                        <strong>NB:</strong> Trucks shown by <em>offloading point</em>.<br>
+                        <strong>SB:</strong> Trucks shown if <em>in the area</em> or <em>loading point</em> matches.
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="submitAreaSelection()">✓ Submit Selection</button>
                 </div>
             </div>
         </div>
 
-        <div class="area-trucks-grid">
+        <div class="area-trucks-stack">
             <div class="area-trucks-panel nb-panel">
                 <div class="panel-header">
                     <h3>🔼 North Bound (NB) <span id="areaNbCount" style="font-weight:400;color:var(--text-secondary);font-size:13px;">${nbTrips.length} truck${nbTrips.length !== 1 ? 's' : ''}</span></h3>
