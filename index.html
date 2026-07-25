@@ -207,6 +207,23 @@
             .area-trucks-grid { grid-template-columns: 1fr; }
         }
 
+        /* KPI Targets banner (shown on NB, SB, Border, Equipment pages) */
+        .kpi-targets-banner {
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            line-height: 1.6;
+            border-left: 4px solid var(--primary-light);
+        }
+        .kpi-targets-banner strong { display: block; margin-bottom: 6px; font-size: 14px; }
+        .kpi-targets-banner ul { margin: 0; padding-left: 18px; }
+        .kpi-targets-banner li { margin-bottom: 3px; }
+        .kpi-targets-banner.kpi-targets-nb { background: #ebf8ff; border-left-color: #3182ce; }
+        .kpi-targets-banner.kpi-targets-sb { background: #fffaf0; border-left-color: var(--orange); }
+        .kpi-targets-banner.kpi-targets-border { background: #f0fff4; border-left-color: var(--success); }
+        .kpi-targets-banner.kpi-targets-equipment { background: #faf5ff; border-left-color: #805ad5; }
+
         /* MAIN CONTENT */
         .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 

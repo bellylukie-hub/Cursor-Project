@@ -190,8 +190,59 @@ const tripsDB = {
 };
 
 // ============================================
-// NAVIGATION
+// KPI TARGETS BANNERS
 // ============================================
+const KPI_TARGETS = {
+    nb: {
+        title: 'NB KPI Targets:',
+        items: [
+            'KBP / Sakania BN Process: ≤ 48 hours',
+            'Whisky / Mokambo BN Process: ≤ 72 hours',
+            'Kanyaka Transit: ≤ 24 hours',
+            'POD Collection: ≤ 48 hours from offloading complete',
+            'Truck stops showing on live NB page when POD is sent to invoicing'
+        ]
+    },
+    sb: {
+        title: 'SB KPI Targets:',
+        items: [
+            'Loading Process: ≤ 48 hours',
+            'Dispatch/Escort: ≤ 8 days',
+            'Following-on List (Mutaka & Kanyaka): ≤ 2 hours',
+            'Truck stops showing on live SB page when Date Exit to Zambia is filled'
+        ]
+    },
+    border: {
+        title: 'Border KPI Targets:',
+        items: [
+            'KBP / Sakania BN Process (NB Entry): ≤ 48 hours',
+            'Whisky / Mokambo BN Process (NB Entry): ≤ 72 hours',
+            'SB Exit (Kasumbalesa / Sakania): ≤ 48 hours',
+            'SB Exit (Mokambo): ≤ 72 hours',
+            'Truck stops showing when clearance is complete / Date Exit to Zambia is filled'
+        ]
+    },
+    equipment: {
+        title: 'Equipment KPI Targets:',
+        items: [
+            'Insurance / permits: valid before border crossing',
+            'Document expiry alert: orange at 30 days, red when expired',
+            'TR8 / vignette / road tax: renewed within process SLA',
+            'Unassigned equipment: flagged after 7 days idle'
+        ]
+    }
+};
+
+function renderKpiTargetsBanner(type) {
+    const config = KPI_TARGETS[type];
+    if (!config) return '';
+    return `
+        <div class="kpi-targets-banner kpi-targets-${type}">
+            <strong>📊 ${config.title}</strong>
+            <ul>${config.items.map(item => `<li>${item}</li>`).join('')}</ul>
+        </div>`;
+}
+
 function navigateTo(page) {
     currentPage = page;
     document.querySelectorAll('.nav-item').forEach(item => { item.classList.remove('active'); if(item.dataset.page===page) item.classList.add('active'); });
@@ -216,6 +267,7 @@ function navigateTo(page) {
         case 'kanyaka': renderAreaPage(ca,'Kanyaka'); break;
         case 'kolwezi': renderAreaPage(ca,'Kolwezi'); break;
         case 'area-browser': renderAreaBrowser(ca); break;
+        case 'assets': renderAssets(ca); break;
         case 'runner-fees': renderRunnerFees(ca); break;
         case 'reports': renderReports(ca); break;
         default: renderDashboard(ca);
@@ -995,6 +1047,7 @@ function renderNBOperations(container) {
     const trips = filterTrips('NB', '');
     container.innerHTML = `
         <div class="page-header"><h1>🚛 North Bound Operations</h1><div class="breadcrumb">Operations / NB Operations</div></div>
+        ${renderKpiTargetsBanner('nb')}
         <div class="kpi-grid">
             <div class="kpi-card green"><div class="kpi-header"><span class="kpi-title">On Track</span></div><div class="kpi-value">${trips.filter(t=>t.kpi==='green').length}</div></div>
             <div class="kpi-card orange"><div class="kpi-header"><span class="kpi-title">Priority</span></div><div class="kpi-value">${trips.filter(t=>t.kpi==='orange').length}</div></div>
@@ -1054,6 +1107,7 @@ function renderSBOperations(container) {
     const trips = filterTrips('SB', '');
     container.innerHTML = `
         <div class="page-header"><h1>🚛 South Bound Operations</h1><div class="breadcrumb">Operations / SB Operations</div></div>
+        ${renderKpiTargetsBanner('sb')}
         <div class="kpi-grid">
             <div class="kpi-card green"><div class="kpi-header"><span class="kpi-title">On Track</span></div><div class="kpi-value">${trips.filter(t=>t.kpi==='green').length}</div></div>
             <div class="kpi-card orange"><div class="kpi-header"><span class="kpi-title">Priority</span></div><div class="kpi-value">${trips.filter(t=>t.kpi==='orange').length}</div></div>
@@ -1115,6 +1169,7 @@ function renderBorderClearanceOverview(container) {
             <h1>🛂 Border Clearance Operations</h1>
             <div class="breadcrumb"><a href="#" onclick="navigateTo('dashboard')">Home</a> <span>›</span> <strong>Border Clearance</strong></div>
         </div>
+        ${renderKpiTargetsBanner('border')}
 
         <div class="section-title-bar" style="margin-top:0;">
             <h2><i class="fas fa-arrow-up" style="color:var(--green);"></i> NB Clearance (Entry — North Bound)</h2>
@@ -1228,6 +1283,7 @@ function renderNBKBPBorderDetail(container, config) {
                 <strong>${config.borderName} — Trip: ${config.trip}</strong>
             </div>
         </div>
+        ${renderKpiTargetsBanner('border')}
         <div class="frozen-truck-bar">
             <div class="truck-info-group">
                 <div class="truck-info-item"><span class="truck-info-label">Trip Number</span><span class="truck-info-value large">${config.trip}</span></div>
@@ -1294,6 +1350,7 @@ function renderSBClearanceDetail(container, config) {
                 <strong>${config.borderName} Exit — Trip: ${config.trip}</strong>
             </div>
         </div>
+        ${renderKpiTargetsBanner('border')}
         <div class="frozen-truck-bar">
             <div class="truck-info-group">
                 <div class="truck-info-item"><span class="truck-info-label">Trip</span><span class="truck-info-value large">${config.trip}</span></div>
