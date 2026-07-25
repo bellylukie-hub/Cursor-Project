@@ -1,0 +1,2804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Truck Turnaround & Operations Control System - Enhanced Demo</title>
+    <style>
+        /* ============================================
+           GLOBAL STYLES & CSS VARIABLES
+           ============================================ */
+        :root {
+            --primary: #1a73e8;
+            --primary-dark: #1557b0;
+            --success: #0f9d58;
+            --warning: #f4b400;
+            --danger: #db4437;
+            --bg-main: #f5f7fa;
+            --bg-sidebar: #1e2a3a;
+            --bg-card: #ffffff;
+            --text-primary: #202124;
+            --text-secondary: #5f6368;
+            --border: #dadce0;
+            --shadow: 0 2px 10px rgba(0,0,0,0.1);
+            --shadow-lg: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* ============================================
+           LAYOUT STRUCTURE
+           ============================================ */
+        .app-container {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ============================================
+           SIDEBAR NAVIGATION
+           ============================================ */
+        .sidebar {
+            width: 260px;
+            background: var(--bg-sidebar);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+        }
+
+        .sidebar-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 5px;
+        }
+
+        .sidebar-header .subtitle {
+            font-size: 11px;
+            color: #8ab4f8;
+            letter-spacing: 1px;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 0;
+        }
+
+        .nav-section {
+            margin-bottom: 20px;
+        }
+
+        .nav-section-title {
+            padding: 8px 20px;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #5f7d9c;
+            letter-spacing: 1.5px;
+            font-weight: 600;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: #b8c7d9;
+            text-decoration: none;
+            transition: all 0.2s;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            font-size: 14px;
+        }
+
+        .nav-item:hover {
+            background: rgba(255,255,255,0.05);
+            color: white;
+            border-left-color: var(--primary);
+        }
+
+        .nav-item.active {
+            background: rgba(26,115,232,0.2);
+            color: white;
+            border-left-color: var(--primary);
+            font-weight: 500;
+        }
+
+        .nav-item .icon {
+            margin-right: 12px;
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .nav-item .badge {
+            margin-left: auto;
+            background: var(--danger);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .nav-item .badge.warning {
+            background: var(--warning);
+            color: #000;
+        }
+
+        /* ============================================
+           MAIN CONTENT AREA
+           ============================================ */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ============================================
+           TOP HEADER BAR
+           ============================================ */
+        .top-bar {
+            background: white;
+            padding: 15px 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: var(--bg-main);
+            border-radius: 25px;
+            padding: 8px 20px;
+            width: 400px;
+        }
+
+        .search-box input {
+            border: none;
+            background: transparent;
+            outline: none;
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .search-box .search-icon {
+            color: var(--text-secondary);
+            margin-right: 10px;
+        }
+
+        .top-bar-actions {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .notification-btn {
+            position: relative;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .notification-btn .count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: var(--danger);
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .user-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        /* ============================================
+           CONTENT AREA WITH SCROLLING
+           ============================================ */
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 25px;
+        }
+
+        /* ============================================
+           PAGE HEADER
+           ============================================ */
+        .page-header {
+            margin-bottom: 25px;
+        }
+
+        .page-header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .page-header .breadcrumb {
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-top: 5px;
+        }
+
+        /* ============================================
+           KPI CARDS GRID
+           ============================================ */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .kpi-card .kpi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .kpi-card .kpi-title {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .kpi-card .kpi-icon {
+            font-size: 24px;
+        }
+
+        .kpi-card .kpi-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .kpi-card .kpi-trend {
+            font-size: 12px;
+            color: var(--success);
+        }
+
+        .kpi-card .kpi-trend.negative {
+            color: var(--danger);
+        }
+
+        .kpi-card.green { border-left: 4px solid var(--success); }
+        .kpi-card.orange { border-left: 4px solid var(--warning); }
+        .kpi-card.red { border-left: 4px solid var(--danger); }
+        .kpi-card.blue { border-left: 4px solid var(--primary); }
+
+        /* ============================================
+           DATA TABLE
+           ============================================ */
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .table-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .table-header h3 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .table-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-sm {
+            padding: 4px 10px;
+            font-size: 12px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        .btn-outline:hover {
+            background: var(--bg-main);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: #000;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: var(--bg-main);
+        }
+
+        th {
+            padding: 12px 15px;
+            text-align: left;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        /* ============================================
+           STATUS BADGES
+           ============================================ */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        .status-badge.green {
+            background: #e6f4ea;
+            color: #137333;
+        }
+
+        .status-badge.orange {
+            background: #fef7e0;
+            color: #b06000;
+        }
+
+        .status-badge.red {
+            background: #fce8e6;
+            color: #c5221f;
+        }
+
+        .status-badge.blue {
+            background: #e8f0fe;
+            color: #1967d2;
+        }
+
+        /* ============================================
+           KPI INDICATOR
+           ============================================ */
+        .kpi-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        .kpi-indicator.green { background: var(--success); }
+        .kpi-indicator.orange { background: var(--warning); }
+        .kpi-indicator.red { background: var(--danger); }
+
+        /* ============================================
+           ALERT PANEL
+           ============================================ */
+        .alert-panel {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            display: none;
+        }
+
+        .alert-panel.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .alert-panel-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 1;
+        }
+
+        .alert-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .alert-item:hover {
+            background: var(--bg-main);
+        }
+
+        .alert-item .alert-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .alert-item .alert-time {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .alert-item.orange {
+            border-left: 3px solid var(--warning);
+        }
+
+        .alert-item.red {
+            border-left: 3px solid var(--danger);
+        }
+
+        /* ============================================
+           MODAL
+           ============================================ */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 1;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-footer {
+            padding: 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            position: sticky;
+            bottom: 0;
+            background: white;
+        }
+
+        /* ============================================
+           FORM ELEMENTS
+           ============================================ */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        .form-group .required {
+            color: var(--danger);
+            margin-left: 2px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(26,115,232,0.1);
+        }
+
+        select.form-control {
+            background: white;
+        }
+
+        textarea.form-control {
+            resize: vertical;
+        }
+
+        /* Checkbox styling */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        /* Structured comment section */
+        .structured-comment {
+            background: #fff3e0;
+            border: 2px solid var(--warning);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .structured-comment.red {
+            background: #ffebee;
+            border-color: var(--danger);
+        }
+
+        .structured-comment .comment-title {
+            font-weight: 600;
+            color: var(--danger);
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .structured-comment .comment-title.orange {
+            color: #b06000;
+        }
+
+        /* Validation message */
+        .validation-message {
+            background: #fce8e6;
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            display: none;
+        }
+
+        .validation-message.show {
+            display: block;
+        }
+
+        /* ============================================
+           FILTERS BAR
+           ============================================ */
+        .filters-bar {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+            box-shadow: var(--shadow);
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-group label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .filter-group select {
+            padding: 6px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 13px;
+            background: white;
+        }
+
+        .search-filter {
+            flex: 1;
+            min-width: 200px;
+            display: flex;
+            align-items: center;
+            background: var(--bg-main);
+            border-radius: 6px;
+            padding: 6px 12px;
+        }
+
+        .search-filter input {
+            border: none;
+            background: transparent;
+            outline: none;
+            flex: 1;
+            font-size: 13px;
+        }
+
+        /* ============================================
+           WORKFLOW STATUS INDICATOR
+           ============================================ */
+        .workflow-status {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .workflow-step {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .workflow-step.completed {
+            background: #e6f4ea;
+            color: #137333;
+        }
+
+        .workflow-step.current {
+            background: #e8f0fe;
+            color: #1967d2;
+            font-weight: 600;
+        }
+
+        .workflow-step.pending {
+            background: #f5f5f5;
+            color: #999;
+        }
+
+        .workflow-arrow {
+            color: #999;
+        }
+
+        /* ============================================
+           RESPONSIVE DESIGN
+           ============================================ */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 0;
+                position: fixed;
+                z-index: 100;
+                height: 100vh;
+            }
+
+            .sidebar.mobile-open {
+                width: 260px;
+            }
+
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .search-box {
+                width: 200px;
+            }
+
+            .top-bar {
+                padding: 10px 15px;
+            }
+
+            .modal {
+                width: 95%;
+                max-width: none;
+            }
+        }
+
+        /* ============================================
+           UTILITY CLASSES
+           ============================================ */
+        .hidden {
+            display: none !important;
+        }
+
+        .text-success { color: var(--success); }
+        .text-warning { color: var(--warning); }
+        .text-danger { color: var(--danger); }
+
+        .mt-20 { margin-top: 20px; }
+        .mb-20 { margin-bottom: 20px; }
+
+        /* Notification toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow-lg);
+            z-index: 3000;
+            animation: slideUp 0.3s ease;
+            display: none;
+        }
+
+        .toast.show {
+            display: block;
+        }
+
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        .toast.warning { background: var(--warning); color: #000; }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- ============================================
+             SIDEBAR NAVIGATION
+             ============================================ -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>🚛 TruckControl DRC</h2>
+                <div class="subtitle">Operations Management</div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Main</div>
+                    <a class="nav-item active" onclick="navigateTo('dashboard')" data-page="dashboard">
+                        <span class="icon">📊</span> Dashboard
+                        <span class="badge">3</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Operations</div>
+                    <a class="nav-item" onclick="navigateTo('nb-operations')" data-page="nb-operations">
+                        <span class="icon">🚛</span> NB Operations
+                        <span class="badge warning">127</span>
+                    </a>
+                    <a class="nav-item" onclick="navigateTo('sb-operations')" data-page="sb-operations">
+                        <span class="icon">🚛</span> SB Operations
+                        <span class="badge warning">85</span>
+                    </a>
+                    <a class="nav-item" onclick="navigateTo('border-clearance')" data-page="border-clearance">
+                        <span class="icon">🛂</span> Border Clearance
+                        <span class="badge warning">12</span>
+                    </a>
+                    <a class="nav-item" onclick="navigateTo('pod-management')" data-page="pod-management">
+                        <span class="icon">📋</span> POD Management
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Areas</div>
+                    <a class="nav-item" onclick="navigateTo('kasumbalesa')" data-page="kasumbalesa">
+                        <span class="icon">🏢</span> Kasumbalesa
+                    </a>
+                    <a class="nav-item" onclick="navigateTo('kanyaka')" data-page="kanyaka">
+                        <span class="icon">🏗️</span> Kanyaka
+                    </a>
+                    <a class="nav-item" onclick="navigateTo('lubumbashi-kipushi')" data-page="lubumbashi-kipushi">
+                        <span class="icon">🏙️</span> Lubumbashi / Kipushi
+                    </a>
+                    <a class="nav-item" onclick="navigateTo('likasi-tenke')" data-page="likasi-tenke">
+                        <span class="icon">🏭</span> Likasi / Tenke
+                    </a>
+                    <a class="nav-item" onclick="navigateTo('kambove-kisanfu')" data-page="kambove-kisanfu">
+                        <span class="icon">⛏️</span> Kambove / Kisanfu
+                    </a>
+                    <a class="nav-item" onclick="navigateTo('kolwezi')" data-page="kolwezi">
+                        <span class="icon">⛏️</span> Kolwezi
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Management</div>
+                    <a class="nav-item" onclick="navigateTo('assets')" data-page="assets">
+                        <span class="icon">🚗</span> Assets & Equipment
+                    </a>
+                    <a class="nav-item" onclick="navigateTo('runner-fees')" data-page="runner-fees">
+                        <span class="icon">💰</span> Runner Fees
+                    </a>
+                    <a class="nav-item" onclick="navigateTo('reports')" data-page="reports">
+                        <span class="icon">📈</span> Reports
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Admin</div>
+                    <a class="nav-item" onclick="navigateTo('settings')" data-page="settings">
+                        <span class="icon">⚙️</span> Settings
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- ============================================
+             MAIN CONTENT
+             ============================================ -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <button class="btn btn-outline" onclick="toggleSidebar()" style="margin-right: 15px;">
+                    ☰
+                </button>
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" placeholder="Search trucks, trips, drivers..." id="globalSearch" onkeyup="handleGlobalSearch()">
+                </div>
+                <div class="top-bar-actions">
+                    <button class="notification-btn" onclick="toggleAlerts()">
+                        🔔
+                        <span class="count" id="alertCount">3</span>
+                    </button>
+                    <div class="user-profile">
+                        <div class="user-avatar">SA</div>
+                        <div>
+                            <div style="font-weight: 600; font-size: 14px;">System Admin</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">Super Admin</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Alert Panel -->
+            <div class="alert-panel" id="alertPanel">
+                <div class="alert-panel-header">
+                    <h3>🔔 Priority Alerts</h3>
+                    <button class="btn btn-outline" onclick="toggleAlerts()" style="font-size: 18px;">✕</button>
+                </div>
+                <div class="alert-item orange" onclick="handleAlertClick('NB-2024-001')">
+                    <div class="alert-title">🟠 NB-2024-001 - Border Clearance Approaching Deadline</div>
+                    <div class="alert-time">Truck: ABC123DRC | Kasumbalesa | 38 hours | Target: 48h</div>
+                </div>
+                <div class="alert-item red" onclick="handleAlertClick('NB-2024-022')">
+                    <div class="alert-title">🔴 NB-2024-022 - POD Missing for 5 Days</div>
+                    <div class="alert-time">Truck: GHI789DRC | Lubumbashi | Action Required</div>
+                </div>
+                <div class="alert-item orange" onclick="handleAlertClick('SB-2024-005')">
+                    <div class="alert-title">🟠 SB-2024-005 - Loading Delay at Mine</div>
+                    <div class="alert-time">Truck: MNO345DRC | Kanyaka | 45 hours | Target: 48h</div>
+                </div>
+            </div>
+
+            <!-- Content Area - Pages will be rendered here -->
+            <div class="content-area" id="contentArea">
+                <!-- Dynamic content loaded by JavaScript -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
+    <!-- ============================================
+         MODAL: Status Update with Structured Comments
+         ============================================ -->
+    <div class="modal-overlay" id="statusModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modalTitle">Update Trip Status</h3>
+                <button class="btn btn-outline" onclick="closeModal('statusModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="validation-message" id="validationMessage">
+                    ⚠️ Please complete all required fields before submitting.
+                </div>
+
+                <div class="form-group">
+                    <label>Trip Number</label>
+                    <input type="text" class="form-control" id="modalTripNumber" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Truck Registration</label>
+                    <input type="text" class="form-control" id="modalTruckReg" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Current KPI Status</label>
+                    <div id="modalKPIStatus"></div>
+                </div>
+                
+                <!-- Workflow Status Indicator -->
+                <div class="form-group">
+                    <label>Workflow Progress</label>
+                    <div class="workflow-status" id="workflowStatus">
+                        <!-- Dynamically filled -->
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Status Update <span class="required">*</span></label>
+                    <select class="form-control" id="modalStatus" onchange="handleStatusChange()">
+                        <option value="">Select status...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Date & Time <span class="required">*</span></label>
+                    <input type="datetime-local" class="form-control" id="modalDateTime">
+                </div>
+
+                <!-- Problem Checkbox for triggering structured comments -->
+                <div class="checkbox-group">
+                    <input type="checkbox" id="hasProblem" onchange="toggleStructuredComment()">
+                    <label for="hasProblem" style="margin-bottom: 0; cursor: pointer;">
+                        ⚠️ There is a problem/delay that needs escalation
+                    </label>
+                </div>
+
+                <!-- Normal Comment (for green status) -->
+                <div class="form-group" id="normalCommentSection">
+                    <label>Comments</label>
+                    <textarea class="form-control" rows="2" id="normalComment" placeholder="General comments..."></textarea>
+                </div>
+
+                <!-- Structured Comment Section (for orange/red or when checkbox is checked) -->
+                <div class="structured-comment hidden" id="structuredCommentSection">
+                    <div class="comment-title" id="commentTitle">🔴 Structured Problem Report (Required)</div>
+                    
+                    <div class="form-group">
+                        <label>Problem Description <span class="required">*</span></label>
+                        <textarea class="form-control" rows="2" id="problemDescription" 
+                            placeholder="Describe the problem in detail..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Person Contacted for Solution <span class="required">*</span></label>
+                        <input type="text" class="form-control" id="personContacted" 
+                            placeholder="Name and role of person contacted">
+                    </div>
+                    <div class="form-group">
+                        <label>Solution / Action Taken <span class="required">*</span></label>
+                        <textarea class="form-control" rows="2" id="solutionTaken" 
+                            placeholder="What solution or action has been taken..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Expected Time for Completion <span class="required">*</span></label>
+                        <input type="datetime-local" class="form-control" id="expectedCompletion">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Upload Document</label>
+                    <input type="file" class="form-control" id="modalFileUpload">
+                    <small style="color: var(--text-secondary);">Accepted: PDF, JPG, PNG, DOCX (Max 10MB)</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('statusModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitStatusUpdate()">💾 Save Status</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+         MODAL: Upload NB/SB Data
+         ============================================ -->
+    <div class="modal-overlay" id="uploadModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="uploadModalTitle">📤 Upload Data</h3>
+                <button class="btn btn-outline" onclick="closeModal('uploadModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Upload Type</label>
+                    <select class="form-control" id="uploadType">
+                        <option value="NB">NB Upload (North Bound)</option>
+                        <option value="SB">SB Upload (South Bound)</option>
+                        <option value="DRC">Full DRC Turnaround Upload</option>
+                        <option value="POSITION">Position Update Upload</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Select Excel File <span class="required">*</span></label>
+                    <input type="file" class="form-control" accept=".xlsx,.xls,.csv">
+                    <small style="color: var(--text-secondary);">Download template: 
+                        <a href="#" onclick="event.preventDefault(); alert('Template downloaded!')">NB_Template.xlsx</a> | 
+                        <a href="#" onclick="event.preventDefault(); alert('Template downloaded!')">SB_Template.xlsx</a>
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label>Validation Rules:</label>
+                    <div style="background: #f5f5f5; padding: 10px; border-radius: 6px; font-size: 13px;">
+                        • Trip + Truck combination must be unique<br>
+                        • Offloading/Loading point must match area mapping<br>
+                        • Required fields: Trip, Truck, Direction<br>
+                        • Duplicate entries will be rejected with error details
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('uploadModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="handleUpload()">📤 Upload & Validate</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+         MODAL: Runner Fee Calculation
+         ============================================ -->
+    <div class="modal-overlay" id="runnerFeeModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>💰 Calculate Runner Fee</h3>
+                <button class="btn btn-outline" onclick="closeModal('runnerFeeModal')">✕</button>
+            </div>
+            <div class="modal-body" id="runnerFeeContent">
+                <!-- Dynamically filled -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('runnerFeeModal')">Cancel</button>
+                <button class="btn btn-success" onclick="calculateFee()">💰 Calculate & Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+         MODAL: Bulk Status Update
+         ============================================ -->
+    <div class="modal-overlay" id="bulkUpdateModal">
+        <div class="modal" style="max-width: 720px;">
+            <div class="modal-header">
+                <h3 id="bulkModalTitle">Bulk Status Update</h3>
+                <button class="btn btn-outline" onclick="closeModal('bulkUpdateModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Direction</label>
+                    <input type="text" class="form-control" id="bulkDirection" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Select Trips <span class="required">*</span></label>
+                    <div id="bulkTripList" style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px;"></div>
+                </div>
+                <div class="form-group">
+                    <label>New Status <span class="required">*</span></label>
+                    <select class="form-control" id="bulkStatus">
+                        <option value="">Select status...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Date & Time <span class="required">*</span></label>
+                    <input type="datetime-local" class="form-control" id="bulkDateTime">
+                </div>
+                <div class="form-group">
+                    <label>Comments</label>
+                    <textarea class="form-control" rows="2" id="bulkComment" placeholder="Optional note applied to all selected trips..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('bulkUpdateModal')">Cancel</button>
+                <button class="btn btn-success" onclick="applyBulkUpdate()">Apply to Selected</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // GLOBAL STATE MANAGEMENT
+        // ============================================
+        let currentPage = 'dashboard';
+        let currentTripForUpdate = null;
+        
+        // Simulated database of trips
+        const tripsDB = {
+            'NB-2024-001': {
+                tripNumber: 'NB-2024-001',
+                truck: 'ABC123DRC',
+                driver: 'John Doe',
+                direction: 'NB',
+                area: 'Kasumbalesa',
+                owner: 'Transport Co A',
+                entryBorder: 'Kasumbalesa',
+                offloadingPoint: 'Kolwezi Mine',
+                status: 'Border Clearance',
+                daysInDRC: 5,
+                kpi: 'green',
+                workflow: {
+                    border: 'completed',
+                    kanyaka: 'pending',
+                    offloading: 'pending',
+                    pod: 'pending'
+                }
+            },
+            'NB-2024-015': {
+                tripNumber: 'NB-2024-015',
+                truck: 'XYZ789DRC',
+                driver: 'Sarah Smith',
+                direction: 'NB',
+                area: 'Kolwezi',
+                owner: 'Transport Co B',
+                entryBorder: 'Sakania',
+                offloadingPoint: 'Kolwezi Mine',
+                status: 'Offloading',
+                daysInDRC: 12,
+                kpi: 'orange',
+                workflow: {
+                    border: 'completed',
+                    kanyaka: 'completed',
+                    offloading: 'current',
+                    pod: 'pending'
+                }
+            },
+            'NB-2024-022': {
+                tripNumber: 'NB-2024-022',
+                truck: 'GHI789DRC',
+                driver: 'Jean Pierre',
+                direction: 'NB',
+                area: 'Lubumbashi',
+                owner: 'Transport Co C',
+                entryBorder: 'Mokambo',
+                offloadingPoint: 'Lubumbashi',
+                status: 'POD Missing',
+                daysInDRC: 15,
+                kpi: 'red',
+                workflow: {
+                    border: 'completed',
+                    kanyaka: 'completed',
+                    offloading: 'completed',
+                    pod: 'current'
+                }
+            },
+            'SB-2024-003': {
+                tripNumber: 'SB-2024-003',
+                truck: 'DEF456DRC',
+                driver: 'Mike Johnson',
+                direction: 'SB',
+                area: 'Kanyaka',
+                owner: 'Transport Co A',
+                loadingPoint: 'Kanyaka',
+                exitBorder: 'Kasumbalesa',
+                status: 'Loading Process',
+                daysInDRC: 3,
+                kpi: 'green',
+                workflow: {
+                    loadingPlan: 'completed',
+                    loadingProcess: 'current',
+                    dispatch: 'pending',
+                    kanyaka: 'pending',
+                    border: 'pending'
+                }
+            },
+            'SB-2024-005': {
+                tripNumber: 'SB-2024-005',
+                truck: 'MNO345DRC',
+                driver: 'David Mukendi',
+                direction: 'SB',
+                area: 'Kanyaka',
+                owner: 'Transport Co B',
+                loadingPoint: 'Kanyaka Mine',
+                exitBorder: 'Sakania',
+                status: 'Loading Delay',
+                daysInDRC: 2,
+                kpi: 'orange',
+                workflow: {
+                    loadingPlan: 'completed',
+                    loadingProcess: 'current',
+                    dispatch: 'pending',
+                    kanyaka: 'pending',
+                    border: 'pending'
+                }
+            }
+        };
+
+        // ============================================
+        // NAVIGATION & PAGE RENDERING
+        // ============================================
+        function navigateTo(page) {
+            currentPage = page;
+            
+            // Update active nav item
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.page === page) {
+                    item.classList.add('active');
+                }
+            });
+
+            // Render the appropriate page
+            const contentArea = document.getElementById('contentArea');
+            
+            switch(page) {
+                case 'dashboard':
+                    renderDashboard(contentArea);
+                    break;
+                case 'nb-operations':
+                    renderNBOperations(contentArea);
+                    break;
+                case 'sb-operations':
+                    renderSBOperations(contentArea);
+                    break;
+                case 'border-clearance':
+                    renderBorderClearance(contentArea);
+                    break;
+                case 'pod-management':
+                    renderPODManagement(contentArea);
+                    break;
+                case 'kasumbalesa':
+                    renderAreaPage(contentArea, 'Kasumbalesa');
+                    break;
+                case 'kanyaka':
+                    renderAreaPage(contentArea, 'Kanyaka');
+                    break;
+                case 'kolwezi':
+                    renderAreaPage(contentArea, 'Kolwezi');
+                    break;
+                case 'lubumbashi-kipushi':
+                    renderAreaPage(contentArea, 'Lubumbashi');
+                    break;
+                case 'likasi-tenke':
+                    renderAreaPage(contentArea, 'Likasi');
+                    break;
+                case 'kambove-kisanfu':
+                    renderAreaPage(contentArea, 'Kambove');
+                    break;
+                case 'assets':
+                    renderAssets(contentArea);
+                    break;
+                case 'runner-fees':
+                    renderRunnerFees(contentArea);
+                    break;
+                case 'reports':
+                    renderReports(contentArea);
+                    break;
+                case 'settings':
+                    renderSettings(contentArea);
+                    break;
+                default:
+                    renderDashboard(contentArea);
+            }
+        }
+
+        // ============================================
+        // DASHBOARD PAGE
+        // ============================================
+        function renderDashboard(container) {
+            container.innerHTML = `
+                <div class="page-header">
+                    <h1>📊 Operations Dashboard</h1>
+                    <div class="breadcrumb">Home / Dashboard / Overview</div>
+                </div>
+
+                <div class="kpi-grid">
+                    <div class="kpi-card blue">
+                        <div class="kpi-header">
+                            <span class="kpi-title">Active Trucks in DRC</span>
+                            <span class="kpi-icon">🚛</span>
+                        </div>
+                        <div class="kpi-value">127</div>
+                        <div class="kpi-trend">↑ 12% from last week</div>
+                    </div>
+                    <div class="kpi-card green">
+                        <div class="kpi-header">
+                            <span class="kpi-title">On-Time Performance</span>
+                            <span class="kpi-icon">✅</span>
+                        </div>
+                        <div class="kpi-value">78%</div>
+                        <div class="kpi-trend">↑ 5% improvement</div>
+                    </div>
+                    <div class="kpi-card orange">
+                        <div class="kpi-header">
+                            <span class="kpi-title">Priority Alerts</span>
+                            <span class="kpi-icon">⚠️</span>
+                        </div>
+                        <div class="kpi-value">18</div>
+                        <div class="kpi-trend negative">↑ 3 new alerts</div>
+                    </div>
+                    <div class="kpi-card red">
+                        <div class="kpi-header">
+                            <span class="kpi-title">Overdue Actions</span>
+                            <span class="kpi-icon">🔴</span>
+                        </div>
+                        <div class="kpi-value">8</div>
+                        <div class="kpi-trend negative">Requires immediate attention</div>
+                    </div>
+                </div>
+
+                <!-- Quick Overview Cards -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3>NB Performance by Area</h3>
+                        </div>
+                        <div style="padding: 20px;">
+                            ${renderProgressBar('Kasumbalesa', 85, 'green')}
+                            ${renderProgressBar('Kanyaka', 72, 'orange')}
+                            ${renderProgressBar('Kolwezi', 91, 'green')}
+                            ${renderProgressBar('Lubumbashi', 63, 'red')}
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3>SB Performance by Area</h3>
+                        </div>
+                        <div style="padding: 20px;">
+                            ${renderProgressBar('Kanyaka Loading', 78, 'green')}
+                            ${renderProgressBar('Dispatch/Escort', 65, 'orange')}
+                            ${renderProgressBar('Border Exit', 88, 'green')}
+                            ${renderProgressBar('Following-on List', 55, 'red')}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <div class="table-header">
+                        <h3>Live Truck Operations</h3>
+                        <div class="table-actions">
+                            <button class="btn btn-outline" onclick="navigateTo('nb-operations')">NB View</button>
+                            <button class="btn btn-outline" onclick="navigateTo('sb-operations')">SB View</button>
+                            <button class="btn btn-primary">📥 Export Excel</button>
+                        </div>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Trip #</th>
+                                    <th>Truck</th>
+                                    <th>Driver</th>
+                                    <th>Direction</th>
+                                    <th>Area</th>
+                                    <th>Status</th>
+                                    <th>Days</th>
+                                    <th>KPI</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashboardTableBody">
+                                ${renderDashboardTableRows()}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDashboardTableRows() {
+            let rows = '';
+            for (const [key, trip] of Object.entries(tripsDB)) {
+                rows += `
+                    <tr>
+                        <td><strong>${trip.tripNumber}</strong></td>
+                        <td>${trip.truck}</td>
+                        <td>${trip.driver}</td>
+                        <td><span class="status-badge blue">${trip.direction}</span></td>
+                        <td>${trip.area}</td>
+                        <td><span class="status-badge ${trip.kpi}">${trip.status}</span></td>
+                        <td>${trip.daysInDRC}</td>
+                        <td><span class="kpi-indicator ${trip.kpi}"></span> ${getKPILabel(trip.kpi)}</td>
+                        <td><button class="btn btn-primary" style="padding: 4px 12px; font-size: 12px;" onclick="openStatusUpdate('${trip.tripNumber}')">Update</button></td>
+                    </tr>
+                `;
+            }
+            return rows;
+        }
+
+        function renderProgressBar(label, percentage, color) {
+            return `
+                <div style="margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span>${label}</span>
+                        <span>${percentage}%</span>
+                    </div>
+                    <div style="background: #e0e0e0; height: 8px; border-radius: 4px;">
+                        <div style="background: ${getColorByType(color)}; width: ${percentage}%; height: 100%; border-radius: 4px;"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ============================================
+        // NB OPERATIONS PAGE (FULL FEATURED)
+        // ============================================
+        function renderNBOperations(container) {
+            container.innerHTML = `
+                <div class="page-header">
+                    <h1>🚛 North Bound Operations</h1>
+                    <div class="breadcrumb">Operations / NB Operations</div>
+                </div>
+
+                <!-- KPI Cards for NB -->
+                <div class="kpi-grid">
+                    <div class="kpi-card green">
+                        <div class="kpi-header">
+                            <span class="kpi-title">NB On Track</span>
+                            <span class="kpi-icon">✅</span>
+                        </div>
+                        <div class="kpi-value">89</div>
+                        <div class="kpi-trend">Target: 14 days turnaround</div>
+                    </div>
+                    <div class="kpi-card orange">
+                        <div class="kpi-header">
+                            <span class="kpi-title">NB Priority</span>
+                            <span class="kpi-icon">⚠️</span>
+                        </div>
+                        <div class="kpi-value">27</div>
+                        <div class="kpi-trend negative">Approaching deadline</div>
+                    </div>
+                    <div class="kpi-card red">
+                        <div class="kpi-header">
+                            <span class="kpi-title">NB Overdue</span>
+                            <span class="kpi-icon">🔴</span>
+                        </div>
+                        <div class="kpi-value">11</div>
+                        <div class="kpi-trend negative">Action required</div>
+                    </div>
+                </div>
+
+                <!-- Filters and Search Bar -->
+                <div class="filters-bar">
+                    <div class="filter-group">
+                        <label>Area:</label>
+                        <select id="nbAreaFilter" onchange="filterNBTable()">
+                            <option value="all">All Areas</option>
+                            <option value="Kasumbalesa">Kasumbalesa</option>
+                            <option value="Kanyaka">Kanyaka</option>
+                            <option value="Kolwezi">Kolwezi</option>
+                            <option value="Lubumbashi">Lubumbashi</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Border:</label>
+                        <select id="nbBorderFilter" onchange="filterNBTable()">
+                            <option value="all">All Borders</option>
+                            <option value="Kasumbalesa">Kasumbalesa</option>
+                            <option value="Sakania">Sakania</option>
+                            <option value="Mokambo">Mokambo</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Status:</label>
+                        <select id="nbStatusFilter" onchange="filterNBTable()">
+                            <option value="all">All Statuses</option>
+                            <option value="Border Clearance">Border Clearance</option>
+                            <option value="In Transit">In Transit</option>
+                            <option value="Offloading">Offloading</option>
+                            <option value="POD Collection">POD Collection</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>KPI:</label>
+                        <select id="nbKPIFilter" onchange="filterNBTable()">
+                            <option value="all">All</option>
+                            <option value="green">🟢 On Track</option>
+                            <option value="orange">🟠 Priority</option>
+                            <option value="red">🔴 Overdue</option>
+                        </select>
+                    </div>
+                    <div class="search-filter">
+                        <span>🔍</span>
+                        <input type="text" placeholder="Search by Trip#, Truck, Driver..." id="nbSearchInput" onkeyup="filterNBTable()">
+                    </div>
+                    <button class="btn btn-outline" onclick="clearNBFilters()">Clear Filters</button>
+                </div>
+
+                <!-- Action Buttons -->
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <button class="btn btn-primary" onclick="openUploadModal('NB')">📤 Upload NB Data (Excel)</button>
+                    <button class="btn btn-success" onclick="openBulkUpdate('NB')">📋 Bulk Update</button>
+                    <button class="btn btn-outline" onclick="exportNBData()">📥 Export to Excel</button>
+                </div>
+
+                <!-- NB Trucks Table -->
+                <div class="table-container">
+                    <div class="table-header">
+                        <h3>Active NB Trucks (Target: 14 days turnaround)</h3>
+                        <span style="color: var(--text-secondary);">Showing <strong id="nbCount">4</strong> trucks</span>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table id="nbTable">
+                            <thead>
+                                <tr>
+                                    <th>Trip #</th>
+                                    <th>Truck</th>
+                                    <th>Owner</th>
+                                    <th>Driver</th>
+                                    <th>Entry Border</th>
+                                    <th>Offloading Point</th>
+                                    <th>Area</th>
+                                    <th>Current Status</th>
+                                    <th>Days in DRC</th>
+                                    <th>KPI Status</th>
+                                    <th>Next Action</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="nbTableBody">
+                                ${renderNBTableRows()}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Workflow Validation Notice -->
+                <div style="background: #e8f0fe; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid var(--primary);">
+                    <strong>⚠️ Workflow Rule:</strong> Before updating status for offloading or POD teams, the Border team and Kanyaka must have completed all their statuses. 
+                    <br>Check the workflow progress indicator in the status update modal.
+                </div>
+            `;
+        }
+
+        function renderNBTableRows(filter = {}) {
+            let rows = '';
+            let count = 0;
+            
+            for (const [key, trip] of Object.entries(tripsDB)) {
+                if (trip.direction !== 'NB') continue;
+                
+                // Apply filters
+                if (filter.area && filter.area !== 'all' && trip.area !== filter.area) continue;
+                if (filter.border && filter.border !== 'all' && trip.entryBorder !== filter.border) continue;
+                if (filter.status && filter.status !== 'all' && trip.status !== filter.status) continue;
+                if (filter.kpi && filter.kpi !== 'all' && trip.kpi !== filter.kpi) continue;
+                if (filter.search) {
+                    const searchTerm = filter.search.toLowerCase();
+                    if (!trip.tripNumber.toLowerCase().includes(searchTerm) &&
+                        !trip.truck.toLowerCase().includes(searchTerm) &&
+                        !trip.driver.toLowerCase().includes(searchTerm)) continue;
+                }
+                
+                count++;
+                
+                // Determine if border and kanyaka are completed
+                const borderCompleted = trip.workflow.border === 'completed';
+                const kanyakaCompleted = trip.workflow.kanyaka === 'completed';
+                const canUpdateOffloading = borderCompleted && kanyakaCompleted;
+                
+                rows += `
+                    <tr class="trip-row" data-trip="${trip.tripNumber}">
+                        <td><strong>${trip.tripNumber}</strong></td>
+                        <td>${trip.truck}</td>
+                        <td>${trip.owner}</td>
+                        <td>${trip.driver}</td>
+                        <td>${trip.entryBorder}</td>
+                        <td>${trip.offloadingPoint}</td>
+                        <td>${trip.area}</td>
+                        <td><span class="status-badge ${trip.kpi}">${trip.status}</span></td>
+                        <td>${trip.daysInDRC}</td>
+                        <td><span class="kpi-indicator ${trip.kpi}"></span> ${getKPILabel(trip.kpi)}</td>
+                        <td>${getNextAction(trip)}</td>
+                        <td>
+                            <button class="btn btn-primary" style="padding: 4px 12px; font-size: 12px;" 
+                                onclick="openStatusUpdate('${trip.tripNumber}')" 
+                                ${!canUpdateOffloading && (trip.status === 'Offloading' || trip.status === 'POD Collection') ? 'disabled title="Border and Kanyaka must complete their statuses first"' : ''}>
+                                Update
+                            </button>
+                            <button class="btn btn-outline" style="padding: 4px 8px; font-size: 12px;" 
+                                onclick="viewTripDetails('${trip.tripNumber}')">
+                                👁️
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }
+            
+            // Update count
+            setTimeout(() => {
+                const countEl = document.getElementById('nbCount');
+                if (countEl) countEl.textContent = count;
+            }, 0);
+            
+            return rows || '<tr><td colspan="12" style="text-align: center; padding: 20px;">No trucks match the current filters</td></tr>';
+        }
+
+        function filterNBTable() {
+            const area = document.getElementById('nbAreaFilter')?.value || 'all';
+            const border = document.getElementById('nbBorderFilter')?.value || 'all';
+            const status = document.getElementById('nbStatusFilter')?.value || 'all';
+            const kpi = document.getElementById('nbKPIFilter')?.value || 'all';
+            const search = document.getElementById('nbSearchInput')?.value || '';
+            
+            const filter = { area, border, status, kpi, search };
+            document.getElementById('nbTableBody').innerHTML = renderNBTableRows(filter);
+        }
+
+        function clearNBFilters() {
+            document.getElementById('nbAreaFilter').value = 'all';
+            document.getElementById('nbBorderFilter').value = 'all';
+            document.getElementById('nbStatusFilter').value = 'all';
+            document.getElementById('nbKPIFilter').value = 'all';
+            document.getElementById('nbSearchInput').value = '';
+            filterNBTable();
+        }
+
+        // ============================================
+        // SB OPERATIONS PAGE (FULL FEATURED)
+        // ============================================
+        function renderSBOperations(container) {
+            container.innerHTML = `
+                <div class="page-header">
+                    <h1>🚛 South Bound Operations</h1>
+                    <div class="breadcrumb">Operations / SB Operations</div>
+                </div>
+
+                <!-- KPI Cards for SB -->
+                <div class="kpi-grid">
+                    <div class="kpi-card green">
+                        <div class="kpi-header">
+                            <span class="kpi-title">SB On Track</span>
+                            <span class="kpi-icon">✅</span>
+                        </div>
+                        <div class="kpi-value">56</div>
+                        <div class="kpi-trend">Target: ≤8 days dispatch</div>
+                    </div>
+                    <div class="kpi-card orange">
+                        <div class="kpi-header">
+                            <span class="kpi-title">SB Priority</span>
+                            <span class="kpi-icon">⚠️</span>
+                        </div>
+                        <div class="kpi-value">19</div>
+                        <div class="kpi-trend negative">Loading delays reported</div>
+                    </div>
+                    <div class="kpi-card red">
+                        <div class="kpi-header">
+                            <span class="kpi-title">SB Overdue</span>
+                            <span class="kpi-icon">🔴</span>
+                        </div>
+                        <div class="kpi-value">10</div>
+                        <div class="kpi-trend negative">Escort/documentation delays</div>
+                    </div>
+                </div>
+
+                <!-- Filters and Search Bar for SB -->
+                <div class="filters-bar">
+                    <div class="filter-group">
+                        <label>Area:</label>
+                        <select id="sbAreaFilter" onchange="filterSBTable()">
+                            <option value="all">All Areas</option>
+                            <option value="Kanyaka">Kanyaka</option>
+                            <option value="Kolwezi">Kolwezi</option>
+                            <option value="Lubumbashi">Lubumbashi</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Exit Border:</label>
+                        <select id="sbBorderFilter" onchange="filterSBTable()">
+                            <option value="all">All Borders</option>
+                            <option value="Kasumbalesa">Kasumbalesa</option>
+                            <option value="Sakania">Sakania</option>
+                            <option value="Mokambo">Mokambo</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Status:</label>
+                        <select id="sbStatusFilter" onchange="filterSBTable()">
+                            <option value="all">All Statuses</option>
+                            <option value="Loading Plan">Loading Plan</option>
+                            <option value="Loading Process">Loading Process</option>
+                            <option value="Dispatch/Escort">Dispatch/Escort</option>
+                            <option value="Following-on List">Following-on List</option>
+                            <option value="Kanyaka SB">Kanyaka SB</option>
+                            <option value="Border Exit">Border Exit</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>KPI:</label>
+                        <select id="sbKPIFilter" onchange="filterSBTable()">
+                            <option value="all">All</option>
+                            <option value="green">🟢 On Track</option>
+                            <option value="orange">🟠 Priority</option>
+                            <option value="red">🔴 Overdue</option>
+                        </select>
+                    </div>
+                    <div class="search-filter">
+                        <span>🔍</span>
+                        <input type="text" placeholder="Search by Trip#, Truck, Driver..." id="sbSearchInput" onkeyup="filterSBTable()">
+                    </div>
+                    <button class="btn btn-outline" onclick="clearSBFilters()">Clear Filters</button>
+                </div>
+
+                <!-- Action Buttons for SB -->
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <button class="btn btn-primary" onclick="openUploadModal('SB')">📤 Upload SB Data (Excel)</button>
+                    <button class="btn btn-success" onclick="openBulkUpdate('SB')">📋 Bulk Update</button>
+                    <button class="btn btn-outline" onclick="exportSBData()">📥 Export to Excel</button>
+                </div>
+
+                <!-- SB Trucks Table -->
+                <div class="table-container">
+                    <div class="table-header">
+                        <h3>Active SB Trucks (Loading: ≤48h | Dispatch: ≤8 days | Follow-on: ≤2h)</h3>
+                        <span style="color: var(--text-secondary);">Showing <strong id="sbCount">2</strong> trucks</span>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table id="sbTable">
+                            <thead>
+                                <tr>
+                                    <th>Trip #</th>
+                                    <th>Truck</th>
+                                    <th>Owner</th>
+                                    <th>Driver</th>
+                                    <th>Loading Point</th>
+                                    <th>Exit Border</th>
+                                    <th>Area</th>
+                                    <th>Current Status</th>
+                                    <th>Days</th>
+                                    <th>KPI Status</th>
+                                    <th>Next Action</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sbTableBody">
+                                ${renderSBTableRows()}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SB Targets Reference -->
+                <div style="background: #e8f0fe; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid var(--primary);">
+                    <strong>📊 SB KPI Targets:</strong><br>
+                    • Loading Process: ≤ 48 hours<br>
+                    • Dispatch/Escort: ≤ 8 days<br>
+                    • Following-on List (Mutaka & Kanyaka): ≤ 2 hours<br>
+                    • Truck stops showing on live SB page when Date Exit to Zambia is filled
+                </div>
+            `;
+        }
+
+        function renderSBTableRows(filter = {}) {
+            let rows = '';
+            let count = 0;
+            
+            for (const [key, trip] of Object.entries(tripsDB)) {
+                if (trip.direction !== 'SB') continue;
+                
+                // Apply filters
+                if (filter.area && filter.area !== 'all' && trip.area !== filter.area) continue;
+                if (filter.border && filter.border !== 'all' && trip.exitBorder !== filter.border) continue;
+                if (filter.status && filter.status !== 'all' && trip.status !== filter.status) continue;
+                if (filter.kpi && filter.kpi !== 'all' && trip.kpi !== filter.kpi) continue;
+                if (filter.search) {
+                    const searchTerm = filter.search.toLowerCase();
+                    if (!trip.tripNumber.toLowerCase().includes(searchTerm) &&
+                        !trip.truck.toLowerCase().includes(searchTerm) &&
+                        !trip.driver.toLowerCase().includes(searchTerm)) continue;
+                }
+                
+                count++;
+                
+                rows += `
+                    <tr class="trip-row" data-trip="${trip.tripNumber}">
+                        <td><strong>${trip.tripNumber}</strong></td>
+                        <td>${trip.truck}</td>
+                        <td>${trip.owner}</td>
+                        <td>${trip.driver}</td>
+                        <td>${trip.loadingPoint}</td>
+                        <td>${trip.exitBorder}</td>
+                        <td>${trip.area}</td>
+                        <td><span class="status-badge ${trip.kpi}">${trip.status}</span></td>
+                        <td>${trip.daysInDRC}</td>
+                        <td><span class="kpi-indicator ${trip.kpi}"></span> ${getKPILabel(trip.kpi)}</td>
+                        <td>${getNextAction(trip)}</td>
+                        <td>
+                            <button class="btn btn-primary" style="padding: 4px 12px; font-size: 12px;" 
+                                onclick="openStatusUpdate('${trip.tripNumber}')">
+                                Update
+                            </button>
+                            <button class="btn btn-outline" style="padding: 4px 8px; font-size: 12px;" 
+                                onclick="viewTripDetails('${trip.tripNumber}')">
+                                👁️
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }
+            
+            setTimeout(() => {
+                const countEl = document.getElementById('sbCount');
+                if (countEl) countEl.textContent = count;
+            }, 0);
+            
+            return rows || '<tr><td colspan="12" style="text-align: center; padding: 20px;">No trucks match the current filters</td></tr>';
+        }
+
+        function filterSBTable() {
+            const area = document.getElementById('sbAreaFilter')?.value || 'all';
+            const border = document.getElementById('sbBorderFilter')?.value || 'all';
+            const status = document.getElementById('sbStatusFilter')?.value || 'all';
+            const kpi = document.getElementById('sbKPIFilter')?.value || 'all';
+            const search = document.getElementById('sbSearchInput')?.value || '';
+            
+            const filter = { area, border, status, kpi, search };
+            document.getElementById('sbTableBody').innerHTML = renderSBTableRows(filter);
+        }
+
+        function clearSBFilters() {
+            document.getElementById('sbAreaFilter').value = 'all';
+            document.getElementById('sbBorderFilter').value = 'all';
+            document.getElementById('sbStatusFilter').value = 'all';
+            document.getElementById('sbKPIFilter').value = 'all';
+            document.getElementById('sbSearchInput').value = '';
+            filterSBTable();
+        }
+
+        // ============================================
+        // STATUS UPDATE MODAL WITH STRUCTURED COMMENTS
+        // ============================================
+        function openStatusUpdate(tripNumber) {
+            currentTripForUpdate = tripNumber;
+            const trip = tripsDB[tripNumber];
+            
+            if (!trip) {
+                showToast('Trip not found!', 'error');
+                return;
+            }
+
+            document.getElementById('modalTripNumber').value = trip.tripNumber;
+            document.getElementById('modalTruckReg').value = trip.truck;
+            document.getElementById('modalKPIStatus').innerHTML = 
+                `<span class="status-badge ${trip.kpi}">${getKPILabel(trip.kpi)}</span>`;
+            
+            // Set current datetime
+            const now = new Date();
+            document.getElementById('modalDateTime').value = now.toISOString().slice(0, 16);
+            
+            // Populate status options based on direction and current status
+            const statusSelect = document.getElementById('modalStatus');
+            statusSelect.innerHTML = '<option value="">Select status...</option>';
+            
+            if (trip.direction === 'NB') {
+                statusSelect.innerHTML += getNBStatusOptions(trip);
+            } else {
+                statusSelect.innerHTML += getSBStatusOptions(trip);
+            }
+            
+            // Update workflow indicator
+            updateWorkflowIndicator(trip);
+            
+            // Reset comment sections
+            resetCommentSections(trip);
+            
+            // Show modal
+            openModal('statusModal');
+        }
+
+        function getNBStatusOptions(trip) {
+            const options = [
+                '<option value="border_crossed">Truck Crossed into DRC</option>',
+                '<option value="documents_submitted">Documents Submitted to Brigade</option>',
+                '<option value="scanning_completed">Truck Scanning Completed</option>',
+                '<option value="tr8_issued">TR8/T1 or IM4 Issued</option>',
+                '<option value="seal_collected">Seal Collected</option>',
+                '<option value="documents_handed">Documents Handed to Driver</option>',
+                '<option value="border_exit">Border Exit / Document Handover Complete</option>',
+                '<option value="arrived_kanyaka">Arrived at Kanyaka</option>',
+                '<option value="weighing_done">Weighing Completed</option>',
+                '<option value="exited_kanyaka">Exited Kanyaka</option>',
+                '<option value="arrived_mine">Arrived at Offloading Point</option>',
+                '<option value="offloading_done">Offloading Completed</option>',
+                '<option value="pod_collected">POD Collected</option>',
+                '<option value="pod_uploaded">POD Uploaded</option>',
+                '<option value="pod_sent">POD Sent to Invoice Team</option>'
+            ];
+            return options.join('');
+        }
+
+        function getSBStatusOptions(trip) {
+            const options = [
+                '<option value="loading_plan">Loading Plan Created</option>',
+                '<option value="arrived_mine">Truck Arrived at Mine</option>',
+                '<option value="loading_started">Loading Started</option>',
+                '<option value="loaded">Truck Loaded</option>',
+                '<option value="documents_ready">Documents Ready</option>',
+                '<option value="seal_ready">Seal Ready</option>',
+                '<option value="dispatched">Dispatched from Mine</option>',
+                '<option value="escort_arrived">Escort Arrived</option>',
+                '<option value="left_mine">Left Mine with Escort</option>',
+                '<option value="arrived_kanyaka_sb">Arrived at Kanyaka (SB)</option>',
+                '<option value="border_chosen">Border Chosen for Exit</option>',
+                '<option value="left_kanyaka_sb">Left Kanyaka</option>',
+                '<option value="gov_list_uploaded">Gov List Uploaded</option>',
+                '<option value="arrived_border">Arrived at Exit Border</option>',
+                '<option value="border_clearance">Border Clearance Complete</option>',
+                '<option value="exit_zambia">Date Exit to Zambia Filled</option>'
+            ];
+            return options.join('');
+        }
+
+        function updateWorkflowIndicator(trip) {
+            const container = document.getElementById('workflowStatus');
+            
+            if (trip.direction === 'NB') {
+                const steps = ['Border', 'Kanyaka', 'Offloading', 'POD'];
+                container.innerHTML = steps.map((step, index) => {
+                    const stepKey = step.toLowerCase();
+                    const status = trip.workflow[stepKey] || 'pending';
+                    return `
+                        ${index > 0 ? '<span class="workflow-arrow">→</span>' : ''}
+                        <span class="workflow-step ${status}">${step}</span>
+                    `;
+                }).join('');
+            } else {
+                const steps = ['Loading Plan', 'Loading', 'Dispatch', 'Kanyaka', 'Border'];
+                const stepKeys = ['loadingPlan', 'loadingProcess', 'dispatch', 'kanyaka', 'border'];
+                container.innerHTML = steps.map((step, index) => {
+                    const status = trip.workflow[stepKeys[index]] || 'pending';
+                    return `
+                        ${index > 0 ? '<span class="workflow-arrow">→</span>' : ''}
+                        <span class="workflow-step ${status}">${step}</span>
+                    `;
+                }).join('');
+            }
+        }
+
+        function resetCommentSections(trip) {
+            // Reset checkbox
+            document.getElementById('hasProblem').checked = false;
+            
+            // Show normal comment, hide structured
+            document.getElementById('normalCommentSection').classList.remove('hidden');
+            document.getElementById('structuredCommentSection').classList.add('hidden');
+            document.getElementById('validationMessage').classList.remove('show');
+            
+            // Clear all fields
+            document.getElementById('normalComment').value = '';
+            document.getElementById('problemDescription').value = '';
+            document.getElementById('personContacted').value = '';
+            document.getElementById('solutionTaken').value = '';
+            document.getElementById('expectedCompletion').value = '';
+            
+            // If trip is orange or red, automatically show structured comment
+            if (trip.kpi === 'orange' || trip.kpi === 'red') {
+                document.getElementById('hasProblem').checked = true;
+                toggleStructuredComment();
+            }
+        }
+
+        function toggleStructuredComment() {
+            const hasProblem = document.getElementById('hasProblem').checked;
+            const trip = tripsDB[currentTripForUpdate];
+            const isOrangeOrRed = trip && (trip.kpi === 'orange' || trip.kpi === 'red');
+            
+            if (hasProblem || isOrangeOrRed) {
+                document.getElementById('normalCommentSection').classList.add('hidden');
+                document.getElementById('structuredCommentSection').classList.remove('hidden');
+                
+                if (trip.kpi === 'red') {
+                    document.getElementById('structuredCommentSection').classList.add('red');
+                    document.getElementById('commentTitle').textContent = '🔴 Structured Problem Report (Required for Overdue)';
+                    document.getElementById('commentTitle').classList.remove('orange');
+                } else {
+                    document.getElementById('structuredCommentSection').classList.remove('red');
+                    document.getElementById('commentTitle').textContent = '🟠 Structured Problem Report (Required for Priority)';
+                    document.getElementById('commentTitle').classList.add('orange');
+                }
+            } else {
+                document.getElementById('normalCommentSection').classList.remove('hidden');
+                document.getElementById('structuredCommentSection').classList.add('hidden');
+            }
+        }
+
+        function handleStatusChange() {
+            const status = document.getElementById('modalStatus').value;
+            const trip = tripsDB[currentTripForUpdate];
+            
+            if (status && trip) {
+                // Check if this status would change KPI to orange/red
+                if (status.includes('offloading') || status.includes('pod')) {
+                    document.getElementById('hasProblem').checked = false;
+                    toggleStructuredComment();
+                }
+            }
+        }
+
+        function submitStatusUpdate() {
+            const tripNumber = document.getElementById('modalTripNumber').value;
+            const status = document.getElementById('modalStatus').value;
+            const dateTime = document.getElementById('modalDateTime').value;
+            const hasProblem = document.getElementById('hasProblem').checked;
+            const trip = tripsDB[tripNumber];
+            
+            // Validate required fields
+            if (!status || !dateTime) {
+                document.getElementById('validationMessage').textContent = '⚠️ Please fill in Status and Date/Time (required fields).';
+                document.getElementById('validationMessage').classList.add('show');
+                return;
+            }
+            
+            // Validate structured comment if problem exists or trip is orange/red
+            if ((hasProblem || trip.kpi === 'orange' || trip.kpi === 'red') && 
+                document.getElementById('structuredCommentSection').classList.contains('hidden') === false) {
+                
+                const problem = document.getElementById('problemDescription').value;
+                const person = document.getElementById('personContacted').value;
+                const solution = document.getElementById('solutionTaken').value;
+                const expected = document.getElementById('expectedCompletion').value;
+                
+                if (!problem || !person || !solution || !expected) {
+                    document.getElementById('validationMessage').textContent = 
+                        '⚠️ All structured comment fields are required for Orange/Red status updates.';
+                    document.getElementById('validationMessage').classList.add('show');
+                    return;
+                }
+            }
+            
+            // Simulate successful update
+            const commentType = hasProblem || trip.kpi === 'orange' || trip.kpi === 'red' ? 
+                'structured problem report' : 'general comment';
+            
+            showToast(`✅ Status updated successfully for ${tripNumber}!\nAudit log created.\n${commentType} saved.`, 'success');
+            
+            // Update trip data (simulated)
+            trip.status = status.replace(/_/g, ' ');
+            trip.daysInDRC += 0.5;
+            
+            // Refresh current page
+            closeModal('statusModal');
+            navigateTo(currentPage);
+        }
+
+        // ============================================
+        // UPLOAD MODAL
+        // ============================================
+        function openUploadModal(direction) {
+            document.getElementById('uploadType').value = direction;
+            document.getElementById('uploadModalTitle').textContent = `📤 Upload ${direction} Data`;
+            openModal('uploadModal');
+        }
+
+        function handleUpload() {
+            const uploadType = document.getElementById('uploadType').value;
+            
+            // Simulate file validation
+            showToast(`📤 ${uploadType} file uploaded successfully!\nValidating data...\nChecking for duplicate Trip+Truck combinations...`, 'success');
+            
+            setTimeout(() => {
+                showToast(`✅ ${uploadType} data import complete!\n• 45 records processed\n• 42 successful\n• 3 duplicates rejected\n• 0 validation errors`, 'success');
+                closeModal('uploadModal');
+                navigateTo(currentPage);
+            }, 2000);
+        }
+
+        // ============================================
+        // HELPER FUNCTIONS
+        // ============================================
+        function getKPILabel(kpi) {
+            switch(kpi) {
+                case 'green': return 'On Track';
+                case 'orange': return 'Priority';
+                case 'red': return 'Overdue';
+                default: return 'Unknown';
+            }
+        }
+
+        function getColorByType(color) {
+            switch(color) {
+                case 'green': return '#0f9d58';
+                case 'orange': return '#f4b400';
+                case 'red': return '#db4437';
+                default: return '#1a73e8';
+            }
+        }
+
+        function getNextAction(trip) {
+            if (trip.direction === 'NB') {
+                if (trip.workflow.border !== 'completed') return 'Complete border clearance';
+                if (trip.workflow.kanyaka !== 'completed') return 'Process at Kanyaka';
+                if (trip.workflow.offloading !== 'completed') return 'Complete offloading';
+                return 'Collect and upload POD';
+            } else {
+                if (trip.workflow.loadingPlan !== 'completed') return 'Create loading plan';
+                if (trip.workflow.loadingProcess !== 'completed') return 'Complete loading process';
+                if (trip.workflow.dispatch !== 'completed') return 'Arrange dispatch/escort';
+                if (trip.workflow.kanyaka !== 'completed') return 'Process at Kanyaka SB';
+                return 'Complete border exit';
+            }
+        }
+
+        function viewTripDetails(tripNumber) {
+            const trip = tripsDB[tripNumber];
+            if (!trip) return;
+            
+            alert(`📋 Trip Details: ${tripNumber}\n\n` +
+                  `Truck: ${trip.truck}\n` +
+                  `Driver: ${trip.driver}\n` +
+                  `Direction: ${trip.direction}\n` +
+                  `Area: ${trip.area}\n` +
+                  `Status: ${trip.status}\n` +
+                  `Days in DRC: ${trip.daysInDRC}\n` +
+                  `KPI: ${getKPILabel(trip.kpi)}\n\n` +
+                  `Full timeline and documents available in detailed view.`);
+        }
+
+        function exportNBData() {
+            showToast('📥 NB data exported to Excel successfully!', 'success');
+        }
+
+        function exportSBData() {
+            showToast('📥 SB data exported to Excel successfully!', 'success');
+        }
+
+        function handleGlobalSearch() {
+            const searchTerm = document.getElementById('globalSearch').value.toLowerCase();
+            if (!searchTerm) return;
+            
+            // Search in tripsDB
+            for (const [key, trip] of Object.entries(tripsDB)) {
+                if (trip.tripNumber.toLowerCase().includes(searchTerm) ||
+                    trip.truck.toLowerCase().includes(searchTerm) ||
+                    trip.driver.toLowerCase().includes(searchTerm)) {
+                    showToast(`Found: ${trip.tripNumber} - ${trip.truck} (${trip.direction})`, 'success');
+                    return;
+                }
+            }
+            
+            showToast('No matching trucks found', 'warning');
+        }
+
+        function handleAlertClick(tripNumber) {
+            toggleAlerts();
+            openStatusUpdate(tripNumber);
+        }
+
+        // ============================================
+        // MODAL MANAGEMENT
+        // ============================================
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('show');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+            currentTripForUpdate = null;
+        }
+
+        function toggleAlerts() {
+            const panel = document.getElementById('alertPanel');
+            panel.classList.toggle('show');
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('mobile-open');
+        }
+
+        // ============================================
+        // TOAST NOTIFICATIONS
+        // ============================================
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // ============================================
+        // OTHER PAGE RENDERERS
+        // ============================================
+        function renderBorderClearance(container) {
+            const borderTrips = Object.values(tripsDB).filter(t =>
+                t.direction === 'NB' && t.workflow && t.workflow.border !== 'completed'
+            );
+            container.innerHTML = `
+                <div class="page-header">
+                    <h1>🛂 Border Clearance Operations</h1>
+                    <div class="breadcrumb">Operations / Border Clearance</div>
+                </div>
+                <div class="kpi-grid">
+                    <div class="kpi-card green">
+                        <div class="kpi-header"><span class="kpi-title">Kasumbalesa - On Track</span><span class="kpi-icon">✅</span></div>
+                        <div class="kpi-value">23</div><div class="kpi-trend">Target: 48 hours</div>
+                    </div>
+                    <div class="kpi-card orange">
+                        <div class="kpi-header"><span class="kpi-title">Sakania - Priority</span><span class="kpi-icon">⚠️</span></div>
+                        <div class="kpi-value">8</div><div class="kpi-trend negative">Approaching deadline</div>
+                    </div>
+                    <div class="kpi-card red">
+                        <div class="kpi-header"><span class="kpi-title">Mokambo - Overdue</span><span class="kpi-icon">🔴</span></div>
+                        <div class="kpi-value">5</div><div class="kpi-trend negative">Action required</div>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <div class="table-header"><h3>Trips Awaiting Border Clearance</h3></div>
+                    <table>
+                        <thead><tr><th>Trip</th><th>Truck</th><th>Entry Border</th><th>Status</th><th>KPI</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            ${borderTrips.map(t => `
+                                <tr>
+                                    <td>${t.tripNumber}</td>
+                                    <td>${t.truck}</td>
+                                    <td>${t.entryBorder || '—'}</td>
+                                    <td>${t.status}</td>
+                                    <td><span class="status-badge ${t.kpi}">${getKPILabel(t.kpi)}</span></td>
+                                    <td><button class="btn btn-sm btn-primary" onclick="openStatusUpdate('${t.tripNumber}')">Update</button></td>
+                                </tr>
+                            `).join('') || '<tr><td colspan="6">No trips awaiting border clearance</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderPODManagement(container) {
+            const podTrips = Object.values(tripsDB).filter(t =>
+                t.direction === 'NB' && (
+                    t.status.toLowerCase().includes('pod') ||
+                    (t.workflow && t.workflow.offloading === 'completed' && t.workflow.pod !== 'completed')
+                )
+            );
+            container.innerHTML = `
+                <div class="page-header">
+                    <h1>📋 POD Management</h1>
+                    <div class="breadcrumb">Operations / POD Management</div>
+                </div>
+                <div class="kpi-grid">
+                    <div class="kpi-card blue">
+                        <div class="kpi-header"><span class="kpi-title">Pending POD</span><span class="kpi-icon">📋</span></div>
+                        <div class="kpi-value">${podTrips.length}</div>
+                        <div class="kpi-trend">Target: collect within 48 hours</div>
+                    </div>
+                    <div class="kpi-card orange">
+                        <div class="kpi-header"><span class="kpi-title">Priority / Overdue</span><span class="kpi-icon">⚠️</span></div>
+                        <div class="kpi-value">${podTrips.filter(t => t.kpi !== 'green').length}</div>
+                        <div class="kpi-trend">Needs follow-up</div>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <div class="table-header"><h3>POD Collection Status (Target: 48 hours)</h3></div>
+                    <table>
+                        <thead><tr><th>Trip</th><th>Truck</th><th>Offloading Point</th><th>Area</th><th>POD Status</th><th>KPI</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            ${podTrips.map(t => `
+                                <tr>
+                                    <td>${t.tripNumber}</td>
+                                    <td>${t.truck}</td>
+                                    <td>${t.offloadingPoint || '—'}</td>
+                                    <td>${t.area}</td>
+                                    <td><span class="status-badge ${t.kpi}">${t.status}</span></td>
+                                    <td><span class="status-badge ${t.kpi}">${getKPILabel(t.kpi)}</span></td>
+                                    <td><button class="btn btn-sm btn-primary" onclick="openStatusUpdate('${t.tripNumber}')">Update</button></td>
+                                </tr>
+                            `).join('') || '<tr><td colspan="7">No POD collections pending</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function areaAliases(areaName) {
+            const map = {
+                'Kasumbalesa': ['Kasumbalesa'],
+                'Kanyaka': ['Kanyaka'],
+                'Kolwezi': ['Kolwezi'],
+                'Lubumbashi': ['Lubumbashi', 'Lubumbashi / Kipushi', 'Kipushi'],
+                'Likasi': ['Likasi', 'Likasi / Tenke', 'Tenke'],
+                'Kambove': ['Kambove', 'Kambove / Kisanfu', 'Kisanfu']
+            };
+            return map[areaName] || [areaName];
+        }
+
+        function renderAreaPage(container, areaName) {
+            const aliases = areaAliases(areaName);
+            const areaTrips = Object.values(tripsDB).filter(t => aliases.includes(t.area));
+            container.innerHTML = `
+                <div class="page-header">
+                    <h1>🏢 ${areaName} Area Operations</h1>
+                    <div class="breadcrumb">Areas / ${areaName}</div>
+                </div>
+                <div class="kpi-grid">
+                    <div class="kpi-card blue">
+                        <div class="kpi-header"><span class="kpi-title">Active Trips</span><span class="kpi-icon">🚛</span></div>
+                        <div class="kpi-value">${areaTrips.length}</div>
+                    </div>
+                    <div class="kpi-card green">
+                        <div class="kpi-header"><span class="kpi-title">On Track</span><span class="kpi-icon">✅</span></div>
+                        <div class="kpi-value">${areaTrips.filter(t => t.kpi === 'green').length}</div>
+                    </div>
+                    <div class="kpi-card orange">
+                        <div class="kpi-header"><span class="kpi-title">Priority</span><span class="kpi-icon">⚠️</span></div>
+                        <div class="kpi-value">${areaTrips.filter(t => t.kpi === 'orange').length}</div>
+                    </div>
+                    <div class="kpi-card red">
+                        <div class="kpi-header"><span class="kpi-title">Overdue</span><span class="kpi-icon">🔴</span></div>
+                        <div class="kpi-value">${areaTrips.filter(t => t.kpi === 'red').length}</div>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <div class="table-header"><h3>Active Trucks in ${areaName}</h3></div>
+                    <table>
+                        <thead><tr><th>Trip</th><th>Truck</th><th>Direction</th><th>Status</th><th>Days</th><th>KPI</th><th>Actions</th></tr></thead>
+                        <tbody>${areaTrips.map(t => 
+                            `<tr>
+                                <td>${t.tripNumber}</td>
+                                <td>${t.truck}</td>
+                                <td>${t.direction}</td>
+                                <td>${t.status}</td>
+                                <td>${t.daysInDRC}</td>
+                                <td><span class="status-badge ${t.kpi}">${getKPILabel(t.kpi)}</span></td>
+                                <td><button class="btn btn-sm btn-primary" onclick="openStatusUpdate('${t.tripNumber}')">Update</button></td>
+                            </tr>`
+                        ).join('') || '<tr><td colspan="7">No trucks in this area</td></tr>'}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderAssets(container) {
+            const assets = [
+                { id: 'TRK-001', type: 'Truck', reg: 'ABC123DRC', owner: 'Transport Co A', status: 'In DRC', docs: 'Valid', maint: 'OK', expiry: '2026-11-12' },
+                { id: 'TRK-015', type: 'Truck', reg: 'XYZ789DRC', owner: 'Mining Logistics', status: 'Offloading', docs: 'Expiring', maint: 'Due', expiry: '2026-08-02' },
+                { id: 'TRK-022', type: 'Truck', reg: 'DEF456DRC', owner: 'Cross Border Ltd', status: 'Border', docs: 'Valid', maint: 'OK', expiry: '2027-01-20' },
+                { id: 'EQ-041', type: 'Scanner', reg: 'SCN-KAS-01', owner: 'Ops Team', status: 'Assigned', docs: 'Valid', maint: 'OK', expiry: '2026-12-01' },
+                { id: 'EQ-055', type: 'Seal Kit', reg: 'SEAL-KAN-04', owner: 'Kanyaka Yard', status: 'Available', docs: 'Valid', maint: 'OK', expiry: '2026-09-15' }
+            ];
+            container.innerHTML = `
+                <div class="page-header">
+                    <h1>🚗 Assets & Equipment</h1>
+                    <div class="breadcrumb">Management / Assets & Equipment</div>
+                </div>
+                <div class="kpi-grid">
+                    <div class="kpi-card blue">
+                        <div class="kpi-header"><span class="kpi-title">Registered Assets</span><span class="kpi-icon">🚗</span></div>
+                        <div class="kpi-value">${assets.length}</div>
+                    </div>
+                    <div class="kpi-card orange">
+                        <div class="kpi-header"><span class="kpi-title">Docs Expiring Soon</span><span class="kpi-icon">📄</span></div>
+                        <div class="kpi-value">${assets.filter(a => a.docs === 'Expiring').length}</div>
+                    </div>
+                    <div class="kpi-card red">
+                        <div class="kpi-header"><span class="kpi-title">Maintenance Due</span><span class="kpi-icon">🔧</span></div>
+                        <div class="kpi-value">${assets.filter(a => a.maint === 'Due').length}</div>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <div class="table-header">
+                        <h3>Fleet & Equipment Register</h3>
+                        <button class="btn btn-primary btn-sm" onclick="showToast('Asset registration form opens in the full app.', 'success')">+ Register Asset</button>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Asset ID</th>
+                                <th>Type</th>
+                                <th>Registration / Code</th>
+                                <th>Owner / Location</th>
+                                <th>Status</th>
+                                <th>Documents</th>
+                                <th>Maintenance</th>
+                                <th>Expiry</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${assets.map(a => `
+                                <tr>
+                                    <td>${a.id}</td>
+                                    <td>${a.type}</td>
+                                    <td>${a.reg}</td>
+                                    <td>${a.owner}</td>
+                                    <td>${a.status}</td>
+                                    <td><span class="status-badge ${a.docs === 'Valid' ? 'green' : 'orange'}">${a.docs}</span></td>
+                                    <td><span class="status-badge ${a.maint === 'OK' ? 'green' : 'orange'}">${a.maint}</span></td>
+                                    <td>${a.expiry}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                    <div class="table-container">
+                        <div class="table-header"><h3>Handover Log</h3></div>
+                        <div style="padding: 16px; color: var(--text-secondary);">
+                            Latest: TRK-015 handed to Kolwezi offloading team — 24 Jul 2026
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <div class="table-header"><h3>Assignments</h3></div>
+                        <div style="padding: 16px; color: var(--text-secondary);">
+                            SCN-KAS-01 assigned to Kasumbalesa border desk
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderRunnerFees(container) {
+            container.innerHTML = `
+                <div class="page-header"><h1>💰 Runner Fee Calculation</h1></div>
+                <div class="table-container">
+                    <div class="table-header"><h3>Fee Rates</h3></div>
+                    <div style="padding: 20px;">
+                        <h4>Sakania/Kasumbalesa:</h4>
+                        <div style="background:#fef7e0;padding:10px;margin:5px 0;border-radius:6px;">0-2 days: $40 USD</div>
+                        <div style="background:#e8f0fe;padding:10px;margin:5px 0;border-radius:6px;">3-4 days: $25 USD</div>
+                        <div style="background:#fce8e6;padding:10px;margin:5px 0;border-radius:6px;">5+ days: $15 USD</div>
+                        <h4 style="margin-top:15px;">Kanyaka: $5 USD (0-1 day)</h4>
+                        <button class="btn btn-primary mt-20" onclick="openModal('runnerFeeModal')">+ Calculate Fee</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderReports(container) {
+            container.innerHTML = `
+                <div class="page-header"><h1>📈 Reports & Analytics</h1></div>
+                <div class="kpi-grid">
+                    <div class="kpi-card" onclick="showToast('NB Turnaround Report generated!', 'success')">
+                        <div class="kpi-header"><span class="kpi-title">NB Turnaround Report</span><span class="kpi-icon">🚛</span></div>
+                    </div>
+                    <div class="kpi-card" onclick="showToast('SB Turnaround Report generated!', 'success')">
+                        <div class="kpi-header"><span class="kpi-title">SB Turnaround Report</span><span class="kpi-icon">🚛</span></div>
+                    </div>
+                    <div class="kpi-card" onclick="showToast('POD Performance Report generated!', 'success')">
+                        <div class="kpi-header"><span class="kpi-title">POD Performance Report</span><span class="kpi-icon">📋</span></div>
+                    </div>
+                    <div class="kpi-card" onclick="showToast('Runner Fee Report generated!', 'success')">
+                        <div class="kpi-header"><span class="kpi-title">Runner Fee Report</span><span class="kpi-icon">💰</span></div>
+                    </div>
+                    <div class="kpi-card" onclick="showToast('Asset & document expiry report generated!', 'success')">
+                        <div class="kpi-header"><span class="kpi-title">Asset / Expiry Report</span><span class="kpi-icon">🚗</span></div>
+                    </div>
+                    <div class="kpi-card" onclick="showToast('Audit trail report generated!', 'success')">
+                        <div class="kpi-header"><span class="kpi-title">Audit Report</span><span class="kpi-icon">🧾</span></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSettings(container) {
+            container.innerHTML = `
+                <div class="page-header">
+                    <h1>⚙️ Settings</h1>
+                    <div class="breadcrumb">Admin / Settings</div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="table-container">
+                        <div class="table-header"><h3>KPI Targets</h3></div>
+                        <div style="padding: 20px;">
+                            <div class="form-group">
+                                <label>NB Turnaround (days)</label>
+                                <input type="number" class="form-control" id="kpiNbDays" value="14">
+                            </div>
+                            <div class="form-group">
+                                <label>POD Collection (hours)</label>
+                                <input type="number" class="form-control" id="kpiPodHours" value="48">
+                            </div>
+                            <div class="form-group">
+                                <label>SB Loading (hours)</label>
+                                <input type="number" class="form-control" id="kpiSbLoading" value="48">
+                            </div>
+                            <div class="form-group">
+                                <label>SB Dispatch (days)</label>
+                                <input type="number" class="form-control" id="kpiSbDispatch" value="8">
+                            </div>
+                            <button class="btn btn-primary" onclick="saveSettings('kpi')">Save KPI Targets</button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <div class="table-header"><h3>Users & Roles</h3></div>
+                        <table>
+                            <thead><tr><th>User</th><th>Role</th><th>Area Access</th></tr></thead>
+                            <tbody>
+                                <tr><td>System Admin</td><td>Super Admin</td><td>All</td></tr>
+                                <tr><td>Border Clerk</td><td>NB Border</td><td>Kasumbalesa, Sakania, Mokambo</td></tr>
+                                <tr><td>POD Officer</td><td>POD</td><td>All NB areas</td></tr>
+                                <tr><td>SB Planner</td><td>SB Operations</td><td>Loading points</td></tr>
+                            </tbody>
+                        </table>
+                        <div style="padding: 16px;">
+                            <button class="btn btn-outline" onclick="showToast('User management opens in the full admin module.', 'success')">Manage Users</button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <div class="table-header"><h3>Status Catalog</h3></div>
+                        <div style="padding: 20px; color: var(--text-secondary); line-height: 1.7;">
+                            <strong>NB:</strong> Border Clearance → Kanyaka → Offloading → POD<br>
+                            <strong>SB:</strong> Loading Plan → Loading → Dispatch → Following-on → Kanyaka → Border Exit
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <div class="table-header"><h3>System Preferences</h3></div>
+                        <div style="padding: 20px;">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="prefAlerts" checked>
+                                <label for="prefAlerts" style="margin-bottom:0;">Show priority alert panel</label>
+                            </div>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="prefDupCheck" checked>
+                                <label for="prefDupCheck" style="margin-bottom:0;">Reject duplicate Trip + Truck on upload</label>
+                            </div>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="prefWorkflow" checked>
+                                <label for="prefWorkflow" style="margin-bottom:0;">Enforce Border/Kanyaka before offloading</label>
+                            </div>
+                            <button class="btn btn-primary" onclick="saveSettings('prefs')">Save Preferences</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function saveSettings(section) {
+            showToast(section === 'kpi' ? 'KPI targets saved for this session.' : 'System preferences saved.', 'success');
+        }
+
+        // ============================================
+        // BULK STATUS UPDATE
+        // ============================================
+        function openBulkUpdate(direction) {
+            document.getElementById('bulkDirection').value = direction;
+            document.getElementById('bulkModalTitle').textContent = `Bulk Status Update — ${direction}`;
+            document.getElementById('bulkComment').value = '';
+            document.getElementById('bulkDateTime').value = new Date().toISOString().slice(0, 16);
+
+            const statusSelect = document.getElementById('bulkStatus');
+            if (direction === 'NB') {
+                statusSelect.innerHTML = `
+                    <option value="">Select status...</option>
+                    <option value="Border Clearance">Border Clearance</option>
+                    <option value="In Transit">In Transit</option>
+                    <option value="Offloading">Offloading</option>
+                    <option value="POD Collection">POD Collection</option>
+                    <option value="POD Complete">POD Complete</option>
+                `;
+            } else {
+                statusSelect.innerHTML = `
+                    <option value="">Select status...</option>
+                    <option value="Loading Plan">Loading Plan</option>
+                    <option value="Loading Process">Loading Process</option>
+                    <option value="Dispatch/Escort">Dispatch/Escort</option>
+                    <option value="Following-on List">Following-on List</option>
+                    <option value="Kanyaka SB">Kanyaka SB</option>
+                    <option value="Border Exit">Border Exit</option>
+                `;
+            }
+
+            const trips = Object.values(tripsDB).filter(t => t.direction === direction);
+            document.getElementById('bulkTripList').innerHTML = `
+                <div style="margin-bottom: 8px;">
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                        <input type="checkbox" id="bulkSelectAll" onchange="toggleBulkSelectAll(this.checked)">
+                        <strong>Select all (${trips.length})</strong>
+                    </label>
+                </div>
+                ${trips.map(t => `
+                    <label style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #eee; cursor:pointer;">
+                        <input type="checkbox" class="bulk-trip-check" value="${t.tripNumber}">
+                        <span><strong>${t.tripNumber}</strong> — ${t.truck} · ${t.status} · <span class="status-badge ${t.kpi}">${getKPILabel(t.kpi)}</span></span>
+                    </label>
+                `).join('') || '<div>No trips available</div>'}
+            `;
+
+            openModal('bulkUpdateModal');
+        }
+
+        function toggleBulkSelectAll(checked) {
+            document.querySelectorAll('.bulk-trip-check').forEach(cb => { cb.checked = checked; });
+        }
+
+        function applyBulkUpdate() {
+            const direction = document.getElementById('bulkDirection').value;
+            const status = document.getElementById('bulkStatus').value;
+            const dateTime = document.getElementById('bulkDateTime').value;
+            const comment = document.getElementById('bulkComment').value.trim();
+            const selected = Array.from(document.querySelectorAll('.bulk-trip-check:checked')).map(cb => cb.value);
+
+            if (!status || !dateTime || selected.length === 0) {
+                showToast('Select at least one trip, a status, and a date/time.', 'error');
+                return;
+            }
+
+            selected.forEach(tripNumber => {
+                const trip = tripsDB[tripNumber];
+                if (!trip) return;
+                trip.status = status;
+                if (direction === 'NB') {
+                    if (status === 'Border Clearance') trip.workflow.border = 'current';
+                    if (status === 'In Transit') { trip.workflow.border = 'completed'; trip.workflow.kanyaka = 'current'; }
+                    if (status === 'Offloading') { trip.workflow.border = 'completed'; trip.workflow.kanyaka = 'completed'; trip.workflow.offloading = 'current'; }
+                    if (status.startsWith('POD')) { trip.workflow.border = 'completed'; trip.workflow.kanyaka = 'completed'; trip.workflow.offloading = 'completed'; trip.workflow.pod = status === 'POD Complete' ? 'completed' : 'current'; }
+                } else {
+                    if (status === 'Loading Plan') trip.workflow.loadingPlan = 'current';
+                    if (status === 'Loading Process') { trip.workflow.loadingPlan = 'completed'; trip.workflow.loadingProcess = 'current'; }
+                    if (status === 'Dispatch/Escort') { trip.workflow.loadingPlan = 'completed'; trip.workflow.loadingProcess = 'completed'; trip.workflow.dispatch = 'current'; }
+                    if (status === 'Following-on List' || status === 'Kanyaka SB') { trip.workflow.loadingPlan = 'completed'; trip.workflow.loadingProcess = 'completed'; trip.workflow.dispatch = 'completed'; trip.workflow.kanyaka = 'current'; }
+                    if (status === 'Border Exit') { trip.workflow.loadingPlan = 'completed'; trip.workflow.loadingProcess = 'completed'; trip.workflow.dispatch = 'completed'; trip.workflow.kanyaka = 'completed'; trip.workflow.border = 'completed'; }
+                }
+                if (comment) trip.lastBulkComment = comment;
+            });
+
+            closeModal('bulkUpdateModal');
+            showToast(`Updated ${selected.length} ${direction} trip(s) to "${status}".`, 'success');
+            navigateTo(currentPage);
+        }
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        document.addEventListener('DOMContentLoaded', function() {
+            navigateTo('dashboard');
+            
+            // Close modals on overlay click
+            document.querySelectorAll('.modal-overlay').forEach(overlay => {
+                overlay.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        this.classList.remove('show');
+                    }
+                });
+            });
+
+            // Close alerts when clicking outside
+            document.addEventListener('click', function(event) {
+                const alertPanel = document.getElementById('alertPanel');
+                const notificationBtn = document.querySelector('.notification-btn');
+                
+                if (alertPanel && notificationBtn && 
+                    !alertPanel.contains(event.target) && 
+                    !notificationBtn.contains(event.target) && 
+                    alertPanel.classList.contains('show')) {
+                    alertPanel.classList.remove('show');
+                }
+            });
+
+            console.log('🚛 Truck Turnaround & Operations Control System');
+            console.log('✅ Enhanced Demo Loaded Successfully');
+            console.log('📊 Features:');
+            console.log('  - NB & SB Operations with full filtering');
+            console.log('  - Structured comments for Orange/Red alerts');
+            console.log('  - Workflow validation (Border/Kanyaka before offloading)');
+            console.log('  - Bulk status update for NB/SB');
+            console.log('  - Assets & Equipment + Settings admin pages');
+            console.log('  - Upload functionality for NB/SB data');
+            console.log('  - Search across all tables');
+            console.log('  - KPI tracking with visual indicators');
+        });
+    </script>
+</body>
+</html>
