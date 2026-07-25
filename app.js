@@ -110,6 +110,19 @@ const SB_CLEARANCE_STEPS = [
     'Exit to Zambia — Complete'
 ];
 
+const borderClearanceTrucks = [
+    { trip: 'NB-2024-001', truck: 'ABC123DRC', driver: 'John Doe', direction: 'NB', border: 'Kasumbalesa', processHtml: '<span class="status-badge kbp">🅺 KBP</span>', process: 'KBP', status: 'Cross-checking', hours: 38, target: '48h', kpi: 'orange', kpiLabel: 'Priority', viewPage: 'kasumbalesa-detail', commentBtn: 'primary' },
+    { trip: 'NB-2024-008', truck: 'JKL012DRC', driver: 'Peter Mwansa', direction: 'NB', border: 'Kasumbalesa', processHtml: '<span class="status-badge whisky">🥃 Whisky</span>', process: 'Whisky', status: 'TR8 Issued', hours: 52, target: '72h', kpi: 'orange', kpiLabel: 'Priority', viewPage: 'kasumbalesa-whisky', commentBtn: 'primary' },
+    { trip: 'NB-2024-015', truck: 'XYZ789DRC', driver: 'Sarah Smith', direction: 'NB', border: 'Sakania', processHtml: '<span class="status-badge blue">BN Process</span>', process: 'BN Process', status: 'Cross-checking', hours: 40, target: '48h', kpi: 'orange', kpiLabel: 'Priority', viewPage: 'sakania-nb', commentBtn: 'primary' },
+    { trip: 'NB-2024-022', truck: 'GHI789DRC', driver: 'Jean Pierre', direction: 'NB', border: 'Mokambo', processHtml: '<span class="status-badge blue">BN Process</span>', process: 'BN Process', status: 'Red Stamping', hours: 78, target: '72h', kpi: 'red', kpiLabel: 'Overdue', viewPage: 'mokambo-nb', commentBtn: 'danger' },
+    { trip: 'NB-2024-042', truck: 'RST890DRC', driver: 'Alice Bwalya', direction: 'NB', border: 'Kasumbalesa', processHtml: '<span class="status-badge kbp">🅺 KBP</span>', process: 'KBP', status: 'Border Clearance', hours: 32, target: '48h', kpi: 'green', kpiLabel: 'On Track', viewPage: 'kasumbalesa-detail', commentBtn: 'primary' },
+    { trip: 'NB-2024-047', truck: 'PQR852DRC', driver: 'Emma Zulu', direction: 'NB', border: 'Sakania', processHtml: '<span class="status-badge blue">BN Process</span>', process: 'BN Process', status: 'Document Submission', hours: 16, target: '48h', kpi: 'green', kpiLabel: 'On Track', viewPage: 'sakania-nb', commentBtn: 'primary' },
+    { trip: 'SB-2024-003', truck: 'DEF456DRC', driver: 'Mike Johnson', direction: 'SB', border: 'Kasumbalesa', processHtml: '<span class="status-badge green">SB Exit</span>', process: 'SB Exit', status: 'Seal Verification', hours: 24, target: '48h', kpi: 'green', kpiLabel: 'On Track', viewPage: 'sb-kasumbalesa', commentBtn: 'primary' },
+    { trip: 'SB-2024-005', truck: 'MNO345DRC', driver: 'David Mukendi', direction: 'SB', border: 'Sakania', processHtml: '<span class="status-badge orange">SB Exit</span>', process: 'SB Exit', status: 'Customs Declaration', hours: 44, target: '48h', kpi: 'orange', kpiLabel: 'Priority', viewPage: 'sb-sakania', commentBtn: 'primary' },
+    { trip: 'SB-2024-012', truck: 'PQR678DRC', driver: 'Joseph Kabwe', direction: 'SB', border: 'Mokambo', processHtml: '<span class="status-badge orange">SB Exit</span>', process: 'SB Exit', status: 'Gov List Upload', hours: 36, target: '72h', kpi: 'orange', kpiLabel: 'Priority', viewPage: 'sb-mokambo', commentBtn: 'primary' },
+    { trip: 'SB-2024-018', truck: 'DEF321DRC', driver: 'Linda Phiri', direction: 'SB', border: 'Kasumbalesa', processHtml: '<span class="status-badge green">SB Exit</span>', process: 'SB Exit', status: 'Border Exit', hours: 28, target: '48h', kpi: 'green', kpiLabel: 'On Track', viewPage: 'sb-kasumbalesa', commentBtn: 'primary' }
+];
+
 const podDB = [
     { trip:'NB-2024-031', truck:'MNO012DRC', driver:'David Mukendi', area:'Kanyaka', offloadingPoint:'Kanyaka Depot', owner:'Transport Co A', collected:true, collectedOnTime:true, collectedDate:'2026-07-19 14:00', hoursToCollect:28, scanned:true, scannedDate:'2026-07-19 16:30', scannedBy:'Agent Mwila', uploaded:true, uploadedDate:'2026-07-20 09:00', sentToInvoicing:true, sentDate:'2026-07-21 10:00', kpi:'green' },
     { trip:'NB-2024-015', truck:'XYZ789DRC', driver:'Sarah Smith', area:'Kolwezi', offloadingPoint:'Kolwezi Mine', owner:'Transport Co B', collected:false, collectedOnTime:false, collectedDate:null, hoursToCollect:null, scanned:false, scannedDate:null, scannedBy:null, uploaded:false, uploadedDate:null, sentToInvoicing:false, sentDate:null, kpi:'orange', overdue:true },
@@ -1163,7 +1176,79 @@ function clearSBFilters() {
 // ============================================
 // BORDER CLEARANCE OVERVIEW
 // ============================================
+function renderBorderTableRows(rows) {
+    if (!rows.length) {
+        return '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text-secondary);">No trucks match your search</td></tr>';
+    }
+    return rows.map(t => `
+        <tr>
+            <td><strong>${t.trip}</strong></td>
+            <td>${t.truck}</td>
+            <td><span class="status-badge blue">${t.direction}</span></td>
+            <td>${t.border}</td>
+            <td>${t.processHtml}</td>
+            <td>${t.status}</td>
+            <td>${t.hours}</td>
+            <td>${t.target}</td>
+            <td><span class="kpi-indicator ${t.kpi}"></span> ${t.kpiLabel}</td>
+            <td>
+                <button class="btn btn-${t.commentBtn} btn-sm" onclick="openCommentModal('${t.trip}')">💬</button>
+                <button class="btn btn-outline btn-sm" onclick="navigateTo('${t.viewPage}')">👁️</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filterBorderClearanceTrucks() {
+    const direction = document.getElementById('borderDirectionFilter')?.value || 'all';
+    const border = document.getElementById('borderNameFilter')?.value || 'all';
+    const kpi = document.getElementById('borderKPIFilter')?.value || 'all';
+    const search = (document.getElementById('borderSearchInput')?.value || '').toLowerCase();
+
+    let rows = [...borderClearanceTrucks];
+    if (direction !== 'all') rows = rows.filter(t => t.direction === direction);
+    if (border !== 'all') rows = rows.filter(t => t.border === border);
+    if (kpi !== 'all') rows = rows.filter(t => t.kpi === kpi);
+    if (search) {
+        rows = rows.filter(t =>
+            t.trip.toLowerCase().includes(search) ||
+            t.truck.toLowerCase().includes(search) ||
+            t.driver.toLowerCase().includes(search) ||
+            t.border.toLowerCase().includes(search) ||
+            t.process.toLowerCase().includes(search) ||
+            t.status.toLowerCase().includes(search) ||
+            t.kpiLabel.toLowerCase().includes(search)
+        );
+    }
+    return rows;
+}
+
+function renderBorderTableRowsFiltered() {
+    const rows = filterBorderClearanceTrucks();
+    const countEl = document.getElementById('borderTableCount');
+    if (countEl) countEl.textContent = `${rows.length} truck${rows.length !== 1 ? 's' : ''}`;
+    return renderBorderTableRows(rows);
+}
+
+function refreshBorderTable() {
+    const body = document.getElementById('borderTableBody');
+    if (body) body.innerHTML = renderBorderTableRowsFiltered();
+}
+
+function clearBorderFilters() {
+    const direction = document.getElementById('borderDirectionFilter');
+    const border = document.getElementById('borderNameFilter');
+    const kpi = document.getElementById('borderKPIFilter');
+    const search = document.getElementById('borderSearchInput');
+    if (direction) direction.value = 'all';
+    if (border) border.value = 'all';
+    if (kpi) kpi.value = 'all';
+    if (search) search.value = '';
+    refreshBorderTable();
+}
+
 function renderBorderClearanceOverview(container) {
+    const total = borderClearanceTrucks.length;
     container.innerHTML = `
         <div class="page-header">
             <h1>🛂 Border Clearance Operations</h1>
@@ -1190,18 +1275,18 @@ function renderBorderClearanceOverview(container) {
             <div class="kpi-card orange" onclick="navigateTo('sb-mokambo')"><div class="kpi-header"><span class="kpi-title">🔽 Mokambo Exit</span></div><div class="kpi-value">7</div><div class="kpi-trend negative">SB Exit Process · Target: 72h</div></div>
         </div>
 
+        <div class="filters-bar">
+            <div class="filter-group"><label>Direction:</label><select id="borderDirectionFilter" onchange="refreshBorderTable()"><option value="all">All</option><option value="NB">NB</option><option value="SB">SB</option></select></div>
+            <div class="filter-group"><label>Border:</label><select id="borderNameFilter" onchange="refreshBorderTable()"><option value="all">All</option><option>Kasumbalesa</option><option>Sakania</option><option>Mokambo</option></select></div>
+            <div class="filter-group"><label>KPI:</label><select id="borderKPIFilter" onchange="refreshBorderTable()"><option value="all">All</option><option value="green">🟢 On Track</option><option value="orange">🟠 Priority</option><option value="red">🔴 Overdue</option></select></div>
+            <div class="search-filter"><span>🔍</span><input type="text" id="borderSearchInput" placeholder="Search by Trip#, Truck, Driver, Border, Status..." onkeyup="refreshBorderTable()"></div>
+            <button class="btn btn-outline btn-sm" onclick="clearBorderFilters()">Clear</button>
+        </div>
+
         <div class="table-container">
-            <div class="table-header"><h3>All Border Trucks</h3></div>
+            <div class="table-header"><h3>All Border Trucks</h3><span id="borderTableCount" style="color:var(--text-secondary);">${total} trucks</span></div>
             <table><thead><tr><th>Trip #</th><th>Truck</th><th>Direction</th><th>Border</th><th>Process</th><th>Status</th><th>Hours</th><th>Target</th><th>KPI</th><th>Actions</th></tr></thead>
-            <tbody>
-                <tr><td><strong>NB-2024-001</strong></td><td>ABC123DRC</td><td><span class="status-badge blue">NB</span></td><td>Kasumbalesa</td><td><span class="status-badge kbp">🅺 KBP</span></td><td>Cross-checking</td><td>38</td><td>48h</td><td><span class="kpi-indicator orange"></span> Priority</td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('NB-2024-001')">💬</button> <button class="btn btn-outline btn-sm" onclick="navigateTo('kasumbalesa-detail')">👁️</button></td></tr>
-                <tr><td><strong>NB-2024-008</strong></td><td>JKL012DRC</td><td><span class="status-badge blue">NB</span></td><td>Kasumbalesa</td><td><span class="status-badge whisky">🥃 Whisky</span></td><td>TR8 Issued</td><td>52</td><td>72h</td><td><span class="kpi-indicator orange"></span> Priority</td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('NB-2024-008')">💬</button> <button class="btn btn-outline btn-sm" onclick="navigateTo('kasumbalesa-whisky')">👁️</button></td></tr>
-                <tr><td><strong>NB-2024-015</strong></td><td>XYZ789DRC</td><td><span class="status-badge blue">NB</span></td><td>Sakania</td><td><span class="status-badge blue">BN Process</span></td><td>Cross-checking</td><td>40</td><td>48h</td><td><span class="kpi-indicator orange"></span> Priority</td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('NB-2024-015')">💬</button> <button class="btn btn-outline btn-sm" onclick="navigateTo('sakania-nb')">👁️</button></td></tr>
-                <tr><td><strong>NB-2024-022</strong></td><td>GHI789DRC</td><td><span class="status-badge blue">NB</span></td><td>Mokambo</td><td><span class="status-badge blue">BN Process</span></td><td>Red Stamping</td><td>78</td><td>72h</td><td><span class="kpi-indicator red"></span> Overdue</td><td><button class="btn btn-danger btn-sm" onclick="openCommentModal('NB-2024-022')">💬</button> <button class="btn btn-outline btn-sm" onclick="navigateTo('mokambo-nb')">👁️</button></td></tr>
-                <tr><td><strong>SB-2024-003</strong></td><td>DEF456DRC</td><td><span class="status-badge blue">SB</span></td><td>Kasumbalesa</td><td><span class="status-badge green">SB Exit</span></td><td>Seal Verification</td><td>24</td><td>48h</td><td><span class="kpi-indicator green"></span> On Track</td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('SB-2024-003')">💬</button> <button class="btn btn-outline btn-sm" onclick="navigateTo('sb-kasumbalesa')">👁️</button></td></tr>
-                <tr><td><strong>SB-2024-005</strong></td><td>MNO345DRC</td><td><span class="status-badge blue">SB</span></td><td>Sakania</td><td><span class="status-badge orange">SB Exit</span></td><td>Customs Declaration</td><td>44</td><td>48h</td><td><span class="kpi-indicator orange"></span> Priority</td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('SB-2024-005')">💬</button> <button class="btn btn-outline btn-sm" onclick="navigateTo('sb-sakania')">👁️</button></td></tr>
-                <tr><td><strong>SB-2024-012</strong></td><td>PQR678DRC</td><td><span class="status-badge blue">SB</span></td><td>Mokambo</td><td><span class="status-badge orange">SB Exit</span></td><td>Gov List Upload</td><td>36</td><td>72h</td><td><span class="kpi-indicator orange"></span> Priority</td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('SB-2024-012')">💬</button> <button class="btn btn-outline btn-sm" onclick="navigateTo('sb-mokambo')">👁️</button></td></tr>
-            </tbody></table>
+            <tbody id="borderTableBody">${renderBorderTableRowsFiltered()}</tbody></table>
         </div>
 
         <div style="background:#e8f0fe;padding:15px;border-radius:8px;margin-top:20px;border-left:4px solid var(--primary-light);font-size:13px;">
@@ -1378,6 +1463,7 @@ function renderSBClearanceDetail(container, config) {
 function renderKasumbalesaWhisky(container) {
     container.innerHTML = `
         <div class="page-header"><h1>🥃 Kasumbalesa Border - Whisky Process</h1><div class="breadcrumb"><a href="#" onclick="navigateTo('dashboard')">Home</a> <span>›</span> <a href="#" onclick="navigateTo('border-clearance')">Border Clearance</a> <span>›</span> <strong>Whisky</strong></div></div>
+        ${renderKpiTargetsBanner('border')}
         <div class="frozen-truck-bar"><div class="truck-info-group"><div class="truck-info-item"><span class="truck-info-label">Trip</span><span class="truck-info-value large">NB-2024-008</span></div><div class="truck-info-item"><span class="truck-info-label">Truck</span><span class="truck-info-value large">JKL012DRC</span></div><div class="truck-info-item"><span class="truck-info-label">Hours</span><span class="truck-info-value">52</span></div></div><span class="kpi-badge orange">🟠 PRIORITY</span></div>
         <div class="card"><div class="card-header"><span>🥃 Whisky Process Steps</span><button class="btn btn-primary btn-sm" onclick="openCommentModal('NB-2024-008')">💬 Add Comment</button></div><div class="card-body">${renderWhiskySteps()}</div></div>
         <button class="btn btn-outline mt-20" onclick="navigateTo('border-clearance')">⬅️ Back</button>`;
@@ -1654,6 +1740,41 @@ function renderPODManagement(container) {
 function renderAreaPage(container, areaName) {
     const trips = Object.values(tripsDB).filter(t=>t.area===areaName);
     container.innerHTML = `<div class="page-header"><h1>🏢 ${areaName} Area</h1></div><div class="table-container"><div class="table-header"><h3>Trucks in ${areaName} (${trips.length})</h3></div><table><thead><tr><th>Trip</th><th>Truck</th><th>Driver</th><th>Direction</th><th>Status</th><th>Actions</th></tr></thead><tbody>${trips.map(t=>`<tr><td>${t.tripNumber}</td><td>${t.truck}</td><td>${t.driver}</td><td><span class="status-badge blue">${t.direction}</span></td><td><span class="status-badge ${t.kpi}">${t.status}</span></td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}')">💬 Comment</button></td></tr>`).join('')||'<tr><td colspan="6">No trucks</td></tr>'}</tbody></table></div>`;
+}
+
+function renderAssets(container) {
+    container.innerHTML = `
+        <div class="page-header">
+            <h1>🚗 Assets & Equipment</h1>
+            <div class="breadcrumb"><a href="#" onclick="navigateTo('dashboard')">Home</a> <span>›</span> <strong>Assets & Equipment</strong></div>
+        </div>
+        ${renderKpiTargetsBanner('equipment')}
+        <div class="kpi-grid">
+            <div class="kpi-card green"><div class="kpi-header"><span class="kpi-title">Valid Documents</span></div><div class="kpi-value">${documentsDB.filter(d => d.status === 'valid').length}</div></div>
+            <div class="kpi-card orange"><div class="kpi-header"><span class="kpi-title">Expiring Soon</span></div><div class="kpi-value">${documentsDB.filter(d => d.status === 'expiring').length}</div></div>
+            <div class="kpi-card red"><div class="kpi-header"><span class="kpi-title">Expired</span></div><div class="kpi-value">${documentsDB.filter(d => d.status === 'expired').length}</div></div>
+        </div>
+        <div class="table-container">
+            <div class="table-header"><h3>Equipment & Document Registry</h3><button class="btn btn-primary btn-sm" onclick="navigateToDocuments('all')">View All Documents</button></div>
+            <table>
+                <thead><tr><th>Type</th><th>Entity</th><th>Trip</th><th>Truck</th><th>Expiry</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody>
+                    ${documentsDB.map(d => `
+                        <tr>
+                            <td>${d.type}</td>
+                            <td>${d.entity}</td>
+                            <td>${d.trip}</td>
+                            <td>${d.truck}</td>
+                            <td>${d.expiry}</td>
+                            <td><span class="kpi-indicator ${d.kpi}"></span> ${d.label}</td>
+                            <td><button class="btn btn-outline btn-sm" onclick="navigateToDocuments('${d.status}')">👁️</button></td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+        <button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">⬅️ Back to Dashboard</button>
+    `;
 }
 
 function renderRunnerFees(container) {
