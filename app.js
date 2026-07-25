@@ -7,6 +7,7 @@ let selectedCommentType = 'normal';
 let uploadedFiles = [];
 let dashboardSearchTerm = '';
 let currentPODFilter = 'all';
+let podSearchTerm = '';
 let currentTripFilter = 'all';
 let currentDocFilter = 'all';
 let selectedAreaIds = [];
@@ -1671,9 +1672,45 @@ function renderPODFilterTabs(activeFilter) {
     `).join('');
 }
 
+function getFilteredPODItems() {
+    const search = podSearchTerm || (document.getElementById('podSearchInput')?.value || '').trim();
+    let items = filterPODItems(currentPODFilter);
+    if (!search) return items;
+    const term = search.toLowerCase();
+    return items.filter(p =>
+        p.trip.toLowerCase().includes(term) ||
+        p.truck.toLowerCase().includes(term) ||
+        p.driver.toLowerCase().includes(term) ||
+        p.area.toLowerCase().includes(term) ||
+        p.offloadingPoint.toLowerCase().includes(term) ||
+        (p.owner && p.owner.toLowerCase().includes(term)) ||
+        (p.scannedBy && p.scannedBy.toLowerCase().includes(term))
+    );
+}
+
+function renderPODTableRowsFiltered() {
+    const items = getFilteredPODItems();
+    const countEl = document.getElementById('podTableCount');
+    if (countEl) countEl.textContent = `${items.length} item${items.length !== 1 ? 's' : ''}`;
+    return renderPODTableRows(items);
+}
+
+function refreshPODTable() {
+    podSearchTerm = document.getElementById('podSearchInput')?.value || '';
+    const body = document.getElementById('podTableBody');
+    if (body) body.innerHTML = renderPODTableRowsFiltered();
+}
+
+function clearPODSearch() {
+    podSearchTerm = '';
+    const input = document.getElementById('podSearchInput');
+    if (input) input.value = '';
+    refreshPODTable();
+}
+
 function renderPODManagement(container) {
     const filter = currentPODFilter;
-    const items = filterPODItems(filter);
+    const items = getFilteredPODItems();
     const stats = getPODStats();
 
     container.innerHTML = `
@@ -1717,10 +1754,18 @@ function renderPODManagement(container) {
 
         <div class="pod-filter-tabs">${renderPODFilterTabs(filter)}</div>
 
+        <div class="filters-bar">
+            <div class="search-filter" style="flex:2;">
+                <span>🔍</span>
+                <input type="text" id="podSearchInput" placeholder="Search by Trip#, Truck, Driver, Area, Offloading Point..." value="${podSearchTerm}" onkeyup="refreshPODTable()">
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="clearPODSearch()">Clear</button>
+        </div>
+
         <div class="table-container">
             <div class="table-header">
                 <h3>${getPODFilterLabel(filter)}</h3>
-                <span style="color:var(--text-secondary);">${items.length} item${items.length !== 1 ? 's' : ''}</span>
+                <span id="podTableCount" style="color:var(--text-secondary);">${items.length} item${items.length !== 1 ? 's' : ''}</span>
             </div>
             <div style="overflow-x:auto;">
                 <table>
@@ -1740,7 +1785,7 @@ function renderPODManagement(container) {
                             <th>Action</th>
                         </tr>
                     </thead>
-                    <tbody>${renderPODTableRows(items)}</tbody>
+                    <tbody id="podTableBody">${renderPODTableRowsFiltered()}</tbody>
                 </table>
             </div>
         </div>
