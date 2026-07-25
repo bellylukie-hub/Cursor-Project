@@ -203,6 +203,27 @@
             background: #edf2f7;
             border-radius: 8px;
         }
+        .area-selector-summary {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            background: #ebf8ff;
+            border: 1px solid #bee3f8;
+            border-radius: 10px;
+            font-size: 13px;
+        }
+        .area-selector-panel.collapsed {
+            display: none;
+        }
+        .area-checkbox-scroll {
+            max-height: 220px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
         @media (max-width: 900px) {
             .area-trucks-grid { grid-template-columns: 1fr; }
         }
@@ -987,37 +1008,9 @@
                     <a class="nav-item" onclick="navigateTo('sb-operations')" data-page="sb-operations">
                         <span class="icon truck-icon sb">🚛</span> SB Operations <span class="badge warning">85</span>
                     </a>
-                    <div class="nav-group border-group">
-                        <a class="nav-item parent-trigger" onclick="navigateTo('border-clearance')" data-page="border-clearance">
-                            <span class="icon">🛂</span> Border Clearance <span class="badge warning">12</span>
-                            <span class="submenu-chevron">›</span>
-                        </a>
-                        <div class="nav-submenu">
-                            <div class="nav-section-title sub">NB Clearance (Entry)</div>
-                            <a class="nav-item sub-item" onclick="navigateTo('kasumbalesa-detail')" data-page="kasumbalesa-detail">
-                                <span class="icon">🅺</span> Kasumbalesa KBP <span class="badge">7</span>
-                            </a>
-                            <a class="nav-item sub-item" onclick="navigateTo('kasumbalesa-whisky')" data-page="kasumbalesa-whisky">
-                                <span class="icon">🥃</span> Kasumbalesa Whisky
-                            </a>
-                            <a class="nav-item sub-item" onclick="navigateTo('sakania-nb')" data-page="sakania-nb">
-                                <span class="icon">📍</span> Sakania NB Process
-                            </a>
-                            <a class="nav-item sub-item" onclick="navigateTo('mokambo-nb')" data-page="mokambo-nb">
-                                <span class="icon">📍</span> Mokambo NB Process
-                            </a>
-                            <div class="nav-section-title sub">SB Clearance (Exit)</div>
-                            <a class="nav-item sub-item" onclick="navigateTo('sb-kasumbalesa')" data-page="sb-kasumbalesa">
-                                <span class="icon">🔽</span> Kasumbalesa Exit
-                            </a>
-                            <a class="nav-item sub-item" onclick="navigateTo('sb-sakania')" data-page="sb-sakania">
-                                <span class="icon">🔽</span> Sakania Exit
-                            </a>
-                            <a class="nav-item sub-item" onclick="navigateTo('sb-mokambo')" data-page="sb-mokambo">
-                                <span class="icon">🔽</span> Mokambo Exit
-                            </a>
-                        </div>
-                    </div>
+                    <a class="nav-item" onclick="navigateTo('border-clearance')" data-page="border-clearance">
+                        <span class="icon">🛂</span> Border Clearance <span class="badge warning">12</span>
+                    </a>
                     <a class="nav-item" onclick="navigateToPOD('all')" data-page="pod-management">
                         <span class="icon">📋</span> POD Management
                     </a>
@@ -1029,29 +1022,9 @@
                         </span>
                         Areas
                     </div>
-                    <div class="nav-group areas-group">
-                        <a class="nav-item parent-trigger" onclick="navigateTo('area-browser')" data-page="area-browser">
-                            <span class="icon">🗺️</span> Area Trucks
-                            <span class="submenu-chevron">›</span>
-                        </a>
-                        <div class="nav-submenu">
-                            <a class="nav-item sub-item" onclick="navigateToAreaBrowser(['kanyaka'])" data-page="area-browser">
-                                <span class="icon">🏗️</span> Kanyaka
-                            </a>
-                            <a class="nav-item sub-item" onclick="navigateToAreaBrowser(['kolwezi'])" data-page="area-browser">
-                                <span class="icon">⛏️</span> Kolwezi
-                            </a>
-                            <a class="nav-item sub-item" onclick="navigateToAreaBrowser(['lubumbashi'])">
-                                <span class="icon">🏙️</span> Lubumbashi
-                            </a>
-                            <a class="nav-item sub-item" onclick="navigateToAreaBrowser(['likasi'])">
-                                <span class="icon">⛏️</span> Likasi
-                            </a>
-                            <a class="nav-item sub-item" onclick="navigateToAreaBrowser(['kasumbalesa'])">
-                                <span class="icon">🛂</span> Kasumbalesa
-                            </a>
-                        </div>
-                    </div>
+                    <a class="nav-item" onclick="navigateTo('area-browser')" data-page="area-browser">
+                        <span class="icon">🗺️</span> Area Trucks
+                    </a>
                 </div>
                 <div class="nav-section">
                     <div class="nav-section-title">Management</div>

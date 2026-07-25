@@ -35,6 +35,7 @@ let currentDocFilter = 'all';
 let selectedAreaIds = [];
 let areaNbSearch = '';
 let areaSbSearch = '';
+let areaSelectorCollapsed = false;
 
 const areasDB = [
     { id: 'kanyaka', name: 'Kanyaka', icon: '🏗️', offloadingPoints: ['Kanyaka', 'Kanyaka Depot', 'Kanyaka Mine'], loadingPoints: ['Kanyaka', 'Kanyaka Depot', 'Kanyaka Mine'] },
@@ -95,7 +96,7 @@ const KBP_STEP_TEMPLATE = [
 
 const nbBorderConfigs = {
     'kasumbalesa-kbp': {
-        pageId: 'kasumbalesa-detail', tabPrefix: 'kbp', icon: '🅺', processName: 'KBP Process',
+        pageId: 'kasumbalesa-detail', tabPrefix: 'kbp', icon: '📍', processName: 'KBP Process',
         borderName: 'Kasumbalesa', locationPrefix: 'KBP', tripId: 'NB-2024-001',
         trip: 'NB-1001', truck: 'ABC 123', trailer: 'TRL-456', driver: 'John Doe', owner: 'XYZ Transport',
         kpi: 'green', kpiLabel: '🟢 ON TRACK', timeValue: '3:35', timePct: 7.5, targetHours: 48,
@@ -150,11 +151,11 @@ const SB_CLEARANCE_STEPS = [
 ];
 
 const borderClearanceTrucks = [
-    { trip: 'NB-2024-001', truck: 'ABC123DRC', driver: 'John Doe', direction: 'NB', border: 'Kasumbalesa', processHtml: '<span class="status-badge kbp">🅺 KBP</span>', process: 'KBP', status: 'Cross-checking', hours: 38, target: '48h', kpi: 'orange', kpiLabel: 'Priority', viewPage: 'kasumbalesa-detail', commentBtn: 'primary' },
-    { trip: 'NB-2024-008', truck: 'JKL012DRC', driver: 'Peter Mwansa', direction: 'NB', border: 'Kasumbalesa', processHtml: '<span class="status-badge whisky">🥃 Whisky</span>', process: 'Whisky', status: 'TR8 Issued', hours: 52, target: '72h', kpi: 'orange', kpiLabel: 'Priority', viewPage: 'kasumbalesa-whisky', commentBtn: 'primary' },
+    { trip: 'NB-2024-001', truck: 'ABC123DRC', driver: 'John Doe', direction: 'NB', border: 'Kasumbalesa', processHtml: '<span class="status-badge kbp">📍 KBP</span>', process: 'KBP', status: 'Cross-checking', hours: 38, target: '48h', kpi: 'orange', kpiLabel: 'Priority', viewPage: 'kasumbalesa-detail', commentBtn: 'primary' },
+    { trip: 'NB-2024-008', truck: 'JKL012DRC', driver: 'Peter Mwansa', direction: 'NB', border: 'Kasumbalesa', processHtml: '<span class="status-badge whisky">📍 Whisky</span>', process: 'Whisky', status: 'TR8 Issued', hours: 52, target: '72h', kpi: 'orange', kpiLabel: 'Priority', viewPage: 'kasumbalesa-whisky', commentBtn: 'primary' },
     { trip: 'NB-2024-015', truck: 'XYZ789DRC', driver: 'Sarah Smith', direction: 'NB', border: 'Sakania', processHtml: '<span class="status-badge blue">BN Process</span>', process: 'BN Process', status: 'Cross-checking', hours: 40, target: '48h', kpi: 'orange', kpiLabel: 'Priority', viewPage: 'sakania-nb', commentBtn: 'primary' },
     { trip: 'NB-2024-022', truck: 'GHI789DRC', driver: 'Jean Pierre', direction: 'NB', border: 'Mokambo', processHtml: '<span class="status-badge blue">BN Process</span>', process: 'BN Process', status: 'Red Stamping', hours: 78, target: '72h', kpi: 'red', kpiLabel: 'Overdue', viewPage: 'mokambo-nb', commentBtn: 'danger' },
-    { trip: 'NB-2024-042', truck: 'RST890DRC', driver: 'Alice Bwalya', direction: 'NB', border: 'Kasumbalesa', processHtml: '<span class="status-badge kbp">🅺 KBP</span>', process: 'KBP', status: 'Border Clearance', hours: 32, target: '48h', kpi: 'green', kpiLabel: 'On Track', viewPage: 'kasumbalesa-detail', commentBtn: 'primary' },
+    { trip: 'NB-2024-042', truck: 'RST890DRC', driver: 'Alice Bwalya', direction: 'NB', border: 'Kasumbalesa', processHtml: '<span class="status-badge kbp">📍 KBP</span>', process: 'KBP', status: 'Border Clearance', hours: 32, target: '48h', kpi: 'green', kpiLabel: 'On Track', viewPage: 'kasumbalesa-detail', commentBtn: 'primary' },
     { trip: 'NB-2024-047', truck: 'PQR852DRC', driver: 'Emma Zulu', direction: 'NB', border: 'Sakania', processHtml: '<span class="status-badge blue">BN Process</span>', process: 'BN Process', status: 'Document Submission', hours: 16, target: '48h', kpi: 'green', kpiLabel: 'On Track', viewPage: 'sakania-nb', commentBtn: 'primary' },
     { trip: 'SB-2024-003', truck: 'DEF456DRC', driver: 'Mike Johnson', direction: 'SB', border: 'Kasumbalesa', processHtml: '<span class="status-badge green">SB Exit</span>', process: 'SB Exit', status: 'Seal Verification', hours: 24, target: '48h', kpi: 'green', kpiLabel: 'On Track', viewPage: 'sb-kasumbalesa', commentBtn: 'primary' },
     { trip: 'SB-2024-005', truck: 'MNO345DRC', driver: 'David Mukendi', direction: 'SB', border: 'Sakania', processHtml: '<span class="status-badge orange">SB Exit</span>', process: 'SB Exit', status: 'Customs Declaration', hours: 44, target: '48h', kpi: 'orange', kpiLabel: 'Priority', viewPage: 'sb-sakania', commentBtn: 'primary' },
@@ -180,8 +181,8 @@ const podDB = [
 const borderPerformanceData = {
     NB: {
         borders: [
-            { name: 'Kasumbalesa KBP', icon: '🅺', tag: 'kbp', pct: 85, avgHours: 12, targetHours: 48, trucks: 23, kpi: 'green' },
-            { name: 'Kasumbalesa Whisky', icon: '🥃', tag: 'whisky', pct: 62, avgHours: 52, targetHours: 72, trucks: 15, kpi: 'orange' },
+            { name: 'Kasumbalesa KBP', icon: '📍', tag: 'kbp', pct: 85, avgHours: 12, targetHours: 48, trucks: 23, kpi: 'green' },
+            { name: 'Kasumbalesa Whisky', icon: '📍', tag: 'whisky', pct: 62, avgHours: 52, targetHours: 72, trucks: 15, kpi: 'orange' },
             { name: 'Sakania', icon: '📍', tag: '', pct: 78, avgHours: 40, targetHours: 48, trucks: 8, kpi: 'orange' },
             { name: 'Mokambo', icon: '📍', tag: '', pct: 55, avgHours: 78, targetHours: 72, trucks: 5, kpi: 'red' }
         ],
@@ -237,7 +238,7 @@ const tripsDB = {
     'SB-2024-018': { tripNumber:'SB-2024-018',truck:'DEF321DRC',driver:'Linda Phiri',direction:'SB',area:'Kanyaka',owner:'Transport Co B',loadingPoint:'Kanyaka Mine',exitBorder:'Kasumbalesa',status:'Border Exit',daysInDRC:7,kpi:'green',workflow:{loadingPlan:'completed',loadingProcess:'completed',dispatch:'completed',kanyaka:'completed',border:'current'},workflowDates:{loadingPlan:'2026-07-17T08:00',loadingProcess:'2026-07-19T16:00',dispatch:'2026-07-22T10:00',kanyaka:'2026-07-23T14:00',border:'2026-07-25T09:00'}},
     'SB-2024-019': { tripNumber:'SB-2024-019',truck:'GHI654DRC',driver:'Oscar Mwale',direction:'SB',area:'Kolwezi',owner:'Transport Co A',loadingPoint:'Kolwezi Mine',exitBorder:'Sakania',status:'Loading Process',daysInDRC:2,kpi:'orange',addedToday:true,workflow:{loadingPlan:'completed',loadingProcess:'current',dispatch:'pending',kanyaka:'pending',border:'pending'}},
     'SB-2024-020': { tripNumber:'SB-2024-020',truck:'JKL987DRC',driver:'Nancy Banda',direction:'SB',area:'Kanyaka',owner:'Transport Co D',loadingPoint:'Kanyaka',exitBorder:'Mokambo',status:'Dispatch/Escort',daysInDRC:6,kpi:'orange',workflow:{loadingPlan:'completed',loadingProcess:'completed',dispatch:'current',kanyaka:'pending',border:'pending'}},
-    'NB-2024-046': { tripNumber:'NB-2024-046',truck:'MNO741DRC',driver:'Victor Lungu',direction:'NB',area:'Kasumbalesa',owner:'Transport Co D',entryBorder:'Kasumbalesa',offloadingPoint:'KCC Mine',status:'Whisky Process',daysInDRC:3,kpi:'orange',addedToday:true,workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}},
+    'NB-2024-046': { tripNumber:'NB-2024-046',truck:'MNO741DRC',driver:'Victor Lungu',direction:'NB',area:'Kasumbalesa',owner:'Transport Co D',entryBorder:'Kasumbalesa',offloadingPoint:'KCC Mine',status:'Whisky Process',daysInDRC:3,kpi:'orange',borderProcess:'Whisky',addedToday:true,workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}},
     'NB-2024-047': { tripNumber:'NB-2024-047',truck:'PQR852DRC',driver:'Emma Zulu',direction:'NB',area:'Kolwezi',owner:'Transport Co B',entryBorder:'Sakania',offloadingPoint:'Kolwezi Mine',status:'Border Clearance',daysInDRC:2,kpi:'green',addedToday:true,workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}}
 };
 
@@ -380,7 +381,71 @@ function navigateToAreaBrowser(areaIds) {
     selectedAreaIds = areaIds && areaIds.length ? [...areaIds] : areasDB.map(a => a.id);
     areaNbSearch = '';
     areaSbSearch = '';
+    areaSelectorCollapsed = !!(areaIds && areaIds.length);
     navigateTo('area-browser');
+}
+
+function getTripViewPage(trip) {
+    if (!trip) return null;
+    if (trip.direction === 'NB') {
+        if (trip.entryBorder === 'Kasumbalesa') {
+            if (trip.borderProcess === 'Whisky' || (trip.status && trip.status.includes('Whisky'))) {
+                return 'kasumbalesa-whisky';
+            }
+            return 'kasumbalesa-detail';
+        }
+        if (trip.entryBorder === 'Sakania') return 'sakania-nb';
+        if (trip.entryBorder === 'Mokambo') return 'mokambo-nb';
+    }
+    if (trip.direction === 'SB') {
+        if (trip.exitBorder === 'Kasumbalesa') return 'sb-kasumbalesa';
+        if (trip.exitBorder === 'Sakania') return 'sb-sakania';
+        if (trip.exitBorder === 'Mokambo') return 'sb-mokambo';
+    }
+    return null;
+}
+
+function navigateToTripView(tripNumber) {
+    const trip = tripsDB[tripNumber];
+    const page = getTripViewPage(trip);
+    if (page) navigateTo(page);
+    else showToast('No detail view available for this truck', 'warning');
+}
+
+function renderTripViewButton(tripNumber) {
+    const trip = tripsDB[tripNumber];
+    const page = getTripViewPage(trip);
+    if (!page) return '';
+    return `<button class="btn btn-outline btn-sm" onclick="navigateToTripView('${tripNumber}')" title="View border/area process">👁️</button>`;
+}
+
+function getSelectedAreaLabels() {
+    return areasDB.filter(a => selectedAreaIds.includes(a.id)).map(a => `${a.icon} ${a.name}`);
+}
+
+function collapseAreaSelector() {
+    areaSelectorCollapsed = true;
+    const panel = document.getElementById('areaSelectorPanel');
+    const summary = document.getElementById('areaSelectorSummary');
+    if (panel) panel.classList.add('collapsed');
+    if (summary) {
+        summary.classList.remove('hidden');
+        const labels = getSelectedAreaLabels();
+        const labelEl = document.getElementById('areaSelectorSummaryText');
+        if (labelEl) {
+            labelEl.textContent = labels.length
+                ? labels.join(' · ')
+                : 'No areas selected — choose at least one area';
+        }
+    }
+}
+
+function expandAreaSelector() {
+    areaSelectorCollapsed = false;
+    const panel = document.getElementById('areaSelectorPanel');
+    const summary = document.getElementById('areaSelectorSummary');
+    if (panel) panel.classList.remove('collapsed');
+    if (summary) summary.classList.add('hidden');
 }
 
 function getSelectedAreas() {
@@ -452,7 +517,7 @@ function filterSBTrucksByAreas(searchTerm) {
 
 function renderAreaBrowserTableRows(trips, direction) {
     if (!trips.length) {
-        return `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-secondary);">No trucks match the selected areas</td></tr>`;
+        return `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-secondary);">No trucks match the selected areas</td></tr>`;
     }
     return trips.map(t => `
         <tr>
@@ -462,7 +527,10 @@ function renderAreaBrowserTableRows(trips, direction) {
             <td>${direction === 'NB' ? (t.offloadingPoint || '—') : (t.loadingPoint || '—')}</td>
             <td>${t.area || '—'}</td>
             <td><span class="status-badge ${t.kpi}">${t.status}</span></td>
-            <td><button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}')">💬</button></td>
+            <td>
+                <button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}')">💬</button>
+                ${renderTripViewButton(t.tripNumber)}
+            </td>
         </tr>
     `).join('');
 }
@@ -483,18 +551,21 @@ function refreshAreaBrowserPanels() {
 function toggleAreaSelection(areaId, checked) {
     if (checked && !selectedAreaIds.includes(areaId)) selectedAreaIds.push(areaId);
     else if (!checked) selectedAreaIds = selectedAreaIds.filter(id => id !== areaId);
+    collapseAreaSelector();
     refreshAreaBrowserPanels();
 }
 
 function selectAllAreas() {
     selectedAreaIds = areasDB.map(a => a.id);
     document.querySelectorAll('.area-checkbox-item input').forEach(cb => { cb.checked = true; });
+    collapseAreaSelector();
     refreshAreaBrowserPanels();
 }
 
 function clearAllAreas() {
     selectedAreaIds = [];
     document.querySelectorAll('.area-checkbox-item input').forEach(cb => { cb.checked = false; });
+    collapseAreaSelector();
     refreshAreaBrowserPanels();
 }
 
@@ -511,6 +582,7 @@ function handleAreaSbSearch(value) {
 function renderAreaBrowser(container) {
     const nbTrips = filterNBTrucksByAreas(areaNbSearch);
     const sbTrips = filterSBTrucksByAreas(areaSbSearch);
+    const selectedLabels = getSelectedAreaLabels();
 
     container.innerHTML = `
         <div class="page-header">
@@ -522,7 +594,15 @@ function renderAreaBrowser(container) {
             </div>
         </div>
 
-        <div class="card">
+        <div id="areaSelectorSummary" class="area-selector-summary${areaSelectorCollapsed ? '' : ' hidden'}">
+            <div>
+                <strong>📍 Selected Areas:</strong>
+                <span id="areaSelectorSummaryText">${selectedLabels.length ? selectedLabels.join(' · ') : 'No areas selected'}</span>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="expandAreaSelector()">Change Areas</button>
+        </div>
+
+        <div class="card area-selector-panel${areaSelectorCollapsed ? ' collapsed' : ''}" id="areaSelectorPanel">
             <div class="card-header">
                 <span>📍 Select Areas</span>
                 <div style="display:flex;gap:8px;">
@@ -531,7 +611,7 @@ function renderAreaBrowser(container) {
                 </div>
             </div>
             <div class="card-body">
-                <div class="area-checkbox-grid">
+                <div class="area-checkbox-grid area-checkbox-scroll">
                     ${areasDB.map(area => `
                         <label class="area-checkbox-item">
                             <input type="checkbox" value="${area.id}" ${selectedAreaIds.includes(area.id) ? 'checked' : ''}
@@ -542,7 +622,8 @@ function renderAreaBrowser(container) {
                 </div>
                 <div class="area-filter-hint">
                     <strong>NB:</strong> Trucks shown by <em>offloading point</em> — even if the truck is currently in another area.<br>
-                    <strong>SB:</strong> Trucks shown if they are <em>in the area</em> or their <em>loading point</em> matches the selected area.
+                    <strong>SB:</strong> Trucks shown if they are <em>in the area</em> or their <em>loading point</em> matches the selected area.<br>
+                    <em>Area list auto-hides after you tick your selection — use "Change Areas" to modify.</em>
                 </div>
             </div>
         </div>
@@ -566,7 +647,7 @@ function renderAreaBrowser(container) {
                             <th style="padding:10px;text-align:left;">Offloading</th>
                             <th style="padding:10px;text-align:left;">Current Area</th>
                             <th style="padding:10px;text-align:left;">Status</th>
-                            <th style="padding:10px;"></th>
+                            <th style="padding:10px;text-align:left;">Actions</th>
                         </tr></thead>
                         <tbody id="areaNbTableBody">${renderAreaBrowserTableRows(nbTrips, 'NB')}</tbody>
                     </table>
@@ -591,7 +672,7 @@ function renderAreaBrowser(container) {
                             <th style="padding:10px;text-align:left;">Loading</th>
                             <th style="padding:10px;text-align:left;">Current Area</th>
                             <th style="padding:10px;text-align:left;">Status</th>
-                            <th style="padding:10px;"></th>
+                            <th style="padding:10px;text-align:left;">Actions</th>
                         </tr></thead>
                         <tbody id="areaSbTableBody">${renderAreaBrowserTableRows(sbTrips, 'SB')}</tbody>
                     </table>
@@ -1080,12 +1161,7 @@ function renderDashboardTableRows(trips) {
             <td><span class="kpi-indicator ${t.kpi}"></span> ${getKPILabel(t.kpi)}</td>
             <td>
                 <button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}')">💬 Comment</button>
-                ${t.entryBorder === 'Kasumbalesa' ? `<button class="btn btn-outline btn-sm" onclick="navigateTo('kasumbalesa-detail')">👁️</button>` :
-                  t.entryBorder === 'Sakania' ? `<button class="btn btn-outline btn-sm" onclick="navigateTo('sakania-nb')">👁️</button>` :
-                  t.entryBorder === 'Mokambo' ? `<button class="btn btn-outline btn-sm" onclick="navigateTo('mokambo-nb')">👁️</button>` :
-                  t.exitBorder === 'Kasumbalesa' ? `<button class="btn btn-outline btn-sm" onclick="navigateTo('sb-kasumbalesa')">👁️</button>` :
-                  t.exitBorder === 'Sakania' ? `<button class="btn btn-outline btn-sm" onclick="navigateTo('sb-sakania')">👁️</button>` :
-                  t.exitBorder === 'Mokambo' ? `<button class="btn btn-outline btn-sm" onclick="navigateTo('sb-mokambo')">👁️</button>` : ''}
+                ${renderTripViewButton(t.tripNumber)}
             </td>
         </tr>
     `).join('');
@@ -1243,7 +1319,7 @@ function renderBorderTableRows(rows) {
             <td><span class="kpi-indicator ${t.kpi}"></span> ${t.kpiLabel}</td>
             <td>
                 <button class="btn btn-${t.commentBtn} btn-sm" onclick="openCommentModal('${t.trip}')">💬</button>
-                <button class="btn btn-outline btn-sm" onclick="navigateTo('${t.viewPage}')">👁️</button>
+                <button class="btn btn-outline btn-sm" onclick="navigateToTripView('${t.trip}')">👁️</button>
             </td>
         </tr>
     `).join('');
@@ -1310,19 +1386,19 @@ function renderBorderClearanceOverview(container) {
             <h2><i class="fas fa-arrow-up" style="color:var(--green);"></i> NB Clearance (Entry — North Bound)</h2>
         </div>
         <div class="kpi-grid">
-            <div class="kpi-card green" onclick="navigateTo('kasumbalesa-detail')"><div class="kpi-header"><span class="kpi-title">🅺 Kasumbalesa KBP</span></div><div class="kpi-value">23</div><div class="kpi-trend">BN Process · Target: 48h | Avg: 12h</div></div>
-            <div class="kpi-card orange" onclick="navigateTo('kasumbalesa-whisky')"><div class="kpi-header"><span class="kpi-title">🥃 Kasumbalesa Whisky</span></div><div class="kpi-value">15</div><div class="kpi-trend negative">Whisky Process · Target: 72h</div></div>
-            <div class="kpi-card orange" onclick="navigateTo('sakania-nb')"><div class="kpi-header"><span class="kpi-title">📍 Sakania NB</span></div><div class="kpi-value">8</div><div class="kpi-trend negative">BN Process (KBP sequence) · Target: 48h</div></div>
-            <div class="kpi-card red" onclick="navigateTo('mokambo-nb')"><div class="kpi-header"><span class="kpi-title">📍 Mokambo NB</span></div><div class="kpi-value">5</div><div class="kpi-trend negative">BN Process (KBP sequence) · Target: 72h</div></div>
+            <div class="kpi-card green" onclick="navigateToTripList('nb-border-kasumbalesa')"><div class="kpi-header"><span class="kpi-title">📍 Kasumbalesa KBP</span></div><div class="kpi-value">23</div><div class="kpi-trend">BN Process · Target: 48h | Avg: 12h</div></div>
+            <div class="kpi-card orange" onclick="navigateToTripList('nb-border-kasumbalesa')"><div class="kpi-header"><span class="kpi-title">📍 Kasumbalesa Whisky</span></div><div class="kpi-value">15</div><div class="kpi-trend negative">Whisky Process · Target: 72h</div></div>
+            <div class="kpi-card orange" onclick="navigateToTripList('nb-border-sakania')"><div class="kpi-header"><span class="kpi-title">📍 Sakania NB</span></div><div class="kpi-value">8</div><div class="kpi-trend negative">BN Process (KBP sequence) · Target: 48h</div></div>
+            <div class="kpi-card red" onclick="navigateToTripList('nb-border-mokambo')"><div class="kpi-header"><span class="kpi-title">📍 Mokambo NB</span></div><div class="kpi-value">5</div><div class="kpi-trend negative">BN Process (KBP sequence) · Target: 72h</div></div>
         </div>
 
         <div class="section-title-bar">
             <h2><i class="fas fa-arrow-down" style="color:var(--orange);"></i> SB Clearance (Exit — South Bound)</h2>
         </div>
         <div class="kpi-grid">
-            <div class="kpi-card green" onclick="navigateTo('sb-kasumbalesa')"><div class="kpi-header"><span class="kpi-title">🔽 Kasumbalesa Exit</span></div><div class="kpi-value">18</div><div class="kpi-trend">SB Exit Process · Target: 48h</div></div>
-            <div class="kpi-card orange" onclick="navigateTo('sb-sakania')"><div class="kpi-header"><span class="kpi-title">🔽 Sakania Exit</span></div><div class="kpi-value">11</div><div class="kpi-trend negative">SB Exit Process · Target: 48h</div></div>
-            <div class="kpi-card orange" onclick="navigateTo('sb-mokambo')"><div class="kpi-header"><span class="kpi-title">🔽 Mokambo Exit</span></div><div class="kpi-value">7</div><div class="kpi-trend negative">SB Exit Process · Target: 72h</div></div>
+            <div class="kpi-card green" onclick="navigateToTripList('sb-border-kasumbalesa')"><div class="kpi-header"><span class="kpi-title">🔽 Kasumbalesa Exit</span></div><div class="kpi-value">18</div><div class="kpi-trend">SB Exit Process · Target: 48h</div></div>
+            <div class="kpi-card orange" onclick="navigateToTripList('sb-border-sakania')"><div class="kpi-header"><span class="kpi-title">🔽 Sakania Exit</span></div><div class="kpi-value">11</div><div class="kpi-trend negative">SB Exit Process · Target: 48h</div></div>
+            <div class="kpi-card orange" onclick="navigateToTripList('sb-border-mokambo')"><div class="kpi-header"><span class="kpi-title">🔽 Mokambo Exit</span></div><div class="kpi-value">7</div><div class="kpi-trend negative">SB Exit Process · Target: 72h</div></div>
         </div>
 
         <div class="filters-bar">
@@ -1512,10 +1588,10 @@ function renderSBClearanceDetail(container, config) {
 // ============================================
 function renderKasumbalesaWhisky(container) {
     container.innerHTML = `
-        <div class="page-header"><h1>🥃 Kasumbalesa Border - Whisky Process</h1><div class="breadcrumb"><a href="#" onclick="navigateTo('dashboard')">Home</a> <span>›</span> <a href="#" onclick="navigateTo('border-clearance')">Border Clearance</a> <span>›</span> <strong>Whisky</strong></div></div>
+        <div class="page-header"><h1>📍 Kasumbalesa Border - Whisky Process</h1><div class="breadcrumb"><a href="#" onclick="navigateTo('dashboard')">Home</a> <span>›</span> <a href="#" onclick="navigateTo('border-clearance')">Border Clearance</a> <span>›</span> <strong>Whisky</strong></div></div>
         ${renderKpiTargetsBanner('border')}
         <div class="frozen-truck-bar"><div class="truck-info-group"><div class="truck-info-item"><span class="truck-info-label">Trip</span><span class="truck-info-value large">NB-2024-008</span></div><div class="truck-info-item"><span class="truck-info-label">Truck</span><span class="truck-info-value large">JKL012DRC</span></div><div class="truck-info-item"><span class="truck-info-label">Hours</span><span class="truck-info-value">52</span></div></div><span class="kpi-badge orange">🟠 PRIORITY</span></div>
-        <div class="card"><div class="card-header"><span>🥃 Whisky Process Steps</span><button class="btn btn-primary btn-sm" onclick="openCommentModal('NB-2024-008')">💬 Add Comment</button></div><div class="card-body">${renderWhiskySteps()}</div></div>
+        <div class="card"><div class="card-header"><span>📍 Whisky Process Steps</span><button class="btn btn-primary btn-sm" onclick="openCommentModal('NB-2024-008')">💬 Add Comment</button></div><div class="card-body">${renderWhiskySteps()}</div></div>
         <button class="btn btn-outline mt-20" onclick="navigateTo('border-clearance')">⬅️ Back</button>`;
 }
 
@@ -1870,13 +1946,13 @@ function togglePodStatus(statusId, checked) {
 
 function selectAllPodStatuses() {
     selectedPodStatuses = POD_STATUS_OPTIONS.map(s => s.id);
-    document.querySelectorAll('.pod-status-checkbox input').forEach(cb => { cb.checked = true; });
+    document.querySelectorAll('.pod-status-checkbox:not(.pod-kpi-checkbox) input').forEach(cb => { cb.checked = true; });
     refreshPODTable();
 }
 
 function clearAllPodStatuses() {
     selectedPodStatuses = [];
-    document.querySelectorAll('.pod-status-checkbox input').forEach(cb => { cb.checked = false; });
+    document.querySelectorAll('.pod-status-checkbox:not(.pod-kpi-checkbox) input').forEach(cb => { cb.checked = false; });
     refreshPODTable();
 }
 
