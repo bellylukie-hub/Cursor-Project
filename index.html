@@ -798,6 +798,25 @@
         .field-hint.success { color: var(--success); }
         .form-control.invalid { border-color: var(--danger); box-shadow: 0 0 0 2px rgba(229, 62, 62, 0.15); }
 
+        .doc-link {
+            color: var(--primary-light);
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .doc-link:hover { text-decoration: underline; color: var(--primary); }
+        .doc-preview-box {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 20px;
+            background: #f7fafc;
+            border: 1px dashed var(--border);
+            border-radius: 8px;
+            flex-wrap: wrap;
+        }
+        .doc-preview-icon { font-size: 40px; }
+
         /* BORDER DETAIL STYLES */
         .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
         .info-item { display: flex; flex-direction: column; }
