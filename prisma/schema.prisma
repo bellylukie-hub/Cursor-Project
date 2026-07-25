@@ -1,0 +1,546 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Direction {
+  NB
+  SB
+  BOTH
+}
+
+enum AlertLevel {
+  GREEN
+  ORANGE
+  RED
+  ESCALATED
+}
+
+enum TripStatus {
+  LIVE
+  COMPLETED
+  ARCHIVED
+}
+
+model User {
+  id            String      @id @default(cuid())
+  name          String
+  email         String      @unique
+  phone         String?
+  whatsapp      String?
+  passwordHash  String      @map("password_hash")
+  status        String      @default("active")
+  defaultAreaId String?     @map("default_area_id")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  defaultArea   Area?       @relation("UserDefaultArea", fields: [defaultAreaId], references: [id])
+  userRoles     UserRole[]
+  userAreas     UserArea[]
+  alerts        Alert[]
+  auditLogs     AuditLog[]
+  statusHistory TripStatusHistory[]
+  documents     Document[]
+  messages      Message[]   @relation("MessageSender")
+  chatMessages  ChatMessage[]
+
+  @@map("users")
+}
+
+model Role {
+  id              String           @id @default(cuid())
+  roleName        String           @unique @map("role_name")
+  description     String?
+  active          Boolean          @default(true)
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+  roleId String @map("role_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+model Permission {
+  id              String           @id @default(cuid())
+  permissionCode  String           @unique @map("permission_code")
+  module          String
+  action          String
+  description     String?
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  roleId       String     @map("role_id")
+  permissionId String     @map("permission_id")
+  allowed      Boolean    @default(true)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model Area {
+  id           String       @id @default(cuid())
+  areaName     String       @map("area_name")
+  slug         String       @unique
+  directionTag Direction    @map("direction_tag")
+  active       Boolean      @default(true)
+  createdBy    String?      @map("created_by")
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  aliases      AreaAlias[]
+  userAreas    UserArea[]
+  trips        Trip[]
+  defaultUsers User[]       @relation("UserDefaultArea")
+  contacts     CommunicationContact[]
+  kpiTargets   KpiTarget[]
+
+  @@map("areas")
+}
+
+model AreaAlias {
+  id        String    @id @default(cuid())
+  areaId    String    @map("area_id")
+  aliasName String    @map("alias_name")
+  matchType String    @default("exact") @map("match_type")
+  direction Direction
+  active    Boolean   @default(true)
+  area      Area      @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@map("area_aliases")
+}
+
+model UserArea {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  areaId      String    @map("area_id")
+  direction   Direction
+  readAccess  Boolean   @default(true) @map("read_access")
+  writeAccess Boolean   @default(false) @map("write_access")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  area        Area      @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, areaId, direction])
+  @@map("user_areas")
+}
+
+model Truck {
+  id            String   @id @default(cuid())
+  truckReg      String   @unique @map("truck_reg")
+  owner         String?
+  chassisNumber String?  @map("chassis_number")
+  makeId        String?  @map("make_id")
+  modelId       String?  @map("model_id")
+  color         String?
+  year          Int?
+  pictureFileId String?  @map("picture_file_id")
+  comments      String?
+  trips         Trip[]
+
+  @@map("trucks")
+}
+
+model Driver {
+  id               String  @id @default(cuid())
+  driverName       String  @map("driver_name")
+  phone            String?
+  whatsapp         String?
+  drcCurrentNumber String? @map("drc_current_number")
+  active           Boolean @default(true)
+  trips            Trip[]
+
+  @@map("drivers")
+}
+
+model Trip {
+  id                  String     @id @default(cuid())
+  tripNumber          String     @map("trip_number")
+  truckId             String     @map("truck_id")
+  driverId            String?    @map("driver_id")
+  owner               String?
+  direction           Direction
+  orderNumber         String?    @map("order_number")
+  origin              String?
+  destination         String?
+  loadingPoint        String?    @map("loading_point")
+  offloadingPoint     String?    @map("offloading_point")
+  entryBorder         String?    @map("entry_border")
+  exitBorder          String?    @map("exit_border")
+  clearingAgentId     String?    @map("clearing_agent_id")
+  currentStatus       String?    @map("current_status")
+  areaId              String?    @map("area_id")
+  loadingDispatchDate DateTime?  @map("loading_dispatch_date")
+  datePaSent          DateTime?  @map("date_pa_sent")
+  dateExitZambia      DateTime?  @map("date_exit_zambia")
+  podCompletedAt      DateTime?  @map("pod_completed_at")
+  liveStatus          TripStatus @default(LIVE) @map("live_status")
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+
+  truck         Truck               @relation(fields: [truckId], references: [id])
+  driver        Driver?             @relation(fields: [driverId], references: [id])
+  area          Area?               @relation(fields: [areaId], references: [id])
+  positions     TripPosition[]
+  comments      TripComment[]
+  statusHistory TripStatusHistory[]
+  alerts        Alert[]
+  runnerFees    RunnerFeeRecord[]
+
+  @@unique([tripNumber, truckId])
+  @@index([direction, liveStatus])
+  @@index([areaId])
+  @@map("trips")
+}
+
+model TripPosition {
+  id             String   @id @default(cuid())
+  tripId         String   @map("trip_id")
+  positionNumber Int      @map("position_number")
+  positionText   String   @map("position_text")
+  source         String?
+  recordedAt     DateTime @default(now()) @map("recorded_at")
+  recordedBy     String?  @map("recorded_by")
+  trip           Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@map("trip_positions")
+}
+
+model TripComment {
+  id                   String   @id @default(cuid())
+  tripId               String   @map("trip_id")
+  problem              String?
+  personContacted      String?  @map("person_contacted")
+  solutionAction       String?  @map("solution_action")
+  expectedSolutionTime DateTime? @map("expected_solution_time")
+  commentText          String?  @map("comment_text")
+  createdBy            String?  @map("created_by")
+  createdAt            DateTime @default(now()) @map("created_at")
+  trip                 Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@map("trip_comments")
+}
+
+model StatusDefinition {
+  id                String   @id @default(cuid())
+  module            String
+  direction         Direction?
+  border            String?
+  statusName        String   @map("status_name")
+  statusOrder       Int      @map("status_order")
+  requiresFile      Boolean  @default(false) @map("requires_file")
+  requiredFieldsJson Json?   @map("required_fields_json")
+  active            Boolean  @default(true)
+  statusHistory     TripStatusHistory[]
+
+  @@map("status_definitions")
+}
+
+model TripStatusHistory {
+  id                 String           @id @default(cuid())
+  tripId             String           @map("trip_id")
+  statusDefinitionId String           @map("status_definition_id")
+  eventDatetime      DateTime         @map("event_datetime")
+  enteredBy          String?          @map("entered_by")
+  remarks            String?
+  source             String?
+  createdAt          DateTime         @default(now()) @map("created_at")
+  trip               Trip             @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  statusDefinition   StatusDefinition @relation(fields: [statusDefinitionId], references: [id])
+  user               User?            @relation(fields: [enteredBy], references: [id])
+
+  @@map("trip_status_history")
+}
+
+model DocumentType {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  category  String?
+  active    Boolean    @default(true)
+  createdBy String?    @map("created_by")
+  documents Document[]
+
+  @@map("document_types")
+}
+
+model File {
+  id               String     @id @default(cuid())
+  originalFilename String     @map("original_filename")
+  storedFilename   String     @map("stored_filename")
+  mimeType         String     @map("mime_type")
+  fileSize         Int        @map("file_size")
+  storagePath      String     @map("storage_path")
+  checksum         String?
+  uploadedBy       String?    @map("uploaded_by")
+  uploadedAt       DateTime   @default(now()) @map("uploaded_at")
+  documents        Document[]
+
+  @@map("files")
+}
+
+model Document {
+  id             String       @id @default(cuid())
+  entityType     String       @map("entity_type")
+  entityId       String       @map("entity_id")
+  documentTypeId String       @map("document_type_id")
+  reference      String?
+  dateFrom       DateTime?    @map("date_from")
+  dateTo         DateTime?    @map("date_to")
+  fileId         String       @map("file_id")
+  uploadedBy     String?      @map("uploaded_by")
+  uploadedAt     DateTime     @default(now()) @map("uploaded_at")
+  expiryStatus   String?      @map("expiry_status")
+  documentType   DocumentType @relation(fields: [documentTypeId], references: [id])
+  file           File         @relation(fields: [fileId], references: [id])
+  uploader       User?        @relation(fields: [uploadedBy], references: [id])
+
+  @@index([entityType, entityId])
+  @@map("documents")
+}
+
+model KpiTarget {
+  id              String    @id @default(cuid())
+  module          String
+  direction       Direction?
+  areaId          String?   @map("area_id")
+  border          String?
+  statusFrom      String?   @map("status_from")
+  statusTo        String?   @map("status_to")
+  targetValue     Float     @map("target_value")
+  targetUnit      String    @map("target_unit")
+  orangeThreshold Float?    @map("orange_threshold")
+  redThreshold    Float?    @map("red_threshold")
+  active          Boolean   @default(true)
+  area            Area?     @relation(fields: [areaId], references: [id])
+
+  @@map("kpi_targets")
+}
+
+model Alert {
+  id          String     @id @default(cuid())
+  userId      String     @map("user_id")
+  tripId      String?    @map("trip_id")
+  module      String
+  alertLevel  AlertLevel @map("alert_level")
+  message     String
+  dueAt       DateTime?  @map("due_at")
+  readAt      DateTime?  @map("read_at")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  escalatedAt DateTime?  @map("escalated_at")
+  user        User       @relation(fields: [userId], references: [id])
+  trip        Trip?      @relation(fields: [tripId], references: [id])
+
+  @@map("alerts")
+}
+
+model ImportBatch {
+  id          String        @id @default(cuid())
+  uploadType  String        @map("upload_type")
+  filename    String
+  uploadedBy  String?       @map("uploaded_by")
+  uploadedAt  DateTime      @default(now()) @map("uploaded_at")
+  totalRows   Int           @map("total_rows")
+  successRows Int           @map("success_rows")
+  errorRows   Int           @map("error_rows")
+  status      String
+  errors      ImportError[]
+
+  @@map("import_batches")
+}
+
+model ImportError {
+  id           String      @id @default(cuid())
+  batchId      String      @map("batch_id")
+  rowNumber    Int         @map("row_number")
+  fieldName    String?     @map("field_name")
+  errorMessage String      @map("error_message")
+  rawValue     String?     @map("raw_value")
+  batch        ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@map("import_errors")
+}
+
+model Asset {
+  id                    String  @id @default(cuid())
+  assetType             String  @map("asset_type")
+  regNumber             String  @map("reg_number")
+  mileage               Int?
+  chassisNumber         String? @map("chassis_number")
+  makeId                String? @map("make_id")
+  modelId               String? @map("model_id")
+  color                 String?
+  year                  Int?
+  nextMaintenanceMileage Int?   @map("next_maintenance_mileage")
+  pictureFileId         String? @map("picture_file_id")
+  comments              String?
+
+  @@map("assets")
+}
+
+model Equipment {
+  id            String   @id @default(cuid())
+  equipmentName String   @map("equipment_name")
+  serialNumber  String   @unique @map("serial_number")
+  purchasedDate DateTime? @map("purchased_date")
+  comments      String?
+  currentUserId String?  @map("current_user_id")
+  active        Boolean  @default(true)
+
+  @@map("equipment")
+}
+
+model MaintenanceRecord {
+  id              String    @id @default(cuid())
+  entityType      String    @map("entity_type")
+  entityId        String    @map("entity_id")
+  issueType       String    @map("issue_type")
+  price           Float?
+  repairPlace     String?   @map("repair_place")
+  garage          String?
+  sparePartFileId String?   @map("spare_part_file_id")
+  guaranteeFrom   DateTime? @map("guarantee_from")
+  guaranteeTo     DateTime? @map("guarantee_to")
+  createdBy       String?   @map("created_by")
+
+  @@map("maintenance_records")
+}
+
+model Handover {
+  id            String    @id @default(cuid())
+  entityType    String    @map("entity_type")
+  entityId      String    @map("entity_id")
+  userId        String    @map("user_id")
+  handoverDate  DateTime  @map("handover_date")
+  returnDate    DateTime? @map("return_date")
+  formFileId    String?   @map("form_file_id")
+  statusComment String?   @map("status_comment")
+  checklistJson Json?     @map("checklist_json")
+
+  @@map("handovers")
+}
+
+model CommunicationContact {
+  id            String  @id @default(cuid())
+  name          String
+  company       String?
+  functionTitle String? @map("function_title")
+  email         String?
+  placeOfWork   String? @map("place_of_work")
+  phone         String?
+  whatsapp      String?
+  areaId        String? @map("area_id")
+  active        Boolean @default(true)
+  area          Area?   @relation(fields: [areaId], references: [id])
+
+  @@map("communication_contacts")
+}
+
+model Message {
+  id                String   @id @default(cuid())
+  senderId          String   @map("sender_id")
+  subject           String
+  body              String
+  relatedEntityType String?  @map("related_entity_type")
+  relatedEntityId   String?  @map("related_entity_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+  sender            User     @relation("MessageSender", fields: [senderId], references: [id])
+
+  @@map("messages")
+}
+
+model ChatRoom {
+  id                String        @id @default(cuid())
+  roomName          String        @map("room_name")
+  roomType          String        @map("room_type")
+  relatedEntityType String?       @map("related_entity_type")
+  relatedEntityId   String?       @map("related_entity_id")
+  createdBy         String?       @map("created_by")
+  messages          ChatMessage[]
+
+  @@map("chat_rooms")
+}
+
+model ChatMessage {
+  id          String   @id @default(cuid())
+  roomId      String   @map("room_id")
+  senderId    String   @map("sender_id")
+  messageText String   @map("message_text")
+  fileId      String?  @map("file_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  room        ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender      User     @relation(fields: [senderId], references: [id])
+
+  @@map("chat_messages")
+}
+
+model RunnerFeeRecord {
+  id                String   @id @default(cuid())
+  owner             String
+  tripId            String?  @map("trip_id")
+  borderName        String   @map("border_name")
+  direction         Direction
+  zamArrivalDatetime DateTime @map("zam_arrival_datetime")
+  drcExitDatetime   DateTime @map("drc_exit_datetime")
+  durationHours     Float    @map("duration_hours")
+  groupLabel        String   @map("group_label")
+  rate              Float
+  amount            Float
+  createdBy         String?  @map("created_by")
+  trip              Trip?    @relation(fields: [tripId], references: [id])
+
+  @@map("runner_fee_records")
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String?  @map("user_id")
+  action       String
+  entityType   String?  @map("entity_type")
+  entityId     String?  @map("entity_id")
+  oldValueJson Json?    @map("old_value_json")
+  newValueJson Json?    @map("new_value_json")
+  reason       String?
+  ipAddress    String?  @map("ip_address")
+  createdAt    DateTime @default(now()) @map("created_at")
+  user         User?    @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+model SavedSqlView {
+  id          String  @id @default(cuid())
+  viewName    String  @map("view_name")
+  sqlText     String  @map("sql_text")
+  description String?
+  createdBy   String? @map("created_by")
+  active      Boolean @default(true)
+
+  @@map("saved_sql_views")
+}
+
+model PageConfig {
+  id         String  @id @default(cuid())
+  pageName   String  @map("page_name")
+  module     String
+  configJson Json    @map("config_json")
+  createdBy  String? @map("created_by")
+  active     Boolean @default(true)
+
+  @@map("page_configs")
+}
