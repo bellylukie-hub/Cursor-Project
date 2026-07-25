@@ -207,6 +207,47 @@
             .area-trucks-grid { grid-template-columns: 1fr; }
         }
 
+        /* POD status checkbox filters */
+        .pod-status-filter-panel {
+            background: white;
+            padding: 14px 18px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+        }
+        .pod-status-filter-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .pod-status-filter-header label {
+            font-weight: 600;
+            font-size: 13px;
+            margin: 0;
+        }
+        .pod-status-checkbox-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+            gap: 8px;
+        }
+        .pod-status-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            background: #f7fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .pod-status-checkbox:hover { border-color: var(--primary-light); background: #edf2f7; }
+        .pod-status-checkbox input { accent-color: var(--primary-light); width: 15px; height: 15px; flex-shrink: 0; }
+
         /* KPI Targets banner (shown on NB, SB, Border, Equipment pages) */
         .kpi-targets-banner {
             padding: 14px 18px;

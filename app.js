@@ -9,7 +9,18 @@ let dashboardSearchTerm = '';
 let currentPODFilter = 'all';
 let podSearchTerm = '';
 let podKpiFilter = 'all';
-let podStatusFilter = 'all';
+let selectedPodStatuses = [];
+
+const POD_STATUS_OPTIONS = [
+    { id: 'pending', label: 'Pending Collection' },
+    { id: 'collected-on-time', label: 'Collected On-Time' },
+    { id: 'collected-late', label: 'Collected Late' },
+    { id: 'scanned', label: 'Scanned' },
+    { id: 'uploaded', label: 'Uploaded' },
+    { id: 'sent-invoicing', label: 'Sent to Invoicing' },
+    { id: 'overdue', label: 'Overdue' }
+];
+selectedPodStatuses = POD_STATUS_OPTIONS.map(s => s.id);
 let assetsSearchTerm = '';
 let assetsStatusFilter = 'all';
 let currentDocumentId = null;
@@ -1759,14 +1770,64 @@ function getPODStageStatus(p) {
     return 'pending';
 }
 
+function syncSelectedPodStatusesFromDOM() {
+    const boxes = document.querySelectorAll('.pod-status-checkbox input');
+    if (!boxes.length) return selectedPodStatuses;
+    selectedPodStatuses = Array.from(boxes).filter(cb => cb.checked).map(cb => cb.value);
+    return selectedPodStatuses;
+}
+
+function renderPODStatusFilters() {
+    return `
+        <div class="pod-status-filter-panel" id="podStatusFilters">
+            <div class="pod-status-filter-header">
+                <label>Status — choose which to display</label>
+                <div style="display:flex;gap:8px;">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="selectAllPodStatuses()">Select All</button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="clearAllPodStatuses()">Clear All</button>
+                </div>
+            </div>
+            <div class="pod-status-checkbox-grid">
+                ${POD_STATUS_OPTIONS.map(s => `
+                    <label class="pod-status-checkbox">
+                        <input type="checkbox" value="${s.id}" ${selectedPodStatuses.includes(s.id) ? 'checked' : ''} onchange="togglePodStatus('${s.id}', this.checked)">
+                        <span>${s.label}</span>
+                    </label>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function togglePodStatus(statusId, checked) {
+    if (checked && !selectedPodStatuses.includes(statusId)) selectedPodStatuses.push(statusId);
+    else if (!checked) selectedPodStatuses = selectedPodStatuses.filter(id => id !== statusId);
+    refreshPODTable();
+}
+
+function selectAllPodStatuses() {
+    selectedPodStatuses = POD_STATUS_OPTIONS.map(s => s.id);
+    document.querySelectorAll('.pod-status-checkbox input').forEach(cb => { cb.checked = true; });
+    refreshPODTable();
+}
+
+function clearAllPodStatuses() {
+    selectedPodStatuses = [];
+    document.querySelectorAll('.pod-status-checkbox input').forEach(cb => { cb.checked = false; });
+    refreshPODTable();
+}
+
 function getFilteredPODItems() {
     const search = podSearchTerm || (document.getElementById('podSearchInput')?.value || '').trim();
     const kpi = podKpiFilter || document.getElementById('podKpiFilter')?.value || 'all';
-    const status = podStatusFilter || document.getElementById('podStatusFilter')?.value || 'all';
+    const statuses = syncSelectedPodStatusesFromDOM();
     let items = filterPODItems(currentPODFilter);
 
     if (kpi !== 'all') items = items.filter(p => p.kpi === kpi);
-    if (status !== 'all') items = items.filter(p => getPODStageStatus(p) === status);
+    if (statuses.length === 0) return [];
+    if (statuses.length < POD_STATUS_OPTIONS.length) {
+        items = items.filter(p => statuses.includes(getPODStageStatus(p)));
+    }
 
     if (!search) return items;
     const term = search.toLowerCase();
@@ -1791,7 +1852,7 @@ function renderPODTableRowsFiltered() {
 function refreshPODTable() {
     podSearchTerm = document.getElementById('podSearchInput')?.value || '';
     podKpiFilter = document.getElementById('podKpiFilter')?.value || 'all';
-    podStatusFilter = document.getElementById('podStatusFilter')?.value || 'all';
+    syncSelectedPodStatusesFromDOM();
     const body = document.getElementById('podTableBody');
     if (body) body.innerHTML = renderPODTableRowsFiltered();
 }
@@ -1799,13 +1860,12 @@ function refreshPODTable() {
 function clearPODFilters() {
     podSearchTerm = '';
     podKpiFilter = 'all';
-    podStatusFilter = 'all';
+    selectedPodStatuses = POD_STATUS_OPTIONS.map(s => s.id);
     const input = document.getElementById('podSearchInput');
     const kpi = document.getElementById('podKpiFilter');
-    const status = document.getElementById('podStatusFilter');
     if (input) input.value = '';
     if (kpi) kpi.value = 'all';
-    if (status) status.value = 'all';
+    document.querySelectorAll('.pod-status-checkbox input').forEach(cb => { cb.checked = true; });
     refreshPODTable();
 }
 
@@ -1861,9 +1921,10 @@ function renderPODManagement(container) {
                 <input type="text" id="podSearchInput" placeholder="Search by Trip#, Truck, Driver, Area, Offloading Point..." value="${podSearchTerm}" onkeyup="refreshPODTable()">
             </div>
             <div class="filter-group"><label>KPI:</label><select id="podKpiFilter" onchange="refreshPODTable()"><option value="all"${podKpiFilter === 'all' ? ' selected' : ''}>All</option><option value="green"${podKpiFilter === 'green' ? ' selected' : ''}>🟢 On Track</option><option value="orange"${podKpiFilter === 'orange' ? ' selected' : ''}>🟠 Priority</option><option value="red"${podKpiFilter === 'red' ? ' selected' : ''}>🔴 Overdue</option></select></div>
-            <div class="filter-group"><label>Status:</label><select id="podStatusFilter" onchange="refreshPODTable()"><option value="all"${podStatusFilter === 'all' ? ' selected' : ''}>All</option><option value="pending"${podStatusFilter === 'pending' ? ' selected' : ''}>Pending Collection</option><option value="collected-on-time"${podStatusFilter === 'collected-on-time' ? ' selected' : ''}>Collected On-Time</option><option value="collected-late"${podStatusFilter === 'collected-late' ? ' selected' : ''}>Collected Late</option><option value="scanned"${podStatusFilter === 'scanned' ? ' selected' : ''}>Scanned</option><option value="uploaded"${podStatusFilter === 'uploaded' ? ' selected' : ''}>Uploaded</option><option value="sent-invoicing"${podStatusFilter === 'sent-invoicing' ? ' selected' : ''}>Sent to Invoicing</option><option value="overdue"${podStatusFilter === 'overdue' ? ' selected' : ''}>Overdue</option></select></div>
             <button class="btn btn-outline btn-sm" onclick="clearPODFilters()">Clear</button>
         </div>
+
+        ${renderPODStatusFilters()}
 
         <div class="table-container">
             <div class="table-header">
