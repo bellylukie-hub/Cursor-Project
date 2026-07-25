@@ -70,11 +70,6 @@ function filterTrips(direction, searchTerm) {
 // DASHBOARD WITH NB & SB VIEWS AND SEARCH
 // ============================================
 function renderDashboard(container) {
-    const nbTrips = filterTrips('NB', dashboardSearchTerm);
-    const sbTrips = filterTrips('SB', dashboardSearchTerm);
-    const orangeCount = Object.values(tripsDB).filter(t => t.kpi === 'orange').length;
-    const redCount = Object.values(tripsDB).filter(t => t.kpi === 'red').length;
-
     container.innerHTML = `
         <div class="page-header">
             <h1>📊 Operations Dashboard</h1>
@@ -110,13 +105,13 @@ function renderDashboard(container) {
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">Orange Alerts</div>
-                        <div class="stat-value" style="color:var(--orange);">${orangeCount}</div>
+                        <div class="stat-value" style="color:var(--orange);">8</div>
                         <span class="stat-change orange">Priority attention</span>
                         <i class="fas fa-exclamation-circle stat-icon" style="color:var(--orange);"></i>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">Red Alerts</div>
-                        <div class="stat-value" style="color:var(--red);">${redCount}</div>
+                        <div class="stat-value" style="color:var(--red);">3</div>
                         <span class="stat-change red">Escalated</span>
                         <i class="fas fa-times-circle stat-icon" style="color:var(--red);"></i>
                     </div>
@@ -128,71 +123,58 @@ function renderDashboard(container) {
                     <div class="kpi-mini"><div class="kpi-value green">92%</div><div class="kpi-label">POD Collection</div></div>
                     <div class="kpi-mini"><div class="kpi-value red">14d</div><div class="kpi-label">Avg Turnaround</div></div>
                 </div>
-            </div>
-        </div>
 
-        <div class="dashboard-search-bar">
-            <span style="font-size:18px;">🔍</span>
-            <input type="text" id="dashboardSearch" placeholder="Search by Trip#, Truck, Driver, Owner, Status, Area, Border..." value="${dashboardSearchTerm}" onkeyup="dashboardSearch(this.value)">
-            <select id="dashboardKpiFilter" onchange="dashboardFilter()">
-                <option value="all">All KPI Status</option>
-                <option value="green">🟢 On Track</option>
-                <option value="orange">🟠 Priority</option>
-                <option value="red">🔴 Overdue</option>
-            </select>
-            <button class="btn btn-outline btn-sm" onclick="clearDashboardSearch()">Clear</button>
-            <span style="color:var(--text-secondary);font-size:13px;">Showing <strong id="dashboardCount">${nbTrips.length + sbTrips.length}</strong> trucks</span>
-        </div>
+                <div class="row">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-arrow-up" style="color:var(--green);"></i> NB – Recent Activity</h3>
+                            <button class="card-action" onclick="navigateTo('nb-operations')">View All →</button>
+                        </div>
+                        <div class="card-body table-wrap">
+                            <table>
+                                <thead><tr><th>Trip</th><th>Truck</th><th>Area</th><th>Status</th><th>Days</th></tr></thead>
+                                <tbody>
+                                    <tr><td><a class="truck-link">TR-1024</a></td><td>ZAM-4567</td><td>Kasumbalesa</td><td><span class="status-badge orange"><span class="dot"></span> Border</span></td><td>2d</td></tr>
+                                    <tr><td><a class="truck-link">TR-1028</a></td><td>ZAM-4590</td><td>Kanyaka</td><td><span class="status-badge green"><span class="dot"></span> POD Ready</span></td><td>1d</td></tr>
+                                    <tr><td><a class="truck-link">TR-1031</a></td><td>ZAM-4612</td><td>Likasi</td><td><span class="status-badge red"><span class="dot"></span> Offloading</span></td><td>5d</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-arrow-down" style="color:var(--orange);"></i> SB – Recent Activity</h3>
+                            <button class="card-action" onclick="navigateTo('sb-operations')">View All →</button>
+                        </div>
+                        <div class="card-body table-wrap">
+                            <table>
+                                <thead><tr><th>Trip</th><th>Truck</th><th>Area</th><th>Status</th><th>Days</th></tr></thead>
+                                <tbody>
+                                    <tr><td><a class="truck-link">SB-2045</a></td><td>ZAM-4789</td><td>Kolwezi</td><td><span class="status-badge orange"><span class="dot"></span> Loading</span></td><td>3d</td></tr>
+                                    <tr><td><a class="truck-link">SB-2049</a></td><td>ZAM-4801</td><td>Kanyaka</td><td><span class="status-badge green"><span class="dot"></span> Dispatched</span></td><td>1d</td></tr>
+                                    <tr><td><a class="truck-link">SB-2053</a></td><td>ZAM-4823</td><td>Border</td><td><span class="status-badge red"><span class="dot"></span> Exit Pending</span></td><td>6d</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
 
-        <div class="section-header">
-            <h2>🚛 North Bound Operations</h2>
-            <div class="section-actions">
-                <button class="btn btn-outline btn-sm" onclick="navigateTo('nb-operations')">View All NB</button>
-                <button class="btn btn-primary btn-sm" onclick="openUploadModal('NB')">📤 Upload NB</button>
-            </div>
-        </div>
-        <div class="table-container" style="margin-bottom:30px;">
-            <div class="table-header">
-                <h3>Active NB Trucks (Target: 14 days turnaround)</h3>
-                <span style="color:var(--text-secondary);">${nbTrips.length} trucks</span>
-            </div>
-            <div style="overflow-x:auto;">
-                <table id="dashboardNBTable">
-                    <thead>
-                        <tr>
-                            <th>Trip #</th><th>Truck</th><th>Owner</th><th>Driver</th>
-                            <th>Entry Border</th><th>Offloading Point</th><th>Area</th>
-                            <th>Status</th><th>Days</th><th>KPI</th><th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="dashboardNBBody">${renderDashboardTableRows(nbTrips)}</tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="section-header">
-            <h2>🚛 South Bound Operations</h2>
-            <div class="section-actions">
-                <button class="btn btn-outline btn-sm" onclick="navigateTo('sb-operations')">View All SB</button>
-                <button class="btn btn-primary btn-sm" onclick="openUploadModal('SB')">📤 Upload SB</button>
-            </div>
-        </div>
-        <div class="table-container">
-            <div class="table-header">
-                <h3>Active SB Trucks (Loading: ≤48h | Dispatch: ≤8d | Follow-on: ≤2h)</h3>
-                <span style="color:var(--text-secondary);">${sbTrips.length} trucks</span>
-            </div>
-            <div style="overflow-x:auto;">
-                <table id="dashboardSBTable">
-                    <thead>
-                        <tr>
-                            <th>Trip #</th><th>Truck</th><th>Owner</th><th>Driver</th>
-                            <th>Loading Point</th><th>Exit Border</th><th>Area</th>
-                            <th>Status</th><th>Days</th><th>KPI</th><th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="dashboardSBBody">${renderDashboardTableRows(sbTrips)}</tbody>
-                </table>
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-file-alt"></i> Document Expiry Alerts</h3>
+                        <span class="card-action text-sm text-muted">3 expiring soon</span>
+                    </div>
+                    <div class="card-body table-wrap">
+                        <table>
+                            <thead><tr><th>Document</th><th>Entity</th><th>Expiry</th><th>Status</th></tr></thead>
+                            <tbody>
+                                <tr><td>Insurance</td><td>Truck ZAM-4567</td><td>2025-04-15</td><td><span class="status-badge orange"><span class="dot"></span> Expires in 7d</span></td></tr>
+                                <tr><td>Vignette</td><td>Truck ZAM-4590</td><td>2025-04-10</td><td><span class="status-badge red"><span class="dot"></span> Expired</span></td></tr>
+                                <tr><td>TR8</td><td>Trip TR-1024</td><td>2025-05-01</td><td><span class="status-badge green"><span class="dot"></span> Valid</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     `;
@@ -227,38 +209,15 @@ function renderDashboardTableRows(trips) {
 
 function dashboardSearch(value) {
     dashboardSearchTerm = value;
-    refreshDashboard();
 }
 
-function dashboardFilter() {
-    refreshDashboard();
-}
+function dashboardFilter() {}
 
 function clearDashboardSearch() {
     dashboardSearchTerm = '';
-    document.getElementById('dashboardSearch').value = '';
-    document.getElementById('dashboardKpiFilter').value = 'all';
-    refreshDashboard();
 }
 
-function refreshDashboard() {
-    const kpiFilter = document.getElementById('dashboardKpiFilter')?.value || 'all';
-    let nbTrips = filterTrips('NB', dashboardSearchTerm);
-    let sbTrips = filterTrips('SB', dashboardSearchTerm);
-
-    if (kpiFilter !== 'all') {
-        nbTrips = nbTrips.filter(t => t.kpi === kpiFilter);
-        sbTrips = sbTrips.filter(t => t.kpi === kpiFilter);
-    }
-
-    const nbBody = document.getElementById('dashboardNBBody');
-    const sbBody = document.getElementById('dashboardSBBody');
-    const countEl = document.getElementById('dashboardCount');
-
-    if (nbBody) nbBody.innerHTML = renderDashboardTableRows(nbTrips);
-    if (sbBody) sbBody.innerHTML = renderDashboardTableRows(sbTrips);
-    if (countEl) countEl.textContent = nbTrips.length + sbTrips.length;
-}
+function refreshDashboard() {}
 
 // ============================================
 // NB OPERATIONS PAGE
