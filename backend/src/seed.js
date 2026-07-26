@@ -3,6 +3,7 @@
  * Run: npm run seed
  */
 const db = require('./db/database');
+const { seedUsers } = require('./seedUsers');
 const { createNbTrip, createSbTripFromTurnaround } = require('./services/turnaroundService');
 const { completeBorderSubStep, completeWorkflowStep, advancePodStage, uploadGovList } = require('./services/workflowEngine');
 
@@ -84,6 +85,7 @@ function seed() {
   }
 
   console.log('Seed complete.');
+  seedUsers();
 }
 
 seed();

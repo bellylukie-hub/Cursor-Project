@@ -1,0 +1,25 @@
+services:
+  truckcontrol:
+    build: .
+    image: truckcontrol:latest
+    ports:
+      - "${PORT:-3001}:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      REQUIRE_AUTH: "true"
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-12h}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:-ChangeMe123!}
+      RUN_SEED: ${RUN_SEED:-true}
+      DATA_DIR: /data
+      UPLOADS_DIR: /uploads
+    volumes:
+      - truckcontrol-data:/data
+      - truckcontrol-uploads:/uploads
+    restart: unless-stopped
+
+volumes:
+  truckcontrol-data:
+  truckcontrol-uploads:

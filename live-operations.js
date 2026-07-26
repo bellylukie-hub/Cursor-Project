@@ -498,7 +498,7 @@
                     <button class="btn btn-primary btn-sm" onclick="saveUploadTemplate('${key}')">💾 Save Template</button>
                     <button class="btn btn-outline btn-sm" onclick="downloadTemplateCsv('${key}')">📥 Download CSV Template</button>
                 </div>`).join('')}
-            <div class="rbac-info-banner"><strong>Position file:</strong> Upload 3× daily (morning 08:00, afternoon 14:00, evening 20:00). Trucks must match NB live file. Each position shows area comments and process dates.</div>`;
+            <div class="rbac-info-banner"><strong>NB / SB columns:</strong> Columns defined here are reflected in <em>Active NB Trucks</em> and <em>Active SB Trucks</em> tables and CSV exports. <strong>Position file:</strong> Upload 3× daily (morning 08:00, afternoon 14:00, evening 20:00). Trucks must match NB live file.</div>`;
     };
 
     window.saveUploadTemplate = function (key) {

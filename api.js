@@ -1,22 +1,70 @@
 /**
- * TruckControl API client — connects frontend to backend workflow engine.
+ * TruckControl API client — production auth + workflow engine.
  */
 const API_BASE = (typeof window !== 'undefined' && window.TRUCKCONTROL_API)
   ? window.TRUCKCONTROL_API
-  : (typeof location !== 'undefined' && location.port === '3001')
+  : (typeof location !== 'undefined' && (location.port === '3001' || location.pathname === '/'))
     ? '/api'
     : 'http://localhost:3001/api';
 
+const AUTH_TOKEN_KEY = 'truckcontrol_auth_token';
+const AUTH_USER_KEY = 'truckcontrol_auth_user';
+
 let apiAvailable = false;
+let authRequired = false;
+let authToken = null;
+let authUser = null;
+
+function loadStoredAuth() {
+  try {
+    authToken = sessionStorage.getItem(AUTH_TOKEN_KEY);
+    const raw = sessionStorage.getItem(AUTH_USER_KEY);
+    authUser = raw ? JSON.parse(raw) : null;
+  } catch {
+    authToken = null;
+    authUser = null;
+  }
+}
+
+function saveAuth(token, user) {
+  authToken = token;
+  authUser = user;
+  sessionStorage.setItem(AUTH_TOKEN_KEY, token);
+  sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+}
+
+function clearAuth() {
+  authToken = null;
+  authUser = null;
+  sessionStorage.removeItem(AUTH_TOKEN_KEY);
+  sessionStorage.removeItem(AUTH_USER_KEY);
+}
+
+function getAuthToken() { return authToken; }
+function getAuthUser() { return authUser; }
+function isAuthRequired() { return authRequired; }
 
 function apiHeaders() {
+  const headers = { 'Content-Type': 'application/json' };
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+    return headers;
+  }
   const userId = typeof CURRENT_SESSION_USER_ID !== 'undefined' ? CURRENT_SESSION_USER_ID : 'ADM-001';
   const user = typeof getCurrentAdminUser === 'function' ? getCurrentAdminUser() : null;
-  return {
-    'Content-Type': 'application/json',
-    'X-User-Id': userId,
-    'X-Username': user?.username || 'super_admin'
-  };
+  headers['X-User-Id'] = userId;
+  headers['X-Username'] = user?.username || 'super_admin';
+  return headers;
+}
+
+function authOnlyHeaders() {
+  const h = {};
+  if (authToken) h.Authorization = `Bearer ${authToken}`;
+  else {
+    h['X-User-Id'] = typeof CURRENT_SESSION_USER_ID !== 'undefined' ? CURRENT_SESSION_USER_ID : 'ADM-001';
+    h['X-Username'] = (typeof getCurrentAdminUser === 'function' && getCurrentAdminUser()?.username) || 'super_admin';
+  }
+  return h;
 }
 
 async function apiRequest(path, options = {}) {
@@ -25,19 +73,56 @@ async function apiRequest(path, options = {}) {
     headers: { ...apiHeaders(), ...(options.headers || {}) }
   });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && authRequired) {
+    clearAuth();
+    if (typeof showLoginScreen === 'function') showLoginScreen('Session expired. Please sign in again.');
+    throw new Error(data.error || 'Session expired');
+  }
   if (!res.ok) throw new Error(data.error || `API error ${res.status}`);
   return data;
 }
 
 async function checkApiHealth() {
   try {
-    await apiRequest('/health');
+    const res = await fetch(`${API_BASE}/health`);
+    const data = await res.json();
+    authRequired = !!data.requireAuth;
     apiAvailable = true;
     return true;
   } catch {
     apiAvailable = false;
     return false;
   }
+}
+
+async function loginApi(username, password) {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Login failed');
+  saveAuth(data.token, data.user);
+  apiAvailable = true;
+  authRequired = true;
+  return data;
+}
+
+async function fetchCurrentUser() {
+  if (!authToken) return null;
+  try {
+    const data = await apiRequest('/auth/me');
+    authUser = data.user;
+    sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(authUser));
+    return authUser;
+  } catch {
+    return null;
+  }
+}
+
+function logoutApi() {
+  clearAuth();
 }
 
 function isApiAvailable() {
@@ -57,7 +142,7 @@ async function fetchTrip(tripNumber) {
 async function uploadNbTrip(payload) {
   const form = new FormData();
   Object.entries(payload).forEach(([k, v]) => { if (v != null) form.append(k, v); });
-  const res = await fetch(`${API_BASE}/trips/upload-nb`, { method: 'POST', headers: { 'X-User-Id': apiHeaders()['X-User-Id'], 'X-Username': apiHeaders()['X-Username'] }, body: form });
+  const res = await fetch(`${API_BASE}/trips/upload-nb`, { method: 'POST', headers: authOnlyHeaders(), body: form });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Upload failed');
   return data;
@@ -91,7 +176,7 @@ async function uploadGovList(tripNumber, file) {
   form.append('file', file);
   const res = await fetch(`${API_BASE}/kanyaka/${encodeURIComponent(tripNumber)}/gov-list`, {
     method: 'POST',
-    headers: { 'X-User-Id': apiHeaders()['X-User-Id'], 'X-Username': apiHeaders()['X-Username'] },
+    headers: authOnlyHeaders(),
     body: form
   });
   const data = await res.json();
@@ -156,10 +241,22 @@ function mergeTripIntoLocalDb(trip) {
   };
 }
 
-async function syncTripsFromApi() {
+async function postTripAreaStatus(tripNumber, area, status, notes) {
+  return apiRequest(`/trips/${encodeURIComponent(tripNumber)}/area-status`, {
+    method: 'POST',
+    body: JSON.stringify({ area, status, notes: notes || '' })
+  });
+}
+
+async function syncTripsFromApi(authoritative) {
   if (!apiAvailable) return false;
   try {
     const trips = await fetchAllTrips();
+    if (authoritative) {
+      Object.keys(tripsDB).forEach(k => {
+        if (!trips.find(t => t.tripNumber === k)) delete tripsDB[k];
+      });
+    }
     trips.forEach(mergeTripIntoLocalDb);
     return true;
   } catch (e) {
@@ -167,3 +264,5 @@ async function syncTripsFromApi() {
     return false;
   }
 }
+
+loadStoredAuth();

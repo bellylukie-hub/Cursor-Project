@@ -263,6 +263,9 @@ function recordTripAreaUpdate(tripNumber, area, status, notes) {
         trip.lastUpdatedAt = tripAreaUpdatesDB[tripNumber][0].timestamp;
     }
     logAuditEvent(`Area status: ${status} (${area})`, tripNumber, 'trip', notes);
+    if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof postTripAreaStatus === 'function') {
+        postTripAreaStatus(tripNumber, area, status, notes).catch(e => console.warn('Area status API sync failed:', e.message));
+    }
 }
 
 function getTripAreaHistory(tripNumber) {
@@ -447,6 +450,85 @@ function updateTopBarUser() {
     if (nameEl) nameEl.textContent = user?.username || 'System Admin';
     if (roleEl) roleEl.textContent = role?.name || 'User';
     populateRoleSwitcher();
+    updateAdminNavVisibility();
+    const switcher = document.getElementById('roleSwitcher');
+    if (switcher) {
+        const hideDemoSwitcher = typeof isAuthRequired === 'function' && isAuthRequired() && typeof getAuthToken === 'function' && getAuthToken();
+        switcher.style.display = hideDemoSwitcher ? 'none' : '';
+    }
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) logoutBtn.style.display = (typeof getAuthToken === 'function' && getAuthToken()) ? '' : 'none';
+}
+
+function applyAuthUserToSession(apiUser) {
+    if (!apiUser) return;
+    CURRENT_SESSION_USER_ID = apiUser.id;
+    const existing = adminUsersDB.find(u => u.id === apiUser.id);
+    if (existing) {
+        existing.roleId = apiUser.roleId;
+        existing.area = apiUser.area;
+        existing.assignedAreas = apiUser.assignedAreas || existing.assignedAreas;
+        existing.status = apiUser.status || 'active';
+        if (apiUser.modulePermissions) existing.modulePermissions = apiUser.modulePermissions;
+    }
+    updateTopBarUser();
+}
+
+function showLoginScreen(message) {
+    const el = document.getElementById('loginScreen');
+    const app = document.querySelector('.app-container');
+    if (el) el.classList.add('show');
+    if (app) app.style.display = 'none';
+    if (message) {
+        const msg = document.getElementById('loginError');
+        if (msg) { msg.textContent = message; msg.style.display = 'block'; }
+    }
+}
+
+function hideLoginScreen() {
+    const el = document.getElementById('loginScreen');
+    const app = document.querySelector('.app-container');
+    if (el) el.classList.remove('show');
+    if (app) app.style.display = '';
+    const msg = document.getElementById('loginError');
+    if (msg) msg.style.display = 'none';
+}
+
+async function handleLoginSubmit(event) {
+    event.preventDefault();
+    const username = document.getElementById('loginUsername')?.value?.trim();
+    const password = document.getElementById('loginPassword')?.value;
+    const btn = document.getElementById('loginSubmitBtn');
+    if (!username || !password || typeof loginApi !== 'function') return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Signing in...'; }
+    try {
+        const data = await loginApi(username, password);
+        hideLoginScreen();
+        applyAuthUserToSession(data.user);
+        await bootApplication();
+        showToast(`Welcome, ${data.user.username}`, 'success');
+    } catch (e) {
+        const msg = document.getElementById('loginError');
+        if (msg) { msg.textContent = e.message; msg.style.display = 'block'; }
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Sign in'; }
+    }
+}
+
+function handleLogout() {
+    if (typeof logoutApi === 'function') logoutApi();
+    showLoginScreen();
+    showToast('Signed out', 'success');
+}
+
+async function bootApplication() {
+    if (typeof migrateAreaStatusesDB === 'function') migrateAreaStatusesDB();
+    if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
+    if (typeof syncTripsFromApi === 'function' && isApiAvailable()) {
+        await syncTripsFromApi(true);
+    }
+    navigateTo('dashboard');
+    updateSidebarBadges();
     updateAdminNavVisibility();
 }
 
@@ -6768,27 +6850,45 @@ function showToast(message,type='success'){ const toast=document.getElementById(
 // ============================================
 // INIT
 // ============================================
-document.addEventListener('DOMContentLoaded',async function(){
+document.addEventListener('DOMContentLoaded', async function () {
     syncAllAssetDocumentsToGlobalRegistry();
     adminUsersDB.forEach(u => ensureUserModulePermissions(u));
     initMatrixModalSelects();
-    updateTopBarUser();
-    populateRoleSwitcher();
-    if (typeof checkApiHealth === 'function') {
-        const connected = await checkApiHealth();
+
+    const connected = typeof checkApiHealth === 'function' && await checkApiHealth();
+
+    if (connected && typeof isAuthRequired === 'function' && isAuthRequired()) {
+        if (typeof getAuthToken === 'function' && getAuthToken()) {
+            const user = typeof fetchCurrentUser === 'function' ? await fetchCurrentUser() : null;
+            if (user) {
+                applyAuthUserToSession(user);
+                hideLoginScreen();
+                await bootApplication();
+            } else {
+                showLoginScreen();
+            }
+        } else {
+            showLoginScreen();
+        }
+    } else {
+        updateTopBarUser();
+        populateRoleSwitcher();
         if (connected) {
-            await syncTripsFromApi();
+            await syncTripsFromApi(false);
             console.log('✅ Backend connected — trips synced from API');
         } else {
             console.log('ℹ️ Backend offline — using local demo data. Run: cd backend && npm start');
         }
+        await bootApplication();
     }
-    if (typeof migrateAreaStatusesDB === 'function') migrateAreaStatusesDB();
-    if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
-    navigateTo('dashboard');
-    updateSidebarBadges();
-    updateAdminNavVisibility();
-    document.querySelectorAll('.modal-overlay').forEach(overlay=>{ overlay.addEventListener('click',function(e){ if(e.target===this)this.classList.remove('show'); }); });
-    document.addEventListener('click',function(event){ const ap=document.getElementById('alertPanel'); const nb=document.querySelector('.notification-btn'); if(ap&&nb&&!ap.contains(event.target)&&!nb.contains(event.target)&&ap.classList.contains('show'))ap.classList.remove('show'); });
-    console.log('🚛 TruckControl DRC - Complete Demo Ready');
+
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', function (e) { if (e.target === this) this.classList.remove('show'); });
+    });
+    document.addEventListener('click', function (event) {
+        const ap = document.getElementById('alertPanel');
+        const nb = document.querySelector('.notification-btn');
+        if (ap && nb && !ap.contains(event.target) && !nb.contains(event.target) && ap.classList.contains('show')) ap.classList.remove('show');
+    });
+    console.log('🚛 TruckControl DRC — Production Ready');
 });

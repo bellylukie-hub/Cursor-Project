@@ -1,8 +1,9 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
+const env = require('../config/env');
 
-const dataDir = path.join(__dirname, '../../data');
+const dataDir = env.dataDir;
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
 const dbPath = path.join(dataDir, 'truckcontrol.db');
@@ -138,9 +139,40 @@ function initSchema() {
       trip_id TEXT REFERENCES trips(id),
       upload_type TEXT NOT NULL,
       file_name TEXT NOT NULL,
-      file_path TEXT NOT NULL,
+      file_path TEXT DEFAULT '',
       uploaded_by TEXT,
       uploaded_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS roles (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      description TEXT,
+      permissions TEXT NOT NULL DEFAULT '[]',
+      system INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      email TEXT,
+      password_hash TEXT NOT NULL,
+      role_id TEXT NOT NULL REFERENCES roles(id),
+      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'banned')),
+      area TEXT,
+      assigned_areas TEXT NOT NULL DEFAULT '[]',
+      module_permissions TEXT NOT NULL DEFAULT '{}',
+      phone TEXT,
+      banned_reason TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      last_login TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS system_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS area_status_lists (

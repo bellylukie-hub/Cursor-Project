@@ -21,10 +21,11 @@ const {
   listFleetOwners
 } = require('../services/turnaroundService');
 const db = require('../db/database');
+const env = require('../config/env');
 
 const router = express.Router();
 
-const uploadDir = path.join(__dirname, '../../uploads');
+const uploadDir = env.uploadsDir;
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
@@ -34,14 +35,26 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 function getUser(req) {
-  return {
-    id: req.headers['x-user-id'] || 'ADM-001',
-    username: req.headers['x-username'] || 'super_admin'
-  };
+  return req.user || { id: 'ADM-001', username: 'super_admin' };
 }
 
-router.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'truckcontrol-api', version: '1.0.0' });
+// Users & roles (read-only for authenticated clients)
+router.get('/users', (req, res) => {
+  try {
+    const { listUsers } = require('../services/authService');
+    res.json({ users: listUsers() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/roles', (_req, res) => {
+  try {
+    const { listRoles } = require('../services/authService');
+    res.json({ roles: listRoles() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Trips
@@ -223,7 +236,8 @@ router.post('/trips/:tripNumber/area-status', (req, res) => {
 
 router.post('/live-uploads', (req, res) => {
   const { type, fileName, rowCount, results } = req.body;
-  db.prepare(`INSERT INTO uploads (upload_type, file_name, uploaded_by) VALUES (?, ?, ?)`).run(type, fileName, getUser(req).username);
+  db.prepare(`INSERT INTO uploads (upload_type, file_name, file_path, uploaded_by) VALUES (?, ?, ?, ?)`)
+    .run(type, fileName || 'upload.csv', '', getUser(req).username);
   res.json({ ok: true, type, rowCount, results });
 });
 
@@ -234,7 +248,8 @@ router.get('/position-uploads', (_req, res) => {
 
 router.post('/position-uploads', (req, res) => {
   const payload = req.body;
-  db.prepare(`INSERT INTO uploads (upload_type, file_name, uploaded_by) VALUES ('POSITION', ?, ?)`).run(payload.fileName || 'position.csv', getUser(req).username);
+  db.prepare(`INSERT INTO uploads (upload_type, file_name, file_path, uploaded_by) VALUES ('POSITION', ?, ?, ?)`)
+    .run(payload.fileName || 'position.csv', '', getUser(req).username);
   res.json({ ok: true, upload: payload });
 });
 
