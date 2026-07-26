@@ -82,11 +82,13 @@ const WORKFLOW_CONFIG = {
         { key: 'pod', label: 'POD Collection' }
     ],
     SB: [
-        { key: 'loadingPlan', label: 'Loading Plan' },
-        { key: 'loadingProcess', label: 'Loading Process' },
-        { key: 'dispatch', label: 'Dispatch/Escort' },
-        { key: 'kanyaka', label: 'Kanyaka SB' },
-        { key: 'border', label: 'Border Exit' }
+        { key: 'loadingProcess', label: 'Loading' },
+        { key: 'documents', label: 'Document Collection' },
+        { key: 'seal', label: 'Seal Collection' },
+        { key: 'escort', label: 'Escort Arrangement' },
+        { key: 'dispatch', label: 'Dispatch' },
+        { key: 'kanyaka', label: 'Kanyaka (Gov List & Transit)' },
+        { key: 'border', label: 'Border Exit Clearance' }
     ]
 };
 
@@ -572,16 +574,16 @@ const tripsDB = {
     'NB-2024-015': { tripNumber:'NB-2024-015',truck:'XYZ789DRC',driver:'Sarah Smith',direction:'NB',area:'Kolwezi',owner:'Transport Co B',entryBorder:'Sakania',offloadingPoint:'Kolwezi Mine',status:'Offloading',daysInDRC:12,kpi:'orange',workflow:{border:'completed',kanyaka:'completed',offloading:'current',pod:'pending'},workflowDates:{border:'2026-07-18T10:00',kanyaka:'2026-07-20T14:00',offloading:'2026-07-24T09:00'}},
     'NB-2024-022': { tripNumber:'NB-2024-022',truck:'GHI789DRC',driver:'Jean Pierre',direction:'NB',area:'Lubumbashi',owner:'Transport Co C',entryBorder:'Mokambo',offloadingPoint:'Lubumbashi',status:'POD Missing',daysInDRC:15,kpi:'red',workflow:{border:'completed',kanyaka:'completed',offloading:'completed',pod:'current'}},
     'NB-2024-031': { tripNumber:'NB-2024-031',truck:'MNO012DRC',driver:'David Mukendi',direction:'NB',area:'Kanyaka',owner:'Transport Co A',entryBorder:'Kasumbalesa',offloadingPoint:'Kanyaka Depot',status:'In Transit',daysInDRC:8,kpi:'green',workflow:{border:'completed',kanyaka:'current',offloading:'pending',pod:'pending'}},
-    'SB-2024-003': { tripNumber:'SB-2024-003',truck:'DEF456DRC',driver:'Mike Johnson',direction:'SB',area:'Kanyaka',owner:'Transport Co A',loadingPoint:'Kanyaka',exitBorder:'Kasumbalesa',status:'Loading Process',daysInDRC:3,kpi:'green',workflow:{loadingPlan:'completed',loadingProcess:'current',dispatch:'pending',kanyaka:'pending',border:'pending'},workflowDates:{loadingPlan:'2026-07-22T07:00',loadingProcess:'2026-07-23T11:00'}},
-    'SB-2024-005': { tripNumber:'SB-2024-005',truck:'MNO345DRC',driver:'David Mukendi',direction:'SB',area:'Kanyaka',owner:'Transport Co B',loadingPoint:'Kanyaka Mine',exitBorder:'Sakania',status:'Loading Delay',daysInDRC:2,kpi:'orange',workflow:{loadingPlan:'completed',loadingProcess:'current',dispatch:'pending',kanyaka:'pending',border:'pending'}},
-    'SB-2024-012': { tripNumber:'SB-2024-012',truck:'PQR678DRC',driver:'Joseph Kabwe',direction:'SB',area:'Kolwezi',owner:'Transport Co C',loadingPoint:'Kolwezi Mine',exitBorder:'Mokambo',status:'Dispatch Ready',daysInDRC:5,kpi:'green',workflow:{loadingPlan:'completed',loadingProcess:'completed',dispatch:'current',kanyaka:'pending',border:'pending'}},
+    'SB-2024-003': { tripNumber:'SB-2024-003',truck:'DEF456DRC',driver:'Mike Johnson',direction:'SB',area:'Kanyaka',owner:'Transport Co A',loadingPoint:'Kanyaka',exitBorder:'Kasumbalesa',status:'Loading',daysInDRC:3,kpi:'green',workflow:{loadingProcess:'current',documents:'pending',seal:'pending',escort:'pending',dispatch:'pending',kanyaka:'pending',border:'pending'},workflowDates:{loadingProcess:'2026-07-23T11:00'}},
+    'SB-2024-005': { tripNumber:'SB-2024-005',truck:'MNO345DRC',driver:'David Mukendi',direction:'SB',area:'Kanyaka',owner:'Transport Co B',loadingPoint:'Kanyaka Mine',exitBorder:'Sakania',status:'Loading',daysInDRC:2,kpi:'orange',workflow:{loadingProcess:'current',documents:'pending',seal:'pending',escort:'pending',dispatch:'pending',kanyaka:'pending',border:'pending'}},
+    'SB-2024-012': { tripNumber:'SB-2024-012',truck:'PQR678DRC',driver:'Joseph Kabwe',direction:'SB',area:'Kolwezi',owner:'Transport Co C',loadingPoint:'Kolwezi Mine',exitBorder:'Mokambo',status:'Escort Arrangement',daysInDRC:5,kpi:'green',workflow:{loadingProcess:'completed',documents:'completed',seal:'completed',escort:'current',dispatch:'pending',kanyaka:'pending',border:'pending'}},
     'NB-2024-042': { tripNumber:'NB-2024-042',truck:'RST890DRC',driver:'Alice Bwalya',direction:'NB',area:'Kasumbalesa',owner:'Transport Co D',entryBorder:'Kasumbalesa',offloadingPoint:'Kolwezi Mine',status:'Border Clearance',daysInDRC:4,kpi:'green',addedToday:true,workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}},
     'NB-2024-043': { tripNumber:'NB-2024-043',truck:'UVW123DRC',driver:'Paul Chanda',direction:'NB',area:'Kolwezi',owner:'Transport Co B',entryBorder:'Sakania',offloadingPoint:'KCC Mine',status:'In Transit',daysInDRC:6,kpi:'green',addedToday:true,workflow:{border:'completed',kanyaka:'completed',offloading:'pending',pod:'pending'}},
     'NB-2024-044': { tripNumber:'NB-2024-044',truck:'XYZ456DRC',driver:'Grace Mutale',direction:'NB',area:'Lubumbashi',owner:'Transport Co A',entryBorder:'Mokambo',offloadingPoint:'Lubumbashi',status:'Offloading',daysInDRC:11,kpi:'orange',workflow:{border:'completed',kanyaka:'completed',offloading:'current',pod:'pending'}},
     'NB-2024-045': { tripNumber:'NB-2024-045',truck:'ABC789DRC',driver:'Henry Sampa',direction:'NB',area:'Kanyaka',owner:'Transport Co C',entryBorder:'Kasumbalesa',offloadingPoint:'Kanyaka Depot',status:'POD Collection',daysInDRC:9,kpi:'orange',workflow:{border:'completed',kanyaka:'completed',offloading:'completed',pod:'current'}},
-    'SB-2024-018': { tripNumber:'SB-2024-018',truck:'DEF321DRC',driver:'Linda Phiri',direction:'SB',area:'Kanyaka',owner:'Transport Co B',loadingPoint:'Kanyaka Mine',exitBorder:'Kasumbalesa',status:'Border Exit',daysInDRC:7,kpi:'green',workflow:{loadingPlan:'completed',loadingProcess:'completed',dispatch:'completed',kanyaka:'completed',border:'current'},workflowDates:{loadingPlan:'2026-07-17T08:00',loadingProcess:'2026-07-19T16:00',dispatch:'2026-07-22T10:00',kanyaka:'2026-07-23T14:00',border:'2026-07-25T09:00'}},
-    'SB-2024-019': { tripNumber:'SB-2024-019',truck:'GHI654DRC',driver:'Oscar Mwale',direction:'SB',area:'Kolwezi',owner:'Transport Co A',loadingPoint:'Kolwezi Mine',exitBorder:'Sakania',status:'Loading Process',daysInDRC:2,kpi:'orange',addedToday:true,workflow:{loadingPlan:'completed',loadingProcess:'current',dispatch:'pending',kanyaka:'pending',border:'pending'}},
-    'SB-2024-020': { tripNumber:'SB-2024-020',truck:'JKL987DRC',driver:'Nancy Banda',direction:'SB',area:'Kanyaka',owner:'Transport Co D',loadingPoint:'Kanyaka',exitBorder:'Mokambo',status:'Dispatch/Escort',daysInDRC:6,kpi:'orange',workflow:{loadingPlan:'completed',loadingProcess:'completed',dispatch:'current',kanyaka:'pending',border:'pending'}},
+    'SB-2024-018': { tripNumber:'SB-2024-018',truck:'DEF321DRC',driver:'Linda Phiri',direction:'SB',area:'Kanyaka',owner:'Transport Co B',loadingPoint:'Kanyaka Mine',exitBorder:'Kasumbalesa',status:'Border Exit',daysInDRC:7,kpi:'green',workflow:{loadingProcess:'completed',documents:'completed',seal:'completed',escort:'completed',dispatch:'completed',kanyaka:'completed',border:'current'},workflowDates:{loadingProcess:'2026-07-19T16:00',documents:'2026-07-20T10:00',seal:'2026-07-21T09:00',escort:'2026-07-22T08:00',dispatch:'2026-07-22T10:00',kanyaka:'2026-07-23T14:00',border:'2026-07-25T09:00'}},
+    'SB-2024-019': { tripNumber:'SB-2024-019',truck:'GHI654DRC',driver:'Oscar Mwale',direction:'SB',area:'Kolwezi',owner:'Transport Co A',loadingPoint:'Kolwezi Mine',exitBorder:'Sakania',status:'Document Collection',daysInDRC:2,kpi:'orange',addedToday:true,workflow:{loadingProcess:'completed',documents:'current',seal:'pending',escort:'pending',dispatch:'pending',kanyaka:'pending',border:'pending'}},
+    'SB-2024-020': { tripNumber:'SB-2024-020',truck:'JKL987DRC',driver:'Nancy Banda',direction:'SB',area:'Kanyaka',owner:'Transport Co D',loadingPoint:'Kanyaka',exitBorder:'Mokambo',status:'Dispatch',daysInDRC:6,kpi:'orange',workflow:{loadingProcess:'completed',documents:'completed',seal:'completed',escort:'completed',dispatch:'current',kanyaka:'pending',border:'pending'}},
     'NB-2024-046': { tripNumber:'NB-2024-046',truck:'MNO741DRC',driver:'Victor Lungu',direction:'NB',area:'Kasumbalesa',owner:'Transport Co D',entryBorder:'Kasumbalesa',offloadingPoint:'KCC Mine',status:'Whisky Process',daysInDRC:3,kpi:'orange',borderProcess:'Whisky',addedToday:true,workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}},
     'NB-2024-047': { tripNumber:'NB-2024-047',truck:'PQR852DRC',driver:'Emma Zulu',direction:'NB',area:'Kolwezi',owner:'Transport Co B',entryBorder:'Sakania',offloadingPoint:'Kolwezi Mine',status:'Border Clearance',daysInDRC:2,kpi:'green',addedToday:true,workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}}
 };
@@ -674,6 +676,7 @@ function navigateTo(page) {
         case 'admin-roles': renderAdminRoles(ca); break;
         case 'admin-settings': renderAdminSettings(ca); break;
         case 'admin-audit-logs': renderAdminAuditLogs(ca); break;
+        case 'turnarounds': renderTurnarounds(ca); break;
         default: renderDashboard(ca);
     }
     updateSidebarBadges();
@@ -4488,6 +4491,184 @@ function renderReports(container) {
 }
 
 // ============================================
+// TURNAROUNDS — NB → POD → SB lifecycle (API-linked)
+// ============================================
+let turnaroundsCache = [];
+
+async function loadTurnarounds() {
+    if (typeof isApiAvailable === 'function' && isApiAvailable()) {
+        try {
+            turnaroundsCache = await fetchTurnarounds();
+            turnaroundsCache.forEach(t => {
+                if (t.nbTrip) mergeTripIntoLocalDb(t.nbTrip);
+                if (t.sbTrip) mergeTripIntoLocalDb(t.sbTrip);
+            });
+            return turnaroundsCache;
+        } catch (e) {
+            console.warn('Turnarounds API:', e.message);
+        }
+    }
+    return [];
+}
+
+function renderTurnarounds(container) {
+    loadTurnarounds().then(turnarounds => {
+        const apiStatus = (typeof isApiAvailable === 'function' && isApiAvailable())
+            ? '<span class="status-badge green">Backend Connected</span>'
+            : '<span class="status-badge orange">Offline — start backend on port 3001</span>';
+
+        container.innerHTML = `
+            <div class="page-header admin-page-header">
+                <div>
+                    <h1>🔄 Truck Turnarounds</h1>
+                    <p class="page-subtitle">NB clearance → Kanyaka → Offload → POD → SB (same truck/trip). Fleet policy controls same-truck requirement for SB.</p>
+                </div>
+                ${apiStatus}
+            </div>
+            <div class="rbac-info-banner">
+                <strong>Operational flow:</strong>
+                NB: Border (all steps) → Kanyaka Transit → Offloading → POD →
+                SB: Loading → Documents → Seal → Escort → Dispatch → Kanyaka Gov List → Border Exit
+            </div>
+            <div id="turnaroundsList">
+                ${turnarounds.length === 0 ? '<p style="padding:20px;color:var(--text-secondary);">No turnarounds in database. Start the backend and run <code>npm run seed</code> in /backend, or upload an NB trip.</p>' : ''}
+                ${turnarounds.map(t => renderTurnaroundCard(t)).join('')}
+            </div>
+            <div class="settings-card" style="margin-top:20px;" id="fleetSettingsCard">
+                <h3>🚛 Fleet — Same Truck for SB</h3>
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">When enabled, the SB shipment must use the same truck as the NB leg. Certain fleets can disable this.</p>
+                <div id="fleetSettingsBody"><em>Loading fleet settings...</em></div>
+            </div>`;
+        loadFleetSettingsUi();
+    });
+}
+
+function renderTurnaroundCard(t) {
+    const nb = t.nbTrip;
+    const sb = t.sbTrip;
+    const nbSteps = nb ? (WORKFLOW_CONFIG.NB || []).map(s => {
+        const st = nb.workflow?.[s.key] || 'pending';
+        return `<span class="workflow-pill ${st}">${s.label}</span>`;
+    }).join('') : '';
+    const sbSteps = sb ? (WORKFLOW_CONFIG.SB || []).map(s => {
+        const st = sb.workflow?.[s.key] || 'pending';
+        return `<span class="workflow-pill ${st}">${s.label}</span>`;
+    }).join('') : '';
+
+    const kanyakaInfo = sb?.kanyaka ? `
+        <div style="font-size:12px;margin-top:8px;">
+            Gov List: ${sb.kanyaka.gov_list_uploaded ? '✅ ' + (sb.kanyaka.gov_list_file || 'uploaded') : '❌ Not uploaded'}
+            ${sb.kanyaka.exception_approved ? ' | ⚠️ Exception approved' : ''}
+        </div>` : '';
+
+    const createSbBtn = nb && !sb && nb.workflow?.pod === 'completed'
+        ? `<button class="btn btn-primary btn-sm" onclick="handleCreateSbTrip('${nb.tripNumber}')">Create SB Shipment</button>`
+        : nb && !sb ? `<span class="status-badge orange">Awaiting POD → Invoicing</span>` : '';
+
+    const govListBtn = sb && sb.workflow?.kanyaka === 'current' && !sb.kanyaka?.gov_list_uploaded
+        ? `<button class="btn btn-outline btn-sm" onclick="handleUploadGovList('${sb.tripNumber}')">📄 Upload Gov List</button>
+           <button class="btn btn-outline btn-sm" onclick="handleKanyakaException('${sb.tripNumber}')">⚠️ Kanyaka Exception</button>` : '';
+
+    return `
+        <div class="settings-card" style="margin-bottom:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+                <div>
+                    <strong>${t.truck?.plate || '—'}</strong> — ${t.fleetOwner?.name || ''}
+                    <span class="status-badge blue" style="margin-left:8px;">${t.status}</span>
+                    ${t.sameTruckEnforced ? '<span class="status-badge gray">Same truck required</span>' : '<span class="status-badge orange">Different truck allowed</span>'}
+                </div>
+                <div>${createSbBtn} ${govListBtn}</div>
+            </div>
+            <div style="margin-top:12px;">
+                <div><strong>NB:</strong> ${nb ? nb.tripNumber + ' — ' + nb.status : '—'}</div>
+                <div class="workflow-pills">${nbSteps}</div>
+            </div>
+            <div style="margin-top:12px;">
+                <div><strong>SB:</strong> ${sb ? sb.tripNumber + ' — ' + sb.status : '—'}</div>
+                <div class="workflow-pills">${sbSteps}</div>
+                ${kanyakaInfo}
+            </div>
+        </div>`;
+}
+
+async function loadFleetSettingsUi() {
+    const el = document.getElementById('fleetSettingsBody');
+    if (!el) return;
+    if (!isApiAvailable()) { el.innerHTML = '<em>Connect backend to manage fleet settings.</em>'; return; }
+    try {
+        const fleet = await fetchFleet();
+        el.innerHTML = fleet.map(f => `
+            <div class="setting-row">
+                <div><strong>${f.name}</strong></div>
+                <label class="toggle-switch">
+                    <input type="checkbox" ${f.requireSameTruckSb ? 'checked' : ''} onchange="handleFleetSameTruckToggle('${f.id}', this.checked)">
+                    <span class="toggle-slider"></span>
+                </label>
+                <span style="font-size:12px;color:var(--text-secondary);">Require same truck for SB</span>
+            </div>`).join('') || '<em>No fleet owners yet.</em>';
+    } catch (e) {
+        el.innerHTML = `<em>Error: ${e.message}</em>`;
+    }
+}
+
+async function handleCreateSbTrip(nbTripNumber) {
+    if (!isApiAvailable()) { showToast('Backend not connected', 'warning'); return; }
+    try {
+        const trip = await createSbFromNb(nbTripNumber, { loadingPoint: 'Kanyaka Mine', exitBorder: 'Kasumbalesa' });
+        mergeTripIntoLocalDb(trip);
+        showToast(`SB trip ${trip.tripNumber} created on same turnaround`, 'success');
+        renderTurnarounds(document.getElementById('contentArea'));
+    } catch (e) {
+        showToast(e.message, 'warning');
+    }
+}
+
+async function handleUploadGovList(tripNumber) {
+    if (!isApiAvailable()) { showToast('Backend not connected', 'warning'); return; }
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv,.xlsx,.pdf';
+    input.onchange = async () => {
+        if (!input.files[0]) return;
+        try {
+            const trip = await uploadGovList(tripNumber, input.files[0]);
+            mergeTripIntoLocalDb(trip);
+            showToast('Gov List uploaded from mine', 'success');
+            renderTurnarounds(document.getElementById('contentArea'));
+        } catch (e) {
+            showToast(e.message, 'warning');
+        }
+    };
+    input.click();
+}
+
+async function handleKanyakaException(tripNumber) {
+    if (!isApiAvailable()) { showToast('Backend not connected', 'warning'); return; }
+    const reason = prompt('Kanyaka exception reason (allows transit without Gov List):');
+    if (!reason) return;
+    try {
+        const trip = await approveKanyakaException(tripNumber, reason);
+        mergeTripIntoLocalDb(trip);
+        showToast('Kanyaka exception approved', 'success');
+        renderTurnarounds(document.getElementById('contentArea'));
+    } catch (e) {
+        showToast(e.message, 'warning');
+    }
+}
+
+async function handleFleetSameTruckToggle(ownerId, enabled) {
+    if (!isApiAvailable()) return;
+    try {
+        await updateFleetSetting(ownerId, { requireSameTruckSb: enabled });
+        showToast(`Fleet setting updated: same truck SB = ${enabled}`, 'success');
+        logAuditEvent(`Fleet ${ownerId} requireSameTruckSb=${enabled}`, ownerId, 'fleet');
+    } catch (e) {
+        showToast(e.message, 'warning');
+        loadFleetSettingsUi();
+    }
+}
+
+// ============================================
 // ADMIN DASHBOARD — RBAC Pages
 // ============================================
 function renderAdminBreadcrumb(pageTitle) {
@@ -5149,11 +5330,20 @@ function showToast(message,type='success'){ const toast=document.getElementById(
 // ============================================
 // INIT
 // ============================================
-document.addEventListener('DOMContentLoaded',function(){
+document.addEventListener('DOMContentLoaded',async function(){
     syncAllAssetDocumentsToGlobalRegistry();
     initMatrixModalSelects();
     updateTopBarUser();
     populateRoleSwitcher();
+    if (typeof checkApiHealth === 'function') {
+        const connected = await checkApiHealth();
+        if (connected) {
+            await syncTripsFromApi();
+            console.log('✅ Backend connected — trips synced from API');
+        } else {
+            console.log('ℹ️ Backend offline — using local demo data. Run: cd backend && npm start');
+        }
+    }
     navigateTo('dashboard');
     updateSidebarBadges();
     document.querySelectorAll('.modal-overlay').forEach(overlay=>{ overlay.addEventListener('click',function(e){ if(e.target===this)this.classList.remove('show'); }); });

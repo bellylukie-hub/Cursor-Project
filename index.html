@@ -995,6 +995,11 @@
         .btn-danger { background: var(--danger); color: white; border: none; }
         .btn-danger:hover { background: #c53030; }
         .role-switcher { font-size: 12px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: white; cursor: pointer; max-width: 180px; }
+        .workflow-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .workflow-pill { font-size: 11px; padding: 3px 8px; border-radius: 12px; background: #edf2f7; color: #4a5568; }
+        .workflow-pill.completed { background: #c6f6d5; color: #22543d; }
+        .workflow-pill.current { background: #bee3f8; color: #2a4365; font-weight: 600; }
+        .workflow-pill.pending { opacity: 0.6; }
 
         /* MODAL */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 2000; }
@@ -1378,6 +1383,9 @@
                     <a class="nav-item" onclick="navigateTo('reports')" data-page="reports">
                         <span class="icon">📈</span> Reports
                     </a>
+                    <a class="nav-item" onclick="navigateTo('turnarounds')" data-page="turnarounds">
+                        <span class="icon">🔄</span> Turnarounds
+                    </a>
                 </div>
                 <div class="nav-section">
                     <div class="nav-section-title">Admin</div>
@@ -1689,6 +1697,7 @@
         </div>
     </div>
 
+    <script src="api.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
