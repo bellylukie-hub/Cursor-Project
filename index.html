@@ -760,6 +760,8 @@
         .stat-card-clickable:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); border: 2px solid var(--primary-light); }
         .kpi-mini-clickable { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
         .kpi-mini-clickable:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+        .kpi-card-clickable { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+        .kpi-card-clickable:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
         .perf-item-clickable { cursor: pointer; border-radius: 6px; padding: 4px; margin: -4px; transition: background 0.2s; }
         .perf-item-clickable:hover { background: #f7fafc; }
         .card-clickable { cursor: pointer; transition: box-shadow 0.2s; }
@@ -1281,10 +1283,10 @@
                 <div class="nav-section">
                     <div class="nav-section-title">Communication</div>
                     <a class="nav-item" onclick="navigateToCommunicationMatrix('contacts')" data-page="communication-matrix">
-                        <span class="icon">📇</span> Communication Matrix
+                        <span class="icon">📇</span> Communication Matrix <span class="badge" id="navMatrixBadge" title="Total contacts in matrix"></span>
                     </a>
                     <a class="nav-item" onclick="navigateToInternalComm('email')" data-page="internal-communication">
-                        <span class="icon">✉️</span> Internal Communication
+                        <span class="icon">✉️</span> Internal Communication <span class="badge" id="navInternalCommBadge" title="Unread emails and chats"></span>
                     </a>
                 </div>
                 <div class="nav-section">

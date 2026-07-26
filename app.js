@@ -49,6 +49,9 @@ let activeChatRoomId = 'ROOM-004';
 let chatListSearch = '';
 let chatReplyToId = null;
 let chatPendingFile = null;
+let emailShowUnreadOnly = false;
+let chatTypeFilter = 'all';
+let chatShowUnreadOnly = false;
 let currentDocumentId = null;
 let currentTripFilter = 'all';
 let currentDocFilter = 'all';
@@ -478,6 +481,7 @@ function navigateTo(page) {
         case 'reports': renderReports(ca); break;
         default: renderDashboard(ca);
     }
+    updateSidebarBadges();
 }
 
 function navigateToPOD(filter) {
@@ -1392,6 +1396,142 @@ function renderBorderPerformanceCard(direction, data) {
     `;
 }
 
+function getCommunicationDashboardStats() {
+    const matrix = getMatrixStats();
+    const emailCounts = getEmailFolderCounts();
+    const unreadChats = chatRoomsDB.reduce((sum, room) => sum + (room.unreadCount || 0), 0);
+    return {
+        matrixTotalContacts: matrix.totalContacts,
+        matrixActiveContacts: matrix.activeContacts,
+        matrixInactiveContacts: matrix.inactiveContacts,
+        matrixCompanies: matrix.companies,
+        matrixAreas: matrix.areas,
+        unreadEmails: emailCounts.unread,
+        unreadChats,
+        unreadMessages: emailCounts.unread + unreadChats,
+        sentEmails: emailCounts.sent,
+        drafts: emailCounts.drafts,
+        groupChats: chatRoomsDB.filter(r => r.type === 'group').length,
+        directChats: chatRoomsDB.filter(r => r.type === 'direct').length
+    };
+}
+
+function updateSidebarBadges() {
+    const comm = getCommunicationDashboardStats();
+    const matrixBadge = document.getElementById('navMatrixBadge');
+    const internalBadge = document.getElementById('navInternalCommBadge');
+    if (matrixBadge) {
+        matrixBadge.textContent = comm.matrixTotalContacts;
+        matrixBadge.title = `${comm.matrixTotalContacts} contacts in Communication Matrix`;
+        matrixBadge.style.display = comm.matrixTotalContacts ? '' : 'none';
+    }
+    if (internalBadge) {
+        internalBadge.textContent = comm.unreadMessages;
+        internalBadge.title = `${comm.unreadEmails} unread email(s), ${comm.unreadChats} unread chat(s)`;
+        internalBadge.style.display = comm.unreadMessages ? '' : 'none';
+    }
+}
+
+function navigateToMatrixKpi(kpi) {
+    matrixSearchTerm = '';
+    matrixAreaFilter = 'all';
+    if (kpi === 'total') {
+        matrixFilter = 'contacts';
+        matrixActiveFilter = 'all';
+    } else if (kpi === 'active') {
+        matrixFilter = 'contacts';
+        matrixActiveFilter = 'active';
+    } else if (kpi === 'inactive') {
+        matrixFilter = 'contacts';
+        matrixActiveFilter = 'inactive';
+    } else if (kpi === 'companies') {
+        matrixFilter = 'companies';
+        matrixActiveFilter = 'all';
+    } else if (kpi === 'areas') {
+        matrixFilter = 'areas';
+        matrixActiveFilter = 'all';
+    }
+    navigateToCommunicationMatrix(matrixFilter);
+}
+
+function navigateToInternalCommKpi(kpi) {
+    emailShowUnreadOnly = false;
+    chatTypeFilter = 'all';
+    chatShowUnreadOnly = false;
+    if (kpi === 'unread-email' || kpi === 'unread-all') {
+        internalCommFilter = 'email';
+        emailFolder = 'inbox';
+        emailView = 'list';
+        emailShowUnreadOnly = true;
+    } else if (kpi === 'unread-chats') {
+        internalCommFilter = 'chat';
+        chatShowUnreadOnly = true;
+    } else if (kpi === 'sent') {
+        internalCommFilter = 'email';
+        emailFolder = 'sent';
+        emailView = 'list';
+    } else if (kpi === 'drafts') {
+        internalCommFilter = 'email';
+        emailFolder = 'drafts';
+        emailView = 'list';
+    } else if (kpi === 'group-chats') {
+        internalCommFilter = 'chat';
+        chatTypeFilter = 'group';
+    } else if (kpi === 'direct-chats') {
+        internalCommFilter = 'chat';
+        chatTypeFilter = 'direct';
+    }
+    navigateToInternalComm(internalCommFilter);
+}
+
+function renderCommunicationDashboardSection() {
+    const c = getCommunicationDashboardStats();
+    return `
+        <div class="section-title-bar">
+            <h2><i class="fas fa-comments"></i> Communication</h2>
+            <button class="card-action" onclick="navigateToInternalComm('email')">Internal Communication →</button>
+        </div>
+        <div class="pod-stat-grid">
+            <div class="pod-stat-item" onclick="navigateToMatrixKpi('total')" title="View all contacts in Communication Matrix">
+                <div class="pod-stat-icon">📇</div>
+                <div class="pod-stat-value blue">${c.matrixTotalContacts}</div>
+                <div class="pod-stat-label">Matrix Contacts</div>
+                <div class="pod-stat-sub">People, companies &amp; functions</div>
+            </div>
+            <div class="pod-stat-item" onclick="navigateToMatrixKpi('active')" title="View active contacts">
+                <div class="pod-stat-icon">✅</div>
+                <div class="pod-stat-value green">${c.matrixActiveContacts}</div>
+                <div class="pod-stat-label">Active Contacts</div>
+                <div class="pod-stat-sub">${c.matrixInactiveContacts} <span style="color:var(--orange);cursor:pointer;" onclick="event.stopPropagation();navigateToMatrixKpi('inactive')">inactive →</span></div>
+            </div>
+            <div class="pod-stat-item" onclick="navigateToMatrixKpi('companies')" title="View companies in matrix">
+                <div class="pod-stat-icon">🏢</div>
+                <div class="pod-stat-value blue">${c.matrixCompanies}</div>
+                <div class="pod-stat-label">Companies</div>
+                <div class="pod-stat-sub">${c.matrixAreas} areas covered</div>
+            </div>
+            <div class="pod-stat-item" onclick="navigateToInternalCommKpi('unread-email')" title="View unread internal emails">
+                <div class="pod-stat-icon">✉️</div>
+                <div class="pod-stat-value orange">${c.unreadEmails}</div>
+                <div class="pod-stat-label">Unread Email</div>
+                <div class="pod-stat-sub">Internal system mail</div>
+            </div>
+            <div class="pod-stat-item" onclick="navigateToInternalCommKpi('unread-chats')" title="View chats with unread messages">
+                <div class="pod-stat-icon">💬</div>
+                <div class="pod-stat-value orange">${c.unreadChats}</div>
+                <div class="pod-stat-label">Unread Chats</div>
+                <div class="pod-stat-sub">WhatsApp-style messages</div>
+            </div>
+            <div class="pod-stat-item" onclick="navigateToInternalComm('email')" title="Open Internal Communication">
+                <div class="pod-stat-icon">📨</div>
+                <div class="pod-stat-value ${c.unreadMessages ? 'red' : 'green'}">${c.unreadMessages}</div>
+                <div class="pod-stat-label">Total Unread</div>
+                <div class="pod-stat-sub">${c.drafts} draft(s) · ${c.groupChats} group chat(s)</div>
+            </div>
+        </div>
+    `;
+}
+
 function renderPODDashboardSection() {
     const s = getPODStats();
     return `
@@ -1521,6 +1661,8 @@ function renderDashboard(container) {
                 </div>
 
                 ${renderPODDashboardSection()}
+
+                ${renderCommunicationDashboardSection()}
 
                 <div class="row">
                     <div class="card">
@@ -3125,6 +3267,7 @@ function getMatrixStats() {
     return {
         totalContacts: communicationMatrixDB.length,
         activeContacts: communicationMatrixDB.filter(c => c.active).length,
+        inactiveContacts: communicationMatrixDB.filter(c => !c.active).length,
         companies: companies.length,
         areas: [...new Set(communicationMatrixDB.map(c => c.area))].length,
         functions: functions.length
@@ -3361,6 +3504,7 @@ function submitMatrixContact() {
     closeModal('matrixContactModal');
     if (currentPage === 'communication-matrix') refreshMatrixTable();
     showToast(`Contact ${name} saved`, 'success');
+    updateSidebarBadges();
 }
 
 function renderCommunicationMatrix(container) {
@@ -3376,10 +3520,10 @@ function renderCommunicationMatrix(container) {
         </div>
 
         <div class="kpi-grid">
-            <div class="kpi-card blue"><div class="kpi-header"><span class="kpi-title">Total Contacts</span></div><div class="kpi-value">${stats.totalContacts}</div></div>
-            <div class="kpi-card green"><div class="kpi-header"><span class="kpi-title">Active Contacts</span></div><div class="kpi-value">${stats.activeContacts}</div></div>
-            <div class="kpi-card orange"><div class="kpi-header"><span class="kpi-title">Companies</span></div><div class="kpi-value">${stats.companies}</div></div>
-            <div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Areas Covered</span></div><div class="kpi-value">${stats.areas}</div></div>
+            <div class="kpi-card blue kpi-card-clickable" onclick="navigateToMatrixKpi('total')" title="View all contacts"><div class="kpi-header"><span class="kpi-title">Total Contacts</span></div><div class="kpi-value">${stats.totalContacts}</div><div class="kpi-trend">Contact directory entries</div></div>
+            <div class="kpi-card green kpi-card-clickable" onclick="navigateToMatrixKpi('active')" title="View active contacts"><div class="kpi-header"><span class="kpi-title">Active Contacts</span></div><div class="kpi-value">${stats.activeContacts}</div><div class="kpi-trend">Currently active in matrix</div></div>
+            <div class="kpi-card orange kpi-card-clickable" onclick="navigateToMatrixKpi('inactive')" title="View inactive contacts"><div class="kpi-header"><span class="kpi-title">Inactive Contacts</span></div><div class="kpi-value">${stats.inactiveContacts}</div><div class="kpi-trend">Needs review / update</div></div>
+            <div class="kpi-card kpi-card-clickable" onclick="navigateToMatrixKpi('companies')" title="View by company"><div class="kpi-header"><span class="kpi-title">Companies</span></div><div class="kpi-value">${stats.companies}</div><div class="kpi-trend">${stats.areas} areas covered</div></div>
         </div>
 
         <div class="assets-action-bar">
@@ -3387,6 +3531,8 @@ function renderCommunicationMatrix(container) {
         </div>
 
         <div class="pod-filter-tabs">${renderMatrixFilterTabs(filter)}</div>
+
+        ${matrixActiveFilter !== 'all' && filter === 'contacts' ? `<div style="background:#ebf8ff;border:1px solid #90cdf4;padding:10px 16px;margin-bottom:12px;border-radius:8px;font-size:13px;">Showing <strong>${matrixActiveFilter} contacts only</strong>. <button class="btn btn-outline btn-sm" onclick="matrixActiveFilter='all';refreshMatrixTable();">Show all contacts</button></div>` : ''}
 
         <div class="filters-bar">
             ${filter === 'contacts' ? `
@@ -3423,6 +3569,7 @@ function renderCommunicationMatrix(container) {
         <button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">⬅️ Back to Dashboard</button>
     `;
     refreshMatrixTable();
+    updateSidebarBadges();
 }
 
 
@@ -3431,6 +3578,8 @@ function renderCommunicationMatrix(container) {
 // ============================================
 function navigateToInternalComm(filter) {
     internalCommFilter = filter || 'email';
+    if (filter === 'email') chatShowUnreadOnly = false;
+    if (filter === 'chat') emailShowUnreadOnly = false;
     navigateTo('internal-communication');
 }
 
@@ -3452,6 +3601,7 @@ function getEmailsForFolder(folder) {
     if (folder === 'starred') items = items.filter(e => e.starred && e.folder !== 'trash');
     else if (folder === 'inbox') items = items.filter(e => e.folder === 'inbox');
     else items = items.filter(e => e.folder === folder);
+    if (emailShowUnreadOnly) items = items.filter(e => !e.read);
     const search = emailSearchTerm || (document.getElementById('emailSearchInput')?.value || '').trim();
     if (search) {
         const term = search.toLowerCase();
@@ -3470,6 +3620,7 @@ function selectEmailFolder(folder) {
     selectedEmailId = null;
     emailView = 'list';
     emailComposeData = null;
+    emailShowUnreadOnly = false;
     renderInternalCommunication(document.getElementById('contentArea'));
 }
 
@@ -3720,6 +3871,9 @@ function renderOutlookClient() {
 
 function getFilteredChatRooms() {
     let items = [...chatRoomsDB].sort((a, b) => (b.pinned - a.pinned) || b.lastAt.localeCompare(a.lastAt));
+    if (chatTypeFilter === 'group') items = items.filter(r => r.type === 'group');
+    if (chatTypeFilter === 'direct') items = items.filter(r => r.type === 'direct');
+    if (chatShowUnreadOnly) items = items.filter(r => (r.unreadCount || 0) > 0);
     const search = chatListSearch || (document.getElementById('waSearchInput')?.value || '').trim();
     if (search) {
         const term = search.toLowerCase();
@@ -3915,7 +4069,15 @@ function setChatReply(messageId) {
 
 function getInternalCommStats() {
     const counts = getEmailFolderCounts();
-    return { unread: counts.unread, sent: counts.sent, groupChats: chatRoomsDB.filter(r => r.type === 'group').length, directChats: chatRoomsDB.filter(r => r.type === 'direct').length };
+    const unreadChats = chatRoomsDB.reduce((sum, room) => sum + (room.unreadCount || 0), 0);
+    return {
+        unread: counts.unread,
+        sent: counts.sent,
+        drafts: counts.drafts,
+        unreadChats,
+        groupChats: chatRoomsDB.filter(r => r.type === 'group').length,
+        directChats: chatRoomsDB.filter(r => r.type === 'direct').length
+    };
 }
 
 function getInternalCommExportData() {
@@ -3933,20 +4095,24 @@ function renderInternalCommunication(container) {
             <div class="breadcrumb"><a href="#" onclick="navigateTo('dashboard')">Home</a> <span>›</span> <strong>Internal Communication</strong></div>
         </div>
         <div class="kpi-grid" style="margin-bottom:16px;">
-            <div class="kpi-card orange"><div class="kpi-header"><span class="kpi-title">Unread Email</span></div><div class="kpi-value">${stats.unread}</div></div>
-            <div class="kpi-card green"><div class="kpi-header"><span class="kpi-title">Sent</span></div><div class="kpi-value">${stats.sent}</div></div>
-            <div class="kpi-card blue"><div class="kpi-header"><span class="kpi-title">Group Chats</span></div><div class="kpi-value">${stats.groupChats}</div></div>
-            <div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Direct Chats</span></div><div class="kpi-value">${stats.directChats}</div></div>
+            <div class="kpi-card orange kpi-card-clickable" onclick="navigateToInternalCommKpi('unread-email')" title="View unread emails in inbox"><div class="kpi-header"><span class="kpi-title">Unread Email</span></div><div class="kpi-value">${stats.unread}</div><div class="kpi-trend">Inbox messages not read</div></div>
+            <div class="kpi-card green kpi-card-clickable" onclick="navigateToInternalCommKpi('sent')" title="View sent emails"><div class="kpi-header"><span class="kpi-title">Sent</span></div><div class="kpi-value">${stats.sent}</div><div class="kpi-trend">Emails you have sent</div></div>
+            <div class="kpi-card blue kpi-card-clickable" onclick="navigateToInternalCommKpi('group-chats')" title="View group chats"><div class="kpi-header"><span class="kpi-title">Group Chats</span></div><div class="kpi-value">${stats.groupChats}</div><div class="kpi-trend">${stats.unreadChats || 0} unread chat message(s)</div></div>
+            <div class="kpi-card kpi-card-clickable" onclick="navigateToInternalCommKpi('direct-chats')" title="View direct chats"><div class="kpi-header"><span class="kpi-title">Direct Chats</span></div><div class="kpi-value">${stats.directChats}</div><div class="kpi-trend">1-to-1 conversations</div></div>
         </div>
         <div class="comm-app-tabs">
-            <button class="comm-app-tab${internalCommFilter === 'email' ? ' active' : ''}" onclick="navigateToInternalComm('email')">📧 Email (Outlook)</button>
-            <button class="comm-app-tab${internalCommFilter === 'chat' ? ' active' : ''}" onclick="navigateToInternalComm('chat')">💬 Chat (WhatsApp)</button>
+            <button class="comm-app-tab${internalCommFilter === 'email' ? ' active' : ''}" onclick="chatTypeFilter='all';chatShowUnreadOnly=false;navigateToInternalComm('email')">📧 Email (Outlook)</button>
+            <button class="comm-app-tab${internalCommFilter === 'chat' ? ' active' : ''}" onclick="emailShowUnreadOnly=false;navigateToInternalComm('chat')">💬 Chat (WhatsApp)</button>
         </div>
+        ${emailShowUnreadOnly ? `<div style="background:#fffaf0;border:1px solid #f6ad55;padding:10px 16px;margin-bottom:12px;border-radius:8px;font-size:13px;">Showing <strong>unread emails only</strong> in Inbox. <button class="btn btn-outline btn-sm" onclick="emailShowUnreadOnly=false;renderInternalCommunication(document.getElementById('contentArea'))">Show all</button></div>` : ''}
+        ${chatShowUnreadOnly ? `<div style="background:#fffaf0;border:1px solid #f6ad55;padding:10px 16px;margin-bottom:12px;border-radius:8px;font-size:13px;">Showing <strong>chats with unread messages</strong>. <button class="btn btn-outline btn-sm" onclick="chatShowUnreadOnly=false;renderInternalCommunication(document.getElementById('contentArea'))">Show all chats</button></div>` : ''}
+        ${chatTypeFilter !== 'all' ? `<div style="background:#ebf8ff;border:1px solid #90cdf4;padding:10px 16px;margin-bottom:12px;border-radius:8px;font-size:13px;">Showing <strong>${chatTypeFilter === 'group' ? 'group' : 'direct'} chats only</strong>. <button class="btn btn-outline btn-sm" onclick="chatTypeFilter='all';renderInternalCommunication(document.getElementById('contentArea'))">Show all</button></div>` : ''}
         <div class="comm-shell">${internalCommFilter === 'chat' ? renderWhatsAppClient() : renderOutlookClient()}</div>
         <button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">⬅️ Back to Dashboard</button>
     `;
     if (emailView === 'compose') populateEmailLinkSelect();
     if (internalCommFilter === 'chat') setTimeout(() => { const pane = document.getElementById('waMessagesPane'); if (pane) pane.scrollTop = pane.scrollHeight; }, 50);
+    updateSidebarBadges();
 }
 
 function renderReports(container) {
@@ -4206,6 +4372,7 @@ document.addEventListener('DOMContentLoaded',function(){
     syncAllAssetDocumentsToGlobalRegistry();
     initMatrixModalSelects();
     navigateTo('dashboard');
+    updateSidebarBadges();
     document.querySelectorAll('.modal-overlay').forEach(overlay=>{ overlay.addEventListener('click',function(e){ if(e.target===this)this.classList.remove('show'); }); });
     document.addEventListener('click',function(event){ const ap=document.getElementById('alertPanel'); const nb=document.querySelector('.notification-btn'); if(ap&&nb&&!ap.contains(event.target)&&!nb.contains(event.target)&&ap.classList.contains('show'))ap.classList.remove('show'); });
     console.log('🚛 TruckControl DRC - Complete Demo Ready');
