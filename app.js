@@ -1430,7 +1430,176 @@ function updateSidebarBadges() {
         internalBadge.title = `${comm.unreadEmails} unread email(s), ${comm.unreadChats} unread chat(s)`;
         internalBadge.style.display = comm.unreadMessages ? '' : 'none';
     }
+    updateAlertPanel();
 }
+
+function collectSystemAlerts() {
+    const alerts = [];
+
+    emailsDB.filter(e => !e.mirrorOf && e.folder === 'inbox' && !e.read).forEach(e => {
+        alerts.push({
+            id: `email-${e.id}`, category: 'Email', level: e.important ? 'orange' : 'blue', icon: '✉️',
+            title: e.subject,
+            subtitle: `From: ${e.from}${e.relatedLabel ? ` · ${e.relatedLabel}` : ''}`,
+            time: e.sentAt,
+            action: { type: 'email', ref: e.id }
+        });
+    });
+
+    chatRoomsDB.filter(r => (r.unreadCount || 0) > 0).forEach(r => {
+        alerts.push({
+            id: `chat-${r.id}`, category: 'Chat', level: 'blue',
+            icon: r.type === 'group' ? '👥' : '💬',
+            title: `${r.name} — ${r.unreadCount} unread message${r.unreadCount !== 1 ? 's' : ''}`,
+            subtitle: r.lastMessage,
+            time: r.lastAt,
+            action: { type: 'chat', ref: r.id }
+        });
+    });
+
+    Object.values(tripsDB).filter(t => t.kpi === 'orange' || t.kpi === 'red').forEach(trip => {
+        alerts.push({
+            id: `trip-${trip.tripNumber}`, category: 'Operations', level: trip.kpi,
+            icon: trip.kpi === 'red' ? '🔴' : '🟠',
+            title: `${trip.tripNumber} — ${trip.status}`,
+            subtitle: `${trip.truck} | ${trip.driver} | ${trip.area || '—'} | ${trip.daysInDRC} days in DRC`,
+            time: trip.kpi === 'red' ? 'Overdue — action required' : 'Priority attention',
+            action: { type: 'trip', ref: trip.tripNumber }
+        });
+    });
+
+    podDB.filter(p => p.overdue || (!p.collected && p.kpi === 'red')).forEach(p => {
+        alerts.push({
+            id: `pod-${p.trip}`, category: 'POD', level: p.overdue ? 'red' : 'orange', icon: '📋',
+            title: `POD ${p.overdue ? 'Overdue' : 'Pending'} — ${p.trip}`,
+            subtitle: `${p.truck} | ${p.driver} | ${p.area}`,
+            time: p.overdue ? 'Collection overdue' : 'Awaiting POD collection',
+            action: { type: 'pod', ref: p.overdue ? 'overdue' : 'pending' }
+        });
+    });
+
+    documentsDB.filter(d => d.status === 'expired' || d.status === 'expiring').forEach(d => {
+        alerts.push({
+            id: `doc-${d.id}`, category: 'Documents', level: d.status === 'expired' ? 'red' : 'orange', icon: '📄',
+            title: `${d.type} — ${d.label}`,
+            subtitle: `${d.entity} | ${d.truck || '—'}`,
+            time: `Expiry: ${d.expiry}`,
+            action: { type: 'document', ref: d.id }
+        });
+    });
+
+    emailsDB.filter(e => !e.mirrorOf && e.folder === 'drafts').forEach(e => {
+        alerts.push({
+            id: `draft-${e.id}`, category: 'Email', level: 'orange', icon: '📝',
+            title: `Draft: ${e.subject}`,
+            subtitle: `To: ${e.to.join(', ') || '—'}`,
+            time: e.sentAt,
+            action: { type: 'draft', ref: e.id }
+        });
+    });
+
+    const levelOrder = { red: 0, orange: 1, blue: 2 };
+    const categoryOrder = { Email: 0, Chat: 1, Operations: 2, POD: 3, Documents: 4 };
+    return alerts.sort((a, b) => {
+        const byLevel = (levelOrder[a.level] ?? 9) - (levelOrder[b.level] ?? 9);
+        if (byLevel !== 0) return byLevel;
+        return (categoryOrder[a.category] ?? 9) - (categoryOrder[b.category] ?? 9);
+    });
+}
+
+function renderAlertPanelContent(alerts) {
+    if (!alerts.length) {
+        return '<div style="padding:32px 20px;text-align:center;color:var(--text-secondary);"><div style="font-size:32px;margin-bottom:8px;">✅</div>No alerts — you\'re all caught up!</div>';
+    }
+    const grouped = {};
+    alerts.forEach(a => {
+        if (!grouped[a.category]) grouped[a.category] = [];
+        grouped[a.category].push(a);
+    });
+    const order = ['Email', 'Chat', 'Operations', 'POD', 'Documents'];
+    const icons = { Email: '✉️', Chat: '💬', Operations: '🚛', POD: '📋', Documents: '📄' };
+    return order.filter(cat => grouped[cat]?.length).map(cat => `
+        <div class="alert-section-title">${icons[cat]} ${cat} (${grouped[cat].length})</div>
+        ${grouped[cat].map(a => `
+            <div class="alert-item ${a.level}" onclick="handleSystemAlertClick('${a.id}')">
+                <div class="alert-title">${a.icon} ${a.title}</div>
+                <div class="alert-time">${a.subtitle}</div>
+                <div class="alert-time" style="margin-top:3px;">${a.time}</div>
+            </div>
+        `).join('')}
+    `).join('');
+}
+
+function updateAlertPanel() {
+    const alerts = collectSystemAlerts();
+    const countEl = document.getElementById('alertCount');
+    const body = document.getElementById('alertPanelBody');
+    const footer = document.getElementById('alertPanelFooter');
+    const btn = document.querySelector('.notification-btn');
+    if (countEl) {
+        countEl.textContent = alerts.length;
+        countEl.style.display = alerts.length ? 'flex' : 'none';
+    }
+    if (btn) btn.classList.toggle('has-alerts', alerts.length > 0);
+    if (body) body.innerHTML = renderAlertPanelContent(alerts);
+    if (footer) {
+        const emailCount = alerts.filter(a => a.category === 'Email').length;
+        const chatCount = alerts.filter(a => a.category === 'Chat').length;
+        const opsCount = alerts.length - emailCount - chatCount;
+        footer.innerHTML = alerts.length
+            ? `${alerts.length} alert${alerts.length !== 1 ? 's' : ''} · ✉️ ${emailCount} email · 💬 ${chatCount} chat · 🚛 ${opsCount} operations`
+            : '';
+    }
+}
+
+function handleSystemAlertClick(alertId) {
+    const alert = collectSystemAlerts().find(a => a.id === alertId);
+    if (!alert) return;
+    document.getElementById('alertPanel')?.classList.remove('show');
+
+    switch (alert.action.type) {
+        case 'email': {
+            const email = getEmailById(alert.action.ref);
+            if (email) email.read = true;
+            internalCommFilter = 'email';
+            emailFolder = 'inbox';
+            emailView = 'read';
+            selectedEmailId = alert.action.ref;
+            emailShowUnreadOnly = false;
+            navigateTo('internal-communication');
+            break;
+        }
+        case 'draft': {
+            internalCommFilter = 'email';
+            emailFolder = 'drafts';
+            emailView = 'compose';
+            emailComposeData = { mode: 'editDraft', draftId: alert.action.ref };
+            navigateTo('internal-communication');
+            break;
+        }
+        case 'chat': {
+            const room = chatRoomsDB.find(r => r.id === alert.action.ref);
+            if (room) room.unreadCount = 0;
+            internalCommFilter = 'chat';
+            activeChatRoomId = alert.action.ref;
+            chatShowUnreadOnly = false;
+            navigateTo('internal-communication');
+            break;
+        }
+        case 'trip':
+            openCommentModal(alert.action.ref);
+            break;
+        case 'pod':
+            navigateToPOD(alert.action.ref);
+            break;
+        case 'document':
+            navigateToDocument(alert.action.ref);
+            break;
+    }
+    updateAlertPanel();
+}
+
+function handleAlertClick(tripNumber) { handleSystemAlertClick(`trip-${tripNumber}`); }
 
 function navigateToMatrixKpi(kpi) {
     matrixSearchTerm = '';
@@ -4358,10 +4527,14 @@ function switchBorderTab(tabId, tabElement) {
 function openUploadModal(direction){ document.getElementById('uploadType').value=direction; document.getElementById('uploadModalTitle').textContent=`📤 Upload ${direction} Data`; openModal('uploadModal'); }
 function handleUpload(){ showToast('✅ Upload complete!','success'); closeModal('uploadModal'); }
 function handleGlobalSearch(){ const term=document.getElementById('globalSearch').value.toLowerCase(); if(!term)return; for(const[key,trip]of Object.entries(tripsDB)){ if(trip.tripNumber.toLowerCase().includes(term)||trip.truck.toLowerCase().includes(term)||trip.driver.toLowerCase().includes(term)){ showToast(`Found: ${trip.tripNumber} - ${trip.truck}`,'success'); return; } } showToast('No matching trucks found','warning'); }
-function handleAlertClick(tripNumber){ toggleAlerts(); openCommentModal(tripNumber); }
+function toggleAlerts() {
+    const panel = document.getElementById('alertPanel');
+    if (!panel) return;
+    updateAlertPanel();
+    panel.classList.toggle('show');
+}
 function openModal(modalId){ document.getElementById(modalId).classList.add('show'); }
 function closeModal(modalId){ document.getElementById(modalId).classList.remove('show'); }
-function toggleAlerts(){ document.getElementById('alertPanel').classList.toggle('show'); }
 function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('mobile-open'); }
 function showToast(message,type='success'){ const toast=document.getElementById('toast'); toast.textContent=message; toast.className=`toast ${type} show`; setTimeout(()=>toast.classList.remove('show'),3000); }
 

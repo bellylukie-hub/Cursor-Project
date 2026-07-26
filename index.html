@@ -917,6 +917,17 @@
         .alert-item .alert-time { font-size: 12px; color: var(--text-secondary); }
         .alert-item.orange { border-left: 3px solid var(--warning); }
         .alert-item.red { border-left: 3px solid var(--danger); }
+        .alert-item.blue { border-left: 3px solid var(--primary-light); background: #f7fbff; }
+        .alert-section-title {
+            padding: 10px 20px 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--text-secondary); background: #f8fafc;
+            border-bottom: 1px solid var(--border); position: sticky; top: 57px; z-index: 1;
+        }
+        .alert-panel-footer {
+            padding: 12px 20px; border-top: 1px solid var(--border); background: #f8fafc;
+            font-size: 12px; color: var(--text-secondary); text-align: center;
+        }
+        .notification-btn.has-alerts { color: var(--primary); }
 
         /* MODAL */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 2000; }
@@ -1330,10 +1341,12 @@
             </header>
 
             <div class="alert-panel" id="alertPanel">
-                <div class="alert-panel-header"><h3>🔔 Priority Alerts</h3><button class="btn btn-outline" onclick="toggleAlerts()" style="font-size:18px;">✕</button></div>
-                <div class="alert-item orange" onclick="handleAlertClick('NB-2024-001')"><div class="alert-title">🟠 NB-2024-001 - Border Clearance Approaching Deadline</div><div class="alert-time">Truck: ABC123DRC | Kasumbalesa | 38 hours</div></div>
-                <div class="alert-item red" onclick="handleAlertClick('NB-2024-022')"><div class="alert-title">🔴 NB-2024-022 - POD Missing for 5 Days</div><div class="alert-time">Truck: GHI789DRC | Lubumbashi | Action Required</div></div>
-                <div class="alert-item orange" onclick="handleAlertClick('SB-2024-005')"><div class="alert-title">🟠 SB-2024-005 - Loading Delay at Mine</div><div class="alert-time">Truck: MNO345DRC | Kanyaka | 45 hours</div></div>
+                <div class="alert-panel-header">
+                    <h3>🔔 System Alerts</h3>
+                    <button class="btn btn-outline" onclick="toggleAlerts()" style="font-size:18px;">✕</button>
+                </div>
+                <div id="alertPanelBody"></div>
+                <div class="alert-panel-footer" id="alertPanelFooter"></div>
             </div>
 
             <div class="content-area" id="contentArea"></div>
