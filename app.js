@@ -163,13 +163,32 @@ const OPERATIONAL_AREAS = ['Kasumbalesa', 'Kanyaka', 'Kolwezi', 'Lubumbashi', 'L
 const MATRIX_AREAS = OPERATIONAL_AREAS;
 
 const areaStatusesDB = [
-    { id: 'AS-001', area: 'Kasumbalesa', statuses: ['Arrived at Border', 'KBP Parking', 'KBP Scan Bay', 'Whisky Process', 'Customs Clearance', 'Border Clearance Complete', 'Delayed — Queue'], active: true },
-    { id: 'AS-002', area: 'Kanyaka', statuses: ['In Transit to Kanyaka', 'At Kanyaka Depot', 'Gov List Pending', 'Gov List Uploaded', 'Loading', 'Dispatch Ready', 'Exit Pending', 'Exception — Transit Approved'], active: true },
-    { id: 'AS-003', area: 'Kolwezi', statuses: ['In Transit', 'At Mine Gate', 'Offloading', 'Offloading Complete', 'Awaiting POD'], active: true },
-    { id: 'AS-004', area: 'Lubumbashi', statuses: ['In Transit', 'At Depot', 'Offloading', 'POD Collection', 'POD Complete'], active: true },
-    { id: 'AS-005', area: 'Sakania', statuses: ['Arrived at Border', 'BN Process', 'Parking', 'Clearance Complete'], active: true },
-    { id: 'AS-006', area: 'Mokambo', statuses: ['Arrived at Border', 'BN Process', 'Gov List Upload', 'Clearance Complete'], active: true },
-    { id: 'AS-007', area: 'Likasi', statuses: ['In Transit', 'Offloading', 'Offloading Complete'], active: true }
+    { id: 'AS-001', area: 'Kasumbalesa', isBorder: true, borderForNB: true, borderForSB: true, isOffloadingPoint: false, isLoadingPoint: false, isKanyakaHub: false, kanyakaForNB: false, kanyakaForSB: false,
+      statusesNB: ['Arrived at Border', 'KBP Parking', 'KBP Scan Bay', 'Whisky Process', 'Customs Clearance', 'Border Clearance Complete'],
+      statusesSB: ['Exit Queue', 'Gov List Check', 'Exit Processing'],
+      statusesBorderNB: ['KBP Parking', 'KBP Scan Bay', 'Whisky Process', 'Customs Clearance', 'Driver Contact Recorded'],
+      statusesBorderSB: ['Gov List Uploaded', 'Customs Declaration', 'Seal Verification', 'Exit to Zambia'], active: true },
+    { id: 'AS-002', area: 'Kanyaka', isBorder: false, borderForNB: false, borderForSB: false, isOffloadingPoint: true, isLoadingPoint: true, isKanyakaHub: true, kanyakaForNB: true, kanyakaForSB: true,
+      statusesNB: ['In Transit to Kanyaka', 'At Kanyaka Depot', 'Transit Complete'],
+      statusesSB: ['Gov List Pending', 'Gov List Uploaded', 'Loading', 'Dispatch Ready', 'Exit Pending', 'Exception — Transit Approved'],
+      statusesBorderNB: [], statusesBorderSB: [], active: true },
+    { id: 'AS-003', area: 'Kolwezi', isBorder: false, isOffloadingPoint: true, isLoadingPoint: true, isKanyakaHub: false, kanyakaForNB: true, kanyakaForSB: false,
+      statusesNB: ['In Transit', 'At Mine Gate', 'Offloading', 'Offloading Complete', 'Awaiting POD'],
+      statusesSB: ['At Mine', 'Loading', 'Loading Complete'], statusesBorderNB: [], statusesBorderSB: [], active: true },
+    { id: 'AS-004', area: 'Lubumbashi', isOffloadingPoint: true, isLoadingPoint: false, isKanyakaHub: false,
+      statusesNB: ['In Transit', 'At Depot', 'Offloading', 'POD Collection', 'POD Complete'],
+      statusesSB: [], statusesBorderNB: [], statusesBorderSB: [], active: true },
+    { id: 'AS-005', area: 'Sakania', isBorder: true, borderForNB: true, borderForSB: true,
+      statusesNB: ['Arrived at Border', 'BN Process', 'Parking', 'Clearance Complete'],
+      statusesSB: ['Exit BN Process', 'Clearance Complete'],
+      statusesBorderNB: ['Arrived', 'BN Parking', 'Scanning', 'Clearance Complete'],
+      statusesBorderSB: ['Gov List', 'Declaration', 'Exit Complete'], active: true },
+    { id: 'AS-006', area: 'Mokambo', isBorder: true, borderForNB: true, borderForSB: true,
+      statusesNB: ['Arrived at Border', 'BN Process', 'Clearance Complete'],
+      statusesSB: ['Gov List Upload', 'Exit Processing'],
+      statusesBorderNB: ['Arrived', 'BN Process', 'Gov List', 'Clearance Complete'],
+      statusesBorderSB: ['Gov List Uploaded', 'Seal Verification', 'Exit Complete'], active: true },
+    { id: 'AS-007', area: 'Likasi', isOffloadingPoint: true, statusesNB: ['In Transit', 'Offloading', 'Offloading Complete'], statusesSB: [], statusesBorderNB: [], statusesBorderSB: [], active: true }
 ];
 
 const SB_EXIT_BORDERS = ['Kasumbalesa', 'Sakania', 'Mokambo'];
@@ -184,8 +203,13 @@ let currentReportType = 'operations-overview';
 let areaAssignmentFilter = '';
 
 function getStatusesForArea(areaName) {
+    if (typeof getStatusesForContext === 'function') {
+        const trip = Object.values(tripsDB).find(t => t.area === areaName);
+        if (trip) return getStatusesForContext(trip);
+    }
     const rec = areaStatusesDB.find(a => a.area === areaName);
-    return rec ? rec.statuses : [];
+    if (!rec) return [];
+    return [...new Set([...(rec.statusesNB || []), ...(rec.statusesSB || []), ...(rec.statusesBorderNB || []), ...(rec.statusesBorderSB || [])])];
 }
 
 function getUserAssignedAreas() {
@@ -769,6 +793,8 @@ function navigateTo(page) {
         case 'admin-audit-logs': renderAdminAuditLogs(ca); break;
         case 'admin-area-statuses': renderAdminAreaStatuses(ca); break;
         case 'admin-area-assignments': renderAdminAreaAssignments(ca); break;
+        case 'admin-upload-templates': renderAdminUploadTemplates(ca); break;
+        case 'position-live': renderPositionLive(ca); break;
         case 'turnarounds': renderTurnarounds(ca); break;
         case 'report-detail': renderReportDetail(ca); break;
         default: renderDashboard(ca);
@@ -2259,8 +2285,10 @@ function renderNBOperations(container) {
             <div class="search-filter"><span>🔍</span><input type="text" id="nbSearchInput" placeholder="Search by Trip#, Truck, Driver..." onkeyup="refreshNBTable()"></div>
             <button class="btn btn-outline btn-sm" onclick="clearNBFilters()">Clear</button>
         </div>
-        <div style="display:flex;gap:10px;margin-bottom:20px;">
-            <button class="btn btn-primary" onclick="openUploadModal('NB')">📤 Upload NB Data</button>
+        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="openUploadModal('NB')">📤 Upload NB Live File</button>
+            <button class="btn btn-outline" onclick="downloadTemplateCsv('NB')">📥 NB Template</button>
+            <button class="btn btn-outline" onclick="navigateTo('position-live')">📍 Position Live</button>
         </div>
         <div class="table-container">
             <div class="table-header">
@@ -2320,8 +2348,10 @@ function renderSBOperations(container) {
             <div class="search-filter"><span>🔍</span><input type="text" id="sbSearchInput" placeholder="Search by Trip#, Truck, Driver..." onkeyup="refreshSBTable()"></div>
             <button class="btn btn-outline btn-sm" onclick="clearSBFilters()">Clear</button>
         </div>
-        <div style="display:flex;gap:10px;margin-bottom:20px;">
-            <button class="btn btn-primary" onclick="openUploadModal('SB')">📤 Upload SB Data</button>
+        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="openUploadModal('SB')">📤 Upload SB Live File</button>
+            <button class="btn btn-outline" onclick="downloadTemplateCsv('SB')">📥 SB Template</button>
+            <button class="btn btn-outline" onclick="navigateTo('position-live')">📍 Position Live</button>
         </div>
         <div class="table-container">
             <div class="table-header">
@@ -2527,7 +2557,7 @@ function renderKBPStepsForConfig(config) {
         const statusLabel = s.status === 'completed' ? '✅ Completed' : s.status === 'in-progress' ? '🔄 In Progress' : '⏳ Pending';
         return `
         <div class="step-container ${statusClass}"><div class="step-header ${statusClass}" onclick="toggleStep(this)"><div class="step-number">${s.num}</div><div class="step-info"><div class="step-title">${s.title}</div><div class="step-meta"><span>${statusLabel}</span><span>📅 ${s.time}</span>${s.target ? `<span>🎯 Target: ${s.target}</span>` : ''}<span>⏱️ ${s.duration}</span></div></div><div class="step-status-icon">${statusIcon}</div></div>
-        <div class="step-body${i === 0 ? ' open' : ''}"><div class="user-log"><div class="user-info-row"><span class="user-tag">👤 ${s.user}</span><span class="area-tag">📍 ${s.area}</span></div><div class="log-entry"><div class="log-time">📅 ${s.time}</div><div class="log-action">${statusIcon} ${s.action}</div><div class="log-detail">📝 ${s.detail}</div></div></div></div></div>`;
+        <div class="step-body${i === 0 ? ' open' : ''}"><div class="user-log"><div class="user-info-row"><span class="user-tag">👤 ${s.user}</span><span class="area-tag">📍 ${s.area}</span></div><div class="log-entry"><div class="log-time">📅 ${s.time}</div><div class="log-action">${statusIcon} ${s.action}</div><div class="log-detail">📝 ${s.detail}</div>${s.status === 'in-progress' ? `<button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="wireBorderStepComplete('${config.tripId}', ${s.num})">✅ Complete Step ${s.num}</button>` : ''}</div></div></div></div>`;
     }).join('');
 
     if (config.finalApproval) {
@@ -2902,7 +2932,13 @@ function renderPODTableRows(items) {
             <td style="text-align:center;">${renderPODStageIcon(p.sentToInvoicing)}${p.sentDate ? `<br><small>${p.sentDate.split(' ')[0]}</small>` : ''}</td>
             <td>${p.collected && p.hoursToCollect ? p.hoursToCollect + 'h' : '—'}</td>
             <td><span class="status-badge ${p.kpi}"><span class="dot"></span> ${p.kpi === 'green' ? 'On Track' : p.kpi === 'orange' ? 'Priority' : 'Overdue'}</span></td>
-            <td><button class="btn btn-primary btn-sm" onclick="openCommentModal('${p.trip}')">💬</button></td>
+            <td>
+                <button class="btn btn-primary btn-sm" onclick="openCommentModal('${p.trip}')">💬</button>
+                ${!p.collected ? `<button class="btn btn-outline btn-sm" onclick="wirePodStageAction('${p.trip}','collected')">📋 Collect</button>` : ''}
+                ${p.collected && !p.scanned ? `<button class="btn btn-outline btn-sm" onclick="wirePodStageAction('${p.trip}','scanned')">🔍 Scan</button>` : ''}
+                ${p.scanned && !p.uploaded ? `<button class="btn btn-outline btn-sm" onclick="wirePodStageAction('${p.trip}','uploaded')">📤 Upload</button>` : ''}
+                ${p.uploaded && !p.sentToInvoicing ? `<button class="btn btn-outline btn-sm" onclick="wirePodStageAction('${p.trip}','sent_to_invoicing')">💰 Invoice</button>` : ''}
+            </td>
         </tr>
     `).join('');
 }
@@ -5194,16 +5230,17 @@ function submitAdminUser() {
         if (!apiMiddleware('/api/users/edit/:id', 'edit_all') && !apiMiddleware('/api/users/edit/:id', 'edit_limited')) return;
         const user = adminUsersDB.find(u => u.id === editingAdminUserId);
         if (!user) return;
-        Object.assign(user, { username, email, phone, area, roleId });
+        Object.assign(user, { username, email, phone, area, roleId, assignedAreas: user.assignedAreas || [area] });
         logAuditEvent(`Updated User ${user.id}`, user.id, 'user', `Role: ${getRoleById(roleId)?.name}, Area: ${area}`);
         showToast(`User ${username} updated.`, 'success');
     } else {
         if (!apiMiddleware('/api/users/create', 'manage_users')) return;
         const id = 'ADM-' + String(nextAdminUserId++).padStart(3, '0');
-        adminUsersDB.push({ id, username, email, passwordHash: '[bcrypt-hash]', roleId, status: 'active', area, phone, createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16), lastLogin: null, bannedAt: null, bannedReason: '' });
+        adminUsersDB.push({ id, username, email, passwordHash: '[bcrypt-hash]', roleId, status: 'active', area, assignedAreas: [area], phone, createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16), lastLogin: null, bannedAt: null, bannedReason: '' });
         logAuditEvent(`Created User ${id}`, id, 'user', `Role: ${getRoleById(roleId)?.name}`);
         showToast(`User ${username} created.`, 'success');
     }
+    if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
     closeModal('adminUserModal');
     if (currentPage === 'admin-users') renderAdminUsers(document.getElementById('contentArea'));
 }
@@ -5336,17 +5373,32 @@ function renderAdminAreaStatuses(container) {
     container.innerHTML = `
         ${renderAdminBreadcrumb('Area Status Lists')}
         <div class="page-header admin-page-header">
-            <div><h1>📍 Area Status Lists</h1><p class="page-subtitle">Super Admin defines the status options available when area users update trucks as they move between processes.</p></div>
+            <div><h1>📍 Area Status Lists</h1><p class="page-subtitle">NB and SB statuses per area. Configure borders, offloading/loading points, and Kanyaka hub. POD/Asset/Car lists below.</p></div>
             <button class="btn btn-primary" onclick="openAreaStatusModal()">+ Add Area</button>
+        </div>
+        <div class="settings-card" style="margin-bottom:16px;">
+            <h3>Global Status Lists (POD / Asset / Car)</h3>
+            ${Object.entries(globalStatusListsDB || {}).map(([cat, statuses]) => `
+                <div class="setting-row"><div><strong>${cat}</strong></div>
+                <input type="text" class="form-control setting-input-wide" id="globalStatus-${cat}" value="${statuses.join(', ')}" onchange="saveGlobalStatusList('${cat}')">
+                </div>`).join('')}
         </div>
         <div class="table-container">
             <table class="data-table admin-table">
-                <thead><tr><th>Area</th><th>Status Options</th><th>Count</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Area</th><th>Type</th><th>NB Statuses</th><th>SB Statuses</th><th>Border NB</th><th>Border SB</th><th>Actions</th></tr></thead>
                 <tbody>
                     ${areaStatusesDB.map(a => `<tr>
                         <td><strong>${a.area}</strong></td>
-                        <td>${a.statuses.map(s => `<span class="workflow-pill pending" style="margin:2px;">${s}</span>`).join('')}</td>
-                        <td>${a.statuses.length}</td>
+                        <td><small>${[
+                            a.isBorder ? 'Border' : '',
+                            a.isOffloadingPoint ? 'Offload' : '',
+                            a.isLoadingPoint ? 'Load' : '',
+                            a.isKanyakaHub ? 'Kanyaka Hub' : ''
+                        ].filter(Boolean).join(', ') || 'General'}</small></td>
+                        <td>${(a.statusesNB||[]).slice(0,3).map(s => `<span class="workflow-pill pending">${s}</span>`).join('')}${(a.statusesNB||[]).length>3?'…':''}</td>
+                        <td>${(a.statusesSB||[]).slice(0,3).map(s => `<span class="workflow-pill pending">${s}</span>`).join('')}${(a.statusesSB||[]).length>3?'…':''}</td>
+                        <td>${(a.statusesBorderNB||[]).length || '—'}</td>
+                        <td>${(a.statusesBorderSB||[]).length || '—'}</td>
                         <td>
                             <button class="btn btn-outline btn-sm" onclick="openAreaStatusModal('${a.id}')">✏️ Edit</button>
                             <button class="btn btn-danger btn-sm" onclick="deleteAreaStatus('${a.id}')">🗑️</button>
@@ -5364,26 +5416,61 @@ function openAreaStatusModal(id) {
     document.getElementById('areaStatusModalTitle').textContent = rec ? `Edit: ${rec.area}` : 'Add Area Status List';
     document.getElementById('areaStatusArea').value = rec?.area || '';
     document.getElementById('areaStatusArea').disabled = !!rec;
-    document.getElementById('areaStatusList').value = rec ? rec.statuses.join('\n') : '';
+    document.getElementById('areaStatusNB').value = (rec?.statusesNB || []).join('\n');
+    document.getElementById('areaStatusSB').value = (rec?.statusesSB || []).join('\n');
+    document.getElementById('areaStatusBorderNB').value = (rec?.statusesBorderNB || []).join('\n');
+    document.getElementById('areaStatusBorderSB').value = (rec?.statusesBorderSB || []).join('\n');
+    document.getElementById('areaIsBorder').checked = !!rec?.isBorder;
+    document.getElementById('areaBorderNB').checked = rec?.borderForNB !== false;
+    document.getElementById('areaBorderSB').checked = rec?.borderForSB !== false;
+    document.getElementById('areaIsOffload').checked = !!rec?.isOffloadingPoint;
+    document.getElementById('areaIsLoad').checked = !!rec?.isLoadingPoint;
+    document.getElementById('areaIsKanyaka').checked = !!rec?.isKanyakaHub;
+    document.getElementById('areaKanyakaNB').checked = rec?.kanyakaForNB !== false;
+    document.getElementById('areaKanyakaSB').checked = rec?.kanyakaForSB !== false;
     openModal('areaStatusModal');
 }
 
 function submitAreaStatus() {
     if (!canAccessAdminPage('admin-area-statuses')) return;
     const area = document.getElementById('areaStatusArea').value.trim();
-    const statuses = document.getElementById('areaStatusList').value.split('\n').map(s => s.trim()).filter(Boolean);
-    if (!area || !statuses.length) { showToast('Area name and at least one status required', 'warning'); return; }
+    const data = {
+        area,
+        isBorder: document.getElementById('areaIsBorder').checked,
+        borderForNB: document.getElementById('areaBorderNB').checked,
+        borderForSB: document.getElementById('areaBorderSB').checked,
+        isOffloadingPoint: document.getElementById('areaIsOffload').checked,
+        isLoadingPoint: document.getElementById('areaIsLoad').checked,
+        isKanyakaHub: document.getElementById('areaIsKanyaka').checked,
+        kanyakaForNB: document.getElementById('areaKanyakaNB').checked,
+        kanyakaForSB: document.getElementById('areaKanyakaSB').checked,
+        statusesNB: document.getElementById('areaStatusNB').value.split('\n').map(s => s.trim()).filter(Boolean),
+        statusesSB: document.getElementById('areaStatusSB').value.split('\n').map(s => s.trim()).filter(Boolean),
+        statusesBorderNB: document.getElementById('areaStatusBorderNB').value.split('\n').map(s => s.trim()).filter(Boolean),
+        statusesBorderSB: document.getElementById('areaStatusBorderSB').value.split('\n').map(s => s.trim()).filter(Boolean),
+        active: true
+    };
+    if (!area) { showToast('Area name required', 'warning'); return; }
     if (editingAreaStatusId) {
         const rec = areaStatusesDB.find(a => a.id === editingAreaStatusId);
-        if (rec) { rec.statuses = statuses; logAuditEvent(`Updated area statuses: ${area}`, area, 'area_status'); }
+        if (rec) Object.assign(rec, data);
+        logAuditEvent(`Updated area statuses: ${area}`, area, 'area_status');
     } else {
         if (areaStatusesDB.some(a => a.area === area)) { showToast('Area already exists', 'warning'); return; }
-        areaStatusesDB.push({ id: 'AS-' + String(nextAreaStatusId++).padStart(3, '0'), area, statuses, active: true });
+        areaStatusesDB.push({ id: 'AS-' + String(nextAreaStatusId++).padStart(3, '0'), ...data });
         logAuditEvent(`Created area statuses: ${area}`, area, 'area_status');
     }
     closeModal('areaStatusModal');
     showToast('Area status list saved', 'success');
     if (currentPage === 'admin-area-statuses') renderAdminAreaStatuses(document.getElementById('contentArea'));
+}
+
+function saveGlobalStatusList(cat) {
+    const el = document.getElementById('globalStatus-' + cat);
+    if (!el || !globalStatusListsDB) return;
+    globalStatusListsDB[cat] = el.value.split(',').map(s => s.trim()).filter(Boolean);
+    logAuditEvent(`Updated global status list: ${cat}`, cat, 'area_status');
+    showToast(`${cat} statuses saved`, 'success');
 }
 
 function deleteAreaStatus(id) {
@@ -5580,9 +5667,13 @@ function openCommentModal(tripNumber) {
 
     const statusSelect = document.getElementById('modalStatusUpdate');
     statusSelect.innerHTML = '<option value="">No status change</option>';
-    const areaStatuses = getStatusesForArea(trip.area || 'Kanyaka');
-    if (areaStatuses.length) {
-        statusSelect.innerHTML += '<optgroup label="Area Status (from admin list)">' + areaStatuses.map(s => `<option>${s}</option>`).join('') + '</optgroup>';
+    const contextStatuses = typeof getStatusesForContext === 'function' ? getStatusesForContext(trip) : getStatusesForArea(trip.area || 'Kanyaka');
+    if (contextStatuses.length) {
+        statusSelect.innerHTML += '<optgroup label="Team Status (context-aware)">' + contextStatuses.map(s => `<option>${s}</option>`).join('') + '</optgroup>';
+    }
+    const podStatuses = globalStatusListsDB?.POD || [];
+    if (trip.workflow?.pod === 'current' && podStatuses.length) {
+        statusSelect.innerHTML += '<optgroup label="POD Status">' + podStatuses.map(s => `<option>${s}</option>`).join('') + '</optgroup>';
     }
     if (trip.direction === 'NB') {
         statusSelect.innerHTML += '<optgroup label="NB Process"><option>Border Clearance Complete</option><option>Arrived at Kanyaka</option><option>Offloading Complete</option><option>POD Collected</option></optgroup>';
@@ -5710,8 +5801,9 @@ function submitComment() {
     }
 
     if (statusUpdate && trip) {
-        const areaStatuses = getStatusesForArea(trip.area || 'Kanyaka');
-        if (areaStatuses.includes(statusUpdate)) {
+        const ctxStatuses = typeof getStatusesForContext === 'function' ? getStatusesForContext(trip) : [];
+        const podSts = globalStatusListsDB?.POD || [];
+        if (ctxStatuses.includes(statusUpdate) || podSts.includes(statusUpdate)) {
             recordTripAreaUpdate(currentCommentTrip, trip.area, statusUpdate);
         } else {
             trip.status = statusUpdate;
@@ -5748,8 +5840,11 @@ function switchBorderTab(tabId, tabElement) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     if (tabElement) tabElement.classList.add('active');
 }
-function openUploadModal(direction){ document.getElementById('uploadType').value=direction; document.getElementById('uploadModalTitle').textContent=`📤 Upload ${direction} Data`; openModal('uploadModal'); }
-function handleUpload(){ showToast('✅ Upload complete!','success'); closeModal('uploadModal'); }
+function handleUpload() {
+    if (typeof handleLiveUpload === 'function') return handleLiveUpload();
+    showToast('✅ Upload complete!', 'success');
+    closeModal('uploadModal');
+}
 function handleGlobalSearch(){ const term=document.getElementById('globalSearch').value.toLowerCase(); if(!term)return; for(const[key,trip]of Object.entries(tripsDB)){ if(trip.tripNumber.toLowerCase().includes(term)||trip.truck.toLowerCase().includes(term)||trip.driver.toLowerCase().includes(term)){ showToast(`Found: ${trip.tripNumber} - ${trip.truck}`,'success'); return; } } showToast('No matching trucks found','warning'); }
 function toggleAlerts() {
     const panel = document.getElementById('alertPanel');
@@ -5779,6 +5874,8 @@ document.addEventListener('DOMContentLoaded',async function(){
             console.log('ℹ️ Backend offline — using local demo data. Run: cd backend && npm start');
         }
     }
+    if (typeof migrateAreaStatusesDB === 'function') migrateAreaStatusesDB();
+    if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
     navigateTo('dashboard');
     updateSidebarBadges();
     document.querySelectorAll('.modal-overlay').forEach(overlay=>{ overlay.addEventListener('click',function(e){ if(e.target===this)this.classList.remove('show'); }); });

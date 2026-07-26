@@ -20,6 +20,7 @@ const {
   updateFleetSettings,
   listFleetOwners
 } = require('../services/turnaroundService');
+const db = require('../db/database');
 
 const router = express.Router();
 
@@ -186,7 +187,6 @@ router.patch('/fleet/:ownerId', (req, res) => {
 });
 
 // Area statuses & assignments
-const db = require('../db/database');
 
 router.get('/area-statuses', (_req, res) => {
   const rows = db.prepare('SELECT * FROM area_status_lists WHERE active = 1').all();
@@ -219,6 +219,23 @@ router.post('/trips/:tripNumber/area-status', (req, res) => {
   if (!status) return res.status(400).json({ error: 'status required' });
   db.prepare(`INSERT INTO trip_area_updates (trip_number, area, status, updated_by, notes) VALUES (?, ?, ?, ?, ?)`).run(req.params.tripNumber, area || '', status, user.username, notes || '');
   res.json({ ok: true });
+});
+
+router.post('/live-uploads', (req, res) => {
+  const { type, fileName, rowCount, results } = req.body;
+  db.prepare(`INSERT INTO uploads (upload_type, file_name, uploaded_by) VALUES (?, ?, ?)`).run(type, fileName, getUser(req).username);
+  res.json({ ok: true, type, rowCount, results });
+});
+
+router.get('/position-uploads', (_req, res) => {
+  const rows = db.prepare(`SELECT * FROM uploads WHERE upload_type = 'POSITION' ORDER BY uploaded_at DESC LIMIT 50`).all();
+  res.json({ uploads: rows });
+});
+
+router.post('/position-uploads', (req, res) => {
+  const payload = req.body;
+  db.prepare(`INSERT INTO uploads (upload_type, file_name, uploaded_by) VALUES ('POSITION', ?, ?)`).run(payload.fileName || 'position.csv', getUser(req).username);
+  res.json({ ok: true, upload: payload });
 });
 
 module.exports = router;

@@ -1398,6 +1398,9 @@
                     <a class="nav-item" onclick="navigateTo('turnarounds')" data-page="turnarounds">
                         <span class="icon">🔄</span> Turnarounds
                     </a>
+                    <a class="nav-item" onclick="navigateTo('position-live')" data-page="position-live">
+                        <span class="icon">📍</span> Position Live
+                    </a>
                 </div>
                 <div class="nav-section">
                     <div class="nav-section-title">Admin</div>
@@ -1418,6 +1421,9 @@
                     </a>
                     <a class="nav-item" onclick="navigateToAdmin('admin-area-assignments')" data-page="admin-area-assignments">
                         <span class="icon">🗺️</span> Area Assignments
+                    </a>
+                    <a class="nav-item" onclick="navigateToAdmin('admin-upload-templates')" data-page="admin-upload-templates">
+                        <span class="icon">📤</span> Upload Templates
                     </a>
                 </div>
             </nav>
@@ -1525,11 +1531,13 @@
 
     <!-- UPLOAD MODAL -->
     <div class="modal-overlay" id="uploadModal">
-        <div class="modal">
+        <div class="modal modal-lg">
             <div class="modal-header"><h3 id="uploadModalTitle">📤 Upload Data</h3><button class="btn btn-outline" onclick="closeModal('uploadModal')">✕</button></div>
             <div class="modal-body">
-                <div class="form-group"><label>Upload Type</label><select class="form-control" id="uploadType"><option value="NB">NB Upload</option><option value="SB">SB Upload</option></select></div>
-                <div class="form-group"><label>Select Excel File <span class="required">*</span></label><input type="file" class="form-control" accept=".xlsx,.xls,.csv"></div>
+                <div class="form-group"><label>Upload Type</label><select class="form-control" id="uploadType"><option value="NB">NB Live File</option><option value="SB">SB Live File</option><option value="POSITION">Position File (3× daily)</option></select></div>
+                <div class="form-group" id="positionSlotGroup" style="display:none;"><label>Position Slot</label><select class="form-control" id="positionSlot"><option value="morning">Morning (08:00)</option><option value="afternoon">Afternoon (14:00)</option><option value="evening">Evening (20:00)</option></select></div>
+                <div id="uploadTemplateHint" class="rbac-info-banner" style="margin-bottom:12px;font-size:12px;"></div>
+                <div class="form-group"><label>Select CSV / Excel File <span class="required">*</span></label><input type="file" class="form-control" id="uploadFileInput" accept=".xlsx,.xls,.csv"></div>
             </div>
             <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('uploadModal')">Cancel</button><button class="btn btn-primary" onclick="handleUpload()">📤 Upload</button></div>
         </div>
@@ -1725,11 +1733,30 @@
 
     <!-- AREA STATUS MODAL -->
     <div class="modal-overlay" id="areaStatusModal">
-        <div class="modal">
+        <div class="modal modal-lg">
             <div class="modal-header"><h3 id="areaStatusModalTitle">Area Status List</h3><button class="btn btn-outline" onclick="closeModal('areaStatusModal')">✕</button></div>
             <div class="modal-body">
                 <div class="form-group"><label>Area Name <span class="required">*</span></label><input type="text" class="form-control" id="areaStatusArea" placeholder="e.g. Kasumbalesa"></div>
-                <div class="form-group"><label>Status Options (one per line) <span class="required">*</span></label><textarea class="form-control" id="areaStatusList" rows="8" placeholder="Arrived at Border&#10;KBP Process&#10;Clearance Complete"></textarea></div>
+                <div class="form-group"><label>Area Type</label>
+                    <div class="perm-grid">
+                        <label class="perm-checkbox"><input type="checkbox" id="areaIsBorder"> Border</label>
+                        <label class="perm-checkbox"><input type="checkbox" id="areaBorderNB"> Border for NB</label>
+                        <label class="perm-checkbox"><input type="checkbox" id="areaBorderSB"> Border for SB</label>
+                        <label class="perm-checkbox"><input type="checkbox" id="areaIsOffload"> Offloading Point (NB)</label>
+                        <label class="perm-checkbox"><input type="checkbox" id="areaIsLoad"> Loading Point (SB)</label>
+                        <label class="perm-checkbox"><input type="checkbox" id="areaIsKanyaka"> Kanyaka Hub</label>
+                        <label class="perm-checkbox"><input type="checkbox" id="areaKanyakaNB"> Kanyaka for NB</label>
+                        <label class="perm-checkbox"><input type="checkbox" id="areaKanyakaSB"> Kanyaka for SB</label>
+                    </div>
+                </div>
+                <div class="form-grid-2">
+                    <div class="form-group"><label>NB Statuses (one per line)</label><textarea class="form-control" id="areaStatusNB" rows="5"></textarea></div>
+                    <div class="form-group"><label>SB Statuses (one per line)</label><textarea class="form-control" id="areaStatusSB" rows="5"></textarea></div>
+                </div>
+                <div class="form-grid-2">
+                    <div class="form-group"><label>Border NB Statuses</label><textarea class="form-control" id="areaStatusBorderNB" rows="4"></textarea></div>
+                    <div class="form-group"><label>Border SB Statuses</label><textarea class="form-control" id="areaStatusBorderSB" rows="4"></textarea></div>
+                </div>
             </div>
             <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('areaStatusModal')">Cancel</button><button class="btn btn-primary" onclick="submitAreaStatus()">💾 Save</button></div>
         </div>
@@ -1748,6 +1775,7 @@
     </div>
 
     <script src="api.js"></script>
+    <script src="live-operations.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
