@@ -143,6 +143,31 @@ function initSchema() {
       uploaded_at TEXT DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS area_status_lists (
+      id TEXT PRIMARY KEY,
+      area TEXT NOT NULL UNIQUE,
+      statuses TEXT NOT NULL,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS user_area_assignments (
+      user_id TEXT PRIMARY KEY,
+      username TEXT NOT NULL,
+      assigned_areas TEXT NOT NULL,
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS trip_area_updates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      trip_number TEXT NOT NULL,
+      area TEXT NOT NULL,
+      status TEXT NOT NULL,
+      updated_by TEXT,
+      notes TEXT,
+      timestamp TEXT DEFAULT (datetime('now'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_trips_direction ON trips(direction);
     CREATE INDEX IF NOT EXISTS idx_trips_turnaround ON trips(turnaround_id);
     CREATE INDEX IF NOT EXISTS idx_workflow_trip ON workflow_steps(trip_id);

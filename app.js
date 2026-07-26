@@ -159,7 +159,92 @@ function syncAllAssetDocumentsToGlobalRegistry() {
     });
 }
 
-const MATRIX_AREAS = ['Kasumbalesa', 'Kanyaka', 'Kolwezi', 'Lubumbashi', 'Likasi', 'Sakania', 'Mokambo', 'All Areas'];
+const OPERATIONAL_AREAS = ['Kasumbalesa', 'Kanyaka', 'Kolwezi', 'Lubumbashi', 'Likasi', 'Sakania', 'Mokambo', 'HQ', 'All Areas'];
+const MATRIX_AREAS = OPERATIONAL_AREAS;
+
+const areaStatusesDB = [
+    { id: 'AS-001', area: 'Kasumbalesa', statuses: ['Arrived at Border', 'KBP Parking', 'KBP Scan Bay', 'Whisky Process', 'Customs Clearance', 'Border Clearance Complete', 'Delayed — Queue'], active: true },
+    { id: 'AS-002', area: 'Kanyaka', statuses: ['In Transit to Kanyaka', 'At Kanyaka Depot', 'Gov List Pending', 'Gov List Uploaded', 'Loading', 'Dispatch Ready', 'Exit Pending', 'Exception — Transit Approved'], active: true },
+    { id: 'AS-003', area: 'Kolwezi', statuses: ['In Transit', 'At Mine Gate', 'Offloading', 'Offloading Complete', 'Awaiting POD'], active: true },
+    { id: 'AS-004', area: 'Lubumbashi', statuses: ['In Transit', 'At Depot', 'Offloading', 'POD Collection', 'POD Complete'], active: true },
+    { id: 'AS-005', area: 'Sakania', statuses: ['Arrived at Border', 'BN Process', 'Parking', 'Clearance Complete'], active: true },
+    { id: 'AS-006', area: 'Mokambo', statuses: ['Arrived at Border', 'BN Process', 'Gov List Upload', 'Clearance Complete'], active: true },
+    { id: 'AS-007', area: 'Likasi', statuses: ['In Transit', 'Offloading', 'Offloading Complete'], active: true }
+];
+
+const SB_EXIT_BORDERS = ['Kasumbalesa', 'Sakania', 'Mokambo'];
+const CLEARING_AGENTS = ['Jean Kalenga', 'Marie Mwamba', 'Ruth Mwansa', 'Inspector Kabwe', 'David Mukendi'];
+
+/** Per-trip area status updates as truck moves between processes */
+const tripAreaUpdatesDB = {};
+
+let nextAreaStatusId = 8;
+let editingAreaStatusId = null;
+let currentReportType = 'operations-overview';
+let areaAssignmentFilter = '';
+
+function getStatusesForArea(areaName) {
+    const rec = areaStatusesDB.find(a => a.area === areaName);
+    return rec ? rec.statuses : [];
+}
+
+function getUserAssignedAreas() {
+    const user = getCurrentAdminUser();
+    if (!user) return ['All Areas'];
+    if (user.assignedAreas && user.assignedAreas.length) return user.assignedAreas;
+    if (!user.area || user.area === 'All Areas' || user.area === 'HQ') return ['All Areas'];
+    return [user.area];
+}
+
+function userSeesAllTrucks() {
+    const role = getCurrentRole();
+    if (role?.name === 'Super Admin' || role?.name === 'Manager') return true;
+    const areas = getUserAssignedAreas();
+    return areas.includes('All Areas') || areas.includes('Kanyaka');
+}
+
+function tripMatchesUserArea(trip) {
+    if (userSeesAllTrucks()) return true;
+    const areas = getUserAssignedAreas().map(a => a.toLowerCase());
+    const fields = [trip.area, trip.offloadingPoint, trip.loadingPoint, trip.entryBorder, trip.exitBorder].filter(Boolean).map(s => s.toLowerCase());
+    return areas.some(a => fields.some(f => f.includes(a) || a.includes(f.split(' ')[0])));
+}
+
+function filterTripsByUserArea(trips) {
+    return trips.filter(tripMatchesUserArea);
+}
+
+function getAreaFilterBanner() {
+    const user = getCurrentAdminUser();
+    const areas = getUserAssignedAreas();
+    if (userSeesAllTrucks()) {
+        return `<div class="rbac-info-banner"><strong>View:</strong> All trucks visible${areas.includes('Kanyaka') ? ' (Kanyaka team — full visibility)' : ''} — logged in as <em>${user?.username}</em></div>`;
+    }
+    return `<div class="rbac-info-banner"><strong>Area filter active:</strong> Showing trucks for <em>${areas.join(', ')}</em> only — logged in as <em>${user?.username}</em></div>`;
+}
+
+function recordTripAreaUpdate(tripNumber, area, status, notes) {
+    if (!tripAreaUpdatesDB[tripNumber]) tripAreaUpdatesDB[tripNumber] = [];
+    const user = getCurrentAdminUser();
+    tripAreaUpdatesDB[tripNumber].unshift({
+        area, status, notes: notes || '',
+        updatedBy: user?.username || 'unknown',
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19)
+    });
+    const trip = tripsDB[tripNumber];
+    if (trip) {
+        trip.areaStatus = status;
+        trip.area = area || trip.area;
+        trip.lastUpdatedBy = user?.username;
+        trip.lastUpdatedAt = tripAreaUpdatesDB[tripNumber][0].timestamp;
+    }
+    logAuditEvent(`Area status: ${status} (${area})`, tripNumber, 'trip', notes);
+}
+
+function getTripAreaHistory(tripNumber) {
+    return tripAreaUpdatesDB[tripNumber] || [];
+}
+
 const MATRIX_FUNCTIONS = ['Clearing Agent', 'Border Officer', 'Customs Inspector', 'Runner', 'Driver', 'Dispatcher', 'Area Supervisor', 'POD Officer', 'Asset Controller', 'Management'];
 const INTERNAL_LINK_TYPES = ['trip', 'truck', 'car', 'asset', 'equipment', 'area', 'user'];
 
@@ -203,7 +288,8 @@ const PERMISSION_KEYS = {
     VIEW_LOGS: 'view_logs',
     MANAGE_USERS: 'manage_users',
     MANAGE_ROLES: 'manage_roles',
-    MANAGE_SETTINGS: 'manage_settings'
+    MANAGE_SETTINGS: 'manage_settings',
+    MANAGE_AREA_STATUSES: 'manage_area_statuses'
 };
 
 const PERMISSION_LABELS = {
@@ -217,24 +303,26 @@ const PERMISSION_LABELS = {
     view_logs: 'Can See Audit Logs',
     manage_users: 'Can Manage Users',
     manage_roles: 'Can Manage Roles',
-    manage_settings: 'Can Manage System Settings'
+    manage_settings: 'Can Manage System Settings',
+    manage_area_statuses: 'Can Manage Area Status Lists'
 };
 
 const ALL_PERMISSIONS = Object.values(PERMISSION_KEYS);
 
 const rolesDB = [
-    { id: 'role-super-admin', name: 'Super Admin', description: 'Full system owner — CREATE, DROP, SELECT, UPDATE, DELETE on all data', system: true, permissions: [...ALL_PERMISSIONS] },
+    { id: 'role-super-admin', name: 'Super Admin', description: 'Full system owner — CREATE, DROP, SELECT, UPDATE, DELETE on all data', system: true, permissions: [...ALL_PERMISSIONS, 'manage_area_statuses'] },
     { id: 'role-manager', name: 'Manager', description: 'Operations manager with broad read/write but no delete', system: true, permissions: ['read_all', 'create', 'edit_all', 'view_logs', 'manage_users', 'manage_settings'] },
     { id: 'role-moderator', name: 'Moderator', description: 'Limited editor — can update specific records only', system: true, permissions: ['read_all', 'edit_limited'] },
     { id: 'role-user', name: 'User', description: 'Standard app user — read own data only', system: true, permissions: ['read_own'] }
 ];
 
 const adminUsersDB = [
-    { id: 'ADM-001', username: 'super_admin', email: 'admin@truckcontrol.local', passwordHash: '[bcrypt-hash]', roleId: 'role-super-admin', status: 'active', area: 'HQ', phone: '+260 900 000001', createdAt: '2025-01-15 08:00', lastLogin: '2026-07-25 17:30', bannedAt: null, bannedReason: '' },
-    { id: 'ADM-002', username: 'ops_manager', email: 'ops.manager@truckcontrol.local', passwordHash: '[bcrypt-hash]', roleId: 'role-manager', status: 'active', area: 'All Areas', phone: '+260 900 000002', createdAt: '2025-02-01 09:00', lastLogin: '2026-07-25 14:15', bannedAt: null, bannedReason: '' },
-    { id: 'ADM-003', username: 'border_moderator', email: 'ruth.mwansa@truckcontrol.local', passwordHash: '[bcrypt-hash]', roleId: 'role-moderator', status: 'active', area: 'Kasumbalesa', phone: '+260 966 222333', createdAt: '2025-03-10 10:00', lastLogin: '2026-07-25 11:00', bannedAt: null, bannedReason: '' },
-    { id: 'ADM-004', username: 'driver_user', email: 'john.doe@transport.com', passwordHash: '[bcrypt-hash]', roleId: 'role-user', status: 'active', area: 'Kolwezi', phone: '+260 977 123456', createdAt: '2025-04-20 07:30', lastLogin: '2026-07-24 18:45', bannedAt: null, bannedReason: '' },
-    { id: 'ADM-005', username: 'inactive_user', email: 'inactive@truckcontrol.local', passwordHash: '[bcrypt-hash]', roleId: 'role-user', status: 'banned', area: 'Lubumbashi', phone: '+243 815 999000', createdAt: '2025-05-01 12:00', lastLogin: '2026-06-10 09:00', bannedAt: '2026-07-01 16:00', bannedReason: 'Policy violation — repeated missed POD deadlines' }
+    { id: 'ADM-001', username: 'super_admin', email: 'admin@truckcontrol.local', passwordHash: '[bcrypt-hash]', roleId: 'role-super-admin', status: 'active', area: 'HQ', assignedAreas: ['All Areas'], phone: '+260 900 000001', createdAt: '2025-01-15 08:00', lastLogin: '2026-07-25 17:30', bannedAt: null, bannedReason: '' },
+    { id: 'ADM-002', username: 'ops_manager', email: 'ops.manager@truckcontrol.local', passwordHash: '[bcrypt-hash]', roleId: 'role-manager', status: 'active', area: 'All Areas', assignedAreas: ['All Areas'], phone: '+260 900 000002', createdAt: '2025-02-01 09:00', lastLogin: '2026-07-25 14:15', bannedAt: null, bannedReason: '' },
+    { id: 'ADM-003', username: 'border_moderator', email: 'ruth.mwansa@truckcontrol.local', passwordHash: '[bcrypt-hash]', roleId: 'role-moderator', status: 'active', area: 'Kasumbalesa', assignedAreas: ['Kasumbalesa'], phone: '+260 966 222333', createdAt: '2025-03-10 10:00', lastLogin: '2026-07-25 11:00', bannedAt: null, bannedReason: '' },
+    { id: 'ADM-004', username: 'driver_user', email: 'john.doe@transport.com', passwordHash: '[bcrypt-hash]', roleId: 'role-user', status: 'active', area: 'Kolwezi', assignedAreas: ['Kolwezi'], phone: '+260 977 123456', createdAt: '2025-04-20 07:30', lastLogin: '2026-07-24 18:45', bannedAt: null, bannedReason: '' },
+    { id: 'ADM-005', username: 'inactive_user', email: 'inactive@truckcontrol.local', passwordHash: '[bcrypt-hash]', roleId: 'role-user', status: 'banned', area: 'Lubumbashi', assignedAreas: ['Lubumbashi'], phone: '+243 815 999000', createdAt: '2025-05-01 12:00', lastLogin: '2026-06-10 09:00', bannedAt: '2026-07-01 16:00', bannedReason: 'Policy violation — repeated missed POD deadlines' },
+    { id: 'ADM-006', username: 'kanyaka_dispatcher', email: 'david.m@truckcontrol.local', passwordHash: '[bcrypt-hash]', roleId: 'role-moderator', status: 'active', area: 'Kanyaka', assignedAreas: ['Kanyaka'], phone: '+260 977 555666', createdAt: '2025-06-01 08:00', lastLogin: '2026-07-25 16:00', bannedAt: null, bannedReason: '' }
 ];
 
 const systemSettingsDB = {
@@ -358,6 +446,7 @@ function switchSessionUser(userId) {
     logAuditEvent(`Switched session to ${user.username}`, userId, 'session', 'Demo role switch');
     showToast(`Now logged in as ${user.username} (${getRoleById(user.roleId)?.name})`, 'success');
     if (currentPage && currentPage.startsWith('admin-')) navigateTo(currentPage);
+    else if (currentPage) navigateTo(currentPage);
     else updateSidebarBadges();
 }
 
@@ -367,6 +456,8 @@ function canAccessAdminPage(page) {
         case 'admin-roles': return canUser('manage_roles');
         case 'admin-settings': return canUser('manage_settings');
         case 'admin-audit-logs': return canUser('view_logs');
+        case 'admin-area-statuses': return canUser('manage_roles') || canUser('manage_area_statuses');
+        case 'admin-area-assignments': return canUser('manage_users');
         default: return false;
     }
 }
@@ -676,7 +767,10 @@ function navigateTo(page) {
         case 'admin-roles': renderAdminRoles(ca); break;
         case 'admin-settings': renderAdminSettings(ca); break;
         case 'admin-audit-logs': renderAdminAuditLogs(ca); break;
+        case 'admin-area-statuses': renderAdminAreaStatuses(ca); break;
+        case 'admin-area-assignments': renderAdminAreaAssignments(ca); break;
         case 'turnarounds': renderTurnarounds(ca); break;
+        case 'report-detail': renderReportDetail(ca); break;
         default: renderDashboard(ca);
     }
     updateSidebarBadges();
@@ -877,6 +971,7 @@ function filterNBTrucksByAreas(searchTerm) {
         if (t.direction !== 'NB') return false;
         return areas.some(area => tripMatchesNBArea(t, area));
     });
+    trips = filterTripsByUserArea(trips);
     if (searchTerm) {
         const term = searchTerm.toLowerCase();
         trips = trips.filter(t =>
@@ -899,6 +994,7 @@ function filterSBTrucksByAreas(searchTerm) {
         if (t.direction !== 'SB') return false;
         return areas.some(area => tripMatchesSBArea(t, area));
     });
+    trips = filterTripsByUserArea(trips);
     if (searchTerm) {
         const term = searchTerm.toLowerCase();
         trips = trips.filter(t =>
@@ -1484,7 +1580,7 @@ function exportListData(listKey, mode) {
 // FILTER FUNCTION
 // ============================================
 function filterTrips(direction, searchTerm) {
-    return Object.values(tripsDB).filter(t => {
+    let trips = Object.values(tripsDB).filter(t => {
         if (direction && t.direction !== direction) return false;
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
@@ -1497,10 +1593,12 @@ function filterTrips(direction, searchTerm) {
                    (t.entryBorder && t.entryBorder.toLowerCase().includes(term)) ||
                    (t.exitBorder && t.exitBorder.toLowerCase().includes(term)) ||
                    (t.loadingPoint && t.loadingPoint.toLowerCase().includes(term)) ||
-                   (t.offloadingPoint && t.offloadingPoint.toLowerCase().includes(term));
+                   (t.offloadingPoint && t.offloadingPoint.toLowerCase().includes(term)) ||
+                   (t.areaStatus && t.areaStatus.toLowerCase().includes(term));
         }
         return true;
     });
+    return filterTripsByUserArea(trips);
 }
 
 // ============================================
@@ -2147,6 +2245,7 @@ function renderNBOperations(container) {
     const trips = filterTrips('NB', '');
     container.innerHTML = `
         <div class="page-header"><h1>🚛 North Bound Operations</h1><div class="breadcrumb">Operations / NB Operations</div></div>
+        ${getAreaFilterBanner()}
         ${renderKpiTargetsBanner('nb')}
         <div class="kpi-grid">
             <div class="kpi-card green"><div class="kpi-header"><span class="kpi-title">On Track</span></div><div class="kpi-value">${trips.filter(t=>t.kpi==='green').length}</div></div>
@@ -2207,6 +2306,7 @@ function renderSBOperations(container) {
     const trips = filterTrips('SB', '');
     container.innerHTML = `
         <div class="page-header"><h1>🚛 South Bound Operations</h1><div class="breadcrumb">Operations / SB Operations</div></div>
+        ${getAreaFilterBanner()}
         ${renderKpiTargetsBanner('sb')}
         <div class="kpi-grid">
             <div class="kpi-card green"><div class="kpi-header"><span class="kpi-title">On Track</span></div><div class="kpi-value">${trips.filter(t=>t.kpi==='green').length}</div></div>
@@ -4487,7 +4587,155 @@ function renderInternalCommunication(container) {
 }
 
 function renderReports(container) {
-    container.innerHTML = `<div class="page-header"><h1>📈 Reports</h1></div><div class="kpi-grid">${['NB Turnaround','SB Turnaround','POD','Runner Fees'].map(r=>`<div class="kpi-card" onclick="showToast('${r} Report generated!','success')"><div class="kpi-header"><span>${r} Report</span></div></div>`).join('')}</div>`;
+    const reports = [
+        { id: 'operations-overview', icon: '📊', title: 'Operations Overview', desc: 'Full dashboard KPIs + all trucks' },
+        { id: 'nb-report', icon: '🚛', title: 'NB Operations Report', desc: 'Northbound trucks by border, area, status' },
+        { id: 'sb-report', icon: '🚛', title: 'SB Operations Report', desc: 'Southbound loading, dispatch, Kanyaka, exit' },
+        { id: 'border-report', icon: '🛂', title: 'Border Clearance Report', desc: 'NB entry & SB exit border performance' },
+        { id: 'pod-report', icon: '📋', title: 'POD Collection Report', desc: 'POD pipeline by area and timeliness' },
+        { id: 'area-report', icon: '🗺️', title: 'Area Performance Report', desc: 'Trucks per area with user status updates' },
+        { id: 'kpi-alerts-report', icon: '⚠️', title: 'KPI & Alerts Report', desc: 'Orange/red priority trucks' },
+        { id: 'turnaround-report', icon: '🔄', title: 'Turnaround Report', desc: 'Days in DRC and cycle completion' }
+    ];
+    container.innerHTML = `
+        <div class="page-header"><h1>📈 Reports</h1><p class="page-subtitle">Each report shows dashboard summary at top, then full truck list with area status updates.</p></div>
+        ${getAreaFilterBanner()}
+        <div class="report-grid">
+            ${reports.map(r => `
+                <div class="report-card" onclick="openReport('${r.id}')">
+                    <div class="report-card-icon">${r.icon}</div>
+                    <h3>${r.title}</h3>
+                    <p>${r.desc}</p>
+                    <span class="card-action">View Report →</span>
+                </div>`).join('')}
+        </div>`;
+}
+
+function openReport(reportId) {
+    currentReportType = reportId;
+    navigateTo('report-detail');
+}
+
+function getReportConfig(reportId) {
+    const configs = {
+        'operations-overview': { title: 'Operations Overview Report', direction: null, filter: null },
+        'nb-report': { title: 'NB Operations Report', direction: 'NB', filter: null },
+        'sb-report': { title: 'SB Operations Report', direction: 'SB', filter: null },
+        'border-report': { title: 'Border Clearance Report', direction: null, filter: 'border' },
+        'pod-report': { title: 'POD Collection Report', direction: 'NB', filter: 'pod' },
+        'area-report': { title: 'Area Performance Report', direction: null, filter: 'area' },
+        'kpi-alerts-report': { title: 'KPI & Alerts Report', direction: null, filter: 'alerts' },
+        'turnaround-report': { title: 'Turnaround Report', direction: null, filter: 'turnaround' }
+    };
+    return configs[reportId] || configs['operations-overview'];
+}
+
+function getReportTrips(config) {
+    let trips = filterTrips(config.direction, '');
+    if (config.filter === 'border') trips = trips.filter(t => (t.workflow?.border === 'current' || t.workflow?.border === 'completed') || t.status.toLowerCase().includes('border') || t.status.toLowerCase().includes('kbp') || t.status.toLowerCase().includes('whisky'));
+    if (config.filter === 'pod') trips = trips.filter(t => t.direction === 'NB' && (t.workflow?.pod === 'current' || t.workflow?.offloading === 'completed' || t.status.toLowerCase().includes('pod')));
+    if (config.filter === 'alerts') trips = trips.filter(t => t.kpi === 'orange' || t.kpi === 'red');
+    if (config.filter === 'turnaround') trips = [...trips].sort((a, b) => b.daysInDRC - a.daysInDRC);
+    return trips;
+}
+
+function renderReportKpiSection(trips, config) {
+    const stats = getDashboardStats();
+    const podStats = getPODStats();
+    const nb = trips.filter(t => t.direction === 'NB');
+    const sb = trips.filter(t => t.direction === 'SB');
+    return `
+        <div class="report-kpi-section">
+            <h2>📊 Report Summary</h2>
+            <div class="dashboard-grid">
+                <div class="stat-card"><div class="stat-label">Trucks in Report</div><div class="stat-value">${trips.length}</div></div>
+                <div class="stat-card"><div class="stat-label">NB</div><div class="stat-value">${nb.length}</div></div>
+                <div class="stat-card"><div class="stat-label">SB</div><div class="stat-value">${sb.length}</div></div>
+                <div class="stat-card"><div class="stat-label">🟢 On Track</div><div class="stat-value" style="color:var(--green);">${trips.filter(t=>t.kpi==='green').length}</div></div>
+                <div class="stat-card"><div class="stat-label">🟠 Priority</div><div class="stat-value" style="color:var(--orange);">${trips.filter(t=>t.kpi==='orange').length}</div></div>
+                <div class="stat-card"><div class="stat-label">🔴 Overdue</div><div class="stat-value" style="color:var(--red);">${trips.filter(t=>t.kpi==='red').length}</div></div>
+            </div>
+            ${config.filter === 'pod' ? `<div class="kpi-row"><div class="kpi-mini"><div class="kpi-value">${podStats.pending}</div><div class="kpi-label">POD Pending</div></div><div class="kpi-mini"><div class="kpi-value red">${podStats.overdue}</div><div class="kpi-label">Overdue</div></div></div>` : ''}
+            ${config.filter === 'turnaround' ? `<div class="kpi-row"><div class="kpi-mini"><div class="kpi-value">${stats.avgTurnaround}d</div><div class="kpi-label">Avg Turnaround</div></div></div>` : ''}
+        </div>`;
+}
+
+function renderReportTruckTable(trips) {
+    if (!trips.length) return '<p style="padding:24px;text-align:center;color:var(--text-secondary);">No trucks match this report for your assigned area.</p>';
+    return `
+        <div class="table-container">
+            <div class="table-header"><h3>Truck List — ${trips.length} records</h3>
+                <button class="btn btn-outline btn-sm" onclick="exportReportCsv()">📥 Export CSV</button>
+            </div>
+            <table class="data-table report-table">
+                <thead><tr>
+                    <th>Trip #</th><th>Truck</th><th>Dir</th><th>Driver</th><th>Owner</th><th>Area</th><th>Process Status</th><th>Area Status</th><th>Workflow</th><th>Days</th><th>KPI</th><th>Last Update</th><th>Update</th>
+                </tr></thead>
+                <tbody>
+                    ${trips.map(t => {
+                        const statuses = getStatusesForArea(t.area || 'Kanyaka');
+                        const wf = t.workflow ? Object.entries(t.workflow).filter(([,v])=>v==='current').map(([k])=>k).join(', ') || '—' : '—';
+                        const history = getTripAreaHistory(t.tripNumber);
+                        return `<tr>
+                            <td><strong>${t.tripNumber}</strong></td>
+                            <td>${t.truck}</td>
+                            <td><span class="status-badge blue">${t.direction}</span></td>
+                            <td>${t.driver}</td>
+                            <td>${t.owner}</td>
+                            <td>${t.area || '—'}</td>
+                            <td>${t.status}</td>
+                            <td>${t.areaStatus || '—'}${history.length ? `<br><small style="color:var(--text-secondary);">by ${history[0].updatedBy}</small>` : ''}</td>
+                            <td><small>${wf}</small></td>
+                            <td>${t.daysInDRC}d</td>
+                            <td><span class="status-badge ${t.kpi}">${getKPILabel(t.kpi)}</span></td>
+                            <td><small>${t.lastUpdatedAt || '—'}</small></td>
+                            <td>
+                                <select class="form-control report-status-select" id="rpt-status-${t.tripNumber}" style="width:130px;font-size:12px;">
+                                    <option value="">— Set status —</option>
+                                    ${statuses.map(s => `<option value="${s}" ${t.areaStatus===s?'selected':''}>${s}</option>`).join('')}
+                                </select>
+                                <button class="btn btn-primary btn-sm" onclick="saveReportAreaStatus('${t.tripNumber}','${t.area||'Kanyaka'}')">Save</button>
+                            </td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>`;
+}
+
+function renderReportDetail(container) {
+    const config = getReportConfig(currentReportType);
+    const trips = getReportTrips(config);
+    container.innerHTML = `
+        <div class="page-header admin-page-header">
+            <div><h1>${config.title}</h1><p class="page-subtitle">Generated ${new Date().toLocaleString()} — area users update status as trucks move between processes.</p></div>
+            <button class="btn btn-outline" onclick="navigateTo('reports')">← All Reports</button>
+        </div>
+        ${getAreaFilterBanner()}
+        ${renderReportKpiSection(trips, config)}
+        ${renderReportTruckTable(trips)}`;
+}
+
+function saveReportAreaStatus(tripNumber, area) {
+    const sel = document.getElementById('rpt-status-' + tripNumber);
+    if (!sel || !sel.value) { showToast('Select an area status first', 'warning'); return; }
+    recordTripAreaUpdate(tripNumber, area, sel.value);
+    showToast(`Status updated: ${sel.value}`, 'success');
+    renderReportDetail(document.getElementById('contentArea'));
+}
+
+function exportReportCsv() {
+    const config = getReportConfig(currentReportType);
+    const trips = getReportTrips(config);
+    const headers = ['Trip','Truck','Direction','Driver','Owner','Area','Process Status','Area Status','Days','KPI','Last Update'];
+    const rows = trips.map(t => [t.tripNumber,t.truck,t.direction,t.driver,t.owner,t.area,t.status,t.areaStatus||'',t.daysInDRC,getKPILabel(t.kpi),t.lastUpdatedAt||''].join(','));
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `report-${currentReportType}-${Date.now()}.csv`;
+    a.click();
+    showToast('Report exported', 'success');
 }
 
 // ============================================
@@ -5078,6 +5326,143 @@ function triggerManualBackup() {
 }
 
 // ============================================
+// ADMIN — Area Status Lists & User Area Assignment
+// ============================================
+function renderAdminAreaStatuses(container) {
+    if (!canAccessAdminPage('admin-area-statuses')) {
+        container.innerHTML = `<div class="access-denied"><h2>Access Denied</h2><p>Area Status management is Super Admin only.</p></div>`;
+        return;
+    }
+    container.innerHTML = `
+        ${renderAdminBreadcrumb('Area Status Lists')}
+        <div class="page-header admin-page-header">
+            <div><h1>📍 Area Status Lists</h1><p class="page-subtitle">Super Admin defines the status options available when area users update trucks as they move between processes.</p></div>
+            <button class="btn btn-primary" onclick="openAreaStatusModal()">+ Add Area</button>
+        </div>
+        <div class="table-container">
+            <table class="data-table admin-table">
+                <thead><tr><th>Area</th><th>Status Options</th><th>Count</th><th>Actions</th></tr></thead>
+                <tbody>
+                    ${areaStatusesDB.map(a => `<tr>
+                        <td><strong>${a.area}</strong></td>
+                        <td>${a.statuses.map(s => `<span class="workflow-pill pending" style="margin:2px;">${s}</span>`).join('')}</td>
+                        <td>${a.statuses.length}</td>
+                        <td>
+                            <button class="btn btn-outline btn-sm" onclick="openAreaStatusModal('${a.id}')">✏️ Edit</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteAreaStatus('${a.id}')">🗑️</button>
+                        </td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        </div>`;
+}
+
+function openAreaStatusModal(id) {
+    if (!canAccessAdminPage('admin-area-statuses')) return;
+    editingAreaStatusId = id || null;
+    const rec = id ? areaStatusesDB.find(a => a.id === id) : null;
+    document.getElementById('areaStatusModalTitle').textContent = rec ? `Edit: ${rec.area}` : 'Add Area Status List';
+    document.getElementById('areaStatusArea').value = rec?.area || '';
+    document.getElementById('areaStatusArea').disabled = !!rec;
+    document.getElementById('areaStatusList').value = rec ? rec.statuses.join('\n') : '';
+    openModal('areaStatusModal');
+}
+
+function submitAreaStatus() {
+    if (!canAccessAdminPage('admin-area-statuses')) return;
+    const area = document.getElementById('areaStatusArea').value.trim();
+    const statuses = document.getElementById('areaStatusList').value.split('\n').map(s => s.trim()).filter(Boolean);
+    if (!area || !statuses.length) { showToast('Area name and at least one status required', 'warning'); return; }
+    if (editingAreaStatusId) {
+        const rec = areaStatusesDB.find(a => a.id === editingAreaStatusId);
+        if (rec) { rec.statuses = statuses; logAuditEvent(`Updated area statuses: ${area}`, area, 'area_status'); }
+    } else {
+        if (areaStatusesDB.some(a => a.area === area)) { showToast('Area already exists', 'warning'); return; }
+        areaStatusesDB.push({ id: 'AS-' + String(nextAreaStatusId++).padStart(3, '0'), area, statuses, active: true });
+        logAuditEvent(`Created area statuses: ${area}`, area, 'area_status');
+    }
+    closeModal('areaStatusModal');
+    showToast('Area status list saved', 'success');
+    if (currentPage === 'admin-area-statuses') renderAdminAreaStatuses(document.getElementById('contentArea'));
+}
+
+function deleteAreaStatus(id) {
+    if (!confirm('Delete this area status list?')) return;
+    const idx = areaStatusesDB.findIndex(a => a.id === id);
+    if (idx >= 0) { const name = areaStatusesDB[idx].area; areaStatusesDB.splice(idx, 1); logAuditEvent(`Deleted area statuses: ${name}`, name, 'area_status'); }
+    if (currentPage === 'admin-area-statuses') renderAdminAreaStatuses(document.getElementById('contentArea'));
+}
+
+function renderAdminAreaAssignments(container) {
+    if (!canAccessAdminPage('admin-area-assignments')) {
+        container.innerHTML = `<div class="access-denied"><h2>Access Denied</h2><p>User area assignment requires Manager or Super Admin.</p></div>`;
+        return;
+    }
+    const users = adminUsersDB.filter(u => {
+        if (!areaAssignmentFilter) return true;
+        const t = areaAssignmentFilter.toLowerCase();
+        return u.username.toLowerCase().includes(t) || u.area.toLowerCase().includes(t) || (u.assignedAreas||[]).some(a => a.toLowerCase().includes(t));
+    });
+    container.innerHTML = `
+        ${renderAdminBreadcrumb('Area Assignments')}
+        <div class="page-header admin-page-header">
+            <div><h1>🗺️ User Area Assignments</h1><p class="page-subtitle">Assign users to operational areas. Kanyaka team sees all trucks. Other users see only their area.</p></div>
+        </div>
+        <div class="rbac-info-banner"><strong>Rule:</strong> Users assigned to <em>Kanyaka</em> or <em>All Areas</em> see every truck. All other users only see trucks in their assigned area(s) on NB, SB, Area, and Report pages.</div>
+        <div class="admin-toolbar">
+            <input type="text" class="form-control admin-search" placeholder="Search users or areas..." value="${areaAssignmentFilter}" onkeyup="areaAssignmentFilter=this.value; renderAdminAreaAssignments(document.getElementById('contentArea'))">
+        </div>
+        <div class="table-container">
+            <table class="data-table admin-table">
+                <thead><tr><th>User</th><th>Role</th><th>Primary Area</th><th>Assigned Areas</th><th>Visibility</th><th>Actions</th></tr></thead>
+                <tbody>
+                    ${users.map(u => {
+                        const areas = u.assignedAreas || [u.area];
+                        const seesAll = areas.includes('All Areas') || areas.includes('Kanyaka');
+                        return `<tr>
+                            <td><strong>${u.username}</strong><br><small>${u.email}</small></td>
+                            <td>${renderPermissionBadge(getRoleById(u.roleId))}</td>
+                            <td>${u.area}</td>
+                            <td>${areas.map(a => `<span class="workflow-pill ${a==='Kanyaka'?'current':'pending'}">${a}</span>`).join(' ')}</td>
+                            <td>${seesAll ? '<span class="status-badge blue">All Trucks</span>' : '<span class="status-badge gray">Area Only</span>'}</td>
+                            <td><button class="btn btn-outline btn-sm" onclick="openAreaAssignmentModal('${u.id}')">✏️ Assign</button></td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>`;
+}
+
+function openAreaAssignmentModal(userId) {
+    if (!canAccessAdminPage('admin-area-assignments')) return;
+    editingAdminUserId = userId;
+    const user = adminUsersDB.find(u => u.id === userId);
+    if (!user) return;
+    document.getElementById('areaAssignUserName').textContent = user.username;
+    const container = document.getElementById('areaAssignCheckboxes');
+    const assigned = user.assignedAreas || [user.area];
+    container.innerHTML = OPERATIONAL_AREAS.map(a => `
+        <label class="perm-checkbox"><input type="checkbox" name="assignArea" value="${a}" ${assigned.includes(a)?'checked':''}><span>${a}</span></label>
+    `).join('');
+    openModal('areaAssignmentModal');
+}
+
+function submitAreaAssignment() {
+    if (!canAccessAdminPage('admin-area-assignments')) return;
+    const user = adminUsersDB.find(u => u.id === editingAdminUserId);
+    if (!user) return;
+    const areas = [...document.querySelectorAll('input[name="assignArea"]:checked')].map(cb => cb.value);
+    if (!areas.length) { showToast('Select at least one area', 'warning'); return; }
+    user.assignedAreas = areas;
+    user.area = areas.includes('All Areas') ? 'All Areas' : areas[0];
+    logAuditEvent(`Assigned areas to ${user.username}`, user.id, 'user', areas.join(', '));
+    closeModal('areaAssignmentModal');
+    showToast(`Areas updated for ${user.username}`, 'success');
+    if (currentPage === 'admin-area-assignments') renderAdminAreaAssignments(document.getElementById('contentArea'));
+    updateTopBarUser();
+}
+
+// ============================================
 // COMMENT MODAL FUNCTIONS
 // ============================================
 function formatWorkflowDate(isoStr) {
@@ -5195,10 +5580,26 @@ function openCommentModal(tripNumber) {
 
     const statusSelect = document.getElementById('modalStatusUpdate');
     statusSelect.innerHTML = '<option value="">No status change</option>';
+    const areaStatuses = getStatusesForArea(trip.area || 'Kanyaka');
+    if (areaStatuses.length) {
+        statusSelect.innerHTML += '<optgroup label="Area Status (from admin list)">' + areaStatuses.map(s => `<option>${s}</option>`).join('') + '</optgroup>';
+    }
     if (trip.direction === 'NB') {
-        statusSelect.innerHTML += '<option>Border Clearance Complete</option><option>Arrived at Kanyaka</option><option>Offloading Complete</option><option>POD Collected</option>';
+        statusSelect.innerHTML += '<optgroup label="NB Process"><option>Border Clearance Complete</option><option>Arrived at Kanyaka</option><option>Offloading Complete</option><option>POD Collected</option></optgroup>';
     } else if (trip.direction === 'SB') {
-        statusSelect.innerHTML += '<option>Loading Complete</option><option>Dispatched</option><option>Arrived at Kanyaka SB</option><option>Border Exit Complete</option>';
+        statusSelect.innerHTML += '<optgroup label="SB Process"><option>Loading Complete</option><option>Documents Collected</option><option>Seal Collected</option><option>Escort Arranged</option><option>Dispatched</option><option>Arrived at Kanyaka SB</option><option>Border Exit Complete</option></optgroup>';
+    }
+
+    const sbKanyakaSection = document.getElementById('sbKanyakaExitSection');
+    const isSbKanyaka = trip.direction === 'SB' && (trip.workflow?.kanyaka === 'current' || trip.workflow?.dispatch === 'completed' || trip.area === 'Kanyaka' || (trip.status && trip.status.toLowerCase().includes('kanyaka')));
+    if (sbKanyakaSection) {
+        sbKanyakaSection.style.display = isSbKanyaka ? 'block' : 'none';
+        if (isSbKanyaka) {
+            const borderSel = document.getElementById('sbDriverExitBorder');
+            const agentSel = document.getElementById('sbClearingAgent');
+            if (borderSel) borderSel.value = trip.driverExitBorder || trip.exitBorder || '';
+            if (agentSel) agentSel.value = trip.clearingAgent || '';
+        }
     }
     toggleStatusDateField();
 
@@ -5282,8 +5683,42 @@ function submitComment() {
     }
     const statusUpdate = document.getElementById('modalStatusUpdate').value;
     const statusDate = document.getElementById('statusDate').value;
+    const trip = tripsDB[currentCommentTrip];
+
+    if (trip?.direction === 'SB') {
+        const isExitAction = statusUpdate && (statusUpdate.includes('Border Exit') || statusUpdate.includes('Exit'));
+        const isKanyakaStage = trip.workflow?.kanyaka === 'current' || trip.area === 'Kanyaka' || (trip.status && trip.status.toLowerCase().includes('kanyaka'));
+        if ((isExitAction || statusDate) && isKanyakaStage) {
+            const border = document.getElementById('sbDriverExitBorder')?.value;
+            const agent = document.getElementById('sbClearingAgent')?.value;
+            if (!border) {
+                document.getElementById('validationMessage').textContent = '⚠️ SB Kanyaka: You must select the exit border for the driver before setting exit date/status.';
+                document.getElementById('validationMessage').classList.add('show');
+                return;
+            }
+            if (!agent) {
+                document.getElementById('validationMessage').textContent = '⚠️ SB Kanyaka: You must assign a clearing agent before setting exit date/status.';
+                document.getElementById('validationMessage').classList.add('show');
+                return;
+            }
+            trip.driverExitBorder = border;
+            trip.clearingAgent = agent;
+            trip.exitBorder = border;
+            if (statusDate) trip.exitDate = statusDate;
+            logAuditEvent(`SB Kanyaka exit prep: border=${border}, agent=${agent}`, currentCommentTrip, 'trip');
+        }
+    }
+
+    if (statusUpdate && trip) {
+        const areaStatuses = getStatusesForArea(trip.area || 'Kanyaka');
+        if (areaStatuses.includes(statusUpdate)) {
+            recordTripAreaUpdate(currentCommentTrip, trip.area, statusUpdate);
+        } else {
+            trip.status = statusUpdate;
+        }
+    }
+
     if (statusUpdate && statusDate) {
-        const trip = tripsDB[currentCommentTrip];
         if (trip) {
             if (!trip.workflowDates) trip.workflowDates = {};
             const stepKeys = (WORKFLOW_CONFIG[trip.direction] || WORKFLOW_CONFIG.NB).map(s => s.key);

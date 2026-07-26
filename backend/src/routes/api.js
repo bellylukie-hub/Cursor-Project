@@ -185,4 +185,40 @@ router.patch('/fleet/:ownerId', (req, res) => {
   }
 });
 
+// Area statuses & assignments
+const db = require('../db/database');
+
+router.get('/area-statuses', (_req, res) => {
+  const rows = db.prepare('SELECT * FROM area_status_lists WHERE active = 1').all();
+  res.json({ areaStatuses: rows.map(r => ({ id: r.id, area: r.area, statuses: JSON.parse(r.statuses), active: r.active === 1 })) });
+});
+
+router.post('/area-statuses', (req, res) => {
+  const { id, area, statuses } = req.body;
+  if (!area || !statuses?.length) return res.status(400).json({ error: 'area and statuses required' });
+  const sid = id || `AS-${Date.now()}`;
+  db.prepare(`INSERT INTO area_status_lists (id, area, statuses) VALUES (?, ?, ?) ON CONFLICT(area) DO UPDATE SET statuses = excluded.statuses`).run(sid, area, JSON.stringify(statuses));
+  res.json({ ok: true });
+});
+
+router.get('/area-assignments', (_req, res) => {
+  const rows = db.prepare('SELECT * FROM user_area_assignments').all();
+  res.json({ assignments: rows.map(r => ({ userId: r.user_id, username: r.username, assignedAreas: JSON.parse(r.assigned_areas) })) });
+});
+
+router.post('/area-assignments', (req, res) => {
+  const { userId, username, assignedAreas } = req.body;
+  if (!userId || !assignedAreas?.length) return res.status(400).json({ error: 'userId and assignedAreas required' });
+  db.prepare(`INSERT INTO user_area_assignments (user_id, username, assigned_areas, updated_at) VALUES (?, ?, ?, datetime('now')) ON CONFLICT(user_id) DO UPDATE SET assigned_areas = excluded.assigned_areas, updated_at = datetime('now')`).run(userId, username, JSON.stringify(assignedAreas));
+  res.json({ ok: true });
+});
+
+router.post('/trips/:tripNumber/area-status', (req, res) => {
+  const { area, status, notes } = req.body;
+  const user = getUser(req);
+  if (!status) return res.status(400).json({ error: 'status required' });
+  db.prepare(`INSERT INTO trip_area_updates (trip_number, area, status, updated_by, notes) VALUES (?, ?, ?, ?, ?)`).run(req.params.tripNumber, area || '', status, user.username, notes || '');
+  res.json({ ok: true });
+});
+
 module.exports = router;
