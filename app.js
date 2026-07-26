@@ -497,6 +497,7 @@ function canAccessAdminPage(page) {
         case 'admin-area-statuses': return canUser('manage_roles') || canUser('manage_area_statuses');
         case 'admin-area-assignments': return canUser('manage_users');
         case 'admin-module-permissions': return canUser('manage_users');
+        case 'admin-fleet-settings': return canUser('manage_settings') || canUser('manage_users');
         case 'admin-upload-templates': return getCurrentRole()?.name === 'Super Admin';
         default: return false;
     }
@@ -1046,6 +1047,7 @@ function navigateTo(page) {
         case 'admin-area-statuses': renderAdminAreaStatuses(ca); break;
         case 'admin-area-assignments': renderAdminAreaAssignments(ca); break;
         case 'admin-module-permissions': renderAdminModulePermissions(ca); break;
+        case 'admin-fleet-settings': renderAdminFleetSettings(ca); break;
         case 'admin-upload-templates': renderAdminUploadTemplates(ca); break;
         case 'position-live': renderPositionLive(ca); break;
         case 'turnarounds': renderTurnarounds(ca); break;
@@ -5087,12 +5089,9 @@ function renderTurnarounds(container) {
                 ${turnarounds.length === 0 ? '<p style="padding:20px;color:var(--text-secondary);">No turnarounds in database. Start the backend and run <code>npm run seed</code> in /backend, or upload an NB trip.</p>' : ''}
                 ${turnarounds.map(t => renderTurnaroundCard(t)).join('')}
             </div>
-            <div class="settings-card" style="margin-top:20px;" id="fleetSettingsCard">
-                <h3>🚛 Fleet — Same Truck for SB</h3>
-                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">When enabled, the SB shipment must use the same truck as the NB leg. Certain fleets can disable this.</p>
-                <div id="fleetSettingsBody"><em>Loading fleet settings...</em></div>
+            <div class="rbac-info-banner" style="margin-top:20px;">
+                Fleet same-truck policy for SB is configured under <a href="#" onclick="event.preventDefault();navigateToAdmin('admin-fleet-settings')">Admin → Fleet — Same Truck for SB</a>.
             </div>`;
-        loadFleetSettingsUi();
     });
 }
 
@@ -5144,10 +5143,13 @@ function renderTurnaroundCard(t) {
         </div>`;
 }
 
-async function loadFleetSettingsUi() {
-    const el = document.getElementById('fleetSettingsBody');
+async function loadFleetSettingsUi(targetId) {
+    const el = document.getElementById(targetId || 'fleetSettingsBody');
     if (!el) return;
-    if (!isApiAvailable()) { el.innerHTML = '<em>Connect backend to manage fleet settings.</em>'; return; }
+    if (!isApiAvailable()) {
+        el.innerHTML = '<em>Connect backend (<code>cd backend && npm start</code>) to manage fleet same-truck settings.</em>';
+        return;
+    }
     try {
         const fleet = await fetchFleet();
         el.innerHTML = fleet.map(f => `
@@ -5158,10 +5160,39 @@ async function loadFleetSettingsUi() {
                     <span class="toggle-slider"></span>
                 </label>
                 <span style="font-size:12px;color:var(--text-secondary);">Require same truck for SB</span>
-            </div>`).join('') || '<em>No fleet owners yet.</em>';
+            </div>`).join('') || '<em>No fleet owners yet. Fleet owners are created when NB trips are uploaded via the backend.</em>';
     } catch (e) {
         el.innerHTML = `<em>Error: ${e.message}</em>`;
     }
+}
+
+function renderAdminFleetSettings(container) {
+    if (!canAccessAdminPage('admin-fleet-settings')) {
+        container.innerHTML = `<div class="access-denied"><h2>Access Denied</h2><p>Fleet settings require Manager or Super Admin privileges.</p></div>`;
+        return;
+    }
+    const apiStatus = (typeof isApiAvailable === 'function' && isApiAvailable())
+        ? '<span class="status-badge green">Backend Connected</span>'
+        : '<span class="status-badge orange">Offline — start backend on port 3001</span>';
+
+    container.innerHTML = `
+        ${renderAdminBreadcrumb('Fleet — Same Truck for SB')}
+        <div class="page-header admin-page-header">
+            <div>
+                <h1>🚛 Fleet — Same Truck for SB</h1>
+                <p class="page-subtitle">Configure whether each fleet owner must use the same truck on the SB leg as the NB turnaround. When disabled, a different unit may be assigned for southbound.</p>
+            </div>
+            ${apiStatus}
+        </div>
+        <div class="rbac-info-banner">
+            <strong>Turnaround rule:</strong> NB clearance → Kanyaka → Offload → POD → SB. When <em>Require same truck for SB</em> is on, creating an SB shipment from a turnaround must use the same truck plate unless an explicit override is used in the API.
+        </div>
+        <div class="settings-card" id="fleetSettingsCard">
+            <h3>Fleet owners</h3>
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Toggle per fleet owner. Example: <em>Transport Co D</em> may allow a different truck for SB while other owners require the same unit.</p>
+            <div id="fleetSettingsBody"><em>Loading fleet settings...</em></div>
+        </div>`;
+    loadFleetSettingsUi('fleetSettingsBody');
 }
 
 async function handleCreateSbTrip(nbTripNumber) {
@@ -5215,6 +5246,7 @@ async function handleFleetSameTruckToggle(ownerId, enabled) {
         await updateFleetSetting(ownerId, { requireSameTruckSb: enabled });
         showToast(`Fleet setting updated: same truck SB = ${enabled}`, 'success');
         logAuditEvent(`Fleet ${ownerId} requireSameTruckSb=${enabled}`, ownerId, 'fleet');
+        if (currentPage === 'admin-fleet-settings') loadFleetSettingsUi('fleetSettingsBody');
     } catch (e) {
         showToast(e.message, 'warning');
         loadFleetSettingsUi();
