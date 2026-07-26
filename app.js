@@ -447,6 +447,14 @@ function updateTopBarUser() {
     if (nameEl) nameEl.textContent = user?.username || 'System Admin';
     if (roleEl) roleEl.textContent = role?.name || 'User';
     populateRoleSwitcher();
+    updateAdminNavVisibility();
+}
+
+function updateAdminNavVisibility() {
+    const uploadNav = document.querySelector('[data-page="admin-upload-templates"]');
+    if (uploadNav) {
+        uploadNav.style.display = canAccessAdminPage('admin-upload-templates') ? '' : 'none';
+    }
 }
 
 function populateRoleSwitcher() {
@@ -469,6 +477,7 @@ function switchSessionUser(userId) {
     updateTopBarUser();
     logAuditEvent(`Switched session to ${user.username}`, userId, 'session', 'Demo role switch');
     showToast(`Now logged in as ${user.username} (${getRoleById(user.roleId)?.name})`, 'success');
+    updateAdminNavVisibility();
     if (currentPage && currentPage.startsWith('admin-')) navigateTo(currentPage);
     else if (currentPage) navigateTo(currentPage);
     else updateSidebarBadges();
@@ -482,6 +491,7 @@ function canAccessAdminPage(page) {
         case 'admin-audit-logs': return canUser('view_logs');
         case 'admin-area-statuses': return canUser('manage_roles') || canUser('manage_area_statuses');
         case 'admin-area-assignments': return canUser('manage_users');
+        case 'admin-upload-templates': return getCurrentRole()?.name === 'Super Admin';
         default: return false;
     }
 }
@@ -1049,7 +1059,7 @@ function renderAreaBrowserTableRows(trips, direction) {
             <td>${t.area || '—'}</td>
             <td><span class="status-badge ${t.kpi}">${t.status}</span></td>
             <td>
-                <button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}')">💬</button>
+                <button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}', '${direction === 'SB' ? 'sb' : 'nb'}')">💬</button>
                 ${renderTripViewButton(t.tripNumber)}
             </td>
         </tr>
@@ -2245,7 +2255,7 @@ function renderDashboardTableRows(trips, listKey) {
             <td>${t.daysInDRC}</td>
             <td><span class="kpi-indicator ${t.kpi}"></span> ${getKPILabel(t.kpi)}</td>
             <td>
-                <button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}')">💬 Comment</button>
+                <button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}', '${listKey === 'sb' ? 'sb' : 'nb'}')">💬 Comment</button>
                 ${renderTripViewButton(t.tripNumber)}
             </td>
         </tr>
@@ -2410,7 +2420,7 @@ function renderBorderTableRows(rows) {
             <td>${t.target}</td>
             <td><span class="kpi-indicator ${t.kpi}"></span> ${t.kpiLabel}</td>
             <td>
-                <button class="btn btn-${t.commentBtn} btn-sm" onclick="openCommentModal('${t.trip}')">💬</button>
+                <button class="btn btn-${t.commentBtn} btn-sm" onclick="openCommentModal('${t.trip}', 'border')">💬</button>
                 <button class="btn btn-outline btn-sm" onclick="navigateToTripView('${t.trip}')">👁️</button>
             </td>
         </tr>
@@ -2568,11 +2578,11 @@ function renderKBPStepsForConfig(config) {
 
 function renderBorderDocsTab(config) {
     const docs = ['Entry.pdf', 'Submission_Receipt.pdf', 'Scan_Report.pdf', 'Green_Stamped.pdf', 'Red_Stamped.pdf', 'CrossCheck_Report.pdf', 'Driver_Details.pdf'];
-    return `<div class="card"><div class="card-header"><span>📁 Documents — ${config.borderName}</span><button class="btn btn-primary btn-sm" onclick="openCommentModal('${config.tripId}')">+ Upload</button></div><div class="card-body"><div class="doc-list">${docs.map(d => `<div class="doc-item"><span class="doc-icon">📄</span><div><div class="doc-name">${config.borderName}_${d}</div><div class="doc-uploader">👤 Border Officer</div></div><button class="btn btn-outline btn-sm">👁️</button></div>`).join('')}</div></div></div>`;
+    return `<div class="card"><div class="card-header"><span>📁 Documents — ${config.borderName}</span><button class="btn btn-primary btn-sm" onclick="openCommentModal('${config.tripId}', 'border')">+ Upload</button></div><div class="card-body"><div class="doc-list">${docs.map(d => `<div class="doc-item"><span class="doc-icon">📄</span><div><div class="doc-name">${config.borderName}_${d}</div><div class="doc-uploader">👤 Border Officer</div></div><button class="btn btn-outline btn-sm">👁️</button></div>`).join('')}</div></div></div>`;
 }
 
 function renderBorderCommentsTab(config) {
-    return `<div class="card"><div class="card-header"><span>💬 Comments — ${config.borderName}</span><button class="btn btn-primary btn-sm" onclick="openCommentModal('${config.tripId}')">+ Add Comment</button></div><div class="card-body"><div class="user-log"><div style="font-weight:600;">👤 Border Officer — ${config.borderName}</div><div style="font-size:0.8em;color:var(--text-secondary);margin-top:4px;">BN Process clearance in progress for ${config.trip}</div></div></div></div>`;
+    return `<div class="card"><div class="card-header"><span>💬 Comments — ${config.borderName}</span><button class="btn btn-primary btn-sm" onclick="openCommentModal('${config.tripId}', 'border')">+ Add Comment</button></div><div class="card-body"><div class="user-log"><div style="font-weight:600;">👤 Border Officer — ${config.borderName}</div><div style="font-size:0.8em;color:var(--text-secondary);margin-top:4px;">BN Process clearance in progress for ${config.trip}</div></div></div></div>`;
 }
 
 function renderBorderLogsTab(config) {
@@ -2608,7 +2618,7 @@ function renderNBKBPBorderDetail(container, config) {
             </div>
             <div style="display:flex;align-items:center;gap:15px;">
                 <span class="kpi-badge ${config.kpi}">${config.kpiLabel}</span>
-                <button class="btn btn-success btn-sm" onclick="openCommentModal('${config.tripId}')" style="background:white;color:#1a365d;">💬 Add Comment</button>
+                <button class="btn btn-success btn-sm" onclick="openCommentModal('${config.tripId}', 'border')" style="background:white;color:#1a365d;">💬 Add Comment</button>
             </div>
         </div>
         <div class="card"><div class="card-header"><span>⏱️ Time Tracking</span><span style="display:inline-flex;align-items:center;gap:4px;"><span class="kpi-dot ${config.kpi}"></span> ${config.timeStatus}</span></div>
@@ -2630,7 +2640,7 @@ function renderNBKBPBorderDetail(container, config) {
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:20px;">
             <button class="btn btn-outline" onclick="navigateTo('border-clearance')">⬅️ Back to Border Clearance</button>
             <button class="btn btn-outline" onclick="window.print()">🖨️ Print</button>
-            <button class="btn btn-primary" onclick="openCommentModal('${config.tripId}')">💬 Add Comment</button>
+            <button class="btn btn-primary" onclick="openCommentModal('${config.tripId}', 'border')">💬 Add Comment</button>
         </div>`;
 }
 
@@ -2676,7 +2686,7 @@ function renderSBClearanceDetail(container, config) {
             <span class="kpi-badge ${config.kpi}">${config.kpiLabel}</span>
         </div>
         <div class="card">
-            <div class="card-header"><span>🔽 SB Exit Clearance Steps (${config.completedSteps}/${SB_CLEARANCE_STEPS.length})</span><button class="btn btn-primary btn-sm" onclick="openCommentModal('${config.tripId}')">💬 Add Comment</button></div>
+            <div class="card-header"><span>🔽 SB Exit Clearance Steps (${config.completedSteps}/${SB_CLEARANCE_STEPS.length})</span><button class="btn btn-primary btn-sm" onclick="openCommentModal('${config.tripId}', 'border')">💬 Add Comment</button></div>
             <div class="card-body">${renderSBStepsForConfig(config)}</div>
         </div>
         <div style="background:#fffaf0;padding:15px;border-radius:8px;margin-top:20px;border-left:4px solid var(--warning);font-size:13px;">
@@ -2693,7 +2703,7 @@ function renderKasumbalesaWhisky(container) {
         <div class="page-header"><h1>📍 Kasumbalesa Border - Whisky Process</h1><div class="breadcrumb"><a href="#" onclick="navigateTo('dashboard')">Home</a> <span>›</span> <a href="#" onclick="navigateTo('border-clearance')">Border Clearance</a> <span>›</span> <strong>Whisky</strong></div></div>
         ${renderKpiTargetsBanner('border')}
         <div class="frozen-truck-bar"><div class="truck-info-group"><div class="truck-info-item"><span class="truck-info-label">Trip</span><span class="truck-info-value large">NB-2024-008</span></div><div class="truck-info-item"><span class="truck-info-label">Truck</span><span class="truck-info-value large">JKL012DRC</span></div><div class="truck-info-item"><span class="truck-info-label">Hours</span><span class="truck-info-value">52</span></div></div><span class="kpi-badge orange">🟠 PRIORITY</span></div>
-        <div class="card"><div class="card-header"><span>📍 Whisky Process Steps</span><button class="btn btn-primary btn-sm" onclick="openCommentModal('NB-2024-008')">💬 Add Comment</button></div><div class="card-body">${renderWhiskySteps()}</div></div>
+        <div class="card"><div class="card-header"><span>📍 Whisky Process Steps</span><button class="btn btn-primary btn-sm" onclick="openCommentModal('NB-2024-008', 'border')">💬 Add Comment</button></div><div class="card-body">${renderWhiskySteps()}</div></div>
         <button class="btn btn-outline mt-20" onclick="navigateTo('border-clearance')">⬅️ Back</button>`;
 }
 
@@ -2771,7 +2781,7 @@ function renderTripList(container) {
                                 <td><span class="status-badge ${t.kpi}">${t.status}</span></td>
                                 <td>${t.daysInDRC}</td>
                                 <td><span class="kpi-indicator ${t.kpi}"></span> ${getKPILabel(t.kpi)}</td>
-                                <td><button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}')">💬</button></td>
+                                <td><button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}', '${t.direction === 'SB' ? 'sb' : 'nb'}')">💬</button></td>
                             </tr>
                         `).join('') : '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text-secondary);">No trucks match this filter</td></tr>'}
                     </tbody>
@@ -2827,7 +2837,7 @@ function renderDocumentAlerts(container) {
                                 <td><span class="status-badge ${d.kpi}"><span class="dot"></span> ${d.label}</span></td>
                                 <td>
                                     <button class="btn btn-outline btn-sm" onclick="navigateToDocument(${d.id})">👁️ View</button>
-                                    <button class="btn btn-primary btn-sm" onclick="openCommentModal('${d.trip}')">💬</button>
+                                    <button class="btn btn-primary btn-sm" onclick="openCommentModal('${d.trip}', 'nb')">💬</button>
                                 </td>
                             </tr>
                         `).join('') : '<tr><td colspan="7" style="text-align:center;padding:24px;">No documents match this filter</td></tr>'}
@@ -2894,7 +2904,7 @@ function renderDocumentDetail(container) {
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
             <button class="btn btn-outline" onclick="navigateToDocuments('${doc.status}')">⬅️ Back to Document Alerts</button>
             <button class="btn btn-outline" onclick="navigateTo('assets')">🚗 Assets & Equipment</button>
-            ${trip ? `<button class="btn btn-primary" onclick="openCommentModal('${doc.trip}')">💬 Comment on Trip ${doc.trip}</button>` : ''}
+            ${trip ? `<button class="btn btn-primary" onclick="openCommentModal('${doc.trip}', '${trip.direction === 'SB' ? 'sb' : 'nb'}')">💬 Comment on Trip ${doc.trip}</button>` : ''}
         </div>
     `;
 }
@@ -2933,7 +2943,7 @@ function renderPODTableRows(items) {
             <td>${p.collected && p.hoursToCollect ? p.hoursToCollect + 'h' : '—'}</td>
             <td><span class="status-badge ${p.kpi}"><span class="dot"></span> ${p.kpi === 'green' ? 'On Track' : p.kpi === 'orange' ? 'Priority' : 'Overdue'}</span></td>
             <td>
-                <button class="btn btn-primary btn-sm" onclick="openCommentModal('${p.trip}')">💬</button>
+                <button class="btn btn-primary btn-sm" onclick="openCommentModal('${p.trip}', 'pod')">💬</button>
                 ${!p.collected ? `<button class="btn btn-outline btn-sm" onclick="wirePodStageAction('${p.trip}','collected')">📋 Collect</button>` : ''}
                 ${p.collected && !p.scanned ? `<button class="btn btn-outline btn-sm" onclick="wirePodStageAction('${p.trip}','scanned')">🔍 Scan</button>` : ''}
                 ${p.scanned && !p.uploaded ? `<button class="btn btn-outline btn-sm" onclick="wirePodStageAction('${p.trip}','uploaded')">📤 Upload</button>` : ''}
@@ -3217,12 +3227,7 @@ function renderPODManagement(container) {
 
 function renderAreaPage(container, areaName) {
     const trips = Object.values(tripsDB).filter(t=>t.area===areaName);
-    container.innerHTML = `<div class="page-header"><h1>🏢 ${areaName} Area</h1></div><div class="table-container"><div class="table-header"><h3>Trucks in ${areaName} (${trips.length})</h3></div><table><thead><tr><th>Trip</th><th>Truck</th><th>Driver</th><th>Direction</th><th>Status</th><th>Actions</th></tr></thead><tbody>${trips.map(t=>`<tr><td>${t.tripNumber}</td><td>${t.truck}</td><td>${t.driver}</td><td><span class="status-badge blue">${t.direction}</span></td><td><span class="status-badge ${t.kpi}">${t.status}</span></td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}')">💬 Comment</button></td></tr>`).join('')||'<tr><td colspan="6">No trucks</td></tr>'}</tbody></table></div>`;
-}
-
-function renderAreaPage(container, areaName) {
-    const trips = Object.values(tripsDB).filter(t=>t.area===areaName);
-    container.innerHTML = `<div class="page-header"><h1>🏢 ${areaName} Area</h1></div><div class="table-container"><div class="table-header"><h3>Trucks in ${areaName} (${trips.length})</h3></div><table><thead><tr><th>Trip</th><th>Truck</th><th>Driver</th><th>Direction</th><th>Status</th><th>Actions</th></tr></thead><tbody>${trips.map(t=>`<tr><td>${t.tripNumber}</td><td>${t.truck}</td><td>${t.driver}</td><td><span class="status-badge blue">${t.direction}</span></td><td><span class="status-badge ${t.kpi}">${t.status}</span></td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}')">💬 Comment</button></td></tr>`).join('')||'<tr><td colspan="6">No trucks</td></tr>'}</tbody></table></div>`;
+    container.innerHTML = `<div class="page-header"><h1>🏢 ${areaName} Area</h1></div><div class="table-container"><div class="table-header"><h3>Trucks in ${areaName} (${trips.length})</h3></div><table><thead><tr><th>Trip</th><th>Truck</th><th>Driver</th><th>Direction</th><th>Status</th><th>Actions</th></tr></thead><tbody>${trips.map(t=>`<tr><td>${t.tripNumber}</td><td>${t.truck}</td><td>${t.driver}</td><td><span class="status-badge blue">${t.direction}</span></td><td><span class="status-badge ${t.kpi}">${t.status}</span></td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}', '${t.direction === 'SB' ? 'sb' : 'nb'}')">💬 Comment</button></td></tr>`).join('')||'<tr><td colspan="6">No trucks</td></tr>'}</tbody></table></div>`;
 }
 
 // ============================================
@@ -3372,6 +3377,7 @@ function renderAssetsTableRows(items) {
             <td><span class="status-badge ${a.status === 'active' ? 'green' : a.status === 'maintenance' ? 'orange' : 'red'}">${formatAssetStatus(a.status)}</span></td>
             <td>
                 <button class="btn btn-outline btn-sm" onclick="openAssetDetailModal('${a.id}')" title="View details">👁️</button>
+                <button class="btn btn-primary btn-sm" onclick="openAssetStatusModal('${a.id}')" title="Update status">💬</button>
                 <button class="btn btn-primary btn-sm" onclick="openAddAssetDocumentModal('${a.id}')" title="Add document">📄</button>
             </td>
         </tr>
@@ -4709,7 +4715,10 @@ function renderReportTruckTable(trips) {
                 </tr></thead>
                 <tbody>
                     ${trips.map(t => {
-                        const statuses = getStatusesForArea(t.area || 'Kanyaka');
+                        const reportCtx = t.direction === 'SB' ? 'sb' : 'nb';
+                        const statuses = typeof getStatusesForUpdateDropdown === 'function'
+                            ? getStatusesForUpdateDropdown(reportCtx, t)
+                            : getStatusesForArea(t.area || 'Kanyaka');
                         const wf = t.workflow ? Object.entries(t.workflow).filter(([,v])=>v==='current').map(([k])=>k).join(', ') || '—' : '—';
                         const history = getTripAreaHistory(t.tripNumber);
                         return `<tr>
@@ -5628,9 +5637,18 @@ function validateFollowUpDate() {
     return true;
 }
 
-function openCommentModal(tripNumber) {
+let currentCommentStatusContext = null;
+let currentCommentAssetId = null;
+
+function openCommentModal(tripNumber, statusContext) {
+    currentCommentAssetId = null;
     currentCommentTrip = tripNumber;
-    const trip = tripsDB[tripNumber] || {tripNumber:tripNumber,truck:'Unknown',driver:'Unknown',kpi:'green'};
+    const trip = tripsDB[tripNumber] || { tripNumber: tripNumber, truck: 'Unknown', driver: 'Unknown', kpi: 'green', direction: 'NB' };
+
+    const ctx = statusContext || inferStatusContextFromPage(currentPage) ||
+        (trip.direction === 'SB' ? 'sb' : trip.direction === 'NB' ? 'nb' : null);
+    currentCommentStatusContext = ctx;
+
     document.getElementById('modalTripDisplay').textContent = trip.tripNumber;
     document.getElementById('modalTruckDisplay').textContent = trip.truck;
     document.getElementById('modalDriverDisplay').textContent = trip.driver;
@@ -5666,19 +5684,10 @@ function openCommentModal(tripNumber) {
     document.getElementById('followUpDate').value = followUp.toISOString().slice(0, 16);
 
     const statusSelect = document.getElementById('modalStatusUpdate');
-    statusSelect.innerHTML = '<option value="">No status change</option>';
-    const contextStatuses = typeof getStatusesForContext === 'function' ? getStatusesForContext(trip) : getStatusesForArea(trip.area || 'Kanyaka');
-    if (contextStatuses.length) {
-        statusSelect.innerHTML += '<optgroup label="Team Status (context-aware)">' + contextStatuses.map(s => `<option>${s}</option>`).join('') + '</optgroup>';
-    }
-    const podStatuses = globalStatusListsDB?.POD || [];
-    if (trip.workflow?.pod === 'current' && podStatuses.length) {
-        statusSelect.innerHTML += '<optgroup label="POD Status">' + podStatuses.map(s => `<option>${s}</option>`).join('') + '</optgroup>';
-    }
-    if (trip.direction === 'NB') {
-        statusSelect.innerHTML += '<optgroup label="NB Process"><option>Border Clearance Complete</option><option>Arrived at Kanyaka</option><option>Offloading Complete</option><option>POD Collected</option></optgroup>';
-    } else if (trip.direction === 'SB') {
-        statusSelect.innerHTML += '<optgroup label="SB Process"><option>Loading Complete</option><option>Documents Collected</option><option>Seal Collected</option><option>Escort Arranged</option><option>Dispatched</option><option>Arrived at Kanyaka SB</option><option>Border Exit Complete</option></optgroup>';
+    if (typeof populateUpdateStatusDropdown === 'function') {
+        populateUpdateStatusDropdown(statusSelect, ctx, trip);
+    } else {
+        statusSelect.innerHTML = '<option value="">No status change</option>';
     }
 
     const sbKanyakaSection = document.getElementById('sbKanyakaExitSection');
@@ -5696,6 +5705,94 @@ function openCommentModal(tripNumber) {
 
     document.getElementById('commentModalTitle').textContent = `💬 Add Comment - ${trip.tripNumber}`;
     openModal('commentModal');
+}
+
+function openAssetStatusModal(assetId) {
+    const asset = getAssetById(assetId);
+    if (!asset) return;
+    currentCommentAssetId = assetId;
+    currentCommentTrip = null;
+    const isVehicle = asset.category === 'vehicle';
+    currentCommentStatusContext = isVehicle ? 'car' : 'asset';
+
+    document.getElementById('modalTripDisplay').textContent = asset.id;
+    document.getElementById('modalTruckDisplay').textContent = asset.name;
+    document.getElementById('modalDriverDisplay').textContent = isVehicle ? (asset.assignedDriver || '—') : (asset.assignedTo || '—');
+    document.getElementById('modalKPIDisplay').innerHTML = `<span class="status-badge ${asset.status === 'active' ? 'green' : 'orange'}">${asset.operationalStatus || formatAssetStatus(asset.status)}</span>`;
+
+    selectedCommentType = 'normal';
+    document.getElementById('normalCommentText').value = '';
+    document.getElementById('problemDescription').value = '';
+    document.getElementById('personContacted').value = '';
+    document.getElementById('solutionTaken').value = '';
+    document.getElementById('expectedCompletion').value = '';
+    document.getElementById('followUpDate').value = '';
+    document.getElementById('statusDate').value = '';
+    uploadedFiles = [];
+    document.getElementById('fileList').innerHTML = '';
+    document.getElementById('fileUploadArea').classList.remove('has-file');
+    document.getElementById('validationMessage').classList.remove('show');
+    document.getElementById('normalCommentSection').classList.remove('hidden');
+    document.getElementById('structuredCommentSection').classList.add('hidden');
+    document.querySelectorAll('.comment-type-option').forEach(opt => opt.classList.remove('selected'));
+    const normalOpt = document.querySelector('[data-type="normal"]');
+    if (normalOpt) normalOpt.classList.add('selected');
+
+    const workflowEl = document.getElementById('workflowStatus');
+    if (workflowEl) workflowEl.innerHTML = `<div style="font-size:13px;color:var(--text-secondary);">${isVehicle ? '🚗 Vehicle' : '💻 Equipment'} — ${asset.assetType}</div>`;
+
+    const statusSelect = document.getElementById('modalStatusUpdate');
+    if (typeof populateUpdateStatusDropdown === 'function') {
+        populateUpdateStatusDropdown(statusSelect, currentCommentStatusContext, null, asset);
+    }
+    document.getElementById('sbKanyakaExitSection').style.display = 'none';
+    document.getElementById('commentModalTitle').textContent = `💬 Update Status — ${asset.name}`;
+    openModal('commentModal');
+}
+
+function applyAssetStatusUpdate(asset, statusUpdate, commentText) {
+    if (!asset.statusHistory) asset.statusHistory = [];
+    const user = getCurrentAdminUser();
+    asset.statusHistory.unshift({
+        status: statusUpdate,
+        comment: commentText || '',
+        updatedBy: user?.username || 'unknown',
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19)
+    });
+    asset.operationalStatus = statusUpdate;
+    if (/maintenance/i.test(statusUpdate)) asset.status = 'maintenance';
+    else if (/decommission|retired|lost|stolen/i.test(statusUpdate)) asset.status = /stolen/i.test(statusUpdate) ? 'lost' : 'retired';
+    else if (/active|available|assigned|idle|returned/i.test(statusUpdate)) asset.status = 'active';
+    logAuditEvent(`Asset status: ${statusUpdate}`, asset.id, 'asset', commentText);
+}
+
+function applyTripStatusUpdate(trip, statusUpdate, commentText) {
+    const ctx = currentCommentStatusContext;
+    const validStatuses = typeof getStatusesForUpdateDropdown === 'function'
+        ? getStatusesForUpdateDropdown(ctx, trip)
+        : [];
+
+    if (validStatuses.includes(statusUpdate)) {
+        if (ctx === 'pod') {
+            const pod = podDB.find(p => p.trip === currentCommentTrip);
+            if (pod) pod.podStatus = statusUpdate;
+            trip.status = statusUpdate;
+            logAuditEvent(`POD status: ${statusUpdate}`, currentCommentTrip, 'trip', commentText);
+        } else if (ctx === 'nb' || ctx === 'sb' || ctx === 'border') {
+            recordTripAreaUpdate(currentCommentTrip, trip.area, statusUpdate, commentText);
+        }
+    } else {
+        trip.status = statusUpdate;
+        logAuditEvent(`Trip status: ${statusUpdate}`, currentCommentTrip, 'trip', commentText);
+    }
+}
+
+function refreshPageAfterComment() {
+    if (currentPage === 'assets') refreshAssetsTable();
+    else if (currentPage === 'pod-management') refreshPODTable();
+    else if (currentPage === 'nb-operations') refreshNBTable();
+    else if (currentPage === 'sb-operations') refreshSBTable();
+    else if (currentPage?.includes('detail') || currentPage === 'border-clearance') navigateTo(currentPage);
 }
 
 function selectCommentType(type, element) {
@@ -5749,8 +5846,35 @@ function removeFile(index) {
 }
 
 function submitComment() {
+    const statusUpdate = document.getElementById('modalStatusUpdate').value;
+    const commentText = selectedCommentType === 'normal'
+        ? document.getElementById('normalCommentText').value.trim()
+        : document.getElementById('problemDescription').value.trim();
+
+    if (currentCommentAssetId) {
+        if (!commentText && !statusUpdate) {
+            document.getElementById('validationMessage').textContent = '⚠️ Please enter a comment or select a status update.';
+            document.getElementById('validationMessage').classList.add('show');
+            return;
+        }
+        const asset = getAssetById(currentCommentAssetId);
+        if (!asset) {
+            showToast('Asset not found', 'warning');
+            return;
+        }
+        if (statusUpdate) applyAssetStatusUpdate(asset, statusUpdate, commentText);
+        else logAuditEvent(`Asset comment`, asset.id, 'asset', commentText);
+
+        document.getElementById('validationMessage').classList.remove('show');
+        const fileMsg = uploadedFiles.length > 0 ? `\n📁 ${uploadedFiles.length} file(s) uploaded` : '';
+        showToast(`✅ Status saved for ${asset.name}!${fileMsg}`, 'success');
+        closeModal('commentModal');
+        refreshPageAfterComment();
+        return;
+    }
+
     if(selectedCommentType==='normal'){
-        if(!document.getElementById('normalCommentText').value.trim()){
+        if(!commentText){
             document.getElementById('validationMessage').textContent = '⚠️ Please enter a comment.';
             document.getElementById('validationMessage').classList.add('show');
             return;
@@ -5772,7 +5896,6 @@ function submitComment() {
             return;
         }
     }
-    const statusUpdate = document.getElementById('modalStatusUpdate').value;
     const statusDate = document.getElementById('statusDate').value;
     const trip = tripsDB[currentCommentTrip];
 
@@ -5801,13 +5924,7 @@ function submitComment() {
     }
 
     if (statusUpdate && trip) {
-        const ctxStatuses = typeof getStatusesForContext === 'function' ? getStatusesForContext(trip) : [];
-        const podSts = globalStatusListsDB?.POD || [];
-        if (ctxStatuses.includes(statusUpdate) || podSts.includes(statusUpdate)) {
-            recordTripAreaUpdate(currentCommentTrip, trip.area, statusUpdate);
-        } else {
-            trip.status = statusUpdate;
-        }
+        applyTripStatusUpdate(trip, statusUpdate, commentText);
     }
 
     if (statusUpdate && statusDate) {
@@ -5823,7 +5940,7 @@ function submitComment() {
     const fileMsg = uploadedFiles.length>0?`\n📁 ${uploadedFiles.length} file(s) uploaded`:'';
     showToast(`✅ ${type} saved for ${currentCommentTrip}!${fileMsg}`,'success');
     closeModal('commentModal');
-    if(currentPage.includes('detail')||currentPage==='border-clearance') navigateTo(currentPage);
+    refreshPageAfterComment();
 }
 
 // ============================================
@@ -5878,6 +5995,7 @@ document.addEventListener('DOMContentLoaded',async function(){
     if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
     navigateTo('dashboard');
     updateSidebarBadges();
+    updateAdminNavVisibility();
     document.querySelectorAll('.modal-overlay').forEach(overlay=>{ overlay.addEventListener('click',function(e){ if(e.target===this)this.classList.remove('show'); }); });
     document.addEventListener('click',function(event){ const ap=document.getElementById('alertPanel'); const nb=document.querySelector('.notification-btn'); if(ap&&nb&&!ap.contains(event.target)&&!nb.contains(event.target)&&ap.classList.contains('show'))ap.classList.remove('show'); });
     console.log('🚛 TruckControl DRC - Complete Demo Ready');

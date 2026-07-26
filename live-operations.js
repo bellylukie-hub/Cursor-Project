@@ -59,52 +59,82 @@
         window.areaStatusesDB = window.areaStatusesDB.map(normalizeAreaRecord);
     };
 
-    window.getStatusesForContext = function (trip) {
-        if (!trip) return [];
-        const lists = [];
-        const areaRec = (window.areaStatusesDB || []).find(a => a.area === trip.area || a.area === trip.entryBorder || a.area === trip.exitBorder);
+    window.getStatusesForUpdateDropdown = function (statusContext, trip, asset) {
+        const global = window.globalStatusListsDB || {};
+        if (statusContext === 'pod') return [...(global.POD || [])];
+        if (statusContext === 'asset') return [...(global.ASSET || [])];
+        if (statusContext === 'car') return [...(global.CAR || [])];
 
-        if (trip.direction === 'NB') {
-            if (trip.workflow?.border === 'current' || (trip.status && /border|kbp|whisky/i.test(trip.status))) {
-                const borderArea = trip.entryBorder || trip.area;
-                const br = (window.areaStatusesDB || []).find(a => a.area === borderArea && a.isBorder);
-                if (br) lists.push(...(br.statusesBorderNB || br.statusesNB || []));
-            }
-            if (trip.workflow?.kanyaka === 'current') {
-                const k = (window.areaStatusesDB || []).find(a => a.isKanyakaHub);
-                if (k) lists.push(...(k.statusesNB || []).filter(s => s.includes('Kanyaka') || s.includes('Transit') || s.includes('Gov')));
-            }
-            if (trip.workflow?.offloading === 'current') {
-                const off = (window.areaStatusesDB || []).find(a => a.isOffloadingPoint && (a.area === trip.area || pointMatches(trip.offloadingPoint, a.area)));
-                if (off) lists.push(...(off.statusesNB || []));
-            }
-            if (trip.workflow?.pod === 'current') lists.push(...(window.globalStatusListsDB.POD || []));
-            if (areaRec) lists.push(...(areaRec.statusesNB || []));
-        } else if (trip.direction === 'SB') {
-            const wf = trip.workflow || {};
-            if (wf.loadingProcess === 'current') {
-                const load = (window.areaStatusesDB || []).find(a => a.isLoadingPoint);
-                if (load) lists.push(...(load.statusesSB || []).filter(s => /load/i.test(s)));
-            }
-            if (wf.documents === 'current') lists.push('Documents Collected', 'TR8 Received', 'Permits Verified');
-            if (wf.seal === 'current') lists.push('Seal Collected', 'Seal Verified');
-            if (wf.escort === 'current') lists.push('Escort Arranged', 'Escort Assigned');
-            if (wf.dispatch === 'current') lists.push('Dispatched', 'En Route');
-            if (wf.kanyaka === 'current') {
-                const k = (window.areaStatusesDB || []).find(a => a.isKanyakaHub);
-                if (k) lists.push(...(k.statusesSB || []));
-            }
-            if (wf.border === 'current') {
-                const br = (window.areaStatusesDB || []).find(a => a.area === (trip.exitBorder || trip.driverExitBorder) && a.isBorder);
-                if (br) lists.push(...(br.statusesBorderSB || br.statusesSB || []));
-            }
-            if (areaRec) lists.push(...(areaRec.statusesSB || []));
+        const areas = window.areaStatusesDB || [];
+        const findArea = (name) => areas.find(a => a.area === name);
+
+        if (statusContext === 'nb' && trip) {
+            const rec = findArea(trip.area) || findArea(trip.entryBorder) ||
+                areas.find(a => a.isOffloadingPoint && trip.offloadingPoint && trip.offloadingPoint.toLowerCase().includes(a.area.toLowerCase()));
+            if (!rec) return [];
+            const list = [...(rec.statusesNB || [])];
+            if (rec.isBorder && rec.borderForNB) list.push(...(rec.statusesBorderNB || []));
+            if (rec.isKanyakaHub && rec.kanyakaForNB) list.push(...(rec.statusesNB || []).filter(s => /kanyaka|transit/i.test(s)));
+            return [...new Set(list)];
         }
 
-        if (trip.assetContext) lists.push(...(window.globalStatusListsDB.ASSET || []));
-        if (trip.carContext) lists.push(...(window.globalStatusListsDB.CAR || []));
+        if (statusContext === 'sb' && trip) {
+            const rec = findArea(trip.area) || findArea(trip.loadingPoint?.split(' ')[0]) || findArea(trip.exitBorder);
+            if (!rec) return [];
+            const list = [...(rec.statusesSB || [])];
+            if (rec.isLoadingPoint) list.push(...(rec.statusesSB || []).filter(s => /load/i.test(s)));
+            if (rec.isKanyakaHub && rec.kanyakaForSB) list.push(...(rec.statusesSB || []));
+            return [...new Set(list)];
+        }
 
-        return [...new Set(lists.filter(Boolean))];
+        if (statusContext === 'border' && trip) {
+            const borderName = trip.direction === 'NB' ? (trip.entryBorder || trip.area) : (trip.exitBorder || trip.driverExitBorder || trip.area);
+            const rec = findArea(borderName) || areas.find(a => a.isBorder);
+            if (!rec) return [];
+            if (trip.direction === 'NB') return [...new Set([...(rec.statusesBorderNB || []), ...(rec.statusesNB || [])])];
+            return [...new Set([...(rec.statusesBorderSB || []), ...(rec.statusesSB || [])])];
+        }
+
+        return [];
+    };
+
+    window.populateUpdateStatusDropdown = function (selectEl, statusContext, trip, asset) {
+        if (!selectEl) return;
+        const labels = {
+            pod: 'POD Status',
+            asset: 'Asset Status',
+            car: 'Car / Vehicle Status',
+            nb: 'Area Status (NB)',
+            sb: 'Area Status (SB)',
+            border: 'Area Status (Border Clearance)'
+        };
+        const statuses = getStatusesForUpdateDropdown(statusContext, trip, asset);
+        selectEl.innerHTML = '<option value="">No status change</option>';
+        if (statuses.length) {
+            const label = labels[statusContext] || 'Update Status';
+            selectEl.innerHTML += `<optgroup label="${label}">` +
+                statuses.map(s => `<option value="${s.replace(/"/g, '&quot;')}">${s}</option>`).join('') +
+                '</optgroup>';
+        }
+    };
+
+    window.inferStatusContextFromPage = function (page) {
+        if (!page) return null;
+        if (page === 'pod-management') return 'pod';
+        if (page === 'nb-operations') return 'nb';
+        if (page === 'sb-operations') return 'sb';
+        if (page === 'assets') return 'asset';
+        if (page === 'border-clearance' || page.includes('detail') || page.includes('kasumbalesa') ||
+            page.includes('sakania') || page.includes('mokambo') || page.includes('whisky') || page.startsWith('sb-')) {
+            return 'border';
+        }
+        return null;
+    };
+
+    /** @deprecated use getStatusesForUpdateDropdown */
+    window.getStatusesForContext = function (trip) {
+        const ctx = inferStatusContextFromPage(window.currentPage) || (trip?.direction === 'SB' ? 'sb' : 'nb');
+        return getStatusesForUpdateDropdown(ctx, trip);
     };
 
     function pointMatches(point, area) {
@@ -361,8 +391,8 @@
     };
 
     window.renderAdminUploadTemplates = function (container) {
-        if (!window.canAccessAdminPage || !canAccessAdminPage('admin-settings')) {
-            container.innerHTML = '<div class="access-denied"><h2>Access Denied</h2></div>';
+        if (!window.canAccessAdminPage || !canAccessAdminPage('admin-upload-templates')) {
+            container.innerHTML = '<div class="access-denied"><h2>Access Denied</h2><p>Upload Templates are restricted to Super Admin only.</p></div>';
             return;
         }
         container.innerHTML = `
