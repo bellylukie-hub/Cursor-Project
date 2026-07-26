@@ -1193,6 +1193,12 @@
                     </a>
                 </div>
                 <div class="nav-section">
+                    <div class="nav-section-title">Communication</div>
+                    <a class="nav-item" onclick="navigateToCommunication('messages')" data-page="communication">
+                        <span class="icon">📱</span> Communication Center
+                    </a>
+                </div>
+                <div class="nav-section">
                     <div class="nav-section-title">Management</div>
                     <a class="nav-item" onclick="navigateTo('assets')" data-page="assets">
                         <span class="icon">🚗</span> Assets & Equipment
@@ -1407,6 +1413,73 @@
             <div class="modal-header"><h3 id="assetDetailTitle">Asset Details</h3><button class="btn btn-outline" onclick="closeModal('assetDetailModal')">✕</button></div>
             <div class="modal-body" id="assetDetailBody"></div>
             <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('assetDetailModal')">Close</button></div>
+        </div>
+    </div>
+
+    <!-- COMPOSE MESSAGE MODAL -->
+    <div class="modal-overlay" id="composeMessageModal">
+        <div class="modal">
+            <div class="modal-header"><h3>💬 Send Message</h3><button class="btn btn-outline" onclick="closeModal('composeMessageModal')">✕</button></div>
+            <div class="modal-body">
+                <form id="composeMessageForm" onsubmit="event.preventDefault(); submitComposeMessage();">
+                    <div class="form-group"><label>Trip <span class="required">*</span></label><select class="form-control" id="composeTripSelect" onchange="onComposeTripChange()"></select></div>
+                    <div class="form-grid-2">
+                        <div class="form-group"><label>Driver</label><div id="composeDriverDisplay" class="form-control" style="background:#f7fafc;">—</div></div>
+                        <div class="form-group"><label>Truck</label><div id="composeTruckDisplay" class="form-control" style="background:#f7fafc;">—</div></div>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group"><label>Channel <span class="required">*</span></label><select class="form-control" id="composeChannel" onchange="onComposeTripChange()"><option>WhatsApp</option><option>SMS</option><option>Phone Call</option><option>Email</option></select></div>
+                        <div class="form-group"><label>Contact Number / Email</label><input type="text" class="form-control" id="composePhone" placeholder="Auto-filled from driver contact"></div>
+                    </div>
+                    <div class="form-group"><label>Subject <span class="required">*</span></label><input type="text" class="form-control" id="composeSubject" placeholder="Message subject"></div>
+                    <div class="form-group"><label>Message <span class="required">*</span></label><textarea class="form-control" id="composeMessage" rows="4" placeholder="Type your message..."></textarea></div>
+                </form>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('composeMessageModal')">Cancel</button><button class="btn btn-primary" onclick="submitComposeMessage()">📤 Send</button></div>
+        </div>
+    </div>
+
+    <!-- RECORD DRIVER CONTACT MODAL -->
+    <div class="modal-overlay" id="recordDriverContactModal">
+        <div class="modal">
+            <div class="modal-header"><h3>📞 Record Driver Contact Details</h3><button class="btn btn-outline" onclick="closeModal('recordDriverContactModal')">✕</button></div>
+            <div class="modal-body">
+                <form id="recordContactForm" onsubmit="event.preventDefault(); submitRecordDriverContact();">
+                    <div class="form-group"><label>Trip <span class="required">*</span></label><select class="form-control" id="recordContactTrip" onchange="onRecordContactTripChange()"></select></div>
+                    <div class="form-grid-2">
+                        <div class="form-group"><label>Driver</label><input type="text" class="form-control" id="recordContactDriver" readonly style="background:#f7fafc;"></div>
+                        <div class="form-group"><label>Truck</label><input type="text" class="form-control" id="recordContactTruck" readonly style="background:#f7fafc;"></div>
+                    </div>
+                    <div class="form-group"><label>Zambia Phone</label><input type="text" class="form-control" id="recordPhoneZambia" placeholder="+260 ..."></div>
+                    <div class="form-group"><label>DRC Phone</label><input type="text" class="form-control" id="recordPhoneDRC" placeholder="+243 ..."></div>
+                    <div class="form-group"><label>WhatsApp Number <span class="required">*</span></label><input type="text" class="form-control" id="recordWhatsapp" placeholder="+260 ..."></div>
+                    <div class="form-group"><label>Email (optional)</label><input type="email" class="form-control" id="recordEmail" placeholder="driver@email.com"></div>
+                    <div class="field-hint" style="font-size:12px;color:var(--text-secondary);">Matches KBP Step 7 — Driver Contact Details at border clearance.</div>
+                </form>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('recordDriverContactModal')">Cancel</button><button class="btn btn-primary" onclick="submitRecordDriverContact()">💾 Save Contact</button></div>
+        </div>
+    </div>
+
+    <!-- BROADCAST ALERT MODAL -->
+    <div class="modal-overlay" id="broadcastModal">
+        <div class="modal">
+            <div class="modal-header"><h3>📢 Send Broadcast Alert</h3><button class="btn btn-outline" onclick="closeModal('broadcastModal')">✕</button></div>
+            <div class="modal-body">
+                <form id="broadcastForm" onsubmit="event.preventDefault(); submitBroadcast();">
+                    <div class="form-group"><label>Alert Title <span class="required">*</span></label><input type="text" class="form-control" id="broadcastTitle" placeholder="e.g. Kasumbalesa border queue alert"></div>
+                    <div class="form-group"><label>Message <span class="required">*</span></label><textarea class="form-control" id="broadcastMessage" rows="4" placeholder="Broadcast message to drivers..."></textarea></div>
+                    <div class="form-grid-2">
+                        <div class="form-group"><label>Channel</label><select class="form-control" id="broadcastChannel"><option>WhatsApp</option><option>SMS</option></select></div>
+                        <div class="form-group"><label>Direction</label><select class="form-control" id="broadcastDirection"><option>NB</option><option>SB</option><option>All</option></select></div>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group"><label>Area</label><select class="form-control" id="broadcastArea"><option>Kasumbalesa</option><option>Kanyaka</option><option>Kolwezi</option><option>Lubumbashi</option><option>All Areas</option></select></div>
+                        <div class="form-group"><label>Target Group <span class="required">*</span></label><input type="text" class="form-control" id="broadcastTarget" placeholder="e.g. Kasumbalesa NB drivers"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('broadcastModal')">Cancel</button><button class="btn btn-primary" onclick="submitBroadcast()">📢 Send Broadcast</button></div>
         </div>
     </div>
 
