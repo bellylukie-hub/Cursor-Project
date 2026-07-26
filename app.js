@@ -33,9 +33,12 @@ let assetsCategoryFilter = 'all';
 let nextAssetId = 6;
 let nextAssetDocId = 20;
 let assetDocUploadedFile = null;
-let communicationFilter = 'messages';
-let communicationSearchTerm = '';
-let communicationChannelFilter = 'all';
+let matrixFilter = 'contacts';
+let matrixSearchTerm = '';
+let matrixAreaFilter = 'all';
+let matrixActiveFilter = 'all';
+let internalCommFilter = 'email';
+let internalCommSearchTerm = '';
 let currentDocumentId = null;
 let currentTripFilter = 'all';
 let currentDocFilter = 'all';
@@ -46,7 +49,7 @@ let areaSbSearch = '';
 let areaDropdownOpen = true;
 let areaSelectorHidden = false;
 
-const listRowSelections = { nb: [], sb: [], border: [], pod: [], assets: [], communication: [] };
+const listRowSelections = { nb: [], sb: [], border: [], pod: [], assets: [], commMatrix: [], internalComm: [] };
 
 const areasDB = [
     { id: 'kanyaka', name: 'Kanyaka', icon: '🏗️', offloadingPoints: ['Kanyaka', 'Kanyaka Depot', 'Kanyaka Mine'], loadingPoints: ['Kanyaka', 'Kanyaka Depot', 'Kanyaka Mine'] },
@@ -141,37 +144,48 @@ function syncAllAssetDocumentsToGlobalRegistry() {
     });
 }
 
-const COMMUNICATION_CHANNELS = ['WhatsApp', 'SMS', 'Phone Call', 'Email'];
-const COMMUNICATION_STATUSES = ['delivered', 'read', 'pending', 'failed'];
+const MATRIX_AREAS = ['Kasumbalesa', 'Kanyaka', 'Kolwezi', 'Lubumbashi', 'Likasi', 'Sakania', 'Mokambo', 'All Areas'];
+const MATRIX_FUNCTIONS = ['Clearing Agent', 'Border Officer', 'Customs Inspector', 'Runner', 'Driver', 'Dispatcher', 'Area Supervisor', 'POD Officer', 'Asset Controller', 'Management'];
+const INTERNAL_LINK_TYPES = ['trip', 'truck', 'car', 'asset', 'equipment', 'area', 'user'];
 
-const driverContactsDB = [
-    { id: 'DC-001', trip: 'NB-2024-001', truck: 'ABC123DRC', driver: 'John Doe', owner: 'Transport Co A', area: 'Kasumbalesa', direction: 'NB', phoneZambia: '+260 977 123456', phoneDRC: '+243 812 345678', whatsapp: '+260 977 123456', email: 'john.doe@transport.com', contactRecorded: true, lastContact: '2026-07-25 11:30', recordedBy: 'Ruth Mwansa' },
-    { id: 'DC-002', trip: 'NB-2024-008', truck: 'JKL012DRC', driver: 'Peter Mwansa', owner: 'Transport Co D', area: 'Kasumbalesa', direction: 'NB', phoneZambia: '+260 966 234567', phoneDRC: '+243 998 765432', whatsapp: '+260 966 234567', email: '', contactRecorded: true, lastContact: '2026-07-24 16:45', recordedBy: 'Jean Kalenga' },
-    { id: 'DC-003', trip: 'NB-2024-015', truck: 'XYZ789DRC', driver: 'Sarah Smith', owner: 'Transport Co B', area: 'Kolwezi', direction: 'NB', phoneZambia: '+260 955 345678', phoneDRC: '+243 815 111222', whatsapp: '+260 955 345678', email: 'sarah.smith@transport.com', contactRecorded: true, lastContact: '2026-07-23 09:15', recordedBy: 'Inspector Kabwe' },
-    { id: 'DC-004', trip: 'SB-2024-003', truck: 'DEF456DRC', driver: 'Mike Johnson', owner: 'Transport Co A', area: 'Kanyaka', direction: 'SB', phoneZambia: '+260 977 456789', phoneDRC: '+243 810 333444', whatsapp: '+260 977 456789', email: '', contactRecorded: false, lastContact: '2026-07-22 14:00', recordedBy: 'David Mukendi' },
-    { id: 'DC-005', trip: 'SB-2024-005', truck: 'MNO345DRC', driver: 'David Mukendi', owner: 'Transport Co B', area: 'Kanyaka', direction: 'SB', phoneZambia: '+260 964 567890', phoneDRC: '+243 818 555666', whatsapp: '+260 964 567890', email: 'david.m@transport.com', contactRecorded: true, lastContact: '2026-07-25 08:30', recordedBy: 'Ruth Mwansa' },
-    { id: 'DC-006', trip: 'NB-2024-042', truck: 'RST890DRC', driver: 'Alice Bwalya', owner: 'Transport Co D', area: 'Kasumbalesa', direction: 'NB', phoneZambia: '+260 972 678901', phoneDRC: '+243 819 777888', whatsapp: '+260 972 678901', email: '', contactRecorded: false, lastContact: null, recordedBy: null }
+const communicationMatrixDB = [
+    { id: 'CM-001', name: 'Jean Kalenga', company: 'Clearing Agent Services', function: 'Clearing Agent', email: 'jean.kalenga@cas.com', placeOfWork: 'Kasumbalesa KBP Brigade Office', phone: '+260 977 111222', whatsapp: '+260 977 111222', area: 'Kasumbalesa', active: true, notes: 'Primary KBP clearing contact' },
+    { id: 'CM-002', name: 'Ruth Mwansa', company: 'Border Operations', function: 'Border Officer', email: 'ruth.mwansa@borderops.com', placeOfWork: 'KBP Admin Office', phone: '+260 966 222333', whatsapp: '+260 966 222333', area: 'Kasumbalesa', active: true, notes: 'Records driver contact details at KBP Step 7' },
+    { id: 'CM-003', name: 'Marie Mwamba', company: 'Whisky Clearing', function: 'Clearing Agent', email: 'marie.mwamba@whisky.com', placeOfWork: 'Whisky Office', phone: '+260 955 333444', whatsapp: '+260 955 333444', area: 'Kasumbalesa', active: true, notes: 'Whisky TR8/T1 process' },
+    { id: 'CM-004', name: 'Inspector Kabwe', company: 'Customs DRC', function: 'Customs Inspector', email: 'kabwe@customs.drc', placeOfWork: 'Customs Control Room', phone: '+243 812 444555', whatsapp: '+243 812 444555', area: 'Kasumbalesa', active: true, notes: 'Green/red stamping' },
+    { id: 'CM-005', name: 'David Mukendi', company: 'Kanyaka Operations', function: 'Dispatcher', email: 'david.m@kanyaka.com', placeOfWork: 'Kanyaka Dispatch', phone: '+260 977 555666', whatsapp: '+260 977 555666', area: 'Kanyaka', active: true, notes: 'SB dispatch and escort' },
+    { id: 'CM-006', name: 'John Doe', company: 'Transport Co A', function: 'Driver', email: 'john.doe@transport.com', placeOfWork: 'Mobile', phone: '+260 977 123456', whatsapp: '+260 977 123456', area: 'Kolwezi', active: true, notes: 'NB driver — DRC: +243 812 345678' },
+    { id: 'CM-007', name: 'Peter Mwansa', company: 'Transport Co D', function: 'Driver', email: '', placeOfWork: 'Mobile', phone: '+260 966 234567', whatsapp: '+260 966 234567', area: 'Kasumbalesa', active: true, notes: 'Whisky process driver' },
+    { id: 'CM-008', name: 'Officer Kalaba', company: 'POD Management', function: 'POD Officer', email: 'kalaba@pod.com', placeOfWork: 'POD Office Lubumbashi', phone: '+243 815 999000', whatsapp: '+243 815 999000', area: 'Lubumbashi', active: true, notes: 'POD collection follow-up' },
+    { id: 'CM-009', name: 'Jean Pierre', company: 'Sakania Border', function: 'Border Officer', email: 'jpierre@sakania.com', placeOfWork: 'Sakania Parking', phone: '+243 998 111222', whatsapp: '+243 998 111222', area: 'Sakania', active: false, notes: 'Inactive — on leave' }
 ];
 
-const communicationsDB = [
-    { id: 'MSG-001', trip: 'NB-2024-001', truck: 'ABC123DRC', driver: 'John Doe', channel: 'WhatsApp', direction: 'outbound', subject: 'Border clearance update', message: 'Please proceed to KBP Scan Bay. Documents ready for cross-checking.', phone: '+260 977 123456', sentAt: '2026-07-25 10:30', status: 'read', sentBy: 'Jean Kalenga', area: 'Kasumbalesa' },
-    { id: 'MSG-002', trip: 'NB-2024-001', truck: 'ABC123DRC', driver: 'John Doe', channel: 'WhatsApp', direction: 'inbound', subject: 'Driver reply', message: 'Acknowledged. Arriving at scan bay in 15 minutes.', phone: '+260 977 123456', sentAt: '2026-07-25 10:42', status: 'delivered', sentBy: 'John Doe', area: 'Kasumbalesa' },
-    { id: 'MSG-003', trip: 'NB-2024-008', truck: 'JKL012DRC', driver: 'Peter Mwansa', channel: 'SMS', direction: 'outbound', subject: 'Whisky process reminder', message: 'TR8 issued. Please collect documents from Whisky office before 16:00.', phone: '+260 966 234567', sentAt: '2026-07-24 15:20', status: 'delivered', sentBy: 'Marie Mwamba', area: 'Kasumbalesa' },
-    { id: 'MSG-004', trip: 'SB-2024-003', truck: 'DEF456DRC', driver: 'Mike Johnson', channel: 'Phone Call', direction: 'outbound', subject: 'Loading delay follow-up', message: 'Called driver — loading delayed due to queue at mine. ETA 2 hours.', phone: '+260 977 456789', sentAt: '2026-07-23 11:00', status: 'delivered', sentBy: 'David Mukendi', area: 'Kanyaka' },
-    { id: 'MSG-005', trip: 'NB-2024-015', truck: 'XYZ789DRC', driver: 'Sarah Smith', channel: 'WhatsApp', direction: 'outbound', subject: 'Offloading confirmation', message: 'Offloading slot confirmed at Kolwezi Mine for tomorrow 08:00.', phone: '+260 955 345678', sentAt: '2026-07-24 09:15', status: 'read', sentBy: 'Inspector Kabwe', area: 'Kolwezi' },
-    { id: 'MSG-006', trip: 'SB-2024-005', truck: 'MNO345DRC', driver: 'David Mukendi', channel: 'Email', direction: 'outbound', subject: 'Dispatch instructions', message: 'Dispatch escort assigned. Report to Kanyaka gate at 07:00.', phone: 'david.m@transport.com', sentAt: '2026-07-25 07:45', status: 'delivered', sentBy: 'Ruth Mwansa', area: 'Kanyaka' },
-    { id: 'MSG-007', trip: 'NB-2024-022', truck: 'GHI789DRC', driver: 'Jean Pierre', channel: 'SMS', direction: 'outbound', subject: 'POD reminder', message: 'POD collection overdue. Please submit within 24 hours.', phone: '+243 815 999000', sentAt: '2026-07-25 06:00', status: 'failed', sentBy: 'Officer Kalaba', area: 'Lubumbashi' }
+const internalMessagesDB = [
+    { id: 'MSG-001', subject: 'KBP clearance priority — NB-2024-001', body: 'Please proceed to KBP Scan Bay. Documents ready for cross-checking.', sender: 'Jean Kalenga', recipients: ['Ruth Mwansa', 'Inspector Kabwe'], tags: ['@Ruth Mwansa'], relatedType: 'trip', relatedRef: 'NB-2024-001', relatedLabel: 'NB-2024-001 / ABC123DRC', sentAt: '2026-07-25 10:30', status: 'read', attachments: 1 },
+    { id: 'MSG-002', subject: 'Whisky TR8 reminder — NB-2024-008', body: 'TR8 issued. Please collect documents from Whisky office before 16:00.', sender: 'Marie Mwamba', recipients: ['Peter Mwansa', 'Operations Manager'], tags: ['@Peter Mwansa'], relatedType: 'trip', relatedRef: 'NB-2024-008', relatedLabel: 'NB-2024-008 / JKL012DRC', sentAt: '2026-07-24 15:20', status: 'delivered', attachments: 0 },
+    { id: 'MSG-003', subject: 'Kanyaka dispatch update', body: 'Dispatch escort assigned. Report to Kanyaka gate at 07:00.', sender: 'David Mukendi', recipients: ['Ruth Mwansa', 'Area Supervisor'], tags: [], relatedType: 'area', relatedRef: 'Kanyaka', relatedLabel: 'Kanyaka Area', sentAt: '2026-07-25 07:45', status: 'delivered', attachments: 0 },
+    { id: 'MSG-004', subject: 'Asset handover — Samsung Galaxy A54', body: 'Driver dispatch phone assigned to Mike Johnson. Handover form attached.', sender: 'Asset Controller', recipients: ['David Mukendi'], tags: ['@David Mukendi'], relatedType: 'equipment', relatedRef: 'EQ-PHONE-14', relatedLabel: 'EQ-PHONE-14 / Samsung A54', sentAt: '2026-07-24 09:15', status: 'read', attachments: 1 },
+    { id: 'MSG-005', subject: 'POD collection overdue', body: 'POD collection overdue for NB-2024-022. Please submit within 24 hours.', sender: 'Officer Kalaba', recipients: ['Operations Manager', 'Kolwezi Dispatch'], tags: ['@Operations Manager'], relatedType: 'trip', relatedRef: 'NB-2024-022', relatedLabel: 'NB-2024-022 / GHI789DRC', sentAt: '2026-07-25 06:00', status: 'pending', attachments: 0 }
 ];
 
-const broadcastAlertsDB = [
-    { id: 'BC-001', title: 'Kasumbalesa border queue alert', message: 'Heavy queue at KBP — expect 4+ hour delays. All NB drivers to report status.', channel: 'WhatsApp', target: 'Kasumbalesa NB drivers', area: 'Kasumbalesa', direction: 'NB', recipients: 23, sentAt: '2026-07-25 08:00', sentBy: 'Control Room', status: 'sent' },
-    { id: 'BC-002', title: 'Kolwezi offloading schedule', message: 'KCC Mine offloading slots available from 14:00 today.', channel: 'SMS', target: 'Kolwezi area trucks', area: 'Kolwezi', direction: 'NB', recipients: 12, sentAt: '2026-07-24 13:30', sentBy: 'Kolwezi Dispatch', status: 'sent' },
-    { id: 'BC-003', title: 'SB dispatch hold', message: 'Temporary hold on Kanyaka dispatch until 10:00 due to escort shortage.', channel: 'WhatsApp', target: 'Kanyaka SB drivers', area: 'Kanyaka', direction: 'SB', recipients: 8, sentAt: '2026-07-25 05:45', sentBy: 'Dispatch Team', status: 'sent' }
+const chatRoomsDB = [
+    { id: 'ROOM-001', name: 'Kasumbalesa Border Team', type: 'group', relatedType: 'area', relatedRef: 'Kasumbalesa', members: 8, lastMessage: 'Queue update: 4+ hour delay at KBP scan bay', lastAt: '2026-07-25 08:15', createdBy: 'Jean Kalenga' },
+    { id: 'ROOM-002', name: 'Kanyaka SB Dispatch', type: 'group', relatedType: 'area', relatedRef: 'Kanyaka', members: 5, lastMessage: 'Escort shortage — hold dispatch until 10:00', lastAt: '2026-07-25 05:45', createdBy: 'David Mukendi' },
+    { id: 'ROOM-003', name: 'POD & Invoicing', type: 'group', relatedType: 'user', relatedRef: 'POD Team', members: 4, lastMessage: '3 PODs sent to invoice team today', lastAt: '2026-07-25 11:00', createdBy: 'Officer Kalaba' },
+    { id: 'ROOM-004', name: 'Jean Kalenga ↔ Ruth Mwansa', type: 'direct', relatedType: 'user', relatedRef: 'Direct', members: 2, lastMessage: 'Driver contact recorded for NB-2024-001', lastAt: '2026-07-25 11:30', createdBy: 'Ruth Mwansa' }
 ];
 
-let nextDriverContactId = 7;
-let nextMessageId = 8;
-let nextBroadcastId = 4;
+const chatMessagesDB = [
+    { id: 'CHAT-001', roomId: 'ROOM-001', sender: 'Jean Kalenga', message: 'Queue update: 4+ hour delay at KBP scan bay. All NB drivers report status.', fileLink: null, tags: ['@Ruth Mwansa'], sentAt: '2026-07-25 08:15' },
+    { id: 'CHAT-002', roomId: 'ROOM-001', sender: 'Ruth Mwansa', message: 'Acknowledged. Notifying clearing agents.', fileLink: 'KBP_Queue_Notice.pdf', tags: [], sentAt: '2026-07-25 08:20' },
+    { id: 'CHAT-003', roomId: 'ROOM-002', sender: 'David Mukendi', message: 'Escort shortage — hold dispatch until 10:00', fileLink: null, tags: ['@Area Supervisor'], sentAt: '2026-07-25 05:45' },
+    { id: 'CHAT-004', roomId: 'ROOM-004', sender: 'Ruth Mwansa', message: 'Driver contact recorded for NB-2024-001. WhatsApp: +260 977 123456', fileLink: null, tags: [], sentAt: '2026-07-25 11:30' }
+];
+
+let nextMatrixContactId = 10;
+let nextInternalMessageId = 6;
+let nextChatRoomId = 5;
+let nextChatMessageId = 5;
 
 const recentActivityNB = [
     { trip: 'TR-1024', truck: 'ZAM-4567', area: 'Kasumbalesa', status: 'Border', kpi: 'orange', days: 2, listFilter: 'nb-border-kasumbalesa' },
@@ -424,7 +438,8 @@ function navigateTo(page) {
         case 'kanyaka': renderAreaPage(ca,'Kanyaka'); break;
         case 'kolwezi': renderAreaPage(ca,'Kolwezi'); break;
         case 'area-browser': renderAreaBrowser(ca); break;
-        case 'communication': renderCommunication(ca); break;
+        case 'communication-matrix': renderCommunicationMatrix(ca); break;
+        case 'internal-communication': renderInternalCommunication(ca); break;
         case 'assets': renderAssets(ca); break;
         case 'runner-fees': renderRunnerFees(ca); break;
         case 'reports': renderReports(ca); break;
@@ -1175,17 +1190,29 @@ const LIST_EXPORT_CONFIG = {
             ];
         }
     },
-    communication: {
-        title: 'Communication',
-        filenamePrefix: 'Communication',
-        getData: getCommunicationExportData,
+    commMatrix: {
+        title: 'Communication Matrix',
+        filenamePrefix: 'Communication_Matrix',
+        getData: getMatrixExportData,
         getRowId: r => r.id,
-        headers: ['ID', 'Type', 'Trip', 'Truck', 'Driver', 'Channel', 'Direction', 'Subject', 'Message / Detail', 'Contact', 'Area', 'Date/Time', 'Status', 'Sent By'],
+        headers: ['ID', 'Name', 'Company', 'Function', 'Email', 'Place of Work', 'Phone', 'WhatsApp', 'Area', 'Status', 'Notes'],
         mapRow: r => [
-            r.id, r.recordType, r.trip || '—', r.truck || '—', r.driver || '—',
-            r.channel || '—', r.direction || '—', r.subject || r.title || '—',
-            r.message || '—', r.phone || r.whatsapp || '—', r.area || '—',
-            r.sentAt || r.lastContact || '—', r.status || '—', r.sentBy || r.recordedBy || '—'
+            r.id, r.name, r.company, r.function, r.email || '—', r.placeOfWork || '—',
+            r.phone || '—', r.whatsapp || '—', r.area || '—',
+            r.active ? 'Active' : 'Inactive', r.notes || '—'
+        ]
+    },
+    internalComm: {
+        title: 'Internal Communication',
+        filenamePrefix: 'Internal_Communication',
+        getData: getInternalCommExportData,
+        getRowId: r => r.id,
+        headers: ['ID', 'Type', 'Subject / Room', 'Message', 'Sender', 'Recipients / Members', 'Linked To', 'Date/Time', 'Status', 'Attachments'],
+        mapRow: r => [
+            r.id, r.recordType, r.subject || r.name || '—', r.body || r.lastMessage || r.message || '—',
+            r.sender || r.createdBy || '—', (r.recipients || []).join('; ') || String(r.members || '—'),
+            r.relatedLabel || '—', r.sentAt || r.lastAt || '—', r.status || '—',
+            r.attachments != null ? r.attachments : (r.fileLink ? '1' : '0')
         ]
     }
 };
@@ -3052,429 +3079,661 @@ function renderRunnerFees(container) {
 }
 
 // ============================================
-// COMMUNICATION CENTER
+// COMMUNICATION MATRIX (SRS §3, §10)
 // ============================================
-function navigateToCommunication(filter) {
-    communicationFilter = filter || 'messages';
-    navigateTo('communication');
+function navigateToCommunicationMatrix(filter) {
+    matrixFilter = filter || 'contacts';
+    navigateTo('communication-matrix');
 }
 
-function getCommunicationStats() {
-    const today = '2026-07-25';
-    const todayMsgs = communicationsDB.filter(m => m.sentAt.startsWith(today));
+function getMatrixStats() {
+    const companies = [...new Set(communicationMatrixDB.map(c => c.company))];
+    const functions = [...new Set(communicationMatrixDB.map(c => c.function))];
     return {
-        messagesToday: todayMsgs.length,
-        driversContacted: driverContactsDB.filter(d => d.contactRecorded).length,
-        pendingContacts: driverContactsDB.filter(d => !d.contactRecorded).length,
-        failedMessages: communicationsDB.filter(m => m.status === 'failed').length,
-        broadcasts: broadcastAlertsDB.length,
-        whatsapp: communicationsDB.filter(m => m.channel === 'WhatsApp').length
+        totalContacts: communicationMatrixDB.length,
+        activeContacts: communicationMatrixDB.filter(c => c.active).length,
+        companies: companies.length,
+        areas: [...new Set(communicationMatrixDB.map(c => c.area))].length,
+        functions: functions.length
     };
 }
 
-function getCommunicationExportData() {
-    if (communicationFilter === 'contacts') {
-        return getFilteredDriverContacts().map(d => ({
-            id: d.id, recordType: 'Driver Contact', trip: d.trip, truck: d.truck, driver: d.driver,
-            channel: 'Contact Registry', direction: '—', subject: 'Driver Contact Details',
-            message: `Zambia: ${d.phoneZambia} | DRC: ${d.phoneDRC}`,
-            phone: d.whatsapp, area: d.area, lastContact: d.lastContact || '—',
-            status: d.contactRecorded ? 'Recorded' : 'Pending', recordedBy: d.recordedBy || '—'
+function getFilteredMatrixContacts() {
+    const search = matrixSearchTerm || (document.getElementById('matrixSearchInput')?.value || '').trim();
+    const area = matrixAreaFilter || document.getElementById('matrixAreaFilter')?.value || 'all';
+    const active = matrixActiveFilter || document.getElementById('matrixActiveFilter')?.value || 'all';
+    let items = [...communicationMatrixDB];
+    if (area !== 'all') items = items.filter(c => c.area === area);
+    if (active === 'active') items = items.filter(c => c.active);
+    if (active === 'inactive') items = items.filter(c => !c.active);
+    if (search) {
+        const term = search.toLowerCase();
+        items = items.filter(c =>
+            c.name.toLowerCase().includes(term) || c.company.toLowerCase().includes(term) ||
+            c.function.toLowerCase().includes(term) || (c.email && c.email.toLowerCase().includes(term)) ||
+            (c.phone && c.phone.includes(term)) || (c.whatsapp && c.whatsapp.includes(term)) ||
+            (c.placeOfWork && c.placeOfWork.toLowerCase().includes(term)) ||
+            (c.area && c.area.toLowerCase().includes(term))
+        );
+    }
+    return items;
+}
+
+function getMatrixExportData() {
+    if (matrixFilter === 'companies') {
+        const grouped = {};
+        getFilteredMatrixContacts().forEach(c => {
+            if (!grouped[c.company]) grouped[c.company] = { company: c.company, count: 0, areas: new Set(), functions: new Set() };
+            grouped[c.company].count++;
+            grouped[c.company].areas.add(c.area);
+            grouped[c.company].functions.add(c.function);
+        });
+        return Object.values(grouped).map((g, i) => ({
+            id: `CO-${i + 1}`, name: g.company, company: g.company, function: [...g.functions].join(', '),
+            email: '—', placeOfWork: '—', phone: '—', whatsapp: '—', area: [...g.areas].join(', '),
+            active: true, notes: `${g.count} contact(s)`
         }));
     }
-    if (communicationFilter === 'broadcasts') {
-        return getFilteredBroadcasts().map(b => ({
-            id: b.id, recordType: 'Broadcast', trip: '—', truck: '—', driver: '—',
-            channel: b.channel, direction: 'outbound', title: b.title, message: b.message,
-            phone: b.target, area: b.area, sentAt: b.sentAt, status: b.status, sentBy: b.sentBy
+    if (matrixFilter === 'functions') {
+        const grouped = {};
+        getFilteredMatrixContacts().forEach(c => {
+            if (!grouped[c.function]) grouped[c.function] = { function: c.function, count: 0, companies: new Set() };
+            grouped[c.function].count++;
+            grouped[c.function].companies.add(c.company);
+        });
+        return Object.values(grouped).map((g, i) => ({
+            id: `FN-${i + 1}`, name: g.function, company: [...g.companies].join(', '), function: g.function,
+            email: '—', placeOfWork: '—', phone: '—', whatsapp: '—', area: '—',
+            active: true, notes: `${g.count} contact(s)`
         }));
     }
-    return getFilteredMessages().map(m => ({ ...m, recordType: 'Message' }));
-}
-
-function getFilteredMessages() {
-    const search = communicationSearchTerm || (document.getElementById('commSearchInput')?.value || '').trim();
-    const channel = communicationChannelFilter || document.getElementById('commChannelFilter')?.value || 'all';
-    let items = [...communicationsDB];
-    if (channel !== 'all') items = items.filter(m => m.channel === channel);
-    if (search) {
-        const term = search.toLowerCase();
-        items = items.filter(m =>
-            m.trip.toLowerCase().includes(term) || m.truck.toLowerCase().includes(term) ||
-            m.driver.toLowerCase().includes(term) || m.message.toLowerCase().includes(term) ||
-            m.subject.toLowerCase().includes(term) || m.area.toLowerCase().includes(term) ||
-            m.sentBy.toLowerCase().includes(term)
-        );
+    if (matrixFilter === 'areas') {
+        const grouped = {};
+        getFilteredMatrixContacts().forEach(c => {
+            if (!grouped[c.area]) grouped[c.area] = { area: c.area, count: 0, contacts: [] };
+            grouped[c.area].count++;
+            grouped[c.area].contacts.push(c.name);
+        });
+        return Object.values(grouped).map((g, i) => ({
+            id: `AR-${i + 1}`, name: g.area, company: '—', function: '—',
+            email: '—', placeOfWork: '—', phone: '—', whatsapp: '—', area: g.area,
+            active: true, notes: `${g.count} contact(s): ${g.contacts.slice(0, 3).join(', ')}${g.contacts.length > 3 ? '...' : ''}`
+        }));
     }
-    return items;
+    return getFilteredMatrixContacts();
 }
 
-function getFilteredDriverContacts() {
-    const search = communicationSearchTerm || (document.getElementById('commSearchInput')?.value || '').trim();
-    let items = [...driverContactsDB];
-    if (search) {
-        const term = search.toLowerCase();
-        items = items.filter(d =>
-            d.trip.toLowerCase().includes(term) || d.truck.toLowerCase().includes(term) ||
-            d.driver.toLowerCase().includes(term) || d.area.toLowerCase().includes(term) ||
-            (d.phoneZambia && d.phoneZambia.includes(term)) ||
-            (d.phoneDRC && d.phoneDRC.includes(term)) ||
-            (d.whatsapp && d.whatsapp.includes(term))
-        );
-    }
-    return items;
-}
-
-function getFilteredBroadcasts() {
-    const search = communicationSearchTerm || (document.getElementById('commSearchInput')?.value || '').trim();
-    let items = [...broadcastAlertsDB];
-    if (search) {
-        const term = search.toLowerCase();
-        items = items.filter(b =>
-            b.title.toLowerCase().includes(term) || b.message.toLowerCase().includes(term) ||
-            b.area.toLowerCase().includes(term) || b.target.toLowerCase().includes(term)
-        );
-    }
-    return items;
-}
-
-function renderCommunicationFilterTabs(active) {
-    const stats = getCommunicationStats();
+function renderMatrixFilterTabs(active) {
+    const stats = getMatrixStats();
     const tabs = [
-        { id: 'messages', label: 'Message Log', count: communicationsDB.length },
-        { id: 'contacts', label: 'Driver Contacts', count: driverContactsDB.length },
-        { id: 'broadcasts', label: 'Broadcast Alerts', count: broadcastAlertsDB.length }
+        { id: 'contacts', label: 'Contacts', count: stats.totalContacts },
+        { id: 'companies', label: 'Companies', count: stats.companies },
+        { id: 'functions', label: 'Functions', count: stats.functions },
+        { id: 'areas', label: 'Area Assignment', count: stats.areas }
     ];
     return tabs.map(t => `
-        <button class="pod-filter-tab${active === t.id ? ' active' : ''}" onclick="navigateToCommunication('${t.id}')">
+        <button class="pod-filter-tab${active === t.id ? ' active' : ''}" onclick="navigateToCommunicationMatrix('${t.id}')">
             ${t.label}<span class="tab-count">${t.count}</span>
         </button>
     `).join('');
 }
 
-function renderCommStatusBadge(status) {
-    const map = { delivered: 'green', read: 'green', pending: 'orange', failed: 'red', sent: 'green', Recorded: 'green', Pending: 'orange' };
-    return `<span class="status-badge ${map[status] || 'blue'}">${status}</span>`;
-}
-
-function renderCommChannelIcon(channel) {
-    const icons = { WhatsApp: '💬', SMS: '📱', 'Phone Call': '📞', Email: '📧' };
-    return icons[channel] || '📨';
-}
-
-function renderMessageTableRows(items) {
-    if (!items.length) return '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text-secondary);">No messages match your search</td></tr>';
-    return items.map(m => `
+function renderMatrixContactRows(items) {
+    if (!items.length) return '<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--text-secondary);">No contacts match your search</td></tr>';
+    if (matrixFilter === 'companies') {
+        return items.map(c => `
+            <tr>
+                <td style="width:36px;text-align:center;">${renderListRowCheckbox('commMatrix', c.id)}</td>
+                <td><strong>${c.company}</strong></td>
+                <td>${c.function}</td>
+                <td>${c.area}</td>
+                <td colspan="7">${c.notes}</td>
+            </tr>
+        `).join('');
+    }
+    if (matrixFilter === 'functions') {
+        return items.map(c => `
+            <tr>
+                <td style="width:36px;text-align:center;">${renderListRowCheckbox('commMatrix', c.id)}</td>
+                <td><strong>${c.function}</strong></td>
+                <td>${c.company}</td>
+                <td colspan="8">${c.notes}</td>
+            </tr>
+        `).join('');
+    }
+    if (matrixFilter === 'areas') {
+        return items.map(c => `
+            <tr>
+                <td style="width:36px;text-align:center;">${renderListRowCheckbox('commMatrix', c.id)}</td>
+                <td><strong>${c.area}</strong></td>
+                <td colspan="9">${c.notes}</td>
+            </tr>
+        `).join('');
+    }
+    return items.map(c => `
         <tr>
-            <td style="width:36px;text-align:center;">${renderListRowCheckbox('communication', m.id)}</td>
-            <td><strong>${m.id}</strong></td>
-            <td>${m.trip}<br><small style="color:var(--text-secondary);">${m.truck}</small></td>
-            <td>${m.driver}</td>
-            <td>${renderCommChannelIcon(m.channel)} ${m.channel}</td>
-            <td><span class="status-badge ${m.direction === 'inbound' ? 'blue' : 'green'}">${m.direction}</span></td>
-            <td>${m.subject}</td>
-            <td style="max-width:220px;white-space:normal;font-size:13px;">${m.message}</td>
-            <td>${m.sentAt}</td>
-            <td>${renderCommStatusBadge(m.status)}</td>
-            <td>${m.sentBy}</td>
-        </tr>
-    `).join('');
-}
-
-function renderDriverContactTableRows(items) {
-    if (!items.length) return '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text-secondary);">No driver contacts match your search</td></tr>';
-    return items.map(d => `
-        <tr>
-            <td style="width:36px;text-align:center;">${renderListRowCheckbox('communication', d.id)}</td>
-            <td><strong>${d.id}</strong></td>
-            <td>${d.trip}<br><small style="color:var(--text-secondary);">${d.truck}</small></td>
-            <td>${d.driver}</td>
-            <td>${d.phoneZambia || '—'}</td>
-            <td>${d.phoneDRC || '—'}</td>
-            <td>${d.whatsapp || '—'}</td>
-            <td>${d.area}</td>
-            <td>${d.lastContact || '—'}</td>
-            <td>${d.contactRecorded ? '<span class="status-badge green">✓ Recorded</span>' : '<span class="status-badge orange">Pending</span>'}</td>
+            <td style="width:36px;text-align:center;">${renderListRowCheckbox('commMatrix', c.id)}</td>
+            <td><strong>${c.id}</strong></td>
+            <td>${c.name}</td>
+            <td>${c.company}</td>
+            <td>${c.function}</td>
+            <td>${c.email || '—'}</td>
+            <td>${c.placeOfWork || '—'}</td>
+            <td>${c.phone || '—'}</td>
+            <td>${c.whatsapp || '—'}</td>
+            <td>${c.area}</td>
+            <td>${c.active ? '<span class="status-badge green">Active</span>' : '<span class="status-badge orange">Inactive</span>'}</td>
             <td>
-                <button class="btn btn-outline btn-sm" onclick="openRecordDriverContactModal('${d.id}')" title="Update contact">✏️</button>
-                <button class="btn btn-primary btn-sm" onclick="openComposeMessageModal('${d.trip}')" title="Send message">💬</button>
+                <button class="btn btn-outline btn-sm" onclick="openMatrixContactModal('${c.id}')" title="Edit">✏️</button>
             </td>
         </tr>
     `).join('');
 }
 
-function renderBroadcastTableRows(items) {
-    if (!items.length) return '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-secondary);">No broadcasts match your search</td></tr>';
-    return items.map(b => `
-        <tr>
-            <td style="width:36px;text-align:center;">${renderListRowCheckbox('communication', b.id)}</td>
-            <td><strong>${b.id}</strong></td>
-            <td>${b.title}</td>
-            <td style="max-width:260px;white-space:normal;font-size:13px;">${b.message}</td>
-            <td>${renderCommChannelIcon(b.channel)} ${b.channel}</td>
-            <td>${b.target}<br><small>${b.area} · ${b.direction}</small></td>
-            <td>${b.recipients}</td>
-            <td>${b.sentAt}</td>
-            <td>${b.sentBy}</td>
-        </tr>
-    `).join('');
-}
-
-function refreshCommunicationTable() {
-    communicationSearchTerm = document.getElementById('commSearchInput')?.value || '';
-    communicationChannelFilter = document.getElementById('commChannelFilter')?.value || 'all';
-    const body = document.getElementById('communicationTableBody');
-    const head = document.getElementById('communicationTableHead');
-    const countEl = document.getElementById('communicationTableCount');
+function refreshMatrixTable() {
+    matrixSearchTerm = document.getElementById('matrixSearchInput')?.value || '';
+    matrixAreaFilter = document.getElementById('matrixAreaFilter')?.value || 'all';
+    matrixActiveFilter = document.getElementById('matrixActiveFilter')?.value || 'all';
+    const body = document.getElementById('matrixTableBody');
+    const head = document.getElementById('matrixTableHead');
+    const countEl = document.getElementById('matrixTableCount');
     if (!body) return;
+    const items = getMatrixExportData();
 
-    if (communicationFilter === 'contacts') {
-        const items = getFilteredDriverContacts();
+    if (matrixFilter === 'companies') {
         if (head) head.innerHTML = `<tr>
-            <th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all" onchange="toggleAllListRows('communication', this.checked)"></th>
-            <th>ID</th><th>Trip / Truck</th><th>Driver</th><th>Zambia Phone</th><th>DRC Phone</th><th>WhatsApp</th><th>Area</th><th>Last Contact</th><th>Status</th><th>Actions</th>
+            <th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all" onchange="toggleAllListRows('commMatrix', this.checked)"></th>
+            <th>Company</th><th>Functions</th><th>Areas</th><th colspan="7">Summary</th>
         </tr>`;
-        body.innerHTML = renderDriverContactTableRows(items);
-        if (countEl) countEl.textContent = `${items.length} contact${items.length !== 1 ? 's' : ''}`;
-    } else if (communicationFilter === 'broadcasts') {
-        const items = getFilteredBroadcasts();
+    } else if (matrixFilter === 'functions') {
         if (head) head.innerHTML = `<tr>
-            <th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all" onchange="toggleAllListRows('communication', this.checked)"></th>
-            <th>ID</th><th>Title</th><th>Message</th><th>Channel</th><th>Target</th><th>Recipients</th><th>Sent At</th><th>Sent By</th>
+            <th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all" onchange="toggleAllListRows('commMatrix', this.checked)"></th>
+            <th>Function</th><th>Companies</th><th colspan="8">Summary</th>
         </tr>`;
-        body.innerHTML = renderBroadcastTableRows(items);
-        if (countEl) countEl.textContent = `${items.length} broadcast${items.length !== 1 ? 's' : ''}`;
+    } else if (matrixFilter === 'areas') {
+        if (head) head.innerHTML = `<tr>
+            <th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all" onchange="toggleAllListRows('commMatrix', this.checked)"></th>
+            <th>Area</th><th colspan="10">Assigned Contacts</th>
+        </tr>`;
     } else {
-        const items = getFilteredMessages();
         if (head) head.innerHTML = `<tr>
-            <th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all" onchange="toggleAllListRows('communication', this.checked)"></th>
-            <th>ID</th><th>Trip / Truck</th><th>Driver</th><th>Channel</th><th>Direction</th><th>Subject</th><th>Message</th><th>Date/Time</th><th>Status</th><th>Sent By</th>
+            <th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all" onchange="toggleAllListRows('commMatrix', this.checked)"></th>
+            <th>ID</th><th>Name</th><th>Company</th><th>Function</th><th>Email</th><th>Place of Work</th><th>Phone</th><th>WhatsApp</th><th>Area</th><th>Status</th><th>Actions</th>
         </tr>`;
-        body.innerHTML = renderMessageTableRows(items);
-        if (countEl) countEl.textContent = `${items.length} message${items.length !== 1 ? 's' : ''}`;
     }
-    updateListSelectionUI('communication');
+    body.innerHTML = renderMatrixContactRows(items);
+    if (countEl) countEl.textContent = `${items.length} record${items.length !== 1 ? 's' : ''}`;
+    updateListSelectionUI('commMatrix');
 }
 
-function populateComposeTripSelect(selectedTrip) {
-    const select = document.getElementById('composeTripSelect');
-    if (!select) return;
-    const trips = Object.values(tripsDB);
-    select.innerHTML = trips.map(t => `<option value="${t.tripNumber}" ${t.tripNumber === selectedTrip ? 'selected' : ''}>${t.tripNumber} — ${t.truck} (${t.driver})</option>`).join('');
-    if (selectedTrip) onComposeTripChange();
-}
-
-function onComposeTripChange() {
-    const tripNum = document.getElementById('composeTripSelect')?.value;
-    const trip = tripsDB[tripNum];
-    const contact = driverContactsDB.find(d => d.trip === tripNum);
-    if (trip) {
-        document.getElementById('composeDriverDisplay').textContent = trip.driver;
-        document.getElementById('composeTruckDisplay').textContent = trip.truck;
+function initMatrixModalSelects() {
+    const funcSelect = document.getElementById('matrixContactFunction');
+    const areaSelect = document.getElementById('matrixContactArea');
+    if (funcSelect && !funcSelect.options.length) {
+        funcSelect.innerHTML = MATRIX_FUNCTIONS.map(f => `<option value="${f}">${f}</option>`).join('');
     }
-    const phoneEl = document.getElementById('composePhone');
-    if (phoneEl && contact) {
-        const channel = document.getElementById('composeChannel')?.value;
-        if (channel === 'Email') phoneEl.value = contact.email || '';
-        else if (channel === 'WhatsApp') phoneEl.value = contact.whatsapp || contact.phoneZambia || '';
-        else phoneEl.value = contact.phoneZambia || contact.phoneDRC || '';
+    if (areaSelect && !areaSelect.options.length) {
+        areaSelect.innerHTML = MATRIX_AREAS.map(a => `<option value="${a}">${a}</option>`).join('');
     }
 }
 
-function openComposeMessageModal(tripNumber) {
-    populateComposeTripSelect(tripNumber || Object.keys(tripsDB)[0]);
-    document.getElementById('composeMessageForm').reset();
-    if (tripNumber) document.getElementById('composeTripSelect').value = tripNumber;
-    onComposeTripChange();
-    openModal('composeMessageModal');
-}
-
-function openRecordDriverContactModal(contactId) {
-    document.getElementById('recordContactForm').reset();
-    populateRecordContactTripSelect();
+function openMatrixContactModal(contactId) {
+    initMatrixModalSelects();
+    document.getElementById('matrixContactForm').reset();
+    document.getElementById('matrixContactId').value = contactId || '';
     if (contactId) {
-        const contact = driverContactsDB.find(d => d.id === contactId);
-        if (contact) {
-            document.getElementById('recordContactTrip').value = contact.trip;
-            document.getElementById('recordContactDriver').value = contact.driver;
-            document.getElementById('recordContactTruck').value = contact.truck;
-            document.getElementById('recordPhoneZambia').value = contact.phoneZambia || '';
-            document.getElementById('recordPhoneDRC').value = contact.phoneDRC || '';
-            document.getElementById('recordWhatsapp').value = contact.whatsapp || '';
-            document.getElementById('recordEmail').value = contact.email || '';
+        const c = communicationMatrixDB.find(x => x.id === contactId);
+        if (c) {
+            document.getElementById('matrixContactName').value = c.name;
+            document.getElementById('matrixContactCompany').value = c.company;
+            document.getElementById('matrixContactFunction').value = c.function;
+            document.getElementById('matrixContactEmail').value = c.email || '';
+            document.getElementById('matrixContactPlace').value = c.placeOfWork || '';
+            document.getElementById('matrixContactPhone').value = c.phone || '';
+            document.getElementById('matrixContactWhatsapp').value = c.whatsapp || '';
+            document.getElementById('matrixContactArea').value = c.area;
+            document.getElementById('matrixContactActive').value = c.active ? 'true' : 'false';
+            document.getElementById('matrixContactNotes').value = c.notes || '';
         }
     }
-    openModal('recordDriverContactModal');
+    openModal('matrixContactModal');
 }
 
-function populateRecordContactTripSelect() {
-    const select = document.getElementById('recordContactTrip');
-    if (!select) return;
-    select.innerHTML = Object.values(tripsDB).map(t => `<option value="${t.tripNumber}">${t.tripNumber} — ${t.driver}</option>`).join('');
-    onRecordContactTripChange();
-}
-
-function onRecordContactTripChange() {
-    const tripNum = document.getElementById('recordContactTrip')?.value;
-    const trip = tripsDB[tripNum];
-    if (trip) {
-        document.getElementById('recordContactDriver').value = trip.driver;
-        document.getElementById('recordContactTruck').value = trip.truck;
-    }
-}
-
-function openBroadcastModal() {
-    document.getElementById('broadcastForm').reset();
-    openModal('broadcastModal');
-}
-
-function submitComposeMessage() {
-    const tripNum = document.getElementById('composeTripSelect').value;
-    const trip = tripsDB[tripNum];
-    const channel = document.getElementById('composeChannel').value;
-    const subject = document.getElementById('composeSubject').value.trim();
-    const message = document.getElementById('composeMessage').value.trim();
-    const phone = document.getElementById('composePhone').value.trim();
-    if (!trip || !subject || !message) {
-        showToast('Trip, subject, and message are required', 'warning');
+function submitMatrixContact() {
+    const contactId = document.getElementById('matrixContactId').value;
+    const name = document.getElementById('matrixContactName').value.trim();
+    const company = document.getElementById('matrixContactCompany').value.trim();
+    const func = document.getElementById('matrixContactFunction').value;
+    const whatsapp = document.getElementById('matrixContactWhatsapp').value.trim();
+    if (!name || !company || !func) {
+        showToast('Name, company, and function are required', 'warning');
         return;
     }
-    const msg = {
-        id: `MSG-${String(nextMessageId++).padStart(3, '0')}`,
-        trip: trip.tripNumber, truck: trip.truck, driver: trip.driver,
-        channel, direction: 'outbound', subject, message, phone,
-        sentAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-        status: 'delivered', sentBy: 'Current User', area: trip.area || '—'
+    const data = {
+        name, company, function: func,
+        email: document.getElementById('matrixContactEmail').value.trim(),
+        placeOfWork: document.getElementById('matrixContactPlace').value.trim(),
+        phone: document.getElementById('matrixContactPhone').value.trim(),
+        whatsapp,
+        area: document.getElementById('matrixContactArea').value,
+        active: document.getElementById('matrixContactActive').value === 'true',
+        notes: document.getElementById('matrixContactNotes').value.trim()
     };
-    communicationsDB.unshift(msg);
-    const contact = driverContactsDB.find(d => d.trip === tripNum);
-    if (contact) {
-        contact.lastContact = msg.sentAt;
-    }
-    closeModal('composeMessageModal');
-    if (currentPage === 'communication') refreshCommunicationTable();
-    showToast(`${channel} message sent to ${trip.driver}`, 'success');
-}
-
-function submitRecordDriverContact() {
-    const tripNum = document.getElementById('recordContactTrip').value;
-    const trip = tripsDB[tripNum];
-    const phoneZambia = document.getElementById('recordPhoneZambia').value.trim();
-    const phoneDRC = document.getElementById('recordPhoneDRC').value.trim();
-    const whatsapp = document.getElementById('recordWhatsapp').value.trim();
-    if (!trip || (!phoneZambia && !phoneDRC && !whatsapp)) {
-        showToast('Trip and at least one phone number are required', 'warning');
-        return;
-    }
-    let contact = driverContactsDB.find(d => d.trip === tripNum);
-    const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
-    if (contact) {
-        contact.phoneZambia = phoneZambia;
-        contact.phoneDRC = phoneDRC;
-        contact.whatsapp = whatsapp;
-        contact.email = document.getElementById('recordEmail').value.trim();
-        contact.contactRecorded = true;
-        contact.lastContact = now;
-        contact.recordedBy = 'Current User';
+    if (contactId) {
+        const idx = communicationMatrixDB.findIndex(c => c.id === contactId);
+        if (idx >= 0) communicationMatrixDB[idx] = { ...communicationMatrixDB[idx], ...data };
     } else {
-        contact = {
-            id: `DC-${String(nextDriverContactId++).padStart(3, '0')}`,
-            trip: trip.tripNumber, truck: trip.truck, driver: trip.driver,
-            owner: trip.owner || '', area: trip.area || '—', direction: trip.direction,
-            phoneZambia, phoneDRC, whatsapp,
-            email: document.getElementById('recordEmail').value.trim(),
-            contactRecorded: true, lastContact: now, recordedBy: 'Current User'
-        };
-        driverContactsDB.unshift(contact);
+        communicationMatrixDB.unshift({ id: `CM-${String(nextMatrixContactId++).padStart(3, '0')}`, ...data });
     }
-    closeModal('recordDriverContactModal');
-    if (currentPage === 'communication') refreshCommunicationTable();
-    showToast(`Driver contact details recorded for ${trip.driver}`, 'success');
+    closeModal('matrixContactModal');
+    if (currentPage === 'communication-matrix') refreshMatrixTable();
+    showToast(`Contact ${name} saved`, 'success');
 }
 
-function submitBroadcast() {
-    const title = document.getElementById('broadcastTitle').value.trim();
-    const message = document.getElementById('broadcastMessage').value.trim();
-    const channel = document.getElementById('broadcastChannel').value;
-    const area = document.getElementById('broadcastArea').value;
-    const direction = document.getElementById('broadcastDirection').value;
-    const target = document.getElementById('broadcastTarget').value.trim();
-    if (!title || !message || !target) {
-        showToast('Title, message, and target group are required', 'warning');
-        return;
-    }
-    const broadcast = {
-        id: `BC-${String(nextBroadcastId++).padStart(3, '0')}`,
-        title, message, channel, target, area, direction,
-        recipients: Math.floor(Math.random() * 15) + 5,
-        sentAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-        sentBy: 'Current User', status: 'sent'
-    };
-    broadcastAlertsDB.unshift(broadcast);
-    closeModal('broadcastModal');
-    if (currentPage === 'communication') refreshCommunicationTable();
-    showToast(`Broadcast sent to ${broadcast.recipients} recipients`, 'success');
-}
-
-function renderCommunication(container) {
-    const stats = getCommunicationStats();
-    const filter = communicationFilter;
+function renderCommunicationMatrix(container) {
+    const stats = getMatrixStats();
+    const filter = matrixFilter;
     container.innerHTML = `
         <div class="page-header">
-            <h1>📱 Communication Center</h1>
+            <h1>📇 Communication Matrix</h1>
             <div class="breadcrumb">
                 <a href="#" onclick="navigateTo('dashboard')">Home</a> <span>›</span>
-                <strong>Communication</strong>
+                <strong>Communication Matrix</strong>
             </div>
         </div>
 
         <div class="kpi-grid">
-            <div class="kpi-card green"><div class="kpi-header"><span class="kpi-title">Messages Today</span></div><div class="kpi-value">${stats.messagesToday}</div></div>
-            <div class="kpi-card blue"><div class="kpi-header"><span class="kpi-title">Driver Contacts Recorded</span></div><div class="kpi-value">${stats.driversContacted}</div></div>
-            <div class="kpi-card orange"><div class="kpi-header"><span class="kpi-title">Pending Contact Details</span></div><div class="kpi-value">${stats.pendingContacts}</div></div>
-            <div class="kpi-card red"><div class="kpi-header"><span class="kpi-title">Failed Messages</span></div><div class="kpi-value">${stats.failedMessages}</div></div>
+            <div class="kpi-card blue"><div class="kpi-header"><span class="kpi-title">Total Contacts</span></div><div class="kpi-value">${stats.totalContacts}</div></div>
+            <div class="kpi-card green"><div class="kpi-header"><span class="kpi-title">Active Contacts</span></div><div class="kpi-value">${stats.activeContacts}</div></div>
+            <div class="kpi-card orange"><div class="kpi-header"><span class="kpi-title">Companies</span></div><div class="kpi-value">${stats.companies}</div></div>
+            <div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Areas Covered</span></div><div class="kpi-value">${stats.areas}</div></div>
         </div>
 
         <div class="assets-action-bar">
-            <button class="btn btn-primary" onclick="openComposeMessageModal()">💬 Send Message</button>
-            <button class="btn btn-primary" onclick="openRecordDriverContactModal()">📞 Record Driver Contact</button>
-            <button class="btn btn-outline" onclick="openBroadcastModal()">📢 Broadcast Alert</button>
+            <button class="btn btn-primary" onclick="openMatrixContactModal()">➕ Add Contact</button>
         </div>
 
-        <div class="pod-filter-tabs">${renderCommunicationFilterTabs(filter)}</div>
+        <div class="pod-filter-tabs">${renderMatrixFilterTabs(filter)}</div>
 
         <div class="filters-bar">
-            ${filter === 'messages' ? `<div class="filter-group"><label>Channel:</label><select id="commChannelFilter" onchange="refreshCommunicationTable()"><option value="all">All</option>${COMMUNICATION_CHANNELS.map(c => `<option value="${c}">${c}</option>`).join('')}</select></div>` : ''}
+            ${filter === 'contacts' ? `
+                <div class="filter-group"><label>Area:</label><select id="matrixAreaFilter" onchange="refreshMatrixTable()"><option value="all">All</option>${MATRIX_AREAS.map(a => `<option value="${a}">${a}</option>`).join('')}</select></div>
+                <div class="filter-group"><label>Status:</label><select id="matrixActiveFilter" onchange="refreshMatrixTable()"><option value="all">All</option><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+            ` : ''}
             <div class="search-filter" style="flex:1;">
                 <span>🔍</span>
-                <input type="text" id="commSearchInput" placeholder="Search trip, driver, truck, message..." value="${communicationSearchTerm}" onkeyup="refreshCommunicationTable()">
+                <input type="text" id="matrixSearchInput" placeholder="Search name, company, function, email, phone, WhatsApp, place of work, area..." value="${matrixSearchTerm}" onkeyup="refreshMatrixTable()">
             </div>
-            <button class="btn btn-outline btn-sm" onclick="communicationSearchTerm='';communicationChannelFilter='all';document.getElementById('commSearchInput').value='';if(document.getElementById('commChannelFilter'))document.getElementById('commChannelFilter').value='all';refreshCommunicationTable();">Clear</button>
+            <button class="btn btn-outline btn-sm" onclick="matrixSearchTerm='';matrixAreaFilter='all';matrixActiveFilter='all';document.getElementById('matrixSearchInput').value='';if(document.getElementById('matrixAreaFilter'))document.getElementById('matrixAreaFilter').value='all';if(document.getElementById('matrixActiveFilter'))document.getElementById('matrixActiveFilter').value='all';refreshMatrixTable();">Clear</button>
         </div>
 
         <div class="table-container">
             <div class="table-header">
-                <h3>${filter === 'contacts' ? 'Driver Contact Registry' : filter === 'broadcasts' ? 'Broadcast Alerts' : 'Message Log'}</h3>
+                <h3>${filter === 'companies' ? 'Companies' : filter === 'functions' ? 'Functions' : filter === 'areas' ? 'Area Assignment' : 'Contact Directory'}</h3>
                 <div class="table-header-actions">
-                    <span id="communicationTableCount" style="color:var(--text-secondary);"></span>
-                    ${renderExportToolbar('communication')}
+                    <span id="matrixTableCount" style="color:var(--text-secondary);"></span>
+                    ${renderExportToolbar('commMatrix')}
                 </div>
             </div>
             <div style="overflow-x:auto;">
                 <table>
-                    <thead id="communicationTableHead"></thead>
-                    <tbody id="communicationTableBody"></tbody>
+                    <thead id="matrixTableHead"></thead>
+                    <tbody id="matrixTableBody"></tbody>
                 </table>
             </div>
         </div>
 
         <div style="background:#e8f0fe;padding:15px;border-radius:8px;margin-top:20px;border-left:4px solid var(--primary-light);font-size:13px;">
-            <strong>📋 Driver Contact Details (KBP Step 7):</strong> Record Zambia phone, DRC phone, and WhatsApp for each driver during border clearance. All communications are linked to trips for audit trail.
+            <strong>📋 SRS — Communication Matrix:</strong> Maintain people, companies, functions, emails, places of work, phone and WhatsApp numbers, with area assignment and search/export.
         </div>
 
         <button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">⬅️ Back to Dashboard</button>
     `;
-    refreshCommunicationTable();
+    refreshMatrixTable();
+}
+
+// ============================================
+// INTERNAL COMMUNICATION (SRS §3, §10)
+// ============================================
+function navigateToInternalComm(filter) {
+    internalCommFilter = filter || 'email';
+    navigateTo('internal-communication');
+}
+
+function getInternalCommStats() {
+    const today = '2026-07-25';
+    return {
+        messagesToday: internalMessagesDB.filter(m => m.sentAt.startsWith(today)).length,
+        unread: internalMessagesDB.filter(m => m.status === 'pending').length,
+        groupChats: chatRoomsDB.filter(r => r.type === 'group').length,
+        linkedRecords: internalMessagesDB.filter(m => m.relatedType).length
+    };
+}
+
+function getInternalCommExportData() {
+    if (internalCommFilter === 'chats') {
+        return getFilteredChatRooms().map(r => ({ ...r, recordType: 'Group Chat' }));
+    }
+    if (internalCommFilter === 'history') {
+        return getFilteredChatMessages().map(m => ({
+            ...m, recordType: 'Chat Message', subject: chatRoomsDB.find(r => r.id === m.roomId)?.name || m.roomId,
+            relatedLabel: m.fileLink ? `File: ${m.fileLink}` : '—'
+        }));
+    }
+    return getFilteredInternalMessages().map(m => ({ ...m, recordType: 'Internal Email' }));
+}
+
+function getFilteredInternalMessages() {
+    const search = internalCommSearchTerm || (document.getElementById('internalCommSearchInput')?.value || '').trim();
+    let items = [...internalMessagesDB];
+    if (search) {
+        const term = search.toLowerCase();
+        items = items.filter(m =>
+            m.subject.toLowerCase().includes(term) || m.body.toLowerCase().includes(term) ||
+            m.sender.toLowerCase().includes(term) || m.relatedLabel.toLowerCase().includes(term) ||
+            m.recipients.some(r => r.toLowerCase().includes(term))
+        );
+    }
+    return items;
+}
+
+function getFilteredChatRooms() {
+    const search = internalCommSearchTerm || (document.getElementById('internalCommSearchInput')?.value || '').trim();
+    let items = [...chatRoomsDB];
+    if (search) {
+        const term = search.toLowerCase();
+        items = items.filter(r =>
+            r.name.toLowerCase().includes(term) || r.lastMessage.toLowerCase().includes(term) ||
+            r.relatedRef.toLowerCase().includes(term)
+        );
+    }
+    return items;
+}
+
+function getFilteredChatMessages() {
+    const search = internalCommSearchTerm || (document.getElementById('internalCommSearchInput')?.value || '').trim();
+    let items = [...chatMessagesDB];
+    if (search) {
+        const term = search.toLowerCase();
+        items = items.filter(m => {
+            const room = chatRoomsDB.find(r => r.id === m.roomId);
+            return m.message.toLowerCase().includes(term) || m.sender.toLowerCase().includes(term) ||
+                (room && room.name.toLowerCase().includes(term));
+        });
+    }
+    return items;
+}
+
+function renderInternalCommFilterTabs(active) {
+    const tabs = [
+        { id: 'email', label: 'Internal Email', count: internalMessagesDB.length },
+        { id: 'chats', label: 'Group Chats', count: chatRoomsDB.length },
+        { id: 'history', label: 'Message History', count: chatMessagesDB.length }
+    ];
+    return tabs.map(t => `
+        <button class="pod-filter-tab${active === t.id ? ' active' : ''}" onclick="navigateToInternalComm('${t.id}')">
+            ${t.label}<span class="tab-count">${t.count}</span>
+        </button>
+    `).join('');
+}
+
+function renderInternalMessageRows(items) {
+    if (!items.length) return '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text-secondary);">No messages match your search</td></tr>';
+    return items.map(m => `
+        <tr>
+            <td style="width:36px;text-align:center;">${renderListRowCheckbox('internalComm', m.id)}</td>
+            <td><strong>${m.id}</strong></td>
+            <td>${m.subject}</td>
+            <td style="max-width:220px;white-space:normal;font-size:13px;">${m.body}</td>
+            <td>${m.sender}</td>
+            <td>${m.recipients.join(', ')}</td>
+            <td>${m.tags.length ? m.tags.join(' ') : '—'}</td>
+            <td><span class="status-badge blue">${m.relatedType}</span><br><small>${m.relatedLabel}</small></td>
+            <td>${m.sentAt}</td>
+            <td><span class="status-badge ${m.status === 'read' ? 'green' : m.status === 'pending' ? 'orange' : 'blue'}">${m.status}</span>${m.attachments ? ' 📎' : ''}</td>
+        </tr>
+    `).join('');
+}
+
+function renderChatRoomRows(items) {
+    if (!items.length) return '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-secondary);">No group chats match your search</td></tr>';
+    return items.map(r => `
+        <tr>
+            <td style="width:36px;text-align:center;">${renderListRowCheckbox('internalComm', r.id)}</td>
+            <td><strong>${r.id}</strong></td>
+            <td>${r.type === 'group' ? '👥' : '💬'} ${r.name}</td>
+            <td><span class="status-badge blue">${r.relatedType}</span> ${r.relatedRef}</td>
+            <td>${r.members}</td>
+            <td style="max-width:260px;white-space:normal;font-size:13px;">${r.lastMessage}</td>
+            <td>${r.lastAt}</td>
+            <td>${r.createdBy}</td>
+            <td><button class="btn btn-outline btn-sm" onclick="openChatRoomModal('${r.id}')" title="View chat">💬</button></td>
+        </tr>
+    `).join('');
+}
+
+function renderChatHistoryRows(items) {
+    if (!items.length) return '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-secondary);">No chat messages match your search</td></tr>';
+    return items.map(m => {
+        const room = chatRoomsDB.find(r => r.id === m.roomId);
+        return `
+        <tr>
+            <td style="width:36px;text-align:center;">${renderListRowCheckbox('internalComm', m.id)}</td>
+            <td><strong>${m.id}</strong></td>
+            <td>${room ? room.name : m.roomId}</td>
+            <td>${m.sender}</td>
+            <td style="max-width:280px;white-space:normal;font-size:13px;">${m.message}</td>
+            <td>${m.tags.length ? m.tags.join(' ') : '—'}</td>
+            <td>${m.fileLink ? `📎 ${m.fileLink}` : '—'}</td>
+            <td>${m.sentAt}</td>
+        </tr>`;
+    }).join('');
+}
+
+function refreshInternalCommTable() {
+    internalCommSearchTerm = document.getElementById('internalCommSearchInput')?.value || '';
+    const body = document.getElementById('internalCommTableBody');
+    const head = document.getElementById('internalCommTableHead');
+    const countEl = document.getElementById('internalCommTableCount');
+    if (!body) return;
+
+    if (internalCommFilter === 'chats') {
+        const items = getFilteredChatRooms();
+        if (head) head.innerHTML = `<tr>
+            <th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all" onchange="toggleAllListRows('internalComm', this.checked)"></th>
+            <th>ID</th><th>Room</th><th>Linked To</th><th>Members</th><th>Last Message</th><th>Last At</th><th>Created By</th><th>Actions</th>
+        </tr>`;
+        body.innerHTML = renderChatRoomRows(items);
+        if (countEl) countEl.textContent = `${items.length} chat${items.length !== 1 ? 's' : ''}`;
+    } else if (internalCommFilter === 'history') {
+        const items = getFilteredChatMessages();
+        if (head) head.innerHTML = `<tr>
+            <th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all" onchange="toggleAllListRows('internalComm', this.checked)"></th>
+            <th>ID</th><th>Room</th><th>Sender</th><th>Message</th><th>Tags</th><th>Document</th><th>Sent At</th>
+        </tr>`;
+        body.innerHTML = renderChatHistoryRows(items);
+        if (countEl) countEl.textContent = `${items.length} message${items.length !== 1 ? 's' : ''}`;
+    } else {
+        const items = getFilteredInternalMessages();
+        if (head) head.innerHTML = `<tr>
+            <th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all" onchange="toggleAllListRows('internalComm', this.checked)"></th>
+            <th>ID</th><th>Subject</th><th>Message</th><th>Sender</th><th>Recipients</th><th>Tags</th><th>Linked To</th><th>Sent At</th><th>Status</th>
+        </tr>`;
+        body.innerHTML = renderInternalMessageRows(items);
+        if (countEl) countEl.textContent = `${items.length} message${items.length !== 1 ? 's' : ''}`;
+    }
+    updateListSelectionUI('internalComm');
+}
+
+function populateInternalLinkSelect() {
+    const type = document.getElementById('internalLinkType')?.value;
+    const select = document.getElementById('internalLinkRef');
+    if (!select) return;
+    let options = '<option value="">— Select reference —</option>';
+    if (type === 'trip') {
+        options += Object.values(tripsDB).map(t => `<option value="${t.tripNumber}">${t.tripNumber} — ${t.truck}</option>`).join('');
+    } else if (type === 'area') {
+        options += MATRIX_AREAS.map(a => `<option value="${a}">${a}</option>`).join('');
+    } else if (type === 'asset' || type === 'equipment') {
+        options += assetsRegistryDB.map(a => `<option value="${a.id}">${a.id} — ${a.name || a.plateNumber || a.serialNumber}</option>`).join('');
+    } else if (type === 'truck' || type === 'car') {
+        options += Object.values(tripsDB).map(t => `<option value="${t.truck}">${t.truck} (${t.driver})</option>`).join('');
+    } else if (type === 'user') {
+        options += communicationMatrixDB.map(c => `<option value="${c.name}">${c.name} — ${c.function}</option>`).join('');
+    }
+    select.innerHTML = options;
+}
+
+function openInternalMessageModal() {
+    document.getElementById('internalMessageForm').reset();
+    document.getElementById('internalRecipients').value = '';
+    populateInternalLinkSelect();
+    openModal('internalMessageModal');
+}
+
+function openGroupChatModal() {
+    document.getElementById('groupChatForm').reset();
+    openModal('groupChatModal');
+}
+
+function openChatRoomModal(roomId) {
+    const room = chatRoomsDB.find(r => r.id === roomId);
+    const messages = chatMessagesDB.filter(m => m.roomId === roomId);
+    const body = document.getElementById('chatRoomBody');
+    if (!body || !room) return;
+    document.getElementById('chatRoomTitle').textContent = room.name;
+    body.innerHTML = messages.length ? messages.map(m => `
+        <div style="margin-bottom:12px;padding:10px;background:${m.sender === 'Current User' ? '#e8f0fe' : '#f7fafc'};border-radius:8px;">
+            <div style="font-weight:600;font-size:13px;">${m.sender} <span style="font-weight:400;color:var(--text-secondary);font-size:11px;">${m.sentAt}</span></div>
+            <div style="margin-top:4px;">${m.message}</div>
+            ${m.fileLink ? `<div style="margin-top:4px;font-size:12px;">📎 ${m.fileLink}</div>` : ''}
+            ${m.tags.length ? `<div style="margin-top:4px;font-size:12px;color:var(--primary-light);">${m.tags.join(' ')}</div>` : ''}
+        </div>
+    `).join('') : '<p style="color:var(--text-secondary);">No messages yet.</p>';
+    document.getElementById('chatRoomId').value = roomId;
+    openModal('chatRoomModal');
+}
+
+function submitInternalMessage() {
+    const subject = document.getElementById('internalSubject').value.trim();
+    const body = document.getElementById('internalBody').value.trim();
+    const recipientsRaw = document.getElementById('internalRecipients').value.trim();
+    const linkType = document.getElementById('internalLinkType').value;
+    const linkRef = document.getElementById('internalLinkRef').value;
+    const tagsRaw = document.getElementById('internalTags').value.trim();
+    if (!subject || !body || !recipientsRaw) {
+        showToast('Subject, message, and recipients are required', 'warning');
+        return;
+    }
+    const recipients = recipientsRaw.split(',').map(r => r.trim()).filter(Boolean);
+    const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim().startsWith('@') ? t.trim() : `@${t.trim()}`) : [];
+    const relatedLabel = linkType === 'trip' && tripsDB[linkRef]
+        ? `${linkRef} / ${tripsDB[linkRef].truck}`
+        : linkRef || '—';
+    internalMessagesDB.unshift({
+        id: `MSG-${String(nextInternalMessageId++).padStart(3, '0')}`,
+        subject, body, sender: 'Current User', recipients, tags,
+        relatedType: linkType || '—', relatedRef: linkRef || '—', relatedLabel,
+        sentAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+        status: 'delivered', attachments: 0
+    });
+    closeModal('internalMessageModal');
+    if (currentPage === 'internal-communication') refreshInternalCommTable();
+    showToast(`Official message sent to ${recipients.length} recipient(s)`, 'success');
+}
+
+function submitGroupChat() {
+    const name = document.getElementById('groupChatName').value.trim();
+    const relatedType = document.getElementById('groupChatLinkType').value;
+    const relatedRef = document.getElementById('groupChatLinkRef').value.trim();
+    if (!name) {
+        showToast('Group name is required', 'warning');
+        return;
+    }
+    chatRoomsDB.unshift({
+        id: `ROOM-${String(nextChatRoomId++).padStart(3, '0')}`,
+        name, type: 'group', relatedType, relatedRef: relatedRef || '—',
+        members: 2, lastMessage: 'Group created', lastAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+        createdBy: 'Current User'
+    });
+    closeModal('groupChatModal');
+    if (currentPage === 'internal-communication') refreshInternalCommTable();
+    showToast(`Group chat "${name}" created`, 'success');
+}
+
+function submitChatMessage() {
+    const roomId = document.getElementById('chatRoomId').value;
+    const text = document.getElementById('chatRoomInput').value.trim();
+    if (!roomId || !text) return;
+    const msg = {
+        id: `CHAT-${String(nextChatMessageId++).padStart(3, '0')}`,
+        roomId, sender: 'Current User', message: text, fileLink: null, tags: [], sentAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
+    };
+    chatMessagesDB.push(msg);
+    const room = chatRoomsDB.find(r => r.id === roomId);
+    if (room) { room.lastMessage = text; room.lastAt = msg.sentAt; }
+    document.getElementById('chatRoomInput').value = '';
+    openChatRoomModal(roomId);
+    if (currentPage === 'internal-communication') refreshInternalCommTable();
+}
+
+function renderInternalCommunication(container) {
+    const stats = getInternalCommStats();
+    const filter = internalCommFilter;
+    container.innerHTML = `
+        <div class="page-header">
+            <h1>✉️ Internal Communication</h1>
+            <div class="breadcrumb">
+                <a href="#" onclick="navigateTo('dashboard')">Home</a> <span>›</span>
+                <strong>Internal Communication</strong>
+            </div>
+        </div>
+
+        <div class="kpi-grid">
+            <div class="kpi-card green"><div class="kpi-header"><span class="kpi-title">Messages Today</span></div><div class="kpi-value">${stats.messagesToday}</div></div>
+            <div class="kpi-card orange"><div class="kpi-header"><span class="kpi-title">Unread</span></div><div class="kpi-value">${stats.unread}</div></div>
+            <div class="kpi-card blue"><div class="kpi-header"><span class="kpi-title">Group Chats</span></div><div class="kpi-value">${stats.groupChats}</div></div>
+            <div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Linked Records</span></div><div class="kpi-value">${stats.linkedRecords}</div></div>
+        </div>
+
+        <div class="assets-action-bar">
+            <button class="btn btn-primary" onclick="openInternalMessageModal()">✉️ Send Official Message</button>
+            <button class="btn btn-outline" onclick="openGroupChatModal()">👥 New Group Chat</button>
+        </div>
+
+        <div class="pod-filter-tabs">${renderInternalCommFilterTabs(filter)}</div>
+
+        <div class="filters-bar">
+            <div class="search-filter" style="flex:1;">
+                <span>🔍</span>
+                <input type="text" id="internalCommSearchInput" placeholder="Search subject, message, sender, recipients, tags, linked records..." value="${internalCommSearchTerm}" onkeyup="refreshInternalCommTable()">
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="internalCommSearchTerm='';document.getElementById('internalCommSearchInput').value='';refreshInternalCommTable();">Clear</button>
+        </div>
+
+        <div class="table-container">
+            <div class="table-header">
+                <h3>${filter === 'chats' ? 'Group Chats' : filter === 'history' ? 'Chat Message History' : 'Official Internal Email'}</h3>
+                <div class="table-header-actions">
+                    <span id="internalCommTableCount" style="color:var(--text-secondary);"></span>
+                    ${renderExportToolbar('internalComm')}
+                </div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead id="internalCommTableHead"></thead>
+                    <tbody id="internalCommTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="background:#e8f0fe;padding:15px;border-radius:8px;margin-top:20px;border-left:4px solid var(--primary-light);font-size:13px;">
+            <strong>📋 SRS — Internal Communication:</strong> Official internal messages with tagging and recipient selection. Messages can be linked to trip, truck, car, asset, equipment, area, or user. Group chats support document sharing, mentions, and message history.
+        </div>
+
+        <button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">⬅️ Back to Dashboard</button>
+    `;
+    refreshInternalCommTable();
 }
 
 function renderReports(container) {
@@ -3732,6 +3991,7 @@ function showToast(message,type='success'){ const toast=document.getElementById(
 // ============================================
 document.addEventListener('DOMContentLoaded',function(){
     syncAllAssetDocumentsToGlobalRegistry();
+    initMatrixModalSelects();
     navigateTo('dashboard');
     document.querySelectorAll('.modal-overlay').forEach(overlay=>{ overlay.addEventListener('click',function(e){ if(e.target===this)this.classList.remove('show'); }); });
     document.addEventListener('click',function(event){ const ap=document.getElementById('alertPanel'); const nb=document.querySelector('.notification-btn'); if(ap&&nb&&!ap.contains(event.target)&&!nb.contains(event.target)&&ap.classList.contains('show'))ap.classList.remove('show'); });

@@ -1194,8 +1194,11 @@
                 </div>
                 <div class="nav-section">
                     <div class="nav-section-title">Communication</div>
-                    <a class="nav-item" onclick="navigateToCommunication('messages')" data-page="communication">
-                        <span class="icon">📱</span> Communication Center
+                    <a class="nav-item" onclick="navigateToCommunicationMatrix('contacts')" data-page="communication-matrix">
+                        <span class="icon">📇</span> Communication Matrix
+                    </a>
+                    <a class="nav-item" onclick="navigateToInternalComm('email')" data-page="internal-communication">
+                        <span class="icon">✉️</span> Internal Communication
                     </a>
                 </div>
                 <div class="nav-section">
@@ -1416,70 +1419,86 @@
         </div>
     </div>
 
-    <!-- COMPOSE MESSAGE MODAL -->
-    <div class="modal-overlay" id="composeMessageModal">
+    <!-- COMMUNICATION MATRIX MODAL -->
+    <div class="modal-overlay" id="matrixContactModal">
         <div class="modal">
-            <div class="modal-header"><h3>💬 Send Message</h3><button class="btn btn-outline" onclick="closeModal('composeMessageModal')">✕</button></div>
+            <div class="modal-header"><h3>📇 Add / Edit Contact</h3><button class="btn btn-outline" onclick="closeModal('matrixContactModal')">✕</button></div>
             <div class="modal-body">
-                <form id="composeMessageForm" onsubmit="event.preventDefault(); submitComposeMessage();">
-                    <div class="form-group"><label>Trip <span class="required">*</span></label><select class="form-control" id="composeTripSelect" onchange="onComposeTripChange()"></select></div>
+                <form id="matrixContactForm" onsubmit="event.preventDefault(); submitMatrixContact();">
+                    <input type="hidden" id="matrixContactId">
                     <div class="form-grid-2">
-                        <div class="form-group"><label>Driver</label><div id="composeDriverDisplay" class="form-control" style="background:#f7fafc;">—</div></div>
-                        <div class="form-group"><label>Truck</label><div id="composeTruckDisplay" class="form-control" style="background:#f7fafc;">—</div></div>
+                        <div class="form-group"><label>Name <span class="required">*</span></label><input type="text" class="form-control" id="matrixContactName" placeholder="Full name"></div>
+                        <div class="form-group"><label>Company <span class="required">*</span></label><input type="text" class="form-control" id="matrixContactCompany" placeholder="Company name"></div>
                     </div>
                     <div class="form-grid-2">
-                        <div class="form-group"><label>Channel <span class="required">*</span></label><select class="form-control" id="composeChannel" onchange="onComposeTripChange()"><option>WhatsApp</option><option>SMS</option><option>Phone Call</option><option>Email</option></select></div>
-                        <div class="form-group"><label>Contact Number / Email</label><input type="text" class="form-control" id="composePhone" placeholder="Auto-filled from driver contact"></div>
+                        <div class="form-group"><label>Function <span class="required">*</span></label><select class="form-control" id="matrixContactFunction"></select></div>
+                        <div class="form-group"><label>Area</label><select class="form-control" id="matrixContactArea"></select></div>
                     </div>
-                    <div class="form-group"><label>Subject <span class="required">*</span></label><input type="text" class="form-control" id="composeSubject" placeholder="Message subject"></div>
-                    <div class="form-group"><label>Message <span class="required">*</span></label><textarea class="form-control" id="composeMessage" rows="4" placeholder="Type your message..."></textarea></div>
+                    <div class="form-group"><label>Email</label><input type="email" class="form-control" id="matrixContactEmail" placeholder="email@company.com"></div>
+                    <div class="form-group"><label>Place of Work / Affectation</label><input type="text" class="form-control" id="matrixContactPlace" placeholder="Office or location"></div>
+                    <div class="form-grid-2">
+                        <div class="form-group"><label>Phone</label><input type="text" class="form-control" id="matrixContactPhone" placeholder="+260 ..."></div>
+                        <div class="form-group"><label>WhatsApp</label><input type="text" class="form-control" id="matrixContactWhatsapp" placeholder="+260 ..."></div>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group"><label>Status</label><select class="form-control" id="matrixContactActive"><option value="true">Active</option><option value="false">Inactive</option></select></div>
+                        <div class="form-group"><label>Notes</label><input type="text" class="form-control" id="matrixContactNotes" placeholder="Optional notes"></div>
+                    </div>
                 </form>
             </div>
-            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('composeMessageModal')">Cancel</button><button class="btn btn-primary" onclick="submitComposeMessage()">📤 Send</button></div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('matrixContactModal')">Cancel</button><button class="btn btn-primary" onclick="submitMatrixContact()">💾 Save Contact</button></div>
         </div>
     </div>
 
-    <!-- RECORD DRIVER CONTACT MODAL -->
-    <div class="modal-overlay" id="recordDriverContactModal">
+    <!-- INTERNAL MESSAGE MODAL -->
+    <div class="modal-overlay" id="internalMessageModal">
         <div class="modal">
-            <div class="modal-header"><h3>📞 Record Driver Contact Details</h3><button class="btn btn-outline" onclick="closeModal('recordDriverContactModal')">✕</button></div>
+            <div class="modal-header"><h3>✉️ Send Official Internal Message</h3><button class="btn btn-outline" onclick="closeModal('internalMessageModal')">✕</button></div>
             <div class="modal-body">
-                <form id="recordContactForm" onsubmit="event.preventDefault(); submitRecordDriverContact();">
-                    <div class="form-group"><label>Trip <span class="required">*</span></label><select class="form-control" id="recordContactTrip" onchange="onRecordContactTripChange()"></select></div>
+                <form id="internalMessageForm" onsubmit="event.preventDefault(); submitInternalMessage();">
+                    <div class="form-group"><label>Recipients <span class="required">*</span></label><input type="text" class="form-control" id="internalRecipients" placeholder="Comma-separated names, e.g. Ruth Mwansa, Jean Kalenga"></div>
+                    <div class="form-group"><label>Tags / Mentions</label><input type="text" class="form-control" id="internalTags" placeholder="@Ruth Mwansa, @Operations Manager"></div>
+                    <div class="form-group"><label>Subject <span class="required">*</span></label><input type="text" class="form-control" id="internalSubject" placeholder="Message subject"></div>
+                    <div class="form-group"><label>Message <span class="required">*</span></label><textarea class="form-control" id="internalBody" rows="4" placeholder="Official internal message..."></textarea></div>
                     <div class="form-grid-2">
-                        <div class="form-group"><label>Driver</label><input type="text" class="form-control" id="recordContactDriver" readonly style="background:#f7fafc;"></div>
-                        <div class="form-group"><label>Truck</label><input type="text" class="form-control" id="recordContactTruck" readonly style="background:#f7fafc;"></div>
+                        <div class="form-group"><label>Link To</label><select class="form-control" id="internalLinkType" onchange="populateInternalLinkSelect()"><option value="">— None —</option><option value="trip">Trip</option><option value="truck">Truck</option><option value="car">Car</option><option value="asset">Asset</option><option value="equipment">Equipment</option><option value="area">Area</option><option value="user">User</option></select></div>
+                        <div class="form-group"><label>Reference</label><select class="form-control" id="internalLinkRef"><option value="">— Select reference —</option></select></div>
                     </div>
-                    <div class="form-group"><label>Zambia Phone</label><input type="text" class="form-control" id="recordPhoneZambia" placeholder="+260 ..."></div>
-                    <div class="form-group"><label>DRC Phone</label><input type="text" class="form-control" id="recordPhoneDRC" placeholder="+243 ..."></div>
-                    <div class="form-group"><label>WhatsApp Number <span class="required">*</span></label><input type="text" class="form-control" id="recordWhatsapp" placeholder="+260 ..."></div>
-                    <div class="form-group"><label>Email (optional)</label><input type="email" class="form-control" id="recordEmail" placeholder="driver@email.com"></div>
-                    <div class="field-hint" style="font-size:12px;color:var(--text-secondary);">Matches KBP Step 7 — Driver Contact Details at border clearance.</div>
                 </form>
             </div>
-            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('recordDriverContactModal')">Cancel</button><button class="btn btn-primary" onclick="submitRecordDriverContact()">💾 Save Contact</button></div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('internalMessageModal')">Cancel</button><button class="btn btn-primary" onclick="submitInternalMessage()">📤 Send Message</button></div>
         </div>
     </div>
 
-    <!-- BROADCAST ALERT MODAL -->
-    <div class="modal-overlay" id="broadcastModal">
+    <!-- GROUP CHAT MODAL -->
+    <div class="modal-overlay" id="groupChatModal">
         <div class="modal">
-            <div class="modal-header"><h3>📢 Send Broadcast Alert</h3><button class="btn btn-outline" onclick="closeModal('broadcastModal')">✕</button></div>
+            <div class="modal-header"><h3>👥 New Group Chat</h3><button class="btn btn-outline" onclick="closeModal('groupChatModal')">✕</button></div>
             <div class="modal-body">
-                <form id="broadcastForm" onsubmit="event.preventDefault(); submitBroadcast();">
-                    <div class="form-group"><label>Alert Title <span class="required">*</span></label><input type="text" class="form-control" id="broadcastTitle" placeholder="e.g. Kasumbalesa border queue alert"></div>
-                    <div class="form-group"><label>Message <span class="required">*</span></label><textarea class="form-control" id="broadcastMessage" rows="4" placeholder="Broadcast message to drivers..."></textarea></div>
+                <form id="groupChatForm" onsubmit="event.preventDefault(); submitGroupChat();">
+                    <div class="form-group"><label>Group Name <span class="required">*</span></label><input type="text" class="form-control" id="groupChatName" placeholder="e.g. Kasumbalesa Border Team"></div>
                     <div class="form-grid-2">
-                        <div class="form-group"><label>Channel</label><select class="form-control" id="broadcastChannel"><option>WhatsApp</option><option>SMS</option></select></div>
-                        <div class="form-group"><label>Direction</label><select class="form-control" id="broadcastDirection"><option>NB</option><option>SB</option><option>All</option></select></div>
-                    </div>
-                    <div class="form-grid-2">
-                        <div class="form-group"><label>Area</label><select class="form-control" id="broadcastArea"><option>Kasumbalesa</option><option>Kanyaka</option><option>Kolwezi</option><option>Lubumbashi</option><option>All Areas</option></select></div>
-                        <div class="form-group"><label>Target Group <span class="required">*</span></label><input type="text" class="form-control" id="broadcastTarget" placeholder="e.g. Kasumbalesa NB drivers"></div>
+                        <div class="form-group"><label>Link Type</label><select class="form-control" id="groupChatLinkType"><option value="area">Area</option><option value="trip">Trip</option><option value="user">User Group</option></select></div>
+                        <div class="form-group"><label>Reference</label><input type="text" class="form-control" id="groupChatLinkRef" placeholder="e.g. Kasumbalesa"></div>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('broadcastModal')">Cancel</button><button class="btn btn-primary" onclick="submitBroadcast()">📢 Send Broadcast</button></div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('groupChatModal')">Cancel</button><button class="btn btn-primary" onclick="submitGroupChat()">👥 Create Group</button></div>
+        </div>
+    </div>
+
+    <!-- CHAT ROOM VIEW MODAL -->
+    <div class="modal-overlay" id="chatRoomModal">
+        <div class="modal" style="max-width:640px;">
+            <div class="modal-header"><h3 id="chatRoomTitle">💬 Chat</h3><button class="btn btn-outline" onclick="closeModal('chatRoomModal')">✕</button></div>
+            <div class="modal-body" style="max-height:400px;overflow-y:auto;" id="chatRoomBody"></div>
+            <input type="hidden" id="chatRoomId">
+            <div class="modal-footer" style="flex-direction:column;align-items:stretch;gap:8px;">
+                <div style="display:flex;gap:8px;">
+                    <input type="text" class="form-control" id="chatRoomInput" placeholder="Type a message..." style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();submitChatMessage();}">
+                    <button class="btn btn-primary" onclick="submitChatMessage()">Send</button>
+                </div>
+            </div>
         </div>
     </div>
 
