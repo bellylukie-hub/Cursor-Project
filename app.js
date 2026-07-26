@@ -98,13 +98,8 @@ const WORKFLOW_CONFIG = {
 const KPI_CATEGORIES = [
     { id: 'workflow-nb', label: 'NB Workflow', icon: '🚛', banner: 'nb' },
     { id: 'workflow-sb', label: 'SB Workflow', icon: '🚛', banner: 'sb' },
-    { id: 'border-nb-kbp', label: 'Kasumbalesa — KBP Process', icon: '🛂', banner: 'border' },
-    { id: 'border-nb-whisky', label: 'Kasumbalesa — Whisky Process', icon: '🥃', banner: 'border' },
-    { id: 'border-nb-sakania', label: 'Sakania — BN Process', icon: '🛂', banner: 'border' },
-    { id: 'border-nb-mokambo', label: 'Mokambo — BN Process', icon: '🛂', banner: 'border' },
-    { id: 'border-sb-kasumbalesa', label: 'Kasumbalesa — SB Exit', icon: '🔽', banner: 'border' },
-    { id: 'border-sb-sakania', label: 'Sakania — SB Exit', icon: '🔽', banner: 'border' },
-    { id: 'border-sb-mokambo', label: 'Mokambo — SB Exit', icon: '🔽', banner: 'border' },
+    { id: 'border-nb', label: 'NB Border Processes', icon: '🛂', banner: 'border', isBorderGroup: true },
+    { id: 'border-sb', label: 'SB Border Exit Processes', icon: '🔽', banner: 'border', isBorderGroup: true },
     { id: 'pod', label: 'POD Management', icon: '📋', banner: 'nb' },
     { id: 'areas', label: 'Area Operations', icon: '🗺️', banner: null },
     { id: 'modules', label: 'Module / Page', icon: '📊', banner: null },
@@ -112,139 +107,147 @@ const KPI_CATEGORIES = [
     { id: 'turnarounds', label: 'Turnarounds', icon: '🔄', banner: null }
 ];
 
+/** KPI measurement type per border step */
+const KPI_STEP_TYPES = [
+    { id: 'time', label: '⏱️ Time SLA', desc: 'Max hours/days allowed to complete this step' },
+    { id: 'completion', label: '✅ Completion Gate', desc: 'Step must be marked complete before proceeding' },
+    { id: 'document', label: '📄 Document SLA', desc: 'Required document must be issued or uploaded' },
+    { id: 'inspection', label: '🔍 Inspection', desc: 'Physical inspection or verification step' }
+];
+
 /** Each border process with individual step KPI targets */
 const BORDER_PROCESS_DEFS = [
     {
         id: 'kbp',
-        category: 'border-nb-kbp',
+        parentCategory: 'border-nb',
         label: 'Kasumbalesa — KBP Process',
         border: 'Kasumbalesa',
         direction: 'NB',
         pageId: 'kasumbalesa-detail',
         configKey: 'kasumbalesa-kbp',
         steps: [
-            { key: 'arrival', name: 'Truck Arrival & Entry', defaultTarget: 4 },
-            { key: 'doc-submission', name: 'Document Submission to Brigade Officer', defaultTarget: 6 },
-            { key: 'scanning', name: 'Truck Scanning', defaultTarget: 12 },
-            { key: 'green-stamp', name: 'Green Stamping', defaultTarget: 4 },
-            { key: 'red-stamp', name: 'Red Stamping', defaultTarget: 4 },
-            { key: 'cross-check', name: 'Cross-Checking', defaultTarget: 12 },
-            { key: 'driver-contact', name: 'Driver Contact Details', defaultTarget: 6 }
+            { key: 'arrival', name: 'Truck Arrival & Entry', defaultTarget: 4, kpiType: 'time' },
+            { key: 'doc-submission', name: 'Document Submission to Brigade Officer', defaultTarget: 6, kpiType: 'document' },
+            { key: 'scanning', name: 'Truck Scanning', defaultTarget: 12, kpiType: 'inspection' },
+            { key: 'green-stamp', name: 'Green Stamping', defaultTarget: 4, kpiType: 'inspection' },
+            { key: 'red-stamp', name: 'Red Stamping', defaultTarget: 4, kpiType: 'inspection' },
+            { key: 'cross-check', name: 'Cross-Checking', defaultTarget: 12, kpiType: 'inspection' },
+            { key: 'driver-contact', name: 'Driver Contact Details', defaultTarget: 6, kpiType: 'completion' }
         ]
     },
     {
         id: 'whisky',
-        category: 'border-nb-whisky',
+        parentCategory: 'border-nb',
         label: 'Kasumbalesa — Whisky Process',
         border: 'Kasumbalesa',
         direction: 'NB',
         pageId: 'kasumbalesa-whisky',
         configKey: null,
         steps: [
-            { key: 'entry-card', name: 'Entry Card Given to Agent', defaultTarget: 4 },
-            { key: 'scanning', name: 'Truck Scanning', defaultTarget: 8 },
-            { key: 'tr8-im4', name: 'TR8 / T1 or IM4 Issued', defaultTarget: 8 },
-            { key: 'duty-payment', name: 'Duty Payment (if IM4)', defaultTarget: 6 },
-            { key: 'bae', name: 'BAE Collection', defaultTarget: 24 },
-            { key: 'seguce', name: 'SEGUCE Payment', defaultTarget: 4 },
-            { key: 'bon-sortie', name: 'Bon de Sortie', defaultTarget: 2 },
-            { key: 'brigade-stamp', name: 'Brigade Stamp', defaultTarget: 4 },
-            { key: 'full-docs', name: 'Full Documents Collected', defaultTarget: 4 },
-            { key: 'seal', name: 'Seal Collected', defaultTarget: 4 },
-            { key: 'hand-driver', name: 'Documents Handed to Driver', defaultTarget: 4 }
+            { key: 'entry-card', name: 'Entry Card Given to Agent', defaultTarget: 4, kpiType: 'document' },
+            { key: 'scanning', name: 'Truck Scanning', defaultTarget: 8, kpiType: 'inspection' },
+            { key: 'tr8-im4', name: 'TR8 / T1 or IM4 Issued', defaultTarget: 8, kpiType: 'document' },
+            { key: 'duty-payment', name: 'Duty Payment (if IM4)', defaultTarget: 6, kpiType: 'time' },
+            { key: 'bae', name: 'BAE Collection', defaultTarget: 24, kpiType: 'document' },
+            { key: 'seguce', name: 'SEGUCE Payment', defaultTarget: 4, kpiType: 'time' },
+            { key: 'bon-sortie', name: 'Bon de Sortie', defaultTarget: 2, kpiType: 'document' },
+            { key: 'brigade-stamp', name: 'Brigade Stamp', defaultTarget: 4, kpiType: 'inspection' },
+            { key: 'full-docs', name: 'Full Documents Collected', defaultTarget: 4, kpiType: 'document' },
+            { key: 'seal', name: 'Seal Collected', defaultTarget: 4, kpiType: 'completion' },
+            { key: 'hand-driver', name: 'Documents Handed to Driver', defaultTarget: 4, kpiType: 'completion' }
         ]
     },
     {
         id: 'sakania',
-        category: 'border-nb-sakania',
+        parentCategory: 'border-nb',
         label: 'Sakania — BN Process',
         border: 'Sakania',
         direction: 'NB',
         pageId: 'sakania-nb',
         configKey: 'sakania-nb',
         steps: [
-            { key: 'arrival', name: 'Truck Arrival & Entry', defaultTarget: 4 },
-            { key: 'doc-submission', name: 'Document Submission to Brigade Officer', defaultTarget: 6 },
-            { key: 'scanning', name: 'Truck Scanning', defaultTarget: 10 },
-            { key: 'green-stamp', name: 'Green Stamping', defaultTarget: 4 },
-            { key: 'red-stamp', name: 'Red Stamping', defaultTarget: 4 },
-            { key: 'cross-check', name: 'Cross-Checking', defaultTarget: 12 },
-            { key: 'driver-contact', name: 'Driver Contact Details', defaultTarget: 8 }
+            { key: 'arrival', name: 'Truck Arrival & Entry', defaultTarget: 4, kpiType: 'time' },
+            { key: 'doc-submission', name: 'Document Submission to Brigade Officer', defaultTarget: 6, kpiType: 'document' },
+            { key: 'scanning', name: 'Truck Scanning', defaultTarget: 10, kpiType: 'inspection' },
+            { key: 'green-stamp', name: 'Green Stamping', defaultTarget: 4, kpiType: 'inspection' },
+            { key: 'red-stamp', name: 'Red Stamping', defaultTarget: 4, kpiType: 'inspection' },
+            { key: 'cross-check', name: 'Cross-Checking', defaultTarget: 12, kpiType: 'inspection' },
+            { key: 'driver-contact', name: 'Driver Contact Details', defaultTarget: 8, kpiType: 'completion' }
         ]
     },
     {
         id: 'mokambo',
-        category: 'border-nb-mokambo',
+        parentCategory: 'border-nb',
         label: 'Mokambo — BN Process',
         border: 'Mokambo',
         direction: 'NB',
         pageId: 'mokambo-nb',
         configKey: 'mokambo-nb',
         steps: [
-            { key: 'arrival', name: 'Truck Arrival & Entry', defaultTarget: 6 },
-            { key: 'doc-submission', name: 'Document Submission to Brigade Officer', defaultTarget: 8 },
-            { key: 'scanning', name: 'Truck Scanning', defaultTarget: 14 },
-            { key: 'green-stamp', name: 'Green Stamping', defaultTarget: 6 },
-            { key: 'red-stamp', name: 'Red Stamping', defaultTarget: 6 },
-            { key: 'cross-check', name: 'Cross-Checking', defaultTarget: 18 },
-            { key: 'driver-contact', name: 'Driver Contact Details', defaultTarget: 14 }
+            { key: 'arrival', name: 'Truck Arrival & Entry', defaultTarget: 6, kpiType: 'time' },
+            { key: 'doc-submission', name: 'Document Submission to Brigade Officer', defaultTarget: 8, kpiType: 'document' },
+            { key: 'scanning', name: 'Truck Scanning', defaultTarget: 14, kpiType: 'inspection' },
+            { key: 'green-stamp', name: 'Green Stamping', defaultTarget: 6, kpiType: 'inspection' },
+            { key: 'red-stamp', name: 'Red Stamping', defaultTarget: 6, kpiType: 'inspection' },
+            { key: 'cross-check', name: 'Cross-Checking', defaultTarget: 18, kpiType: 'inspection' },
+            { key: 'driver-contact', name: 'Driver Contact Details', defaultTarget: 14, kpiType: 'completion' }
         ]
     },
     {
         id: 'sb-kasumbalesa',
-        category: 'border-sb-kasumbalesa',
+        parentCategory: 'border-sb',
         label: 'Kasumbalesa — SB Exit',
         border: 'Kasumbalesa',
         direction: 'SB',
         pageId: 'sb-kasumbalesa',
         configKey: 'sb-kasumbalesa',
         steps: [
-            { key: 'arrived', name: 'Arrived at Exit Border', defaultTarget: 4 },
-            { key: 'gov-list', name: 'Gov List Uploaded', defaultTarget: 6 },
-            { key: 'customs-decl', name: 'Customs Declaration Submitted', defaultTarget: 8 },
-            { key: 'duty-seguce', name: 'Duty / SEGUCE Payment', defaultTarget: 8 },
-            { key: 'brigade-stamp', name: 'Brigade Stamp Applied', defaultTarget: 6 },
-            { key: 'seal-verify', name: 'Seal Verification', defaultTarget: 6 },
-            { key: 'docs-handover', name: 'Documents Handed to Driver', defaultTarget: 4 },
-            { key: 'exit-zambia', name: 'Exit to Zambia — Complete', defaultTarget: 6 }
+            { key: 'arrived', name: 'Arrived at Exit Border', defaultTarget: 4, kpiType: 'time' },
+            { key: 'gov-list', name: 'Gov List Uploaded', defaultTarget: 6, kpiType: 'document' },
+            { key: 'customs-decl', name: 'Customs Declaration Submitted', defaultTarget: 8, kpiType: 'document' },
+            { key: 'duty-seguce', name: 'Duty / SEGUCE Payment', defaultTarget: 8, kpiType: 'time' },
+            { key: 'brigade-stamp', name: 'Brigade Stamp Applied', defaultTarget: 6, kpiType: 'inspection' },
+            { key: 'seal-verify', name: 'Seal Verification', defaultTarget: 6, kpiType: 'inspection' },
+            { key: 'docs-handover', name: 'Documents Handed to Driver', defaultTarget: 4, kpiType: 'document' },
+            { key: 'exit-zambia', name: 'Exit to Zambia — Complete', defaultTarget: 6, kpiType: 'completion' }
         ]
     },
     {
         id: 'sb-sakania',
-        category: 'border-sb-sakania',
+        parentCategory: 'border-sb',
         label: 'Sakania — SB Exit',
         border: 'Sakania',
         direction: 'SB',
         pageId: 'sb-sakania',
         configKey: 'sb-sakania',
         steps: [
-            { key: 'arrived', name: 'Arrived at Exit Border', defaultTarget: 4 },
-            { key: 'gov-list', name: 'Gov List Uploaded', defaultTarget: 6 },
-            { key: 'customs-decl', name: 'Customs Declaration Submitted', defaultTarget: 8 },
-            { key: 'duty-seguce', name: 'Duty / SEGUCE Payment', defaultTarget: 8 },
-            { key: 'brigade-stamp', name: 'Brigade Stamp Applied', defaultTarget: 6 },
-            { key: 'seal-verify', name: 'Seal Verification', defaultTarget: 6 },
-            { key: 'docs-handover', name: 'Documents Handed to Driver', defaultTarget: 4 },
-            { key: 'exit-zambia', name: 'Exit to Zambia — Complete', defaultTarget: 6 }
+            { key: 'arrived', name: 'Arrived at Exit Border', defaultTarget: 4, kpiType: 'time' },
+            { key: 'gov-list', name: 'Gov List Uploaded', defaultTarget: 6, kpiType: 'document' },
+            { key: 'customs-decl', name: 'Customs Declaration Submitted', defaultTarget: 8, kpiType: 'document' },
+            { key: 'duty-seguce', name: 'Duty / SEGUCE Payment', defaultTarget: 8, kpiType: 'time' },
+            { key: 'brigade-stamp', name: 'Brigade Stamp Applied', defaultTarget: 6, kpiType: 'inspection' },
+            { key: 'seal-verify', name: 'Seal Verification', defaultTarget: 6, kpiType: 'inspection' },
+            { key: 'docs-handover', name: 'Documents Handed to Driver', defaultTarget: 4, kpiType: 'document' },
+            { key: 'exit-zambia', name: 'Exit to Zambia — Complete', defaultTarget: 6, kpiType: 'completion' }
         ]
     },
     {
         id: 'sb-mokambo',
-        category: 'border-sb-mokambo',
+        parentCategory: 'border-sb',
         label: 'Mokambo — SB Exit',
         border: 'Mokambo',
         direction: 'SB',
         pageId: 'sb-mokambo',
         configKey: 'sb-mokambo',
         steps: [
-            { key: 'arrived', name: 'Arrived at Exit Border', defaultTarget: 6 },
-            { key: 'gov-list', name: 'Gov List Uploaded', defaultTarget: 10 },
-            { key: 'customs-decl', name: 'Customs Declaration Submitted', defaultTarget: 10 },
-            { key: 'duty-seguce', name: 'Duty / SEGUCE Payment', defaultTarget: 10 },
-            { key: 'brigade-stamp', name: 'Brigade Stamp Applied', defaultTarget: 8 },
-            { key: 'seal-verify', name: 'Seal Verification', defaultTarget: 8 },
-            { key: 'docs-handover', name: 'Documents Handed to Driver', defaultTarget: 8 },
-            { key: 'exit-zambia', name: 'Exit to Zambia — Complete', defaultTarget: 12 }
+            { key: 'arrived', name: 'Arrived at Exit Border', defaultTarget: 6, kpiType: 'time' },
+            { key: 'gov-list', name: 'Gov List Uploaded', defaultTarget: 10, kpiType: 'document' },
+            { key: 'customs-decl', name: 'Customs Declaration Submitted', defaultTarget: 10, kpiType: 'document' },
+            { key: 'duty-seguce', name: 'Duty / SEGUCE Payment', defaultTarget: 10, kpiType: 'time' },
+            { key: 'brigade-stamp', name: 'Brigade Stamp Applied', defaultTarget: 8, kpiType: 'inspection' },
+            { key: 'seal-verify', name: 'Seal Verification', defaultTarget: 8, kpiType: 'inspection' },
+            { key: 'docs-handover', name: 'Documents Handed to Driver', defaultTarget: 8, kpiType: 'document' },
+            { key: 'exit-zambia', name: 'Exit to Zambia — Complete', defaultTarget: 12, kpiType: 'completion' }
         ]
     }
 ];
@@ -255,7 +258,8 @@ function buildBorderStepKpiSettings() {
         proc.steps.forEach((step, idx) => {
             rows.push({
                 id: `border-${proc.id}-step-${step.key}`,
-                category: proc.category,
+                category: proc.parentCategory,
+                processGroup: proc.id,
                 process: step.name,
                 workflowStep: step.key,
                 stepOrder: idx + 1,
@@ -266,6 +270,7 @@ function buildBorderStepKpiSettings() {
                 targetValue: step.defaultTarget,
                 warningPct: 75,
                 unit: 'hours',
+                kpiType: step.kpiType || 'time',
                 enabled: true,
                 notes: `${proc.label} — step ${idx + 1} of ${proc.steps.length}`
             });
@@ -285,8 +290,90 @@ function getBorderStepKpiSetting(processId, stepKey) {
 function getBorderStepKpiTargetLabel(processId, stepKey) {
     const s = getBorderStepKpiSetting(processId, stepKey);
     if (!s || !s.enabled) return null;
+    const typeLabel = KPI_STEP_TYPES.find(t => t.id === s.kpiType)?.label?.split(' ')[0] || '';
     const u = s.unit === 'days' ? 'days' : 'hrs';
-    return `${s.targetValue} ${u.toUpperCase()}`;
+    return `${typeLabel} ${s.targetValue}${u === 'days' ? 'd' : 'h'}`.trim();
+}
+
+function kpiSettingMatchesCategory(s, categoryFilter) {
+    if (categoryFilter === 'all') return true;
+    if (categoryFilter === 'border-nb') return s.category === 'border-nb';
+    if (categoryFilter === 'border-sb') return s.category === 'border-sb';
+    if (categoryFilter.startsWith('border-process:')) {
+        return s.processGroup === categoryFilter.replace('border-process:', '');
+    }
+    return s.category === categoryFilter;
+}
+
+function renderKpiSettingRow(s, showStepNum) {
+    const kpiTypeOpts = KPI_STEP_TYPES.map(t =>
+        `<option value="${t.id}" ${s.kpiType === t.id ? 'selected' : ''}>${t.label}</option>`
+    ).join('');
+    return `
+        <tr class="${s.enabled ? '' : 'kpi-row-disabled'}">
+            ${showStepNum ? `<td><strong>${s.stepOrder || '—'}</strong></td>` : ''}
+            <td><strong>${s.process}</strong></td>
+            <td>
+                <select class="form-control kpi-type-select" onchange="updateKpiSetting('${s.id}','kpiType',this.value)" title="KPI measurement type for this step">
+                    ${kpiTypeOpts}
+                </select>
+            </td>
+            <td><code>${s.pageId}</code></td>
+            <td>${s.workflowStep ? `<span class="workflow-pill pending">${s.workflowStep}</span>` : '—'}</td>
+            <td>${s.direction}</td>
+            <td><input type="number" class="form-control kpi-input" min="0" step="1" value="${s.targetValue}" onchange="updateKpiSetting('${s.id}','targetValue',parseFloat(this.value)||0)"></td>
+            <td>
+                <select class="form-control kpi-input" onchange="updateKpiSetting('${s.id}','unit',this.value)">
+                    <option value="hours" ${s.unit === 'hours' ? 'selected' : ''}>Hours</option>
+                    <option value="days" ${s.unit === 'days' ? 'selected' : ''}>Days</option>
+                </select>
+            </td>
+            <td><input type="number" class="form-control kpi-input" min="50" max="99" step="1" value="${s.warningPct ?? 75}" onchange="updateKpiSetting('${s.id}','warningPct',parseInt(this.value)||75)"></td>
+            <td><label class="toggle-switch toggle-sm"><input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="updateKpiSetting('${s.id}','enabled',this.checked)"><span class="toggle-slider"></span></label></td>
+            <td><input type="text" class="form-control kpi-notes-input" value="${(s.notes || '').replace(/"/g, '&quot;')}" placeholder="Notes" onchange="updateKpiSetting('${s.id}','notes',this.value)"></td>
+        </tr>`;
+}
+
+function renderBorderProcessKpiBlock(proc, filteredSteps) {
+    const steps = filteredSteps
+        .filter(s => s.processGroup === proc.id)
+        .sort((a, b) => (a.stepOrder || 0) - (b.stepOrder || 0));
+    if (!steps.length) return '';
+    const total = getBorderProcessTargetHours(proc.id);
+    const stepFlow = proc.steps.map((st, i) => `${i + 1}. ${st.name}`).join(' → ');
+    return `
+        <div class="kpi-border-process-block">
+            <div class="kpi-border-process-header">
+                <h4>${proc.label}</h4>
+                <span class="badge-count">${steps.length} steps</span>
+                <span class="kpi-process-total">Combined: <strong>${total}h</strong></span>
+            </div>
+            <p class="kpi-step-flow">${stepFlow}</p>
+            <div class="table-container">
+                <table class="data-table admin-table kpi-settings-table">
+                    <thead><tr>
+                        <th>#</th><th>Step</th><th>KPI Type</th><th>Page</th><th>Key</th><th>Dir.</th>
+                        <th>Target</th><th>Unit</th><th>Warning %</th><th>Active</th><th>Notes</th>
+                    </tr></thead>
+                    <tbody>${steps.map(s => renderKpiSettingRow(s, true)).join('')}</tbody>
+                </table>
+            </div>
+        </div>`;
+}
+
+function renderBorderKpiGroup(parentCategory, filteredSteps, processFilterId) {
+    const catMeta = KPI_CATEGORIES.find(c => c.id === parentCategory);
+    if (!catMeta) return '';
+    let procs = BORDER_PROCESS_DEFS.filter(p => p.parentCategory === parentCategory);
+    if (processFilterId) procs = procs.filter(p => p.id === processFilterId);
+    const blocks = procs.map(p => renderBorderProcessKpiBlock(p, filteredSteps)).filter(Boolean).join('');
+    if (!blocks) return '';
+    return `
+        <div class="settings-card kpi-border-group" style="margin-bottom:20px;">
+            <h2>${catMeta.icon} ${catMeta.label}</h2>
+            <p class="page-subtitle" style="margin-bottom:16px;">Assign a KPI type and target to <strong>each individual step</strong> in every border process below.</p>
+            ${blocks}
+        </div>`;
 }
 
 function getBorderProcessTargetHours(processId) {
@@ -426,7 +513,7 @@ let kpiAdminFilter = '';
 let kpiAdminCategory = 'all';
 
 const KPI_STORAGE_KEY = 'truckcontrol_kpi_settings';
-const KPI_SETTINGS_VERSION = 2;
+const KPI_SETTINGS_VERSION = 3;
 
 function initKpiSettings() {
     try {
@@ -6607,13 +6694,14 @@ function renderAdminKpiSettings(container) {
     }
     const term = (kpiAdminFilter || '').toLowerCase();
     const filtered = kpiSettingsDB.filter(s => {
-        if (kpiAdminCategory !== 'all' && s.category !== kpiAdminCategory) return false;
+        if (!kpiSettingMatchesCategory(s, kpiAdminCategory)) return false;
         if (!term) return true;
-        const hay = [s.process, s.pageLabel, s.pageId, s.workflowStep, s.direction, s.notes, s.category].join(' ').toLowerCase();
+        const hay = [s.process, s.pageLabel, s.pageId, s.workflowStep, s.processGroup, s.direction, s.notes, s.category, s.kpiType].join(' ').toLowerCase();
         return hay.includes(term);
     });
     const grouped = {};
     filtered.forEach(s => {
+        if (s.category === 'border-nb' || s.category === 'border-sb') return;
         if (!grouped[s.category]) grouped[s.category] = [];
         grouped[s.category].push(s);
     });
@@ -6621,12 +6709,36 @@ function renderAdminKpiSettings(container) {
         grouped[cat].sort((a, b) => (a.stepOrder || 999) - (b.stepOrder || 999));
     });
     const activeCount = kpiSettingsDB.filter(s => s.enabled).length;
+    const procFilterId = kpiAdminCategory.startsWith('border-process:') ? kpiAdminCategory.replace('border-process:', '') : null;
+    const procFilterDef = procFilterId ? BORDER_PROCESS_DEFS.find(p => p.id === procFilterId) : null;
+    const showBorderNb = kpiAdminCategory === 'all' || kpiAdminCategory === 'border-nb' || procFilterDef?.parentCategory === 'border-nb';
+    const showBorderSb = kpiAdminCategory === 'all' || kpiAdminCategory === 'border-sb' || procFilterDef?.parentCategory === 'border-sb';
+    const borderNbHtml = showBorderNb ? renderBorderKpiGroup('border-nb', filtered, procFilterDef?.parentCategory === 'border-nb' ? procFilterId : null) : '';
+    const borderSbHtml = showBorderSb ? renderBorderKpiGroup('border-sb', filtered, procFilterDef?.parentCategory === 'border-sb' ? procFilterId : null) : '';
+    const otherCatsHtml = KPI_CATEGORIES.filter(c => !c.isBorderGroup && grouped[c.id]?.length).map(cat => `
+            <div class="settings-card" style="margin-bottom:16px;">
+                <h3>${cat.icon} ${cat.label} <span class="badge-count">${grouped[cat.id].length}</span></h3>
+                <div class="table-container">
+                    <table class="data-table admin-table kpi-settings-table">
+                        <thead><tr>
+                            <th>Process</th><th>KPI Type</th><th>Page</th><th>Step Key</th><th>Dir.</th>
+                            <th>Target</th><th>Unit</th><th>Warning %</th><th>Active</th><th>Notes</th>
+                        </tr></thead>
+                        <tbody>${grouped[cat.id].map(s => renderKpiSettingRow(s, false)).join('')}</tbody>
+                    </table>
+                </div>
+            </div>`).join('');
+    const categoryOptions = KPI_CATEGORIES.map(c =>
+        `<option value="${c.id}" ${kpiAdminCategory === c.id ? 'selected' : ''}>${c.icon} ${c.label}</option>`
+    ).join('') + BORDER_PROCESS_DEFS.map(p =>
+        `<option value="border-process:${p.id}" ${kpiAdminCategory === `border-process:${p.id}` ? 'selected' : ''}>↳ ${p.label}</option>`
+    ).join('');
     container.innerHTML = `
         ${renderAdminBreadcrumb('KPI Settings')}
         <div class="page-header admin-page-header">
             <div>
                 <h1>🎯 KPI Settings</h1>
-                <p class="page-subtitle">Configure green / orange / red thresholds per workflow step and per border process step (KBP, Whisky, Sakania, Mokambo, SB Exit). Each individual clearance step has its own target.</p>
+                <p class="page-subtitle">Under <strong>NB Border Processes</strong> and <strong>SB Border Exit Processes</strong>, assign a KPI type and target to every individual clearance step (KBP, Whisky, Sakania, Mokambo, SB exits).</p>
                 <div class="admin-stats-row"><span><strong>${kpiSettingsDB.length}</strong> rules</span><span><strong>${activeCount}</strong> active</span></div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -6638,60 +6750,26 @@ function renderAdminKpiSettings(container) {
             <span><strong>🟢 Green</strong> — under warning threshold</span>
             <span><strong>🟠 Orange</strong> — at or above warning % of target</span>
             <span><strong>🔴 Red</strong> — at or over target</span>
+            <span><strong>KPI Types:</strong> ${KPI_STEP_TYPES.map(t => t.label).join(' · ')}</span>
         </div>
         <div class="admin-toolbar">
-            <input type="text" class="form-control admin-search" placeholder="Search process, page, workflow step..." value="${kpiAdminFilter}" onkeyup="kpiAdminFilter=this.value; renderAdminKpiSettings(document.getElementById('contentArea'))">
+            <input type="text" class="form-control admin-search" placeholder="Search step, process, page..." value="${kpiAdminFilter}" onkeyup="kpiAdminFilter=this.value; renderAdminKpiSettings(document.getElementById('contentArea'))">
             <select class="form-control admin-filter" onchange="kpiAdminCategory=this.value; renderAdminKpiSettings(document.getElementById('contentArea'))">
                 <option value="all" ${kpiAdminCategory === 'all' ? 'selected' : ''}>All categories</option>
-                ${KPI_CATEGORIES.map(c => `<option value="${c.id}" ${kpiAdminCategory === c.id ? 'selected' : ''}>${c.icon} ${c.label}</option>`).join('')}
+                ${categoryOptions}
             </select>
         </div>
-        ${filtered.length === 0 ? '<div class="settings-card"><p>No KPI rules match your filter.</p></div>' : KPI_CATEGORIES.filter(c => grouped[c.id]?.length).map(cat => {
-            const procDef = BORDER_PROCESS_DEFS.find(p => p.category === cat.id);
-            const procTotal = procDef ? getBorderProcessTargetHours(procDef.id) : null;
-            const isBorder = cat.id.startsWith('border-');
-            return `
-            <div class="settings-card" style="margin-bottom:16px;">
-                <h3>${cat.icon} ${cat.label}
-                    <span class="badge-count">${grouped[cat.id].length} step${grouped[cat.id].length === 1 ? '' : 's'}</span>
-                    ${procTotal != null ? `<span class="kpi-process-total">Combined target: <strong>${procTotal}h</strong></span>` : ''}
-                </h3>
-                <div class="table-container">
-                    <table class="data-table admin-table kpi-settings-table">
-                        <thead><tr>
-                            ${isBorder ? '<th>#</th>' : ''}
-                            <th>Process Step</th><th>Page</th><th>Step Key</th><th>Dir.</th>
-                            <th>Target</th><th>Unit</th><th>Warning %</th><th>Active</th><th>Notes</th>
-                        </tr></thead>
-                        <tbody>
-                            ${grouped[cat.id].map(s => `
-                                <tr class="${s.enabled ? '' : 'kpi-row-disabled'}">
-                                    ${isBorder ? `<td><strong>${s.stepOrder || '—'}</strong></td>` : ''}
-                                    <td><strong>${s.process}</strong></td>
-                                    <td><code>${s.pageId}</code></td>
-                                    <td>${s.workflowStep ? `<span class="workflow-pill pending">${s.workflowStep}</span>` : '—'}</td>
-                                    <td>${s.direction}</td>
-                                    <td><input type="number" class="form-control kpi-input" min="0" step="1" value="${s.targetValue}" onchange="updateKpiSetting('${s.id}','targetValue',parseFloat(this.value)||0)"></td>
-                                    <td>
-                                        <select class="form-control kpi-input" onchange="updateKpiSetting('${s.id}','unit',this.value)">
-                                            <option value="hours" ${s.unit === 'hours' ? 'selected' : ''}>Hours</option>
-                                            <option value="days" ${s.unit === 'days' ? 'selected' : ''}>Days</option>
-                                        </select>
-                                    </td>
-                                    <td><input type="number" class="form-control kpi-input" min="50" max="99" step="1" value="${s.warningPct ?? 75}" onchange="updateKpiSetting('${s.id}','warningPct',parseInt(this.value)||75)"></td>
-                                    <td><label class="toggle-switch toggle-sm"><input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="updateKpiSetting('${s.id}','enabled',this.checked)"><span class="toggle-slider"></span></label></td>
-                                    <td><input type="text" class="form-control kpi-notes-input" value="${(s.notes || '').replace(/"/g, '&quot;')}" placeholder="Rule description" onchange="updateKpiSetting('${s.id}','notes',this.value)"></td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            </div>`;
-        }).join('')}
+        ${!filtered.length && !borderNbHtml && !borderSbHtml && !otherCatsHtml ? '<div class="settings-card"><p>No KPI rules match your filter.</p></div>' : ''}
+        ${borderNbHtml}
+        ${borderSbHtml}
+        ${otherCatsHtml}
         <div class="settings-card">
-            <h3>📋 Border Process Reference</h3>
+            <h3>📋 Border Process Step Reference</h3>
             <div class="kpi-workflow-ref">
-                ${BORDER_PROCESS_DEFS.map(p => `<div><strong>${p.label}:</strong> ${p.steps.map((st, i) => `${i + 1}. ${st.name}`).join(' → ')}</div>`).join('')}
+                <div><strong>NB Border Processes</strong></div>
+                ${BORDER_PROCESS_DEFS.filter(p => p.parentCategory === 'border-nb').map(p => `<div style="margin-left:12px;"><strong>${p.label}</strong> (${p.steps.length} steps): ${p.steps.map((st, i) => `${i + 1}. ${st.name}`).join(' → ')}</div>`).join('')}
+                <div style="margin-top:12px;"><strong>SB Border Exit Processes</strong></div>
+                ${BORDER_PROCESS_DEFS.filter(p => p.parentCategory === 'border-sb').map(p => `<div style="margin-left:12px;"><strong>${p.label}</strong> (${p.steps.length} steps): ${p.steps.map((st, i) => `${i + 1}. ${st.name}`).join(' → ')}</div>`).join('')}
             </div>
         </div>
         <div class="settings-card">
