@@ -126,13 +126,13 @@ const BORDER_PROCESS_DEFS = [
         pageId: 'kasumbalesa-detail',
         configKey: 'kasumbalesa-kbp',
         steps: [
-            { key: 'arrival', name: 'Truck Arrival & Entry', defaultTarget: 4, kpiType: 'time' },
-            { key: 'doc-submission', name: 'Document Submission to Brigade Officer', defaultTarget: 6, kpiType: 'document' },
-            { key: 'scanning', name: 'Truck Scanning', defaultTarget: 12, kpiType: 'inspection' },
-            { key: 'green-stamp', name: 'Green Stamping', defaultTarget: 4, kpiType: 'inspection' },
-            { key: 'red-stamp', name: 'Red Stamping', defaultTarget: 4, kpiType: 'inspection' },
-            { key: 'cross-check', name: 'Cross-Checking', defaultTarget: 12, kpiType: 'inspection' },
-            { key: 'driver-contact', name: 'Driver Contact Details', defaultTarget: 6, kpiType: 'completion' }
+            { key: 'arrival', name: 'Truck Arrival & Entry', shortName: 'Arrival', defaultTarget: 4, transitionToNext: 2, kpiType: 'time' },
+            { key: 'doc-submission', name: 'Document Submission to Brigade Officer', shortName: 'Doc Submission', defaultTarget: 6, transitionToNext: 4, kpiType: 'document' },
+            { key: 'scanning', name: 'Truck Scanning', shortName: 'Scanning', defaultTarget: 12, transitionToNext: 8, kpiType: 'inspection' },
+            { key: 'green-stamp', name: 'Green Stamping', shortName: 'Green Stamp', defaultTarget: 4, transitionToNext: 1, kpiType: 'inspection' },
+            { key: 'red-stamp', name: 'Red Stamping', shortName: 'Red Stamp', defaultTarget: 4, transitionToNext: 1, kpiType: 'inspection' },
+            { key: 'cross-check', name: 'Cross-Checking', shortName: 'Cross-Check', defaultTarget: 12, transitionToNext: 4, kpiType: 'inspection' },
+            { key: 'driver-contact', name: 'Driver Contact Details', shortName: 'Driver Contact', defaultTarget: 6, kpiType: 'completion' }
         ]
     },
     {
@@ -144,17 +144,17 @@ const BORDER_PROCESS_DEFS = [
         pageId: 'kasumbalesa-whisky',
         configKey: null,
         steps: [
-            { key: 'entry-card', name: 'Entry Card Given to Agent', defaultTarget: 4, kpiType: 'document' },
-            { key: 'scanning', name: 'Truck Scanning', defaultTarget: 8, kpiType: 'inspection' },
-            { key: 'tr8-im4', name: 'TR8 / T1 or IM4 Issued', defaultTarget: 8, kpiType: 'document' },
-            { key: 'duty-payment', name: 'Duty Payment (if IM4)', defaultTarget: 6, kpiType: 'time' },
-            { key: 'bae', name: 'BAE Collection', defaultTarget: 24, kpiType: 'document' },
-            { key: 'seguce', name: 'SEGUCE Payment', defaultTarget: 4, kpiType: 'time' },
-            { key: 'bon-sortie', name: 'Bon de Sortie', defaultTarget: 2, kpiType: 'document' },
-            { key: 'brigade-stamp', name: 'Brigade Stamp', defaultTarget: 4, kpiType: 'inspection' },
-            { key: 'full-docs', name: 'Full Documents Collected', defaultTarget: 4, kpiType: 'document' },
-            { key: 'seal', name: 'Seal Collected', defaultTarget: 4, kpiType: 'completion' },
-            { key: 'hand-driver', name: 'Documents Handed to Driver', defaultTarget: 4, kpiType: 'completion' }
+            { key: 'entry-card', name: 'Entry Card Given to Agent', shortName: 'Entry Card', defaultTarget: 4, transitionToNext: 8, kpiType: 'document' },
+            { key: 'scanning', name: 'Truck Scanning', shortName: 'Scanning', defaultTarget: 8, transitionToNext: 4, kpiType: 'inspection' },
+            { key: 'tr8-im4', name: 'TR8 / T1 or IM4 Issued', shortName: 'TR8 / IM4', defaultTarget: 8, transitionToNext: 4, kpiType: 'document' },
+            { key: 'duty-payment', name: 'Duty Payment (if IM4)', shortName: 'Duty Payment', defaultTarget: 6, transitionToNext: 2, kpiType: 'time' },
+            { key: 'bae', name: 'BAE Collection', shortName: 'BAE', defaultTarget: 24, transitionToNext: 20, kpiType: 'document' },
+            { key: 'seguce', name: 'SEGUCE Payment', shortName: 'SEGUCE', defaultTarget: 4, transitionToNext: 2, kpiType: 'time' },
+            { key: 'bon-sortie', name: 'Bon de Sortie', shortName: 'Bon de Sortie', defaultTarget: 2, transitionToNext: 2, kpiType: 'document' },
+            { key: 'brigade-stamp', name: 'Brigade Stamp', shortName: 'Brigade Stamp', defaultTarget: 4, transitionToNext: 2, kpiType: 'inspection' },
+            { key: 'full-docs', name: 'Full Documents Collected', shortName: 'Full Docs', defaultTarget: 4, transitionToNext: 2, kpiType: 'document' },
+            { key: 'seal', name: 'Seal Collected', shortName: 'Seal', defaultTarget: 4, transitionToNext: 2, kpiType: 'completion' },
+            { key: 'hand-driver', name: 'Documents Handed to Driver', shortName: 'Hand to Driver', defaultTarget: 4, kpiType: 'completion' }
         ]
     },
     {
@@ -166,13 +166,13 @@ const BORDER_PROCESS_DEFS = [
         pageId: 'sakania-nb',
         configKey: 'sakania-nb',
         steps: [
-            { key: 'arrival', name: 'Truck Arrival & Entry', defaultTarget: 4, kpiType: 'time' },
-            { key: 'doc-submission', name: 'Document Submission to Brigade Officer', defaultTarget: 6, kpiType: 'document' },
-            { key: 'scanning', name: 'Truck Scanning', defaultTarget: 10, kpiType: 'inspection' },
-            { key: 'green-stamp', name: 'Green Stamping', defaultTarget: 4, kpiType: 'inspection' },
-            { key: 'red-stamp', name: 'Red Stamping', defaultTarget: 4, kpiType: 'inspection' },
-            { key: 'cross-check', name: 'Cross-Checking', defaultTarget: 12, kpiType: 'inspection' },
-            { key: 'driver-contact', name: 'Driver Contact Details', defaultTarget: 8, kpiType: 'completion' }
+            { key: 'arrival', name: 'Truck Arrival & Entry', shortName: 'Arrival', defaultTarget: 4, transitionToNext: 2, kpiType: 'time' },
+            { key: 'doc-submission', name: 'Document Submission to Brigade Officer', shortName: 'Doc Submission', defaultTarget: 6, transitionToNext: 4, kpiType: 'document' },
+            { key: 'scanning', name: 'Truck Scanning', shortName: 'Scanning', defaultTarget: 10, transitionToNext: 6, kpiType: 'inspection' },
+            { key: 'green-stamp', name: 'Green Stamping', shortName: 'Green Stamp', defaultTarget: 4, transitionToNext: 1, kpiType: 'inspection' },
+            { key: 'red-stamp', name: 'Red Stamping', shortName: 'Red Stamp', defaultTarget: 4, transitionToNext: 1, kpiType: 'inspection' },
+            { key: 'cross-check', name: 'Cross-Checking', shortName: 'Cross-Check', defaultTarget: 12, transitionToNext: 4, kpiType: 'inspection' },
+            { key: 'driver-contact', name: 'Driver Contact Details', shortName: 'Driver Contact', defaultTarget: 8, kpiType: 'completion' }
         ]
     },
     {
@@ -184,13 +184,13 @@ const BORDER_PROCESS_DEFS = [
         pageId: 'mokambo-nb',
         configKey: 'mokambo-nb',
         steps: [
-            { key: 'arrival', name: 'Truck Arrival & Entry', defaultTarget: 6, kpiType: 'time' },
-            { key: 'doc-submission', name: 'Document Submission to Brigade Officer', defaultTarget: 8, kpiType: 'document' },
-            { key: 'scanning', name: 'Truck Scanning', defaultTarget: 14, kpiType: 'inspection' },
-            { key: 'green-stamp', name: 'Green Stamping', defaultTarget: 6, kpiType: 'inspection' },
-            { key: 'red-stamp', name: 'Red Stamping', defaultTarget: 6, kpiType: 'inspection' },
-            { key: 'cross-check', name: 'Cross-Checking', defaultTarget: 18, kpiType: 'inspection' },
-            { key: 'driver-contact', name: 'Driver Contact Details', defaultTarget: 14, kpiType: 'completion' }
+            { key: 'arrival', name: 'Truck Arrival & Entry', shortName: 'Arrival', defaultTarget: 6, transitionToNext: 3, kpiType: 'time' },
+            { key: 'doc-submission', name: 'Document Submission to Brigade Officer', shortName: 'Doc Submission', defaultTarget: 8, transitionToNext: 5, kpiType: 'document' },
+            { key: 'scanning', name: 'Truck Scanning', shortName: 'Scanning', defaultTarget: 14, transitionToNext: 10, kpiType: 'inspection' },
+            { key: 'green-stamp', name: 'Green Stamping', shortName: 'Green Stamp', defaultTarget: 6, transitionToNext: 2, kpiType: 'inspection' },
+            { key: 'red-stamp', name: 'Red Stamping', shortName: 'Red Stamp', defaultTarget: 6, transitionToNext: 2, kpiType: 'inspection' },
+            { key: 'cross-check', name: 'Cross-Checking', shortName: 'Cross-Check', defaultTarget: 18, transitionToNext: 6, kpiType: 'inspection' },
+            { key: 'driver-contact', name: 'Driver Contact Details', shortName: 'Driver Contact', defaultTarget: 14, kpiType: 'completion' }
         ]
     },
     {
@@ -202,14 +202,14 @@ const BORDER_PROCESS_DEFS = [
         pageId: 'sb-kasumbalesa',
         configKey: 'sb-kasumbalesa',
         steps: [
-            { key: 'arrived', name: 'Arrived at Exit Border', defaultTarget: 4, kpiType: 'time' },
-            { key: 'gov-list', name: 'Gov List Uploaded', defaultTarget: 6, kpiType: 'document' },
-            { key: 'customs-decl', name: 'Customs Declaration Submitted', defaultTarget: 8, kpiType: 'document' },
-            { key: 'duty-seguce', name: 'Duty / SEGUCE Payment', defaultTarget: 8, kpiType: 'time' },
-            { key: 'brigade-stamp', name: 'Brigade Stamp Applied', defaultTarget: 6, kpiType: 'inspection' },
-            { key: 'seal-verify', name: 'Seal Verification', defaultTarget: 6, kpiType: 'inspection' },
-            { key: 'docs-handover', name: 'Documents Handed to Driver', defaultTarget: 4, kpiType: 'document' },
-            { key: 'exit-zambia', name: 'Exit to Zambia — Complete', defaultTarget: 6, kpiType: 'completion' }
+            { key: 'arrived', name: 'Arrived at Exit Border', shortName: 'Arrival', defaultTarget: 4, transitionToNext: 2, kpiType: 'time' },
+            { key: 'gov-list', name: 'Gov List Uploaded', shortName: 'Gov List', defaultTarget: 6, transitionToNext: 4, kpiType: 'document' },
+            { key: 'customs-decl', name: 'Customs Declaration Submitted', shortName: 'Customs Decl.', defaultTarget: 8, transitionToNext: 4, kpiType: 'document' },
+            { key: 'duty-seguce', name: 'Duty / SEGUCE Payment', shortName: 'Duty/SEGUCE', defaultTarget: 8, transitionToNext: 4, kpiType: 'time' },
+            { key: 'brigade-stamp', name: 'Brigade Stamp Applied', shortName: 'Brigade Stamp', defaultTarget: 6, transitionToNext: 2, kpiType: 'inspection' },
+            { key: 'seal-verify', name: 'Seal Verification', shortName: 'Seal Verify', defaultTarget: 6, transitionToNext: 2, kpiType: 'inspection' },
+            { key: 'docs-handover', name: 'Documents Handed to Driver', shortName: 'Docs Handover', defaultTarget: 4, transitionToNext: 2, kpiType: 'document' },
+            { key: 'exit-zambia', name: 'Exit to Zambia — Complete', shortName: 'Exit Zambia', defaultTarget: 6, kpiType: 'completion' }
         ]
     },
     {
@@ -221,14 +221,14 @@ const BORDER_PROCESS_DEFS = [
         pageId: 'sb-sakania',
         configKey: 'sb-sakania',
         steps: [
-            { key: 'arrived', name: 'Arrived at Exit Border', defaultTarget: 4, kpiType: 'time' },
-            { key: 'gov-list', name: 'Gov List Uploaded', defaultTarget: 6, kpiType: 'document' },
-            { key: 'customs-decl', name: 'Customs Declaration Submitted', defaultTarget: 8, kpiType: 'document' },
-            { key: 'duty-seguce', name: 'Duty / SEGUCE Payment', defaultTarget: 8, kpiType: 'time' },
-            { key: 'brigade-stamp', name: 'Brigade Stamp Applied', defaultTarget: 6, kpiType: 'inspection' },
-            { key: 'seal-verify', name: 'Seal Verification', defaultTarget: 6, kpiType: 'inspection' },
-            { key: 'docs-handover', name: 'Documents Handed to Driver', defaultTarget: 4, kpiType: 'document' },
-            { key: 'exit-zambia', name: 'Exit to Zambia — Complete', defaultTarget: 6, kpiType: 'completion' }
+            { key: 'arrived', name: 'Arrived at Exit Border', shortName: 'Arrival', defaultTarget: 4, transitionToNext: 2, kpiType: 'time' },
+            { key: 'gov-list', name: 'Gov List Uploaded', shortName: 'Gov List', defaultTarget: 6, transitionToNext: 4, kpiType: 'document' },
+            { key: 'customs-decl', name: 'Customs Declaration Submitted', shortName: 'Customs Decl.', defaultTarget: 8, transitionToNext: 4, kpiType: 'document' },
+            { key: 'duty-seguce', name: 'Duty / SEGUCE Payment', shortName: 'Duty/SEGUCE', defaultTarget: 8, transitionToNext: 4, kpiType: 'time' },
+            { key: 'brigade-stamp', name: 'Brigade Stamp Applied', shortName: 'Brigade Stamp', defaultTarget: 6, transitionToNext: 2, kpiType: 'inspection' },
+            { key: 'seal-verify', name: 'Seal Verification', shortName: 'Seal Verify', defaultTarget: 6, transitionToNext: 2, kpiType: 'inspection' },
+            { key: 'docs-handover', name: 'Documents Handed to Driver', shortName: 'Docs Handover', defaultTarget: 4, transitionToNext: 2, kpiType: 'document' },
+            { key: 'exit-zambia', name: 'Exit to Zambia — Complete', shortName: 'Exit Zambia', defaultTarget: 6, kpiType: 'completion' }
         ]
     },
     {
@@ -240,14 +240,14 @@ const BORDER_PROCESS_DEFS = [
         pageId: 'sb-mokambo',
         configKey: 'sb-mokambo',
         steps: [
-            { key: 'arrived', name: 'Arrived at Exit Border', defaultTarget: 6, kpiType: 'time' },
-            { key: 'gov-list', name: 'Gov List Uploaded', defaultTarget: 10, kpiType: 'document' },
-            { key: 'customs-decl', name: 'Customs Declaration Submitted', defaultTarget: 10, kpiType: 'document' },
-            { key: 'duty-seguce', name: 'Duty / SEGUCE Payment', defaultTarget: 10, kpiType: 'time' },
-            { key: 'brigade-stamp', name: 'Brigade Stamp Applied', defaultTarget: 8, kpiType: 'inspection' },
-            { key: 'seal-verify', name: 'Seal Verification', defaultTarget: 8, kpiType: 'inspection' },
-            { key: 'docs-handover', name: 'Documents Handed to Driver', defaultTarget: 8, kpiType: 'document' },
-            { key: 'exit-zambia', name: 'Exit to Zambia — Complete', defaultTarget: 12, kpiType: 'completion' }
+            { key: 'arrived', name: 'Arrived at Exit Border', shortName: 'Arrival', defaultTarget: 6, transitionToNext: 3, kpiType: 'time' },
+            { key: 'gov-list', name: 'Gov List Uploaded', shortName: 'Gov List', defaultTarget: 10, transitionToNext: 6, kpiType: 'document' },
+            { key: 'customs-decl', name: 'Customs Declaration Submitted', shortName: 'Customs Decl.', defaultTarget: 10, transitionToNext: 6, kpiType: 'document' },
+            { key: 'duty-seguce', name: 'Duty / SEGUCE Payment', shortName: 'Duty/SEGUCE', defaultTarget: 10, transitionToNext: 6, kpiType: 'time' },
+            { key: 'brigade-stamp', name: 'Brigade Stamp Applied', shortName: 'Brigade Stamp', defaultTarget: 8, transitionToNext: 3, kpiType: 'inspection' },
+            { key: 'seal-verify', name: 'Seal Verification', shortName: 'Seal Verify', defaultTarget: 8, transitionToNext: 3, kpiType: 'inspection' },
+            { key: 'docs-handover', name: 'Documents Handed to Driver', shortName: 'Docs Handover', defaultTarget: 8, transitionToNext: 4, kpiType: 'document' },
+            { key: 'exit-zambia', name: 'Exit to Zambia — Complete', shortName: 'Exit Zambia', defaultTarget: 12, kpiType: 'completion' }
         ]
     }
 ];
@@ -258,6 +258,7 @@ function buildBorderStepKpiSettings() {
         proc.steps.forEach((step, idx) => {
             rows.push({
                 id: `border-${proc.id}-step-${step.key}`,
+                kpiKind: 'step',
                 category: proc.parentCategory,
                 processGroup: proc.id,
                 process: step.name,
@@ -272,9 +273,36 @@ function buildBorderStepKpiSettings() {
                 unit: 'hours',
                 kpiType: step.kpiType || 'time',
                 enabled: true,
-                notes: `${proc.label} — step ${idx + 1} of ${proc.steps.length}`
+                notes: `${proc.label} — step ${idx + 1} completion`
             });
         });
+        for (let i = 0; i < proc.steps.length - 1; i++) {
+            const from = proc.steps[i];
+            const to = proc.steps[i + 1];
+            const fromLabel = from.shortName || from.name;
+            const toLabel = to.shortName || to.name;
+            rows.push({
+                id: `border-${proc.id}-transition-${from.key}-to-${to.key}`,
+                kpiKind: 'transition',
+                category: proc.parentCategory,
+                processGroup: proc.id,
+                process: `${fromLabel} → ${toLabel}`,
+                workflowStep: `${from.key}→${to.key}`,
+                fromStepKey: from.key,
+                toStepKey: to.key,
+                stepOrder: i + 1,
+                borderProcess: proc.id,
+                pageId: proc.pageId,
+                pageLabel: proc.label,
+                direction: proc.direction,
+                targetValue: from.transitionToNext ?? 4,
+                warningPct: 75,
+                unit: 'hours',
+                kpiType: 'time',
+                enabled: true,
+                notes: `Max time from "${fromLabel}" complete to "${toLabel}" complete`
+            });
+        }
     });
     return rows;
 }
@@ -285,6 +313,29 @@ function getBorderProcessDef(processId) {
 
 function getBorderStepKpiSetting(processId, stepKey) {
     return getKpiSetting(`border-${processId}-step-${stepKey}`);
+}
+
+function getBorderTransitionKpiSetting(processId, fromKey, toKey) {
+    return getKpiSetting(`border-${processId}-transition-${fromKey}-to-${toKey}`);
+}
+
+function getBorderTransitionKpiTargetLabel(processId, fromKey, toKey) {
+    const s = getBorderTransitionKpiSetting(processId, fromKey, toKey);
+    if (!s || !s.enabled) return null;
+    return `≤ ${s.targetValue}${s.unit === 'days' ? 'd' : 'h'}`;
+}
+
+function getBorderProcessTransitionHours(processId) {
+    const proc = getBorderProcessDef(processId);
+    if (!proc) return 0;
+    let total = 0;
+    for (let i = 0; i < proc.steps.length - 1; i++) {
+        const from = proc.steps[i];
+        const to = proc.steps[i + 1];
+        const s = getBorderTransitionKpiSetting(processId, from.key, to.key);
+        total += s?.enabled ? Number(s.targetValue) || 0 : 0;
+    }
+    return total;
 }
 
 function getBorderStepKpiTargetLabel(processId, stepKey) {
@@ -309,17 +360,21 @@ function renderKpiSettingRow(s, showStepNum) {
     const kpiTypeOpts = KPI_STEP_TYPES.map(t =>
         `<option value="${t.id}" ${s.kpiType === t.id ? 'selected' : ''}>${t.label}</option>`
     ).join('');
+    const isTransition = s.kpiKind === 'transition';
+    const labelCell = isTransition
+        ? `<td><strong class="kpi-transition-label">↳ ${s.process}</strong><br><small class="kpi-transition-hint">Step-to-step transition</small></td>`
+        : `<td><strong>${s.process}</strong></td>`;
     return `
-        <tr class="${s.enabled ? '' : 'kpi-row-disabled'}">
-            ${showStepNum ? `<td><strong>${s.stepOrder || '—'}</strong></td>` : ''}
-            <td><strong>${s.process}</strong></td>
+        <tr class="${s.enabled ? '' : 'kpi-row-disabled'}${isTransition ? ' kpi-transition-row' : ''}">
+            ${showStepNum ? `<td><strong>${isTransition ? 'T' + (s.stepOrder || '—') : (s.stepOrder || '—')}</strong></td>` : ''}
+            ${labelCell}
             <td>
-                <select class="form-control kpi-type-select" onchange="updateKpiSetting('${s.id}','kpiType',this.value)" title="KPI measurement type for this step">
+                <select class="form-control kpi-type-select" onchange="updateKpiSetting('${s.id}','kpiType',this.value)" title="KPI measurement type">
                     ${kpiTypeOpts}
                 </select>
             </td>
             <td><code>${s.pageId}</code></td>
-            <td>${s.workflowStep ? `<span class="workflow-pill pending">${s.workflowStep}</span>` : '—'}</td>
+            <td>${s.workflowStep ? `<span class="workflow-pill ${isTransition ? 'current' : 'pending'}">${s.workflowStep}</span>` : '—'}</td>
             <td>${s.direction}</td>
             <td><input type="number" class="form-control kpi-input" min="0" step="1" value="${s.targetValue}" onchange="updateKpiSetting('${s.id}','targetValue',parseFloat(this.value)||0)"></td>
             <td>
@@ -334,30 +389,50 @@ function renderKpiSettingRow(s, showStepNum) {
         </tr>`;
 }
 
+function renderBorderKpiTable(title, rows, subtitle) {
+    if (!rows.length) return '';
+    return `
+        <h5 class="kpi-subtable-title">${title} <span class="badge-count">${rows.length}</span></h5>
+        ${subtitle ? `<p class="kpi-subtable-subtitle">${subtitle}</p>` : ''}
+        <div class="table-container">
+            <table class="data-table admin-table kpi-settings-table">
+                <thead><tr>
+                    <th>#</th><th>Segment / Step</th><th>KPI Type</th><th>Page</th><th>Key</th><th>Dir.</th>
+                    <th>Target</th><th>Unit</th><th>Warning %</th><th>Active</th><th>Notes</th>
+                </tr></thead>
+                <tbody>${rows.map(s => renderKpiSettingRow(s, true)).join('')}</tbody>
+            </table>
+        </div>`;
+}
+
 function renderBorderProcessKpiBlock(proc, filteredSteps) {
-    const steps = filteredSteps
+    const all = filteredSteps
         .filter(s => s.processGroup === proc.id)
         .sort((a, b) => (a.stepOrder || 0) - (b.stepOrder || 0));
-    if (!steps.length) return '';
-    const total = getBorderProcessTargetHours(proc.id);
-    const stepFlow = proc.steps.map((st, i) => `${i + 1}. ${st.name}`).join(' → ');
+    if (!all.length) return '';
+    const transitions = all.filter(s => s.kpiKind === 'transition');
+    const steps = all.filter(s => s.kpiKind !== 'transition');
+    const transitionTotal = getBorderProcessTransitionHours(proc.id);
+    const stepTotal = getBorderProcessTargetHours(proc.id);
+    const transitionFlow = transitions.map(t => t.process).join(' · ');
     return `
         <div class="kpi-border-process-block">
             <div class="kpi-border-process-header">
                 <h4>${proc.label}</h4>
-                <span class="badge-count">${steps.length} steps</span>
-                <span class="kpi-process-total">Combined: <strong>${total}h</strong></span>
+                <span class="badge-count">${proc.steps.length} steps · ${transitions.length} transitions</span>
+                <span class="kpi-process-total">Transitions: <strong>${transitionTotal}h</strong></span>
+                <span class="kpi-process-total">Steps: <strong>${stepTotal}h</strong></span>
             </div>
-            <p class="kpi-step-flow">${stepFlow}</p>
-            <div class="table-container">
-                <table class="data-table admin-table kpi-settings-table">
-                    <thead><tr>
-                        <th>#</th><th>Step</th><th>KPI Type</th><th>Page</th><th>Key</th><th>Dir.</th>
-                        <th>Target</th><th>Unit</th><th>Warning %</th><th>Active</th><th>Notes</th>
-                    </tr></thead>
-                    <tbody>${steps.map(s => renderKpiSettingRow(s, true)).join('')}</tbody>
-                </table>
-            </div>
+            ${renderBorderKpiTable(
+                '↳ Between-Step Transition KPIs',
+                transitions,
+                `Max time allowed between each consecutive step: ${transitionFlow}`
+            )}
+            ${renderBorderKpiTable(
+                'Step Completion KPIs',
+                steps,
+                'Target time to complete each individual step'
+            )}
         </div>`;
 }
 
@@ -371,7 +446,7 @@ function renderBorderKpiGroup(parentCategory, filteredSteps, processFilterId) {
     return `
         <div class="settings-card kpi-border-group" style="margin-bottom:20px;">
             <h2>${catMeta.icon} ${catMeta.label}</h2>
-            <p class="page-subtitle" style="margin-bottom:16px;">Assign a KPI type and target to <strong>each individual step</strong> in every border process below.</p>
+            <p class="page-subtitle" style="margin-bottom:16px;">Configure KPI for <strong>each step-to-step transition</strong> (e.g. Arrival → Doc Submission → Scanning) and each step completion.</p>
             ${blocks}
         </div>`;
 }
@@ -383,6 +458,10 @@ function getBorderProcessTargetHours(processId) {
         const s = getBorderStepKpiSetting(processId, step.key);
         return sum + (s?.enabled ? Number(s.targetValue) || 0 : 0);
     }, 0);
+}
+
+function getBorderProcessOverallHours(processId) {
+    return getBorderProcessTransitionHours(processId) + getBorderProcessTargetHours(processId);
 }
 
 function buildDefaultKpiSettings() {
@@ -513,7 +592,7 @@ let kpiAdminFilter = '';
 let kpiAdminCategory = 'all';
 
 const KPI_STORAGE_KEY = 'truckcontrol_kpi_settings';
-const KPI_SETTINGS_VERSION = 3;
+const KPI_SETTINGS_VERSION = 4;
 
 function initKpiSettings() {
     try {
@@ -586,20 +665,24 @@ function formatKpiSettingLine(s) {
 function getKpiSettingsForBanner(bannerType) {
     if (bannerType === 'border') {
         return BORDER_PROCESS_DEFS.map(proc => {
-            const total = getBorderProcessTargetHours(proc.id);
-            const stepCount = proc.steps.length;
+            const transitionTotal = getBorderProcessTransitionHours(proc.id);
+            const stepTotal = getBorderProcessTargetHours(proc.id);
+            const transitionNotes = [];
+            for (let i = 0; i < proc.steps.length - 1; i++) {
+                const from = proc.steps[i];
+                const to = proc.steps[i + 1];
+                const s = getBorderTransitionKpiSetting(proc.id, from.key, to.key);
+                const t = s?.enabled ? s.targetValue : from.transitionToNext;
+                transitionNotes.push(`${from.shortName || from.name} → ${to.shortName || to.name}: ${t}h`);
+            }
             return {
                 id: `border-banner-${proc.id}`,
                 enabled: true,
-                process: `${proc.label} (${stepCount} steps)`,
-                targetValue: total,
+                process: `${proc.label} — transitions (${proc.steps.length - 1})`,
+                targetValue: transitionTotal,
                 warningPct: 75,
                 unit: 'hours',
-                notes: proc.steps.map((st, i) => {
-                    const s = getBorderStepKpiSetting(proc.id, st.key);
-                    const t = s?.enabled ? s.targetValue : st.defaultTarget;
-                    return `${i + 1}. ${st.name}: ${t}h`;
-                }).join(' · ')
+                notes: transitionNotes.join(' · ')
             };
         }).filter(s => s.targetValue > 0);
     }
@@ -610,7 +693,7 @@ function getKpiSettingsForBanner(bannerType) {
 
 function applyKpiSettingsToRuntime() {
     BORDER_PROCESS_DEFS.forEach(proc => {
-        const totalHours = getBorderProcessTargetHours(proc.id);
+        const totalHours = getBorderProcessOverallHours(proc.id);
         if (proc.configKey && nbBorderConfigs[proc.configKey]) {
             nbBorderConfigs[proc.configKey].targetHours = totalHours;
         }
@@ -631,7 +714,7 @@ function applyKpiSettingsToRuntime() {
         (borderPerformanceData[dir]?.borders || []).forEach(b => {
             const processId = perfMap[b.name];
             if (!processId) return;
-            const total = getBorderProcessTargetHours(processId);
+            const total = getBorderProcessOverallHours(processId);
             b.targetHours = total;
             if (typeof b.avgHours === 'number') b.kpi = computeKpiLevel(b.avgHours, { targetValue: total, warningPct: 75, enabled: true }).level;
         });
@@ -3465,15 +3548,23 @@ function buildKBPSteps(config) {
         const stepNum = i + 1;
         const stepDef = proc?.steps[i];
         const stepKey = stepDef?.key;
+        const prevStep = i > 0 ? proc?.steps[i - 1] : null;
         const completed = stepNum <= config.completedSteps;
         const current = stepNum === config.completedSteps + 1;
         const status = completed ? 'completed' : current ? 'in-progress' : 'pending';
         const title = '📌 ' + tmpl.title.replace(/\{prefix\}/g, prefix);
         const area = tmpl.area.replace(/\{prefix\}/g, prefix);
         const kpiTarget = stepKey ? getBorderStepKpiTargetLabel(processId, stepKey) : null;
+        const transitionKpi = prevStep && stepKey
+            ? getBorderTransitionKpiTargetLabel(processId, prevStep.key, stepKey)
+            : null;
+        const transitionLabel = transitionKpi && prevStep && stepDef
+            ? `${prevStep.shortName || prevStep.name} → ${stepDef.shortName || stepDef.name}: ${transitionKpi}`
+            : null;
         return {
             num: stepNum, title, time: `15/07/2026 ${times[i]}`, duration: durations[i],
             target: kpiTarget || (i === 1 ? '4 HRS' : (i === 3 || i === 4 ? '1 HR' : null)),
+            transitionKpi: transitionLabel,
             user: users[i], area, status,
             action: completed ? (current ? 'In progress' : 'Completed') : 'Pending',
             detail: completed ? `Step ${stepNum} at ${config.borderName} — ${area}` : 'Awaiting completion'
@@ -3489,7 +3580,7 @@ function renderKBPStepsForConfig(config) {
         const statusIcon = s.status === 'completed' ? '✅' : s.status === 'in-progress' ? '🔄' : '⏳';
         const statusLabel = s.status === 'completed' ? '✅ Completed' : s.status === 'in-progress' ? '🔄 In Progress' : '⏳ Pending';
         return `
-        <div class="step-container ${statusClass}"><div class="step-header ${statusClass}" onclick="toggleStep(this)"><div class="step-number">${s.num}</div><div class="step-info"><div class="step-title">${s.title}</div><div class="step-meta"><span>${statusLabel}</span><span>📅 ${s.time}</span>${s.target ? `<span>🎯 Target: ${s.target}</span>` : ''}<span>⏱️ ${s.duration}</span></div></div><div class="step-status-icon">${statusIcon}</div></div>
+        <div class="step-container ${statusClass}"><div class="step-header ${statusClass}" onclick="toggleStep(this)"><div class="step-number">${s.num}</div><div class="step-info"><div class="step-title">${s.title}</div><div class="step-meta"><span>${statusLabel}</span><span>📅 ${s.time}</span>${s.transitionKpi ? `<span class="kpi-transition-badge">↳ ${s.transitionKpi}</span>` : ''}${s.target ? `<span>🎯 Step: ${s.target}</span>` : ''}<span>⏱️ ${s.duration}</span></div></div><div class="step-status-icon">${statusIcon}</div></div>
         <div class="step-body${i === 0 ? ' open' : ''}"><div class="user-log"><div class="user-info-row"><span class="user-tag">👤 ${s.user}</span><span class="area-tag">📍 ${s.area}</span></div><div class="log-entry"><div class="log-time">📅 ${s.time}</div><div class="log-action">${statusIcon} ${s.action}</div><div class="log-detail">📝 ${s.detail}</div>${s.status === 'in-progress' ? `<button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="wireBorderStepComplete('${config.tripId}', ${s.num})">✅ Complete Step ${s.num}</button>` : ''}</div></div></div></div>`;
     }).join('');
 
@@ -3583,7 +3674,14 @@ function renderSBStepsForConfig(config) {
         const statusIcon = completed ? '✅' : current ? '🔄' : '⏳';
         const statusLabel = completed ? '✅ Completed' : current ? '🔄 In Progress' : '⏳ Pending';
         const kpiTarget = step.key ? getBorderStepKpiTargetLabel(processId, step.key) : null;
-        return `<div class="step-container ${status}"><div class="step-header ${status}" onclick="toggleStep(this)"><div class="step-number">${stepNum}</div><div class="step-info"><div class="step-title">📌 ${name}</div><div class="step-meta"><span>${statusLabel}</span>${completed ? '<span>📅 15/07/2026</span>' : ''}${kpiTarget ? `<span>🎯 Target: ${kpiTarget}</span>` : ''}</div></div><div class="step-status-icon">${statusIcon}</div></div></div>`;
+        const prevStep = i > 0 ? proc?.steps[i - 1] : null;
+        const transitionKpi = prevStep && step.key
+            ? getBorderTransitionKpiTargetLabel(processId, prevStep.key, step.key)
+            : null;
+        const transitionLabel = transitionKpi && prevStep
+            ? `${prevStep.shortName || prevStep.name} → ${step.shortName || step.name}: ${transitionKpi}`
+            : null;
+        return `<div class="step-container ${status}"><div class="step-header ${status}" onclick="toggleStep(this)"><div class="step-number">${stepNum}</div><div class="step-info"><div class="step-title">📌 ${name}</div><div class="step-meta"><span>${statusLabel}</span>${completed ? '<span>📅 15/07/2026</span>' : ''}${transitionLabel ? `<span class="kpi-transition-badge">↳ ${transitionLabel}</span>` : ''}${kpiTarget ? `<span>🎯 Step: ${kpiTarget}</span>` : ''}</div></div><div class="step-status-icon">${statusIcon}</div></div></div>`;
     }).join('');
 }
 
@@ -3653,7 +3751,14 @@ function renderWhiskySteps() {
     return (proc?.steps || []).map((step, i) => {
         const meta = demoMeta[i] || { status: 'pending' };
         const kpiTarget = getBorderStepKpiTargetLabel('whisky', step.key);
-        return `<div class="step-container ${meta.status}"><div class="step-header ${meta.status}" onclick="toggleStep(this)"><div class="step-number">${i + 1}</div><div class="step-info"><div class="step-title">${step.name}</div><div class="step-meta"><span>${meta.status === 'completed' ? '✅ Completed' : meta.status === 'in-progress' ? '🔄 In Progress' : '⏳ Pending'}</span>${meta.time ? `<span>📅 ${meta.time}</span>` : ''}${kpiTarget ? `<span>🎯 Target: ${kpiTarget}</span>` : ''}${meta.note ? `<span>📝 ${meta.note}</span>` : ''}</div></div><div class="step-status-icon">${meta.status === 'completed' ? '✅' : meta.status === 'in-progress' ? '🔄' : '⏳'}</div></div></div>`;
+        const prevStep = i > 0 ? proc.steps[i - 1] : null;
+        const transitionKpi = prevStep
+            ? getBorderTransitionKpiTargetLabel('whisky', prevStep.key, step.key)
+            : null;
+        const transitionLabel = transitionKpi && prevStep
+            ? `${prevStep.shortName} → ${step.shortName}: ${transitionKpi}`
+            : null;
+        return `<div class="step-container ${meta.status}"><div class="step-header ${meta.status}" onclick="toggleStep(this)"><div class="step-number">${i + 1}</div><div class="step-info"><div class="step-title">${step.name}</div><div class="step-meta"><span>${meta.status === 'completed' ? '✅ Completed' : meta.status === 'in-progress' ? '🔄 In Progress' : '⏳ Pending'}</span>${meta.time ? `<span>📅 ${meta.time}</span>` : ''}${transitionLabel ? `<span class="kpi-transition-badge">↳ ${transitionLabel}</span>` : ''}${kpiTarget ? `<span>🎯 Step: ${kpiTarget}</span>` : ''}${meta.note ? `<span>📝 ${meta.note}</span>` : ''}</div></div><div class="step-status-icon">${meta.status === 'completed' ? '✅' : meta.status === 'in-progress' ? '🔄' : '⏳'}</div></div></div>`;
     }).join('');
 }
 
@@ -6738,7 +6843,7 @@ function renderAdminKpiSettings(container) {
         <div class="page-header admin-page-header">
             <div>
                 <h1>🎯 KPI Settings</h1>
-                <p class="page-subtitle">Under <strong>NB Border Processes</strong> and <strong>SB Border Exit Processes</strong>, assign a KPI type and target to every individual clearance step (KBP, Whisky, Sakania, Mokambo, SB exits).</p>
+                <p class="page-subtitle">Under <strong>NB Border Processes</strong>, set KPI for every step-to-step transition — e.g. <em>Arrival → Doc Submission → Scanning → Green Stamp</em> — plus Whisky, Sakania, Mokambo, and SB exits.</p>
                 <div class="admin-stats-row"><span><strong>${kpiSettingsDB.length}</strong> rules</span><span><strong>${activeCount}</strong> active</span></div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -6766,10 +6871,26 @@ function renderAdminKpiSettings(container) {
         <div class="settings-card">
             <h3>📋 Border Process Step Reference</h3>
             <div class="kpi-workflow-ref">
-                <div><strong>NB Border Processes</strong></div>
-                ${BORDER_PROCESS_DEFS.filter(p => p.parentCategory === 'border-nb').map(p => `<div style="margin-left:12px;"><strong>${p.label}</strong> (${p.steps.length} steps): ${p.steps.map((st, i) => `${i + 1}. ${st.name}`).join(' → ')}</div>`).join('')}
-                <div style="margin-top:12px;"><strong>SB Border Exit Processes</strong></div>
-                ${BORDER_PROCESS_DEFS.filter(p => p.parentCategory === 'border-sb').map(p => `<div style="margin-left:12px;"><strong>${p.label}</strong> (${p.steps.length} steps): ${p.steps.map((st, i) => `${i + 1}. ${st.name}`).join(' → ')}</div>`).join('')}
+                <div><strong>NB Border Processes — transition KPIs</strong></div>
+                ${BORDER_PROCESS_DEFS.filter(p => p.parentCategory === 'border-nb').map(p => {
+                    const trans = [];
+                    for (let i = 0; i < p.steps.length - 1; i++) {
+                        const from = p.steps[i];
+                        const to = p.steps[i + 1];
+                        trans.push(`${from.shortName || from.name} → ${to.shortName || to.name}`);
+                    }
+                    return `<div style="margin-left:12px;"><strong>${p.label}</strong>: ${trans.join(' · ')}</div>`;
+                }).join('')}
+                <div style="margin-top:12px;"><strong>SB Border Exit — transition KPIs</strong></div>
+                ${BORDER_PROCESS_DEFS.filter(p => p.parentCategory === 'border-sb').map(p => {
+                    const trans = [];
+                    for (let i = 0; i < p.steps.length - 1; i++) {
+                        const from = p.steps[i];
+                        const to = p.steps[i + 1];
+                        trans.push(`${from.shortName || from.name} → ${to.shortName || to.name}`);
+                    }
+                    return `<div style="margin-left:12px;"><strong>${p.label}</strong>: ${trans.join(' · ')}</div>`;
+                }).join('')}
             </div>
         </div>
         <div class="settings-card">
