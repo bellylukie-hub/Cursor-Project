@@ -29,6 +29,94 @@
         }
     };
 
+    window.TEMPLATE_COLUMN_REGISTRY = {
+        NB: {
+            TripNumber: { field: 'tripNumber', label: 'Trip #' },
+            Truck: { field: 'truck', label: 'Truck' },
+            Driver: { field: 'driver', label: 'Driver' },
+            Owner: { field: 'owner', label: 'Owner' },
+            EntryBorder: { field: 'entryBorder', label: 'Border' },
+            OffloadingPoint: { field: 'offloadingPoint', label: 'Offloading' },
+            Area: { field: 'area', label: 'Area' },
+            BorderProcess: { field: 'borderProcess', label: 'Border Process' },
+            Status: { field: 'status', label: 'Status', isStatus: true }
+        },
+        SB: {
+            TripNumber: { field: 'tripNumber', label: 'Trip #' },
+            Truck: { field: 'truck', label: 'Truck' },
+            Driver: { field: 'driver', label: 'Driver' },
+            Owner: { field: 'owner', label: 'Owner' },
+            LoadingPoint: { field: 'loadingPoint', label: 'Loading Point' },
+            ExitBorder: { field: 'exitBorder', label: 'Exit Border' },
+            Area: { field: 'area', label: 'Area' },
+            Status: { field: 'status', label: 'Status', isStatus: true }
+        }
+    };
+
+    window.getTemplateColumns = function (type) {
+        const tpl = uploadTemplatesDB[type];
+        if (!tpl) return [];
+        const reg = TEMPLATE_COLUMN_REGISTRY[type] || {};
+        return tpl.columns.map(col => {
+            const meta = reg[col] || {};
+            return {
+                key: col,
+                field: meta.field || col.charAt(0).toLowerCase() + col.slice(1),
+                label: meta.label || col,
+                isStatus: !!meta.isStatus
+            };
+        });
+    };
+
+    window.getOperationsTableHeaderHtml = function (type, listKey) {
+        const cols = getTemplateColumns(type);
+        const checkbox = listKey
+            ? `<th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all trucks" onchange="toggleAllListRows('${listKey}', this.checked)"></th>`
+            : '';
+        const templateHeaders = cols.map(c => `<th>${c.label}</th>`).join('');
+        return `${checkbox}${templateHeaders}<th>Days</th><th>KPI</th><th>Actions</th>`;
+    };
+
+    window.renderOperationsTableRows = function (trips, listKey, type) {
+        const cols = getTemplateColumns(type);
+        const moduleId = type === 'NB' ? 'nb-operations' : 'sb-operations';
+        const statusCtx = type === 'NB' ? 'nb' : 'sb';
+        const colSpan = (listKey ? 1 : 0) + cols.length + 3;
+        if (!trips.length) {
+            return `<tr><td colspan="${colSpan}" style="text-align:center;padding:20px;color:var(--text-secondary);">No trucks match the current search/filter criteria</td></tr>`;
+        }
+        return trips.map(t => {
+            const area = t.area || t.entryBorder || t.exitBorder || t.offloadingPoint || t.loadingPoint;
+            const canEdit = typeof canEditInModule !== 'function' || canEditInModule(moduleId, area);
+            const cells = cols.map(c => {
+                if (c.isStatus) {
+                    return `<td><span class="status-badge ${t.kpi}">${t.status || '—'}</span></td>`;
+                }
+                const val = t[c.field];
+                return `<td>${val != null && val !== '' ? val : '—'}</td>`;
+            }).join('');
+            const commentBtn = canEdit
+                ? `<button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}', '${statusCtx}')">💬 Comment</button>`
+                : '';
+            const viewBtn = typeof renderTripViewButton === 'function' ? renderTripViewButton(t.tripNumber) : '';
+            return `<tr>
+                ${listKey ? `<td style="width:36px;text-align:center;">${typeof renderListRowCheckbox === 'function' ? renderListRowCheckbox(listKey, t.tripNumber) : ''}</td>` : ''}
+                ${cells}
+                <td>${t.daysInDRC}</td>
+                <td><span class="kpi-indicator ${t.kpi}"></span> ${typeof getKPILabel === 'function' ? getKPILabel(t.kpi) : t.kpi}</td>
+                <td>${commentBtn}${viewBtn}</td>
+            </tr>`;
+        }).join('');
+    };
+
+    window.getTemplateExportConfig = function (type) {
+        const cols = getTemplateColumns(type);
+        return {
+            headers: [...cols.map(c => c.label), 'Days in DRC', 'KPI'],
+            mapRow: t => [...cols.map(c => c.isStatus ? t.status : (t[c.field] || '')), t.daysInDRC, typeof getKPILabel === 'function' ? getKPILabel(t.kpi) : t.kpi]
+        };
+    };
+
     window.liveUploadsDB = [];
     window.positionUploadsDB = [];
     let nextLiveUploadId = 1;
@@ -418,7 +506,11 @@
         if (!el) return;
         uploadTemplatesDB[key].columns = el.value.split(',').map(c => c.trim()).filter(Boolean);
         if (typeof logAuditEvent === 'function') logAuditEvent(`Updated upload template: ${key}`, key, 'template');
-        if (typeof showToast === 'function') showToast(`Template ${key} saved`, 'success');
+        if (typeof showToast === 'function') showToast(`Template ${key} saved — ${key === 'NB' || key === 'SB' ? 'operations table columns updated' : 'saved'}`, 'success');
+        if (key === 'NB' && window.currentPage === 'nb-operations' && typeof refreshNBTable === 'function') refreshNBTable();
+        else if (key === 'SB' && window.currentPage === 'sb-operations' && typeof refreshSBTable === 'function') refreshSBTable();
+        else if (key === 'NB' && window.currentPage === 'nb-operations') window.navigateTo('nb-operations');
+        else if (key === 'SB' && window.currentPage === 'sb-operations') window.navigateTo('sb-operations');
     };
 
     window.downloadTemplateCsv = function (key) {

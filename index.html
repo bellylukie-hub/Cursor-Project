@@ -1422,6 +1422,9 @@
                     <a class="nav-item" onclick="navigateToAdmin('admin-area-assignments')" data-page="admin-area-assignments">
                         <span class="icon">🗺️</span> Area Assignments
                     </a>
+                    <a class="nav-item" onclick="navigateToAdmin('admin-module-permissions')" data-page="admin-module-permissions">
+                        <span class="icon">🔐</span> Module Permissions
+                    </a>
                     <a class="nav-item" onclick="navigateToAdmin('admin-upload-templates')" data-page="admin-upload-templates">
                         <span class="icon">📤</span> Upload Templates
                     </a>
@@ -1771,6 +1774,18 @@
                 <div class="perm-grid" id="areaAssignCheckboxes"></div>
             </div>
             <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('areaAssignmentModal')">Cancel</button><button class="btn btn-primary" onclick="submitAreaAssignment()">💾 Save Assignment</button></div>
+        </div>
+    </div>
+
+    <!-- MODULE PERMISSIONS MODAL -->
+    <div class="modal-overlay" id="modulePermissionModal">
+        <div class="modal modal-lg" style="max-width:900px;">
+            <div class="modal-header"><h3>🔐 Module Permissions — <span id="modulePermUserName"></span></h3><button class="btn btn-outline" onclick="closeModal('modulePermissionModal')">✕</button></div>
+            <div class="modal-body" style="max-height:70vh;overflow-y:auto;">
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Set <strong>View</strong> (see module in sidebar &amp; data), <strong>Edit</strong> (comments, uploads, status updates), and <strong>Delete</strong> (remove records) per area. Global modules apply across all areas.</p>
+                <div id="modulePermMatrix"></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modulePermissionModal')">Cancel</button><button class="btn btn-primary" onclick="submitModulePermissions()">💾 Save Permissions</button></div>
         </div>
     </div>
 

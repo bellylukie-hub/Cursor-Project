@@ -451,10 +451,15 @@ function updateTopBarUser() {
 }
 
 function updateAdminNavVisibility() {
-    const uploadNav = document.querySelector('[data-page="admin-upload-templates"]');
-    if (uploadNav) {
-        uploadNav.style.display = canAccessAdminPage('admin-upload-templates') ? '' : 'none';
-    }
+    document.querySelectorAll('.sidebar-nav .nav-item[data-page]').forEach(nav => {
+        const page = nav.dataset.page;
+        if (!page) return;
+        if (page.startsWith('admin-')) {
+            nav.style.display = canAccessAdminPage(page) ? '' : 'none';
+        } else {
+            nav.style.display = canAccessPage(page) ? '' : 'none';
+        }
+    });
 }
 
 function populateRoleSwitcher() {
@@ -491,9 +496,234 @@ function canAccessAdminPage(page) {
         case 'admin-audit-logs': return canUser('view_logs');
         case 'admin-area-statuses': return canUser('manage_roles') || canUser('manage_area_statuses');
         case 'admin-area-assignments': return canUser('manage_users');
+        case 'admin-module-permissions': return canUser('manage_users');
         case 'admin-upload-templates': return getCurrentRole()?.name === 'Super Admin';
         default: return false;
     }
+}
+
+// ============================================
+// MODULE RBAC — per-area view / edit / delete
+// ============================================
+const OPERATIONAL_MODULES = [
+    { id: 'dashboard', label: 'Dashboard', icon: '📊', global: true },
+    { id: 'nb-operations', label: 'NB Operations', icon: '🚛', global: false },
+    { id: 'sb-operations', label: 'SB Operations', icon: '🚛', global: false },
+    { id: 'border-clearance', label: 'Border Clearance', icon: '🛂', global: false },
+    { id: 'pod-management', label: 'POD Management', icon: '📋', global: false },
+    { id: 'area-browser', label: 'Area Trucks', icon: '🗺️', global: false },
+    { id: 'communication-matrix', label: 'Communication Matrix', icon: '📇', global: true },
+    { id: 'internal-communication', label: 'Internal Communication', icon: '✉️', global: true },
+    { id: 'assets', label: 'Assets & Equipment', icon: '🚗', global: true },
+    { id: 'runner-fees', label: 'Runner Fees', icon: '💰', global: true },
+    { id: 'reports', label: 'Reports', icon: '📈', global: true },
+    { id: 'turnarounds', label: 'Turnarounds', icon: '🔄', global: true },
+    { id: 'position-live', label: 'Position Live', icon: '📍', global: true }
+];
+
+const PAGE_MODULE_MAP = {
+    dashboard: 'dashboard',
+    'nb-operations': 'nb-operations',
+    'sb-operations': 'sb-operations',
+    'border-clearance': 'border-clearance',
+    'pod-management': 'pod-management',
+    'area-browser': 'area-browser',
+    'communication-matrix': 'communication-matrix',
+    'internal-communication': 'internal-communication',
+    assets: 'assets',
+    'runner-fees': 'runner-fees',
+    reports: 'reports',
+    'report-detail': 'reports',
+    turnarounds: 'turnarounds',
+    'position-live': 'position-live',
+    'trip-list': 'dashboard',
+    'document-alerts': 'assets',
+    'document-detail': 'assets',
+    kanyaka: 'area-browser',
+    kolwezi: 'area-browser',
+    'kasumbalesa-detail': 'border-clearance',
+    'kasumbalesa-whisky': 'border-clearance',
+    'sakania-nb': 'border-clearance',
+    'mokambo-nb': 'border-clearance',
+    sakania: 'border-clearance',
+    mokambo: 'border-clearance',
+    'sb-kasumbalesa': 'border-clearance',
+    'sb-sakania': 'border-clearance',
+    'sb-mokambo': 'border-clearance'
+};
+
+let modulePermUserFilter = '';
+let editingModulePermUserId = null;
+
+function emptyModulePerm() {
+    return { view: false, edit: false, delete: false };
+}
+
+function userIsSuperAdmin() {
+    return getCurrentRole()?.name === 'Super Admin';
+}
+
+function getPageModule(page) {
+    return PAGE_MODULE_MAP[page] || null;
+}
+
+function getModuleDef(moduleId) {
+    return OPERATIONAL_MODULES.find(m => m.id === moduleId);
+}
+
+function getTripPermissionAreas(trip) {
+    return [...new Set([
+        trip.area,
+        trip.entryBorder,
+        trip.exitBorder,
+        trip.offloadingPoint?.split(' ')[0],
+        trip.loadingPoint?.split(' ')[0],
+        trip.driverExitBorder
+    ].filter(Boolean))];
+}
+
+function buildDefaultModulePermissions(user) {
+    const role = getRoleById(user.roleId);
+    const areas = user.assignedAreas || [user.area];
+    const isSuper = role?.name === 'Super Admin';
+    const isManager = role?.name === 'Manager';
+    const isModerator = role?.name === 'Moderator';
+    const perms = {};
+
+    const grant = (moduleId, area, view, edit, del) => {
+        if (!perms[moduleId]) perms[moduleId] = {};
+        perms[moduleId][area] = { view: !!view, edit: !!edit, delete: !!del };
+    };
+
+    OPERATIONAL_MODULES.forEach(mod => {
+        if (mod.global) {
+            const canView = isSuper || isManager || isModerator || role?.permissions?.includes('read_all') || role?.permissions?.includes('read_own');
+            const canEdit = isSuper || isManager || (isModerator && role?.permissions?.includes('edit_limited'));
+            const canDelete = isSuper || (isManager && role?.permissions?.includes('delete'));
+            grant(mod.id, '_global', canView, canEdit, canDelete);
+            return;
+        }
+        areas.forEach(area => {
+            if (isSuper || isManager || areas.includes('All Areas')) {
+                grant(mod.id, area, true, true, isSuper);
+            } else if (isModerator) {
+                const view = true;
+                const edit = ['nb-operations', 'sb-operations', 'border-clearance', 'pod-management', 'area-browser'].includes(mod.id);
+                grant(mod.id, area, view, edit, false);
+            } else {
+                const view = ['nb-operations', 'area-browser', 'reports'].includes(mod.id);
+                grant(mod.id, area, view, false, false);
+            }
+        });
+    });
+
+    if (areas.includes('Kanyaka') || areas.includes('All Areas')) {
+        ['nb-operations', 'sb-operations', 'border-clearance', 'pod-management', 'area-browser', 'turnarounds', 'position-live'].forEach(modId => {
+            if (!perms[modId]) perms[modId] = {};
+            OPERATIONAL_AREAS.forEach(area => {
+                if (!perms[modId][area]) perms[modId][area] = emptyModulePerm();
+                perms[modId][area].view = true;
+                if (isSuper || isManager) {
+                    perms[modId][area].edit = true;
+                    perms[modId][area].delete = isSuper;
+                }
+            });
+        });
+    }
+
+    return perms;
+}
+
+function ensureUserModulePermissions(user) {
+    if (!user) return {};
+    if (!user.modulePermissions || !Object.keys(user.modulePermissions).length) {
+        user.modulePermissions = buildDefaultModulePermissions(user);
+    }
+    return user.modulePermissions;
+}
+
+function getModulePermRecord(user, moduleId, area) {
+    ensureUserModulePermissions(user);
+    const mod = user.modulePermissions[moduleId];
+    if (!mod) return null;
+    const modDef = getModuleDef(moduleId);
+    if (modDef?.global) return mod._global || null;
+    if (area && mod[area]) return mod[area];
+    if (mod._global) return mod._global;
+    const userAreas = user.assignedAreas || [user.area];
+    for (const a of userAreas) {
+        if (mod[a]) return mod[a];
+    }
+    return null;
+}
+
+function canModuleAction(moduleId, action, area) {
+    if (!moduleId) return true;
+    if (userIsSuperAdmin()) return true;
+    const user = getCurrentAdminUser();
+    if (!user || user.status !== 'active') return false;
+    const modDef = getModuleDef(moduleId);
+    if (modDef?.global) {
+        const perm = getModulePermRecord(user, moduleId, '_global');
+        return perm ? !!perm[action] : false;
+    }
+    if (area) {
+        const perm = getModulePermRecord(user, moduleId, area);
+        if (perm && perm[action]) return true;
+    }
+    const userAreas = user.assignedAreas || [user.area];
+    return userAreas.some(a => {
+        const perm = getModulePermRecord(user, moduleId, a);
+        return perm && perm[action];
+    });
+}
+
+function canAccessModule(moduleId) {
+    if (!moduleId || moduleId === 'dashboard') return true;
+    if (userIsSuperAdmin()) return true;
+    return canModuleAction(moduleId, 'view');
+}
+
+function canAccessPage(page) {
+    if (page && page.startsWith('admin-')) return canAccessAdminPage(page);
+    const moduleId = getPageModule(page);
+    if (!moduleId) return true;
+    return canAccessModule(moduleId);
+}
+
+function requirePageAccess(page) {
+    if (canAccessPage(page)) return true;
+    const mod = getModuleDef(getPageModule(page));
+    showToast(`Access denied: ${mod?.label || page} is not assigned to your user for this area.`, 'warning');
+    logAuditEvent(`BLOCKED page access: ${page}`, null, 'security');
+    return false;
+}
+
+function tripMatchesModulePermission(trip, moduleId) {
+    if (!moduleId || userIsSuperAdmin()) return true;
+    const modDef = getModuleDef(moduleId);
+    if (modDef?.global) return canModuleAction(moduleId, 'view');
+    return getTripPermissionAreas(trip).some(area => canModuleAction(moduleId, 'view', area));
+}
+
+function filterTripsByModulePermission(trips, moduleId) {
+    if (!moduleId) return trips;
+    return trips.filter(t => tripMatchesModulePermission(t, moduleId));
+}
+
+function canEditInModule(moduleId, area) {
+    return canModuleAction(moduleId, 'edit', area);
+}
+
+function canDeleteInModule(moduleId, area) {
+    return canModuleAction(moduleId, 'delete', area);
+}
+
+function renderModuleActionButtons(moduleId, area, editHtml, deleteHtml) {
+    let html = '';
+    if (canEditInModule(moduleId, area)) html += editHtml || '';
+    if (canDeleteInModule(moduleId, area)) html += deleteHtml || '';
+    return html;
 }
 
 function navigateToAdmin(page) {
@@ -768,9 +998,21 @@ function renderKpiTargetsBanner(type) {
 }
 
 function navigateTo(page) {
+    if (!requirePageAccess(page)) {
+        const fallback = canAccessPage('dashboard') ? 'dashboard' : (Object.keys(PAGE_MODULE_MAP).find(p => canAccessPage(p)) || 'dashboard');
+        if (page !== fallback) {
+            navigateTo(fallback);
+            return;
+        }
+    }
     currentPage = page;
     document.querySelectorAll('.nav-item').forEach(item => { item.classList.remove('active'); if(item.dataset.page===page) item.classList.add('active'); });
     const ca = document.getElementById('contentArea');
+    if (!canAccessPage(page)) {
+        ca.innerHTML = `<div class="access-denied"><h2>Access Denied</h2><p>You do not have permission to view this module. Contact an administrator to assign module access per area.</p></div>`;
+        updateAdminNavVisibility();
+        return;
+    }
     switch(page){
         case 'dashboard': renderDashboard(ca); break;
         case 'nb-operations': renderNBOperations(ca); break;
@@ -803,6 +1045,7 @@ function navigateTo(page) {
         case 'admin-audit-logs': renderAdminAuditLogs(ca); break;
         case 'admin-area-statuses': renderAdminAreaStatuses(ca); break;
         case 'admin-area-assignments': renderAdminAreaAssignments(ca); break;
+        case 'admin-module-permissions': renderAdminModulePermissions(ca); break;
         case 'admin-upload-templates': renderAdminUploadTemplates(ca); break;
         case 'position-live': renderPositionLive(ca); break;
         case 'turnarounds': renderTurnarounds(ca); break;
@@ -1484,24 +1727,28 @@ const LIST_EXPORT_CONFIG = {
         filenamePrefix: 'NB_Operations',
         getData: getNBOperationsFilteredTrips,
         getRowId: t => t.tripNumber,
-        headers: ['Trip #', 'Truck', 'Owner', 'Driver', 'Border', 'Offloading', 'Area', 'Status', 'Days in DRC', 'KPI'],
-        mapRow: t => [
-            t.tripNumber, t.truck, t.owner, t.driver,
-            t.entryBorder || '-', t.offloadingPoint || '-', t.area || '-',
-            t.status, t.daysInDRC, getKPILabel(t.kpi)
-        ]
+        get headers() {
+            return typeof getTemplateExportConfig === 'function'
+                ? getTemplateExportConfig('NB').headers
+                : ['Trip #', 'Truck', 'Owner', 'Driver', 'Border', 'Offloading', 'Area', 'Status', 'Days in DRC', 'KPI'];
+        },
+        mapRow: t => typeof getTemplateExportConfig === 'function'
+            ? getTemplateExportConfig('NB').mapRow(t)
+            : [t.tripNumber, t.truck, t.owner, t.driver, t.entryBorder || '-', t.offloadingPoint || '-', t.area || '-', t.status, t.daysInDRC, getKPILabel(t.kpi)]
     },
     sb: {
         title: 'SB Operations',
         filenamePrefix: 'SB_Operations',
         getData: getSBOperationsFilteredTrips,
         getRowId: t => t.tripNumber,
-        headers: ['Trip #', 'Truck', 'Owner', 'Driver', 'Loading Point', 'Exit Border', 'Area', 'Status', 'Days in DRC', 'KPI'],
-        mapRow: t => [
-            t.tripNumber, t.truck, t.owner, t.driver,
-            t.loadingPoint || '-', t.exitBorder || '-', t.area || '-',
-            t.status, t.daysInDRC, getKPILabel(t.kpi)
-        ]
+        get headers() {
+            return typeof getTemplateExportConfig === 'function'
+                ? getTemplateExportConfig('SB').headers
+                : ['Trip #', 'Truck', 'Owner', 'Driver', 'Loading Point', 'Exit Border', 'Area', 'Status', 'Days in DRC', 'KPI'];
+        },
+        mapRow: t => typeof getTemplateExportConfig === 'function'
+            ? getTemplateExportConfig('SB').mapRow(t)
+            : [t.tripNumber, t.truck, t.owner, t.driver, t.loadingPoint || '-', t.exitBorder || '-', t.area || '-', t.status, t.daysInDRC, getKPILabel(t.kpi)]
     },
     border: {
         title: 'Border Clearance',
@@ -1634,7 +1881,12 @@ function filterTrips(direction, searchTerm) {
         }
         return true;
     });
-    return filterTripsByUserArea(trips);
+    trips = filterTripsByUserArea(trips);
+    const pageModule = getPageModule(currentPage);
+    if (pageModule && ['nb-operations', 'sb-operations', 'border-clearance', 'pod-management', 'area-browser'].includes(pageModule)) {
+        trips = filterTripsByModulePermission(trips, pageModule);
+    }
+    return trips;
 }
 
 // ============================================
@@ -2296,21 +2548,20 @@ function renderNBOperations(container) {
             <button class="btn btn-outline btn-sm" onclick="clearNBFilters()">Clear</button>
         </div>
         <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-            <button class="btn btn-primary" onclick="openUploadModal('NB')">📤 Upload NB Live File</button>
+            ${canEditInModule('nb-operations') ? `<button class="btn btn-primary" onclick="openUploadModal('NB')">📤 Upload NB Live File</button>` : ''}
             <button class="btn btn-outline" onclick="downloadTemplateCsv('NB')">📥 NB Template</button>
-            <button class="btn btn-outline" onclick="navigateTo('position-live')">📍 Position Live</button>
+            ${canAccessModule('position-live') ? `<button class="btn btn-outline" onclick="navigateTo('position-live')">📍 Position Live</button>` : ''}
         </div>
         <div class="table-container">
             <div class="table-header">
                 <h3>Active NB Trucks</h3>
                 <div class="table-header-actions">
                     <span id="nbTableCount" style="color:var(--text-secondary);">${trips.length} trucks</span>
-                    ${renderExportToolbar('nb')}
+                    ${canEditInModule('nb-operations') ? renderExportToolbar('nb') : ''}
                 </div>
             </div>
             <table><thead><tr>
-                <th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all NB trucks" onchange="toggleAllListRows('nb', this.checked)"></th>
-                <th>Trip #</th><th>Truck</th><th>Owner</th><th>Driver</th><th>Border</th><th>Offloading</th><th>Area</th><th>Status</th><th>Days</th><th>KPI</th><th>Actions</th>
+                ${typeof getOperationsTableHeaderHtml === 'function' ? getOperationsTableHeaderHtml('NB', 'nb') : '<th>Trip #</th><th>Truck</th><th>Owner</th><th>Driver</th><th>Border</th><th>Offloading</th><th>Area</th><th>Status</th><th>Days</th><th>KPI</th><th>Actions</th>'}
             </tr></thead>
             <tbody id="nbTableBody">${renderNBTableRowsFiltered()}</tbody></table>
         </div>`;
@@ -2321,7 +2572,9 @@ function renderNBTableRowsFiltered() {
     const countEl = document.getElementById('nbTableCount');
     if (countEl) countEl.textContent = `${trips.length} trucks`;
     updateListSelectionUI('nb');
-    return renderDashboardTableRows(trips, 'nb');
+    return typeof renderOperationsTableRows === 'function'
+        ? renderOperationsTableRows(trips, 'nb', 'NB')
+        : renderDashboardTableRows(trips, 'nb');
 }
 
 function refreshNBTable() {
@@ -2359,21 +2612,20 @@ function renderSBOperations(container) {
             <button class="btn btn-outline btn-sm" onclick="clearSBFilters()">Clear</button>
         </div>
         <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-            <button class="btn btn-primary" onclick="openUploadModal('SB')">📤 Upload SB Live File</button>
+            ${canEditInModule('sb-operations') ? `<button class="btn btn-primary" onclick="openUploadModal('SB')">📤 Upload SB Live File</button>` : ''}
             <button class="btn btn-outline" onclick="downloadTemplateCsv('SB')">📥 SB Template</button>
-            <button class="btn btn-outline" onclick="navigateTo('position-live')">📍 Position Live</button>
+            ${canAccessModule('position-live') ? `<button class="btn btn-outline" onclick="navigateTo('position-live')">📍 Position Live</button>` : ''}
         </div>
         <div class="table-container">
             <div class="table-header">
                 <h3>Active SB Trucks</h3>
                 <div class="table-header-actions">
                     <span id="sbTableCount" style="color:var(--text-secondary);">${trips.length} trucks</span>
-                    ${renderExportToolbar('sb')}
+                    ${canEditInModule('sb-operations') ? renderExportToolbar('sb') : ''}
                 </div>
             </div>
             <table><thead><tr>
-                <th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all SB trucks" onchange="toggleAllListRows('sb', this.checked)"></th>
-                <th>Trip #</th><th>Truck</th><th>Owner</th><th>Driver</th><th>Loading Point</th><th>Exit Border</th><th>Area</th><th>Status</th><th>Days</th><th>KPI</th><th>Actions</th>
+                ${typeof getOperationsTableHeaderHtml === 'function' ? getOperationsTableHeaderHtml('SB', 'sb') : '<th>Trip #</th><th>Truck</th><th>Owner</th><th>Driver</th><th>Loading Point</th><th>Exit Border</th><th>Area</th><th>Status</th><th>Days</th><th>KPI</th><th>Actions</th>'}
             </tr></thead>
             <tbody id="sbTableBody">${renderSBTableRowsFiltered()}</tbody></table>
         </div>`;
@@ -2384,7 +2636,9 @@ function renderSBTableRowsFiltered() {
     const countEl = document.getElementById('sbTableCount');
     if (countEl) countEl.textContent = `${trips.length} trucks`;
     updateListSelectionUI('sb');
-    return renderDashboardTableRows(trips, 'sb');
+    return typeof renderOperationsTableRows === 'function'
+        ? renderOperationsTableRows(trips, 'sb', 'SB')
+        : renderDashboardTableRows(trips, 'sb');
 }
 
 function refreshSBTable() {
@@ -2420,7 +2674,7 @@ function renderBorderTableRows(rows) {
             <td>${t.target}</td>
             <td><span class="kpi-indicator ${t.kpi}"></span> ${t.kpiLabel}</td>
             <td>
-                <button class="btn btn-${t.commentBtn} btn-sm" onclick="openCommentModal('${t.trip}', 'border')">💬</button>
+                ${canEditInModule('border-clearance', t.border) ? `<button class="btn btn-${t.commentBtn} btn-sm" onclick="openCommentModal('${t.trip}', 'border')">💬</button>` : ''}
                 <button class="btn btn-outline btn-sm" onclick="navigateToTripView('${t.trip}')">👁️</button>
             </td>
         </tr>
@@ -2447,6 +2701,9 @@ function filterBorderClearanceTrucks() {
             t.status.toLowerCase().includes(search) ||
             t.kpiLabel.toLowerCase().includes(search)
         );
+    }
+    if (!userIsSuperAdmin()) {
+        rows = rows.filter(t => canModuleAction('border-clearance', 'view', t.border));
     }
     return rows;
 }
@@ -2943,11 +3200,11 @@ function renderPODTableRows(items) {
             <td>${p.collected && p.hoursToCollect ? p.hoursToCollect + 'h' : '—'}</td>
             <td><span class="status-badge ${p.kpi}"><span class="dot"></span> ${p.kpi === 'green' ? 'On Track' : p.kpi === 'orange' ? 'Priority' : 'Overdue'}</span></td>
             <td>
-                <button class="btn btn-primary btn-sm" onclick="openCommentModal('${p.trip}', 'pod')">💬</button>
-                ${!p.collected ? `<button class="btn btn-outline btn-sm" onclick="wirePodStageAction('${p.trip}','collected')">📋 Collect</button>` : ''}
-                ${p.collected && !p.scanned ? `<button class="btn btn-outline btn-sm" onclick="wirePodStageAction('${p.trip}','scanned')">🔍 Scan</button>` : ''}
-                ${p.scanned && !p.uploaded ? `<button class="btn btn-outline btn-sm" onclick="wirePodStageAction('${p.trip}','uploaded')">📤 Upload</button>` : ''}
-                ${p.uploaded && !p.sentToInvoicing ? `<button class="btn btn-outline btn-sm" onclick="wirePodStageAction('${p.trip}','sent_to_invoicing')">💰 Invoice</button>` : ''}
+                ${canEditInModule('pod-management', p.area) ? `<button class="btn btn-primary btn-sm" onclick="openCommentModal('${p.trip}', 'pod')">💬</button>` : ''}
+                ${canEditInModule('pod-management', p.area) && !p.collected ? `<button class="btn btn-outline btn-sm" onclick="wirePodStageAction('${p.trip}','collected')">📋 Collect</button>` : ''}
+                ${canEditInModule('pod-management', p.area) && p.collected && !p.scanned ? `<button class="btn btn-outline btn-sm" onclick="wirePodStageAction('${p.trip}','scanned')">🔍 Scan</button>` : ''}
+                ${canEditInModule('pod-management', p.area) && p.scanned && !p.uploaded ? `<button class="btn btn-outline btn-sm" onclick="wirePodStageAction('${p.trip}','uploaded')">📤 Upload</button>` : ''}
+                ${canEditInModule('pod-management', p.area) && p.uploaded && !p.sentToInvoicing ? `<button class="btn btn-outline btn-sm" onclick="wirePodStageAction('${p.trip}','sent_to_invoicing')">💰 Invoice</button>` : ''}
             </td>
         </tr>
     `).join('');
@@ -3089,16 +3346,19 @@ function getFilteredPODItems() {
         items = items.filter(p => statuses.includes(getPODStageStatus(p)));
     }
 
-    if (!search) return items;
+    if (!search) {
+        return items.filter(p => userIsSuperAdmin() || canModuleAction('pod-management', 'view', p.area));
+    }
     const term = search.toLowerCase();
     return items.filter(p =>
-        p.trip.toLowerCase().includes(term) ||
+        (p.trip.toLowerCase().includes(term) ||
         p.truck.toLowerCase().includes(term) ||
         p.driver.toLowerCase().includes(term) ||
         p.area.toLowerCase().includes(term) ||
         p.offloadingPoint.toLowerCase().includes(term) ||
         (p.owner && p.owner.toLowerCase().includes(term)) ||
-        (p.scannedBy && p.scannedBy.toLowerCase().includes(term))
+        (p.scannedBy && p.scannedBy.toLowerCase().includes(term))) &&
+        (userIsSuperAdmin() || canModuleAction('pod-management', 'view', p.area))
     );
 }
 
@@ -3377,8 +3637,8 @@ function renderAssetsTableRows(items) {
             <td><span class="status-badge ${a.status === 'active' ? 'green' : a.status === 'maintenance' ? 'orange' : 'red'}">${formatAssetStatus(a.status)}</span></td>
             <td>
                 <button class="btn btn-outline btn-sm" onclick="openAssetDetailModal('${a.id}')" title="View details">👁️</button>
-                <button class="btn btn-primary btn-sm" onclick="openAssetStatusModal('${a.id}')" title="Update status">💬</button>
-                <button class="btn btn-primary btn-sm" onclick="openAddAssetDocumentModal('${a.id}')" title="Add document">📄</button>
+                ${canEditInModule('assets') ? `<button class="btn btn-primary btn-sm" onclick="openAssetStatusModal('${a.id}')" title="Update status">💬</button>
+                <button class="btn btn-primary btn-sm" onclick="openAddAssetDocumentModal('${a.id}')" title="Add document">📄</button>` : ''}
             </td>
         </tr>
     `).join('');
@@ -3722,9 +3982,9 @@ function renderAssets(container) {
         </div>
 
         <div class="assets-action-bar">
-            <button class="btn btn-primary" onclick="openAddVehicleModal()">🚛 Add Vehicle</button>
+            ${canEditInModule('assets') ? `<button class="btn btn-primary" onclick="openAddVehicleModal()">🚛 Add Vehicle</button>
             <button class="btn btn-primary" onclick="openAddEquipmentModal()">💻 Add Equipment</button>
-            <button class="btn btn-outline" onclick="openAddAssetDocumentModal()">📄 Add Document</button>
+            <button class="btn btn-outline" onclick="openAddAssetDocumentModal()">📄 Add Document</button>` : ''}
         </div>
 
         <div class="filters-bar">
@@ -3742,7 +4002,7 @@ function renderAssets(container) {
                 <h3>Assets & Equipment Registry</h3>
                 <div class="table-header-actions">
                     <span id="assetsTableCount" style="color:var(--text-secondary);">${items.length} asset${items.length !== 1 ? 's' : ''}</span>
-                    ${renderExportToolbar('assets')}
+                    ${canEditInModule('assets') ? renderExportToolbar('assets') : ''}
                 </div>
             </div>
             <div style="overflow-x:auto;">
@@ -4040,7 +4300,7 @@ function renderCommunicationMatrix(container) {
         </div>
 
         <div class="assets-action-bar">
-            <button class="btn btn-primary" onclick="openMatrixContactModal()">➕ Add Contact</button>
+            ${canEditInModule('communication-matrix') ? `<button class="btn btn-primary" onclick="openMatrixContactModal()">➕ Add Contact</button>` : ''}
         </div>
 
         <div class="pod-filter-tabs">${renderMatrixFilterTabs(filter)}</div>
@@ -5558,6 +5818,122 @@ function submitAreaAssignment() {
     updateTopBarUser();
 }
 
+function summarizeUserModulePermissions(user) {
+    ensureUserModulePermissions(user);
+    const enabled = OPERATIONAL_MODULES.filter(mod => canAccessModuleForUser(user, mod.id));
+    return enabled.map(m => m.label).join(', ') || 'None';
+}
+
+function canAccessModuleForUser(user, moduleId) {
+    if (!user || user.status !== 'active') return false;
+    if (getRoleById(user.roleId)?.name === 'Super Admin') return true;
+    ensureUserModulePermissions(user);
+    const mod = user.modulePermissions[moduleId];
+    if (!mod) return false;
+    return Object.values(mod).some(p => p.view);
+}
+
+function renderAdminModulePermissions(container) {
+    if (!canAccessAdminPage('admin-module-permissions')) {
+        container.innerHTML = `<div class="access-denied"><h2>Access Denied</h2><p>Module permission management requires Manager or Super Admin.</p></div>`;
+        return;
+    }
+    const users = adminUsersDB.filter(u => {
+        if (!modulePermUserFilter) return u.status === 'active';
+        const t = modulePermUserFilter.toLowerCase();
+        return u.status === 'active' && (u.username.toLowerCase().includes(t) || u.email.toLowerCase().includes(t));
+    });
+    container.innerHTML = `
+        ${renderAdminBreadcrumb('Module Permissions')}
+        <div class="page-header admin-page-header">
+            <div><h1>🔐 Module Permissions (Per Area)</h1><p class="page-subtitle">Assign view, edit, and delete rights per operational module and area. Controls sidebar visibility and actions on NB/SB, Border, POD, Assets, Communication, Reports, Turnarounds, and Position Live.</p></div>
+        </div>
+        <div class="rbac-info-banner"><strong>Modules:</strong> ${OPERATIONAL_MODULES.map(m => `${m.icon} ${m.label}`).join(' · ')}</div>
+        <div class="admin-toolbar">
+            <input type="text" class="form-control admin-search" placeholder="Search users..." value="${modulePermUserFilter}" onkeyup="modulePermUserFilter=this.value; renderAdminModulePermissions(document.getElementById('contentArea'))">
+        </div>
+        <div class="table-container">
+            <table class="data-table admin-table module-perm-table">
+                <thead><tr><th>User</th><th>Role</th><th>Assigned Areas</th><th>Enabled Modules</th><th>Actions</th></tr></thead>
+                <tbody>
+                    ${users.map(u => {
+                        const areas = u.assignedAreas || [u.area];
+                        return `<tr>
+                            <td><strong>${u.username}</strong><br><small>${u.email}</small></td>
+                            <td>${renderPermissionBadge(getRoleById(u.roleId))}</td>
+                            <td>${areas.map(a => `<span class="workflow-pill pending">${a}</span>`).join(' ')}</td>
+                            <td><small>${summarizeUserModulePermissions(u)}</small></td>
+                            <td><button class="btn btn-primary btn-sm" onclick="openModulePermissionModal('${u.id}')">🔐 Configure</button></td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>`;
+}
+
+function openModulePermissionModal(userId) {
+    if (!canAccessAdminPage('admin-module-permissions')) return;
+    editingModulePermUserId = userId;
+    const user = adminUsersDB.find(u => u.id === userId);
+    if (!user) return;
+    ensureUserModulePermissions(user);
+    document.getElementById('modulePermUserName').textContent = user.username;
+    const areas = [...new Set([...(user.assignedAreas || [user.area]), '_global'])];
+    const container = document.getElementById('modulePermMatrix');
+    container.innerHTML = OPERATIONAL_MODULES.map(mod => {
+        const modPerms = user.modulePermissions[mod.id] || {};
+        const areaRows = mod.global
+            ? [{ key: '_global', label: 'Global (all areas)' }]
+            : (user.assignedAreas || [user.area]).map(a => ({ key: a, label: a }));
+        return `<div class="settings-card module-perm-card" style="margin-bottom:16px;">
+            <h3>${mod.icon} ${mod.label}</h3>
+            <table class="data-table" style="font-size:13px;">
+                <thead><tr><th>Area</th><th>View</th><th>Edit</th><th>Delete</th></tr></thead>
+                <tbody>
+                    ${areaRows.map(row => {
+                        const p = modPerms[row.key] || emptyModulePerm();
+                        const prefix = `mp-${mod.id}-${row.key}`;
+                        return `<tr>
+                            <td>${row.label}</td>
+                            <td><input type="checkbox" id="${prefix}-view" ${p.view ? 'checked' : ''}></td>
+                            <td><input type="checkbox" id="${prefix}-edit" ${p.edit ? 'checked' : ''}></td>
+                            <td><input type="checkbox" id="${prefix}-delete" ${p.delete ? 'checked' : ''}></td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>`;
+    }).join('');
+    openModal('modulePermissionModal');
+}
+
+function submitModulePermissions() {
+    if (!canAccessAdminPage('admin-module-permissions')) return;
+    const user = adminUsersDB.find(u => u.id === editingModulePermUserId);
+    if (!user) return;
+    const perms = {};
+    OPERATIONAL_MODULES.forEach(mod => {
+        perms[mod.id] = {};
+        const areaRows = mod.global
+            ? [{ key: '_global' }]
+            : (user.assignedAreas || [user.area]).map(a => ({ key: a }));
+        areaRows.forEach(row => {
+            const prefix = `mp-${mod.id}-${row.key}`;
+            perms[mod.id][row.key] = {
+                view: !!document.getElementById(`${prefix}-view`)?.checked,
+                edit: !!document.getElementById(`${prefix}-edit`)?.checked,
+                delete: !!document.getElementById(`${prefix}-delete`)?.checked
+            };
+        });
+    });
+    user.modulePermissions = perms;
+    logAuditEvent(`Updated module permissions for ${user.username}`, user.id, 'user');
+    closeModal('modulePermissionModal');
+    showToast(`Module permissions saved for ${user.username}`, 'success');
+    if (CURRENT_SESSION_USER_ID === user.id) updateAdminNavVisibility();
+    if (currentPage === 'admin-module-permissions') renderAdminModulePermissions(document.getElementById('contentArea'));
+}
+
 // ============================================
 // COMMENT MODAL FUNCTIONS
 // ============================================
@@ -5640,6 +6016,14 @@ function validateFollowUpDate() {
 let currentCommentStatusContext = null;
 let currentCommentAssetId = null;
 
+function getModuleIdFromStatusContext(ctx) {
+    const map = {
+        pod: 'pod-management', nb: 'nb-operations', sb: 'sb-operations',
+        border: 'border-clearance', asset: 'assets', car: 'assets'
+    };
+    return map[ctx] || getPageModule(currentPage);
+}
+
 function openCommentModal(tripNumber, statusContext) {
     currentCommentAssetId = null;
     currentCommentTrip = tripNumber;
@@ -5648,6 +6032,12 @@ function openCommentModal(tripNumber, statusContext) {
     const ctx = statusContext || inferStatusContextFromPage(currentPage) ||
         (trip.direction === 'SB' ? 'sb' : trip.direction === 'NB' ? 'nb' : null);
     currentCommentStatusContext = ctx;
+
+    const moduleId = getModuleIdFromStatusContext(ctx);
+    if (moduleId && !canEditInModule(moduleId, trip.area || trip.entryBorder || trip.exitBorder)) {
+        showToast(`Access denied: you do not have edit permission for ${getModuleDef(moduleId)?.label || moduleId} in this area.`, 'warning');
+        return;
+    }
 
     document.getElementById('modalTripDisplay').textContent = trip.tripNumber;
     document.getElementById('modalTruckDisplay').textContent = trip.truck;
@@ -5710,6 +6100,10 @@ function openCommentModal(tripNumber, statusContext) {
 function openAssetStatusModal(assetId) {
     const asset = getAssetById(assetId);
     if (!asset) return;
+    if (!canEditInModule('assets')) {
+        showToast('Access denied: you do not have edit permission for Assets & Equipment.', 'warning');
+        return;
+    }
     currentCommentAssetId = assetId;
     currentCommentTrip = null;
     const isVehicle = asset.category === 'vehicle';
@@ -5979,6 +6373,7 @@ function showToast(message,type='success'){ const toast=document.getElementById(
 // ============================================
 document.addEventListener('DOMContentLoaded',async function(){
     syncAllAssetDocumentsToGlobalRegistry();
+    adminUsersDB.forEach(u => ensureUserModulePermissions(u));
     initMatrixModalSelects();
     updateTopBarUser();
     populateRoleSwitcher();
