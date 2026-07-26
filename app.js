@@ -944,6 +944,31 @@ const tripsDB = {
     'NB-2024-047': { tripNumber:'NB-2024-047',truck:'PQR852DRC',driver:'Emma Zulu',direction:'NB',area:'Kolwezi',owner:'Transport Co B',entryBorder:'Sakania',offloadingPoint:'Kolwezi Mine',status:'Border Clearance',daysInDRC:2,kpi:'green',addedToday:true,workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}}
 };
 
+(function enrichTripsRunnerDates() {
+    const patches = {
+        'NB-2024-001': { workflowDates: { border: '2026-07-20T08:00', kanyaka: '2026-07-22T10:00' } },
+        'NB-2024-008': { workflowDates: { border: '2026-07-21T09:00', kanyaka: '2026-07-25T14:00' } },
+        'NB-2024-022': { workflowDates: { border: '2026-07-05T08:00', kanyaka: '2026-07-12T10:00', offloading: '2026-07-14T09:00' } },
+        'NB-2024-031': { workflowDates: { border: '2026-07-17T07:00', kanyaka: '2026-07-19T11:00' } },
+        'NB-2024-042': { workflowDates: { border: '2026-07-22T08:00', kanyaka: '2026-07-26T12:00' } },
+        'NB-2024-043': { workflowDates: { border: '2026-07-18T10:00', kanyaka: '2026-07-19T08:00', offloading: '2026-07-21T10:00' } },
+        'NB-2024-044': { workflowDates: { border: '2026-07-08T08:00', kanyaka: '2026-07-10T09:00', offloading: '2026-07-15T11:00' } },
+        'NB-2024-045': { workflowDates: { border: '2026-07-12T08:00', kanyaka: '2026-07-13T10:00', offloading: '2026-07-14T08:00' } },
+        'NB-2024-046': { workflowDates: { border: '2026-07-23T07:00', kanyaka: '2026-07-27T15:00' } },
+        'NB-2024-047': { workflowDates: { border: '2026-07-24T08:00', kanyaka: '2026-07-25T09:00' } },
+        'SB-2024-003': { workflowDates: { loadingProcess: '2026-07-20T10:00', kanyaka: '2026-07-22T08:00', border: '2026-07-23T14:00' } },
+        'SB-2024-005': { workflowDates: { loadingProcess: '2026-07-21T09:00', kanyaka: '2026-07-22T07:00', border: '2026-07-24T10:00' } },
+        'SB-2024-012': { workflowDates: { loadingProcess: '2026-07-15T08:00', kanyaka: '2026-07-18T10:00', border: '2026-07-20T11:00' } },
+        'SB-2024-020': { workflowDates: { loadingProcess: '2026-07-16T08:00', kanyaka: '2026-07-17T09:00', border: '2026-07-19T10:00' } }
+    };
+    Object.entries(patches).forEach(([id, patch]) => {
+        if (tripsDB[id]) {
+            tripsDB[id].workflowDates = { ...(tripsDB[id].workflowDates || {}), ...patch.workflowDates };
+            if (patch.workflowDates.kanyaka) tripsDB[id].workflow = { ...tripsDB[id].workflow, border: tripsDB[id].workflow?.border || 'completed', kanyaka: 'completed' };
+        }
+    });
+})();
+
 // ============================================
 // KPI TARGETS BANNERS
 // ============================================
@@ -4021,8 +4046,348 @@ function renderAssets(container) {
     `;
 }
 
+// ============================================
+// RUNNER FEES
+// ============================================
+let runnerFeeMode = 'border';
+let runnerFeeFromDate = '2026-07-01';
+let runnerFeeToDate = '2026-07-31';
+let runnerFeeTransporter = 'all';
+
+const RUNNER_BORDER_FEES = { yellow: 40, blue: 25, red: 15 };
+const RUNNER_KANYAKA_FEE = 5;
+
+function parseRunnerDate(val) {
+    if (!val) return null;
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d;
+}
+
+function formatRunnerDate(val) {
+    const d = parseRunnerDate(val);
+    if (!d) return '—';
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function runnerDaysBetween(arrival, exit) {
+    const a = parseRunnerDate(arrival);
+    const e = parseRunnerDate(exit);
+    if (!a || !e) return null;
+    const start = new Date(a); start.setHours(0, 0, 0, 0);
+    const end = new Date(e); end.setHours(0, 0, 0, 0);
+    return Math.max(0, Math.round((end - start) / 86400000));
+}
+
+function runnerPeriodOverlapsFilter(arrival, exit, fromStr, toStr) {
+    const a = parseRunnerDate(arrival);
+    const e = parseRunnerDate(exit);
+    const from = parseRunnerDate(fromStr);
+    const to = parseRunnerDate(toStr);
+    if (!a || !e || !from || !to) return false;
+    to.setHours(23, 59, 59, 999);
+    return a <= to && e >= from;
+}
+
+function getRunnerTransporters() {
+    return [...new Set(Object.values(tripsDB).map(t => t.owner).filter(Boolean))].sort();
+}
+
+function deriveRunnerDatesForTrip(trip) {
+    const wd = trip.workflowDates || {};
+    const rd = trip.runnerDates || {};
+    const base = parseRunnerDate(wd.border || wd.loadingProcess) || new Date('2026-07-15');
+
+    if (trip.direction === 'NB') {
+        const borderArrival = rd.borderArrival || wd.border || base.toISOString();
+        let borderExit = rd.borderExit || wd.kanyaka;
+        if (!borderExit && trip.workflow?.border === 'completed') {
+            const d = parseRunnerDate(borderArrival);
+            d.setDate(d.getDate() + Math.min(Math.max(trip.daysInDRC || 1, 1), 6));
+            borderExit = d.toISOString();
+        }
+        const kanyakaArrival = rd.kanyakaArrival || wd.kanyaka;
+        let kanyakaExit = rd.kanyakaExit || wd.offloading;
+        if (kanyakaArrival && !kanyakaExit && trip.workflow?.kanyaka === 'completed') {
+            const d = parseRunnerDate(kanyakaArrival);
+            d.setDate(d.getDate() + 1);
+            kanyakaExit = d.toISOString();
+        }
+        return {
+            border: trip.entryBorder || '—',
+            borderArrival,
+            borderExit,
+            kanyakaArrival,
+            kanyakaExit
+        };
+    }
+
+    const kanyakaArrival = rd.kanyakaArrival || wd.kanyaka;
+    let kanyakaExit = rd.kanyakaExit || wd.border;
+    if (kanyakaArrival && !kanyakaExit && (trip.workflow?.kanyaka === 'completed' || trip.workflow?.border === 'current')) {
+        const d = parseRunnerDate(kanyakaArrival);
+        d.setDate(d.getDate() + 1);
+        kanyakaExit = d.toISOString();
+    }
+    return { kanyakaArrival, kanyakaExit, border: trip.exitBorder || '—' };
+}
+
+function getBorderRunnerTier(days) {
+    if (days === null) return null;
+    if (days <= 2) return { key: 'yellow', label: '0–2 days', color: 'orange', fee: RUNNER_BORDER_FEES.yellow };
+    if (days <= 4) return { key: 'blue', label: '3–4 days', color: 'blue', fee: RUNNER_BORDER_FEES.blue };
+    return { key: 'red', label: '5+ days', color: 'red', fee: RUNNER_BORDER_FEES.red };
+}
+
+function getKanyakaRunnerFee(days) {
+    if (days === null) return null;
+    return days <= 1 ? RUNNER_KANYAKA_FEE : 0;
+}
+
+function filterRunnerFeeTrips(direction) {
+    let trips = Object.values(tripsDB).filter(t => t.direction === direction);
+    if (runnerFeeTransporter !== 'all') {
+        trips = trips.filter(t => t.owner === runnerFeeTransporter);
+    }
+    return filterTripsByUserArea(trips);
+}
+
+function buildBorderRunnerRows() {
+    const rows = [];
+    filterRunnerFeeTrips('NB').forEach(trip => {
+        const dates = deriveRunnerDatesForTrip(trip);
+        if (!dates.borderArrival || !dates.borderExit) return;
+        if (!runnerPeriodOverlapsFilter(dates.borderArrival, dates.borderExit, runnerFeeFromDate, runnerFeeToDate)) return;
+        const days = runnerDaysBetween(dates.borderArrival, dates.borderExit);
+        const tier = getBorderRunnerTier(days);
+        if (!tier) return;
+        rows.push({
+            trip: trip.tripNumber,
+            truck: trip.truck,
+            transporter: trip.owner,
+            border: dates.border,
+            arrival: dates.borderArrival,
+            exit: dates.borderExit,
+            days,
+            tier,
+            fee: tier.fee
+        });
+    });
+    return rows.sort((a, b) => parseRunnerDate(a.arrival) - parseRunnerDate(b.arrival));
+}
+
+function buildKanyakaRunnerRows(direction) {
+    const rows = [];
+    filterRunnerFeeTrips(direction).forEach(trip => {
+        const dates = deriveRunnerDatesForTrip(trip);
+        if (!dates.kanyakaArrival || !dates.kanyakaExit) return;
+        if (!runnerPeriodOverlapsFilter(dates.kanyakaArrival, dates.kanyakaExit, runnerFeeFromDate, runnerFeeToDate)) return;
+        const days = runnerDaysBetween(dates.kanyakaArrival, dates.kanyakaExit);
+        const fee = getKanyakaRunnerFee(days);
+        if (fee === null) return;
+        rows.push({
+            trip: trip.tripNumber,
+            truck: trip.truck,
+            transporter: trip.owner,
+            arrival: dates.kanyakaArrival,
+            exit: dates.kanyakaExit,
+            days,
+            fee,
+            tierLabel: days <= 1 ? '0–1 day ($5)' : '2+ days ($0)'
+        });
+    });
+    return rows.sort((a, b) => parseRunnerDate(a.arrival) - parseRunnerDate(b.arrival));
+}
+
+function summarizeBorderRunner(rows) {
+    const groups = {
+        yellow: { label: 'Yellow (0–2 days)', fee: RUNNER_BORDER_FEES.yellow, count: 0, total: 0 },
+        blue: { label: 'Blue (3–4 days)', fee: RUNNER_BORDER_FEES.blue, count: 0, total: 0 },
+        red: { label: 'Red (5+ days)', fee: RUNNER_BORDER_FEES.red, count: 0, total: 0 }
+    };
+    rows.forEach(r => {
+        groups[r.tier.key].count += 1;
+        groups[r.tier.key].total += r.fee;
+    });
+    const grandTotal = rows.reduce((s, r) => s + r.fee, 0);
+    return { groups, grandTotal, truckCount: rows.length };
+}
+
+function summarizeKanyakaRunner(rows) {
+    const payable = rows.filter(r => r.fee > 0);
+    return {
+        payableCount: payable.length,
+        zeroCount: rows.length - payable.length,
+        grandTotal: rows.reduce((s, r) => s + r.fee, 0),
+        truckCount: rows.length
+    };
+}
+
+function renderRunnerFeeSummaryBorder(summary) {
+    return `
+        <div class="kpi-grid" style="margin-bottom:20px;">
+            ${Object.entries(summary.groups).map(([key, g]) => `
+                <div class="kpi-card ${key === 'yellow' ? 'orange' : key}">
+                    <div class="kpi-header"><span class="kpi-title">${g.label}</span></div>
+                    <div class="kpi-value">${g.count}</div>
+                    <div class="kpi-trend">$${g.fee} × ${g.count} = <strong>$${g.total}</strong></div>
+                </div>`).join('')}
+            <div class="kpi-card green">
+                <div class="kpi-header"><span class="kpi-title">Grand Total</span></div>
+                <div class="kpi-value">$${summary.grandTotal}</div>
+                <div class="kpi-trend">${summary.truckCount} truck${summary.truckCount !== 1 ? 's' : ''}</div>
+            </div>
+        </div>`;
+}
+
+function renderRunnerFeeSummaryKanyaka(summary, title) {
+    return `
+        <div class="kpi-grid" style="margin-bottom:20px;">
+            <div class="kpi-card orange">
+                <div class="kpi-header"><span class="kpi-title">${title} — Payable (0–1 day)</span></div>
+                <div class="kpi-value">${summary.payableCount}</div>
+                <div class="kpi-trend">$${RUNNER_KANYAKA_FEE} each</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-header"><span class="kpi-title">No fee (2+ days)</span></div>
+                <div class="kpi-value">${summary.zeroCount}</div>
+            </div>
+            <div class="kpi-card green">
+                <div class="kpi-header"><span class="kpi-title">Grand Total</span></div>
+                <div class="kpi-value">$${summary.grandTotal}</div>
+                <div class="kpi-trend">${summary.truckCount} truck${summary.truckCount !== 1 ? 's' : ''}</div>
+            </div>
+        </div>`;
+}
+
+function renderRunnerFeeTabs(active) {
+    const tabs = [
+        { id: 'border', label: 'Border Runner (NB)' },
+        { id: 'kanyaka-nb', label: 'Kanyaka NB' },
+        { id: 'kanyaka-sb', label: 'Kanyaka SB' }
+    ];
+    return tabs.map(t => `
+        <button class="pod-filter-tab${active === t.id ? ' active' : ''}" onclick="setRunnerFeeMode('${t.id}')">${t.label}</button>
+    `).join('');
+}
+
+function setRunnerFeeMode(mode) {
+    runnerFeeMode = mode;
+    renderRunnerFees(document.getElementById('contentArea'));
+}
+
+function refreshRunnerFees() {
+    runnerFeeFromDate = document.getElementById('runnerFeeFrom')?.value || runnerFeeFromDate;
+    runnerFeeToDate = document.getElementById('runnerFeeTo')?.value || runnerFeeToDate;
+    runnerFeeTransporter = document.getElementById('runnerFeeTransporter')?.value || 'all';
+    renderRunnerFees(document.getElementById('contentArea'));
+}
+
 function renderRunnerFees(container) {
-    container.innerHTML = `<div class="page-header"><h1>💰 Runner Fees</h1></div><div class="card"><div class="card-header"><h3>Fee Rates</h3></div><div class="card-body"><p>Sakania/Kasumbalesa: 0-2d: $40 | 3-4d: $25 | 5+d: $15</p><p>Kanyaka: 0-1d: $5</p></div></div>`;
+    const transporters = getRunnerTransporters();
+    let bodyHtml = '';
+    let summaryHtml = '';
+
+    if (runnerFeeMode === 'border') {
+        const rows = buildBorderRunnerRows();
+        const summary = summarizeBorderRunner(rows);
+        summaryHtml = renderRunnerFeeSummaryBorder(summary);
+        bodyHtml = rows.length ? `
+            <table>
+                <thead><tr>
+                    <th>Trip #</th><th>Truck</th><th>Transporter</th><th>Border</th>
+                    <th>Arrival</th><th>Exit</th><th>Days</th><th>Group</th><th>Fee</th>
+                </tr></thead>
+                <tbody>
+                    ${rows.map(r => `
+                        <tr>
+                            <td><strong>${r.trip}</strong></td>
+                            <td>${r.truck}</td>
+                            <td>${r.transporter}</td>
+                            <td><span class="status-badge blue">${r.border}</span></td>
+                            <td>${formatRunnerDate(r.arrival)}</td>
+                            <td>${formatRunnerDate(r.exit)}</td>
+                            <td>${r.days}</td>
+                            <td><span class="status-badge ${r.tier.color}">${r.tier.label}</span></td>
+                            <td><strong>$${r.fee}</strong></td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>` : '<p style="padding:24px;color:var(--text-secondary);text-align:center;">No NB border runner records for the selected transporter and date range. Trucks need border arrival and exit dates within the period.</p>';
+    } else if (runnerFeeMode === 'kanyaka-nb') {
+        const rows = buildKanyakaRunnerRows('NB');
+        const summary = summarizeKanyakaRunner(rows);
+        summaryHtml = renderRunnerFeeSummaryKanyaka(summary, 'Kanyaka NB');
+        bodyHtml = rows.length ? `
+            <table>
+                <thead><tr>
+                    <th>Trip #</th><th>Truck</th><th>Transporter</th>
+                    <th>Kanyaka Arrival</th><th>Kanyaka Exit</th><th>Days</th><th>Rule</th><th>Fee</th>
+                </tr></thead>
+                <tbody>
+                    ${rows.map(r => `
+                        <tr>
+                            <td><strong>${r.trip}</strong></td>
+                            <td>${r.truck}</td>
+                            <td>${r.transporter}</td>
+                            <td>${formatRunnerDate(r.arrival)}</td>
+                            <td>${formatRunnerDate(r.exit)}</td>
+                            <td>${r.days}</td>
+                            <td><span class="status-badge ${r.fee ? 'orange' : 'gray'}">${r.tierLabel}</span></td>
+                            <td><strong>$${r.fee}</strong></td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>` : '<p style="padding:24px;color:var(--text-secondary);text-align:center;">No Kanyaka NB runner records for the selected filters.</p>';
+    } else {
+        const rows = buildKanyakaRunnerRows('SB');
+        const summary = summarizeKanyakaRunner(rows);
+        summaryHtml = renderRunnerFeeSummaryKanyaka(summary, 'Kanyaka SB');
+        bodyHtml = rows.length ? `
+            <table>
+                <thead><tr>
+                    <th>Trip #</th><th>Truck</th><th>Transporter</th>
+                    <th>Kanyaka Arrival</th><th>Kanyaka Exit</th><th>Days</th><th>Rule</th><th>Fee</th>
+                </tr></thead>
+                <tbody>
+                    ${rows.map(r => `
+                        <tr>
+                            <td><strong>${r.trip}</strong></td>
+                            <td>${r.truck}</td>
+                            <td>${r.transporter}</td>
+                            <td>${formatRunnerDate(r.arrival)}</td>
+                            <td>${formatRunnerDate(r.exit)}</td>
+                            <td>${r.days}</td>
+                            <td><span class="status-badge ${r.fee ? 'orange' : 'gray'}">${r.tierLabel}</span></td>
+                            <td><strong>$${r.fee}</strong></td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>` : '<p style="padding:24px;color:var(--text-secondary);text-align:center;">No Kanyaka SB runner records for the selected filters.</p>';
+    }
+
+    container.innerHTML = `
+        <div class="page-header">
+            <h1>💰 Runner Fees</h1>
+            <div class="breadcrumb">Management / Runner Fees</div>
+        </div>
+        <div class="rbac-info-banner">
+            <strong>Border Runner (NB):</strong> Days = border exit − arrival · Yellow 0–2d $40 · Blue 3–4d $25 · Red 5+d $15 &nbsp;|&nbsp;
+            <strong>Kanyaka NB/SB:</strong> Days = Kanyaka exit − arrival · 0–1d $5 · 2+d $0
+        </div>
+        <div class="filters-bar">
+            <div class="filter-group"><label>From:</label><input type="date" class="form-control" id="runnerFeeFrom" value="${runnerFeeFromDate}" onchange="refreshRunnerFees()"></div>
+            <div class="filter-group"><label>To:</label><input type="date" class="form-control" id="runnerFeeTo" value="${runnerFeeToDate}" onchange="refreshRunnerFees()"></div>
+            <div class="filter-group"><label>Transporter:</label>
+                <select class="form-control" id="runnerFeeTransporter" onchange="refreshRunnerFees()">
+                    <option value="all"${runnerFeeTransporter === 'all' ? ' selected' : ''}>All transporters</option>
+                    ${transporters.map(t => `<option value="${t}"${runnerFeeTransporter === t ? ' selected' : ''}>${t}</option>`).join('')}
+                </select>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="refreshRunnerFees()">Apply</button>
+        </div>
+        <div class="pod-filter-tabs">${renderRunnerFeeTabs(runnerFeeMode)}</div>
+        ${summaryHtml}
+        <div class="table-container">
+            <div class="table-header"><h3>${runnerFeeMode === 'border' ? 'Border Runner — NB trucks' : runnerFeeMode === 'kanyaka-nb' ? 'Kanyaka Runner — NB' : 'Kanyaka Runner — SB'}</h3></div>
+            <div style="overflow-x:auto;">${bodyHtml}</div>
+        </div>`;
 }
 
 // ============================================
@@ -5076,7 +5441,7 @@ function renderTurnarounds(container) {
             <div class="page-header admin-page-header">
                 <div>
                     <h1>🔄 Truck Turnarounds</h1>
-                    <p class="page-subtitle">NB clearance → Kanyaka → Offload → POD → SB (same truck/trip). Fleet policy controls same-truck requirement for SB.</p>
+                    <p class="page-subtitle">NB clearance → Kanyaka → Offload → POD → SB (same truck/trip when fleet policy requires it).</p>
                 </div>
                 ${apiStatus}
             </div>
