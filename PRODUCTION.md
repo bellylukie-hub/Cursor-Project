@@ -27,6 +27,72 @@ Default password: `ChangeMe123!` (or `DEFAULT_ADMIN_PASSWORD` from `.env`).
 
 After the first successful deploy, set `RUN_SEED=false` in `.env` so restarts do not reload demo trip data.
 
+## Run 24/7 on your computer (PM2, no Docker)
+
+Use this when you want the app to keep running after you close Cursor or your terminal.
+
+### 1. One-time setup
+
+```bash
+# From the project root (folder that contains backend/, app.js, .env)
+cd /path/to/your/TruckControl-repo
+
+cp .env.example .env
+# Edit .env — set JWT_SECRET and confirm RUN_SEED=false
+
+cd backend
+npm ci
+cd ..
+
+# First time only — load demo data + users once (optional)
+# cd backend && npm run seed && cd ..
+
+chmod +x pm2-start.sh
+
+# Install PM2 globally (once per machine)
+npm install -g pm2
+```
+
+### 2. Start and keep running
+
+```bash
+cd /path/to/your/TruckControl-repo
+pm2 start ecosystem.config.cjs
+pm2 save
+```
+
+`pm2 save` remembers the process list so it can come back after reboot.
+
+### 3. Start automatically after reboot (optional)
+
+```bash
+pm2 startup
+```
+
+Run the command PM2 prints (it may ask for your password). Then:
+
+```bash
+pm2 save
+```
+
+### 4. Useful PM2 commands
+
+```bash
+pm2 status              # is it running?
+pm2 logs truckcontrol   # live logs
+pm2 restart truckcontrol
+pm2 stop truckcontrol
+pm2 delete truckcontrol
+```
+
+Open **http://localhost:3001** (or your `PORT` from `.env`).
+
+### RUN_SEED and demo data
+
+- `RUN_SEED=true` in `.env` reloads demo trips every time the app **starts** (Docker or `pm2-start.sh`).
+- `RUN_SEED=false` only ensures users/roles exist; **does not** wipe or reload demo trips.
+- To load demo data once manually: `cd backend && npm run seed`
+
 ## Manual deployment (no Docker)
 
 ```bash
