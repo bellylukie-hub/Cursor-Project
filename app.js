@@ -92,6 +92,283 @@ const WORKFLOW_CONFIG = {
     ]
 };
 
+// ============================================
+// KPI SETTINGS — admin-configurable per process / page / workflow
+// ============================================
+const KPI_CATEGORIES = [
+    { id: 'workflow-nb', label: 'NB Workflow', icon: '🚛', banner: 'nb' },
+    { id: 'workflow-sb', label: 'SB Workflow', icon: '🚛', banner: 'sb' },
+    { id: 'border-nb', label: 'NB Border Processes', icon: '🛂', banner: 'border' },
+    { id: 'border-sb', label: 'SB Border Exit', icon: '🛂', banner: 'border' },
+    { id: 'pod', label: 'POD Management', icon: '📋', banner: 'nb' },
+    { id: 'areas', label: 'Area Operations', icon: '🗺️', banner: null },
+    { id: 'modules', label: 'Module / Page', icon: '📊', banner: null },
+    { id: 'assets', label: 'Assets & Documents', icon: '🚗', banner: 'equipment' },
+    { id: 'turnarounds', label: 'Turnarounds', icon: '🔄', banner: null }
+];
+
+function buildDefaultKpiSettings() {
+    const nbWf = (WORKFLOW_CONFIG.NB || []).map(s => ({
+        id: `wf-nb-${s.key}`,
+        category: 'workflow-nb',
+        process: s.label,
+        workflowStep: s.key,
+        pageId: 'nb-operations',
+        pageLabel: 'NB Operations',
+        direction: 'NB',
+        targetValue: s.key === 'kanyaka' ? 24 : s.key === 'offloading' ? 72 : 48,
+        warningPct: 75,
+        unit: 'hours',
+        enabled: true,
+        notes: `NB workflow step: ${s.label}`
+    }));
+    const sbWf = (WORKFLOW_CONFIG.SB || []).map(s => ({
+        id: `wf-sb-${s.key}`,
+        category: 'workflow-sb',
+        process: s.label,
+        workflowStep: s.key,
+        pageId: 'sb-operations',
+        pageLabel: 'SB Operations',
+        direction: 'SB',
+        targetValue: s.key === 'escort' ? 8 : s.key === 'seal' ? 8 : s.key === 'documents' ? 12 : 48,
+        warningPct: 75,
+        unit: s.key === 'escort' ? 'days' : 'hours',
+        enabled: true,
+        notes: `SB workflow step: ${s.label}`
+    }));
+    sbWf.push({
+        id: 'wf-sb-following-on',
+        category: 'workflow-sb',
+        process: 'Following-on List (Mutaka & Kanyaka)',
+        workflowStep: 'followingOn',
+        pageId: 'sb-operations',
+        pageLabel: 'SB Operations',
+        direction: 'SB',
+        targetValue: 2,
+        warningPct: 75,
+        unit: 'hours',
+        enabled: true,
+        notes: 'Time on following-on list before dispatch'
+    });
+    const bordersNb = [
+        { id: 'border-nb-kbp', process: 'Kasumbalesa KBP', pageId: 'kasumbalesa-detail', targetValue: 48 },
+        { id: 'border-nb-whisky', process: 'Kasumbalesa Whisky', pageId: 'kasumbalesa-whisky', targetValue: 72 },
+        { id: 'border-nb-sakania', process: 'Sakania BN Process', pageId: 'sakania-nb', targetValue: 48 },
+        { id: 'border-nb-mokambo', process: 'Mokambo BN Process', pageId: 'mokambo-nb', targetValue: 72 }
+    ].map(b => ({
+        ...b,
+        category: 'border-nb',
+        workflowStep: 'border',
+        pageLabel: 'Border Clearance',
+        direction: 'NB',
+        warningPct: 75,
+        unit: 'hours',
+        enabled: true,
+        notes: `NB entry clearance at ${b.process}`
+    }));
+    const bordersSb = [
+        { id: 'border-sb-kasumbalesa', process: 'Kasumbalesa Exit', pageId: 'sb-kasumbalesa', targetValue: 48 },
+        { id: 'border-sb-sakania', process: 'Sakania Exit', pageId: 'sb-sakania', targetValue: 48 },
+        { id: 'border-sb-mokambo', process: 'Mokambo Exit', pageId: 'sb-mokambo', targetValue: 72 }
+    ].map(b => ({
+        ...b,
+        category: 'border-sb',
+        workflowStep: 'border',
+        pageLabel: 'Border Clearance',
+        direction: 'SB',
+        warningPct: 75,
+        unit: 'hours',
+        enabled: true,
+        notes: `SB exit clearance — arrival to Date Exit to Zambia`
+    }));
+    const pod = [
+        { id: 'pod-collection', process: 'POD Collection', workflowStep: 'collected', targetValue: 48, notes: 'Hours from offloading complete to POD collected' },
+        { id: 'pod-scan', process: 'Scan after Collection', workflowStep: 'scanned', targetValue: 24, notes: 'Hours from collection to scan' },
+        { id: 'pod-upload', process: 'Upload after Scan', workflowStep: 'uploaded', targetValue: 24, notes: 'Hours from scan to upload' },
+        { id: 'pod-invoicing', process: 'Send to Invoicing', workflowStep: 'sent_to_invoicing', targetValue: 48, notes: 'Hours from upload to invoicing' }
+    ].map(p => ({
+        ...p,
+        category: 'pod',
+        pageId: 'pod-management',
+        pageLabel: 'POD Management',
+        direction: 'NB',
+        warningPct: 75,
+        unit: 'hours',
+        enabled: true
+    }));
+    const areas = [
+        { id: 'area-kanyaka-nb', process: 'Kanyaka — NB Transit', pageId: 'kanyaka', targetValue: 24 },
+        { id: 'area-kanyaka-sb', process: 'Kanyaka — SB Loading & Dispatch', pageId: 'kanyaka', targetValue: 48 },
+        { id: 'area-kolwezi', process: 'Kolwezi Offloading', pageId: 'kolwezi', targetValue: 72 },
+        { id: 'area-lubumbashi', process: 'Lubumbashi Operations', pageId: 'area-browser', targetValue: 72 },
+        { id: 'area-likasi', process: 'Likasi Offloading', pageId: 'area-browser', targetValue: 72 },
+        { id: 'area-kasumbalesa', process: 'Kasumbalesa Hub', pageId: 'area-browser', targetValue: 48 }
+    ].map(a => ({
+        ...a,
+        category: 'areas',
+        workflowStep: '',
+        pageLabel: 'Area Trucks',
+        direction: 'Both',
+        warningPct: 75,
+        unit: 'hours',
+        enabled: true,
+        notes: `Area SLA for ${a.process}`
+    }));
+    const modules = [
+        { id: 'mod-dashboard-stale', process: 'Dashboard — Stale Trip Alert', pageId: 'dashboard', pageLabel: 'Dashboard', targetValue: 24, unit: 'hours', notes: 'Flag trips with no update beyond this threshold' },
+        { id: 'mod-nb-live-hide', process: 'NB Live — Hide after POD Invoicing', pageId: 'nb-operations', pageLabel: 'NB Operations', targetValue: 0, unit: 'hours', notes: 'Truck removed from live NB when POD sent to invoicing' },
+        { id: 'mod-sb-live-hide', process: 'SB Live — Hide after Exit to Zambia', pageId: 'sb-operations', pageLabel: 'SB Operations', targetValue: 0, unit: 'hours', notes: 'Truck removed from live SB when Date Exit to Zambia is filled' },
+        { id: 'mod-border-complete', process: 'Border — Hide when Clearance Complete', pageId: 'border-clearance', pageLabel: 'Border Clearance', targetValue: 0, unit: 'hours', notes: 'Remove from border list when process complete' },
+        { id: 'mod-position-live', process: 'Position Live — Update Frequency', pageId: 'position-live', pageLabel: 'Position Live', targetValue: 4, unit: 'hours', notes: 'Expected position update interval' },
+        { id: 'mod-reports-sla', process: 'Reports — Data Freshness', pageId: 'reports', pageLabel: 'Reports', targetValue: 24, unit: 'hours', notes: 'Warn if report data older than this' }
+    ].map(m => ({
+        ...m,
+        category: 'modules',
+        workflowStep: '',
+        direction: 'Both',
+        warningPct: 75,
+        enabled: true
+    }));
+    const assets = [
+        { id: 'asset-doc-warning', process: 'Document Expiry Warning', pageId: 'assets', targetValue: 30, unit: 'days', notes: 'Orange alert when document expires within N days' },
+        { id: 'asset-doc-expired', process: 'Document Expired', pageId: 'assets', targetValue: 0, unit: 'days', notes: 'Red when document past expiry date' },
+        { id: 'asset-idle', process: 'Unassigned Equipment', pageId: 'assets', targetValue: 7, unit: 'days', notes: 'Flag equipment unassigned longer than N days' },
+        { id: 'asset-border-valid', process: 'Border Crossing Documents', pageId: 'document-alerts', targetValue: 0, unit: 'days', notes: 'Insurance / permits must be valid before border crossing' }
+    ].map(a => ({
+        ...a,
+        category: 'assets',
+        workflowStep: '',
+        pageLabel: 'Assets & Equipment',
+        direction: 'Both',
+        warningPct: 75,
+        enabled: true
+    }));
+    const turnarounds = [{
+        id: 'turnaround-nb-to-sb',
+        category: 'turnarounds',
+        process: 'NB Complete → SB Created',
+        workflowStep: 'turnaround',
+        pageId: 'turnarounds',
+        pageLabel: 'Turnarounds',
+        direction: 'Both',
+        targetValue: 14,
+        warningPct: 75,
+        unit: 'days',
+        enabled: true,
+        notes: 'Maximum days between NB POD complete and SB trip creation'
+    }];
+    return [...nbWf, ...sbWf, ...bordersNb, ...bordersSb, ...pod, ...areas, ...modules, ...assets, ...turnarounds];
+}
+
+let kpiSettingsDB = buildDefaultKpiSettings();
+let kpiAdminFilter = '';
+let kpiAdminCategory = 'all';
+
+const KPI_STORAGE_KEY = 'truckcontrol_kpi_settings';
+
+function initKpiSettings() {
+    try {
+        const raw = localStorage.getItem(KPI_STORAGE_KEY);
+        if (!raw) {
+            applyKpiSettingsToRuntime();
+            return;
+        }
+        const stored = JSON.parse(raw);
+        const defaults = buildDefaultKpiSettings();
+        const storedMap = Object.fromEntries((stored || []).map(s => [s.id, s]));
+        kpiSettingsDB = defaults.map(d => ({ ...d, ...(storedMap[d.id] || {}) }));
+        defaults.forEach(d => { if (!storedMap[d.id] && !kpiSettingsDB.find(s => s.id === d.id)) kpiSettingsDB.push(d); });
+    } catch {
+        kpiSettingsDB = buildDefaultKpiSettings();
+    }
+    applyKpiSettingsToRuntime();
+}
+
+function saveKpiSettingsToStorage() {
+    localStorage.setItem(KPI_STORAGE_KEY, JSON.stringify(kpiSettingsDB));
+    applyKpiSettingsToRuntime();
+    logAuditEvent('KPI settings updated', 'kpi-settings', 'config', `${kpiSettingsDB.filter(s => s.enabled).length} active rules`);
+}
+
+function resetKpiSettingsToDefaults() {
+    if (!confirm('Reset all KPI targets to system defaults? This cannot be undone.')) return;
+    kpiSettingsDB = buildDefaultKpiSettings();
+    localStorage.removeItem(KPI_STORAGE_KEY);
+    applyKpiSettingsToRuntime();
+    showToast('KPI settings reset to defaults', 'success');
+    if (currentPage === 'admin-kpi-settings') renderAdminKpiSettings(document.getElementById('contentArea'));
+}
+
+function getKpiSetting(id) {
+    return kpiSettingsDB.find(s => s.id === id);
+}
+
+function updateKpiSetting(id, field, value) {
+    const row = kpiSettingsDB.find(s => s.id === id);
+    if (!row) return;
+    row[field] = value;
+}
+
+function computeKpiLevel(elapsed, settingOrId) {
+    const setting = typeof settingOrId === 'string' ? getKpiSetting(settingOrId) : settingOrId;
+    if (!setting || !setting.enabled) return { level: 'green', label: '🟢 ON TRACK', pct: 0 };
+    const target = Number(setting.targetValue) || 1;
+    const warningPct = Number(setting.warningPct ?? 75);
+    const warningAt = target * (warningPct / 100);
+    const pct = target > 0 ? Math.round((elapsed / target) * 100) : 0;
+    if (elapsed >= target && target > 0) return { level: 'red', label: '🔴 OVERDUE', pct };
+    if (elapsed >= warningAt) return { level: 'orange', label: '🟠 PRIORITY', pct };
+    return { level: 'green', label: '🟢 ON TRACK', pct };
+}
+
+function formatKpiSettingLine(s) {
+    if (!s.enabled) return null;
+    const u = s.unit === 'days' ? 'days' : 'hours';
+    const warn = Math.round((Number(s.targetValue) || 0) * ((s.warningPct ?? 75) / 100));
+    if (Number(s.targetValue) === 0) return `${s.process}: ${s.notes || 'completion-based rule'}`;
+    return `${s.process}: ≤ ${s.targetValue} ${u} (🟠 at ${warn}${u === 'days' ? 'd' : 'h'}, 🔴 over target)`;
+}
+
+function getKpiSettingsForBanner(bannerType) {
+    const cats = KPI_CATEGORIES.filter(c => c.banner === bannerType).map(c => c.id);
+    if (bannerType === 'nb') cats.push('pod');
+    return kpiSettingsDB.filter(s => s.enabled && cats.includes(s.category));
+}
+
+function applyKpiSettingsToRuntime() {
+    const borderConfigMap = {
+        'border-nb-kbp': 'kasumbalesa-kbp',
+        'border-nb-sakania': 'sakania-nb',
+        'border-nb-mokambo': 'mokambo-nb',
+        'border-sb-kasumbalesa': 'sb-kasumbalesa',
+        'border-sb-sakania': 'sb-sakania',
+        'border-sb-mokambo': 'sb-mokambo'
+    };
+    Object.entries(borderConfigMap).forEach(([kpiId, key]) => {
+        const s = getKpiSetting(kpiId);
+        if (!s || s.unit !== 'hours') return;
+        if (nbBorderConfigs[key]) nbBorderConfigs[key].targetHours = s.targetValue;
+        if (sbBorderConfigs[key]) sbBorderConfigs[key].targetHours = s.targetValue;
+    });
+    const perfMap = {
+        'Kasumbalesa KBP': 'border-nb-kbp',
+        'Kasumbalesa Whisky': 'border-nb-whisky',
+        'Sakania': 'border-nb-sakania',
+        'Mokambo': 'border-nb-mokambo',
+        'Kasumbalesa Exit': 'border-sb-kasumbalesa',
+        'Sakania Exit': 'border-sb-sakania',
+        'Mokambo Exit': 'border-sb-mokambo'
+    };
+    ['NB', 'SB'].forEach(dir => {
+        (borderPerformanceData[dir]?.borders || []).forEach(b => {
+            const s = getKpiSetting(perfMap[b.name]);
+            if (!s) return;
+            b.targetHours = s.targetValue;
+            if (typeof b.avgHours === 'number') b.kpi = computeKpiLevel(b.avgHours, s).level;
+        });
+    });
+}
+
 const documentsDB = [
     { id: 1, type: 'Insurance', entity: 'Truck ZAM-4567', trip: 'TR-1024', truck: 'ZAM-4567', expiry: '2025-04-15', issued: '2024-04-15', status: 'expiring', kpi: 'orange', label: 'Expires in 7d', fileName: 'Insurance_ZAM-4567.pdf', category: 'Vehicle Insurance', assetId: 'AST-001' },
     { id: 2, type: 'Vignette', entity: 'Truck ZAM-4590', trip: 'TR-1028', truck: 'ZAM-4590', expiry: '2025-04-10', issued: '2024-04-10', status: 'expired', kpi: 'red', label: 'Expired', fileName: 'Vignette_ZAM-4590.pdf', category: 'Border Vignette', assetId: 'AST-002' },
@@ -575,6 +852,7 @@ function canAccessAdminPage(page) {
         case 'admin-users': return canUser('manage_users');
         case 'admin-roles': return canUser('manage_roles');
         case 'admin-settings': return canUser('manage_settings');
+        case 'admin-kpi-settings': return canUser('manage_settings');
         case 'admin-audit-logs': return canUser('view_logs');
         case 'admin-area-statuses': return canUser('manage_roles') || canUser('manage_area_statuses');
         case 'admin-area-assignments': return canUser('manage_users');
@@ -1096,12 +1374,16 @@ const KPI_TARGETS = {
 };
 
 function renderKpiTargetsBanner(type) {
-    const config = KPI_TARGETS[type];
-    if (!config) return '';
+    const titles = { nb: 'NB KPI Targets:', sb: 'SB KPI Targets:', border: 'Border KPI Targets:', equipment: 'Equipment KPI Targets:' };
+    const items = getKpiSettingsForBanner(type).map(formatKpiSettingLine).filter(Boolean);
+    const fallback = KPI_TARGETS[type];
+    const title = titles[type] || fallback?.title || 'KPI Targets:';
+    const list = items.length ? items : (fallback?.items || []);
+    if (!list.length) return '';
     return `
         <div class="kpi-targets-banner kpi-targets-${type}">
-            <strong>📊 ${config.title}</strong>
-            <ul>${config.items.map(item => `<li>${item}</li>`).join('')}</ul>
+            <strong>📊 ${title}</strong>
+            <ul>${list.map(item => `<li>${item}</li>`).join('')}</ul>
         </div>`;
 }
 
@@ -1150,6 +1432,7 @@ function navigateTo(page) {
         case 'admin-users': renderAdminUsers(ca); break;
         case 'admin-roles': renderAdminRoles(ca); break;
         case 'admin-settings': renderAdminSettings(ca); break;
+        case 'admin-kpi-settings': renderAdminKpiSettings(ca); break;
         case 'admin-audit-logs': renderAdminAuditLogs(ca); break;
         case 'admin-area-statuses': renderAdminAreaStatuses(ca); break;
         case 'admin-area-assignments': renderAdminAreaAssignments(ca); break;
@@ -6111,6 +6394,94 @@ function triggerManualBackup() {
 }
 
 // ============================================
+// ADMIN — KPI Settings
+// ============================================
+function renderAdminKpiSettings(container) {
+    if (!canAccessAdminPage('admin-kpi-settings')) {
+        container.innerHTML = `<div class="access-denied"><h2>Access Denied</h2><p>KPI configuration requires Manager or Super Admin privileges.</p></div>`;
+        return;
+    }
+    const term = (kpiAdminFilter || '').toLowerCase();
+    const filtered = kpiSettingsDB.filter(s => {
+        if (kpiAdminCategory !== 'all' && s.category !== kpiAdminCategory) return false;
+        if (!term) return true;
+        const hay = [s.process, s.pageLabel, s.pageId, s.workflowStep, s.direction, s.notes, s.category].join(' ').toLowerCase();
+        return hay.includes(term);
+    });
+    const grouped = {};
+    filtered.forEach(s => {
+        if (!grouped[s.category]) grouped[s.category] = [];
+        grouped[s.category].push(s);
+    });
+    const activeCount = kpiSettingsDB.filter(s => s.enabled).length;
+    container.innerHTML = `
+        ${renderAdminBreadcrumb('KPI Settings')}
+        <div class="page-header admin-page-header">
+            <div>
+                <h1>🎯 KPI Settings</h1>
+                <p class="page-subtitle">Configure green / orange / red thresholds for every module, workflow step, border process, and page. Changes apply to KPI banners and border targets across the system.</p>
+                <div class="admin-stats-row"><span><strong>${kpiSettingsDB.length}</strong> rules</span><span><strong>${activeCount}</strong> active</span></div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn btn-primary" onclick="saveKpiSettingsToStorage(); showToast('KPI settings saved','success'); if(currentPage==='admin-kpi-settings') renderAdminKpiSettings(document.getElementById('contentArea'));">💾 Save All</button>
+                <button class="btn btn-outline" onclick="resetKpiSettingsToDefaults()">↩️ Reset Defaults</button>
+            </div>
+        </div>
+        <div class="kpi-legend-banner">
+            <span><strong>🟢 Green</strong> — under warning threshold</span>
+            <span><strong>🟠 Orange</strong> — at or above warning % of target</span>
+            <span><strong>🔴 Red</strong> — at or over target</span>
+        </div>
+        <div class="admin-toolbar">
+            <input type="text" class="form-control admin-search" placeholder="Search process, page, workflow step..." value="${kpiAdminFilter}" onkeyup="kpiAdminFilter=this.value; renderAdminKpiSettings(document.getElementById('contentArea'))">
+            <select class="form-control admin-filter" onchange="kpiAdminCategory=this.value; renderAdminKpiSettings(document.getElementById('contentArea'))">
+                <option value="all" ${kpiAdminCategory === 'all' ? 'selected' : ''}>All categories</option>
+                ${KPI_CATEGORIES.map(c => `<option value="${c.id}" ${kpiAdminCategory === c.id ? 'selected' : ''}>${c.icon} ${c.label}</option>`).join('')}
+            </select>
+        </div>
+        ${filtered.length === 0 ? '<div class="settings-card"><p>No KPI rules match your filter.</p></div>' : KPI_CATEGORIES.filter(c => grouped[c.id]?.length).map(cat => `
+            <div class="settings-card" style="margin-bottom:16px;">
+                <h3>${cat.icon} ${cat.label} <span class="badge-count">${grouped[cat.id].length}</span></h3>
+                <div class="table-container">
+                    <table class="data-table admin-table kpi-settings-table">
+                        <thead><tr>
+                            <th>Process</th><th>Page / Module</th><th>Workflow Step</th><th>Dir.</th>
+                            <th>Target</th><th>Unit</th><th>Warning %</th><th>Active</th><th>Notes</th>
+                        </tr></thead>
+                        <tbody>
+                            ${grouped[cat.id].map(s => `
+                                <tr class="${s.enabled ? '' : 'kpi-row-disabled'}">
+                                    <td><strong>${s.process}</strong></td>
+                                    <td><code>${s.pageId}</code><br><small>${s.pageLabel || ''}</small></td>
+                                    <td>${s.workflowStep ? `<span class="workflow-pill pending">${s.workflowStep}</span>` : '—'}</td>
+                                    <td>${s.direction}</td>
+                                    <td><input type="number" class="form-control kpi-input" min="0" step="1" value="${s.targetValue}" onchange="updateKpiSetting('${s.id}','targetValue',parseFloat(this.value)||0)"></td>
+                                    <td>
+                                        <select class="form-control kpi-input" onchange="updateKpiSetting('${s.id}','unit',this.value)">
+                                            <option value="hours" ${s.unit === 'hours' ? 'selected' : ''}>Hours</option>
+                                            <option value="days" ${s.unit === 'days' ? 'selected' : ''}>Days</option>
+                                        </select>
+                                    </td>
+                                    <td><input type="number" class="form-control kpi-input" min="50" max="99" step="1" value="${s.warningPct ?? 75}" onchange="updateKpiSetting('${s.id}','warningPct',parseInt(this.value)||75)"></td>
+                                    <td><label class="toggle-switch toggle-sm"><input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="updateKpiSetting('${s.id}','enabled',this.checked)"><span class="toggle-slider"></span></label></td>
+                                    <td><input type="text" class="form-control kpi-notes-input" value="${(s.notes || '').replace(/"/g, '&quot;')}" placeholder="Rule description" onchange="updateKpiSetting('${s.id}','notes',this.value)"></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `).join('')}
+        <div class="settings-card">
+            <h3>📋 Workflow Reference</h3>
+            <div class="kpi-workflow-ref">
+                <div><strong>NB Workflow:</strong> ${(WORKFLOW_CONFIG.NB || []).map(s => s.label).join(' → ')}</div>
+                <div><strong>SB Workflow:</strong> ${(WORKFLOW_CONFIG.SB || []).map(s => s.label).join(' → ')}</div>
+            </div>
+        </div>`;
+}
+
+// ============================================
 // ADMIN — Area Status Lists & User Area Assignment
 // ============================================
 function renderAdminAreaStatuses(container) {
@@ -6851,6 +7222,7 @@ function showToast(message,type='success'){ const toast=document.getElementById(
 // INIT
 // ============================================
 document.addEventListener('DOMContentLoaded', async function () {
+    initKpiSettings();
     syncAllAssetDocumentsToGlobalRegistry();
     adminUsersDB.forEach(u => ensureUserModulePermissions(u));
     initMatrixModalSelects();
