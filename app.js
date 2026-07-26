@@ -187,6 +187,197 @@ const systemUsersDB = [
     { id: 'U008', name: 'Asset Controller', email: 'assets@truckcontrol.local', role: 'Asset Controller', area: 'HQ', initials: 'AC', online: true, lastSeen: 'online' }
 ];
 
+// ============================================
+// RBAC — Roles, Permissions, Admin Users
+// ============================================
+const PERMISSION_KEYS = {
+    READ_ALL: 'read_all',
+    READ_OWN: 'read_own',
+    CREATE: 'create',
+    EDIT_ALL: 'edit_all',
+    EDIT_LIMITED: 'edit_limited',
+    DELETE: 'delete',
+    PURGE: 'purge',
+    VIEW_LOGS: 'view_logs',
+    MANAGE_USERS: 'manage_users',
+    MANAGE_ROLES: 'manage_roles',
+    MANAGE_SETTINGS: 'manage_settings'
+};
+
+const PERMISSION_LABELS = {
+    read_all: 'Can Read Data (All)',
+    read_own: 'Can Read Data (Own only)',
+    create: 'Can Create Data',
+    edit_all: 'Can Edit Data (All)',
+    edit_limited: 'Can Edit Data (Limited)',
+    delete: 'Can Delete Data',
+    purge: 'Can Permanently Purge Data',
+    view_logs: 'Can See Audit Logs',
+    manage_users: 'Can Manage Users',
+    manage_roles: 'Can Manage Roles',
+    manage_settings: 'Can Manage System Settings'
+};
+
+const ALL_PERMISSIONS = Object.values(PERMISSION_KEYS);
+
+const rolesDB = [
+    { id: 'role-super-admin', name: 'Super Admin', description: 'Full system owner — CREATE, DROP, SELECT, UPDATE, DELETE on all data', system: true, permissions: [...ALL_PERMISSIONS] },
+    { id: 'role-manager', name: 'Manager', description: 'Operations manager with broad read/write but no delete', system: true, permissions: ['read_all', 'create', 'edit_all', 'view_logs', 'manage_users', 'manage_settings'] },
+    { id: 'role-moderator', name: 'Moderator', description: 'Limited editor — can update specific records only', system: true, permissions: ['read_all', 'edit_limited'] },
+    { id: 'role-user', name: 'User', description: 'Standard app user — read own data only', system: true, permissions: ['read_own'] }
+];
+
+const adminUsersDB = [
+    { id: 'ADM-001', username: 'super_admin', email: 'admin@truckcontrol.local', passwordHash: '[bcrypt-hash]', roleId: 'role-super-admin', status: 'active', area: 'HQ', phone: '+260 900 000001', createdAt: '2025-01-15 08:00', lastLogin: '2026-07-25 17:30', bannedAt: null, bannedReason: '' },
+    { id: 'ADM-002', username: 'ops_manager', email: 'ops.manager@truckcontrol.local', passwordHash: '[bcrypt-hash]', roleId: 'role-manager', status: 'active', area: 'All Areas', phone: '+260 900 000002', createdAt: '2025-02-01 09:00', lastLogin: '2026-07-25 14:15', bannedAt: null, bannedReason: '' },
+    { id: 'ADM-003', username: 'border_moderator', email: 'ruth.mwansa@truckcontrol.local', passwordHash: '[bcrypt-hash]', roleId: 'role-moderator', status: 'active', area: 'Kasumbalesa', phone: '+260 966 222333', createdAt: '2025-03-10 10:00', lastLogin: '2026-07-25 11:00', bannedAt: null, bannedReason: '' },
+    { id: 'ADM-004', username: 'driver_user', email: 'john.doe@transport.com', passwordHash: '[bcrypt-hash]', roleId: 'role-user', status: 'active', area: 'Kolwezi', phone: '+260 977 123456', createdAt: '2025-04-20 07:30', lastLogin: '2026-07-24 18:45', bannedAt: null, bannedReason: '' },
+    { id: 'ADM-005', username: 'inactive_user', email: 'inactive@truckcontrol.local', passwordHash: '[bcrypt-hash]', roleId: 'role-user', status: 'banned', area: 'Lubumbashi', phone: '+243 815 999000', createdAt: '2025-05-01 12:00', lastLogin: '2026-06-10 09:00', bannedAt: '2026-07-01 16:00', bannedReason: 'Policy violation — repeated missed POD deadlines' }
+];
+
+const systemSettingsDB = {
+    signupsEnabled: true,
+    maintenanceMode: false,
+    defaultInterestRate: 5.5,
+    sessionTimeoutMinutes: 30,
+    maxLoginAttempts: 5,
+    backupSchedule: 'daily',
+    backupRetentionDays: 30,
+    appName: 'Truck Turnaround & Operations Control System',
+    supportEmail: 'support@truckcontrol.local'
+};
+
+const auditLogsDB = [
+    { id: 'LOG-0001', userId: 'ADM-001', username: 'super_admin', action: 'Created User ADM-003', targetId: 'ADM-003', targetType: 'user', timestamp: '2026-07-20 10:15:00', ipAddress: '10.42.0.15', details: 'Role: Moderator' },
+    { id: 'LOG-0002', userId: 'ADM-002', username: 'ops_manager', action: 'Updated User ADM-004', targetId: 'ADM-004', targetType: 'user', timestamp: '2026-07-22 14:30:00', ipAddress: '10.42.0.22', details: 'Changed area to Kolwezi' },
+    { id: 'LOG-0003', userId: 'ADM-001', username: 'super_admin', action: 'Banned User ADM-005', targetId: 'ADM-005', targetType: 'user', timestamp: '2026-07-01 16:00:00', ipAddress: '10.42.0.15', details: 'Soft delete — policy violation' },
+    { id: 'LOG-0004', userId: 'ADM-002', username: 'ops_manager', action: 'Updated System Settings', targetId: 'settings', targetType: 'settings', timestamp: '2026-07-24 09:00:00', ipAddress: '10.42.0.22', details: 'defaultInterestRate: 5.5' },
+    { id: 'LOG-0005', userId: 'ADM-001', username: 'super_admin', action: 'Reset Password for ADM-003', targetId: 'ADM-003', targetType: 'user', timestamp: '2026-07-25 08:45:00', ipAddress: '10.42.0.15', details: 'Password reset via admin panel' },
+    { id: 'LOG-0006', userId: 'ADM-003', username: 'border_moderator', action: 'Updated Contact CM-002', targetId: 'CM-002', targetType: 'contact', timestamp: '2026-07-25 11:20:00', ipAddress: '10.42.0.33', details: 'Communication Matrix edit' },
+    { id: 'LOG-0007', userId: 'ADM-001', username: 'super_admin', action: 'Created Role role-support', targetId: 'role-support', targetType: 'role', timestamp: '2026-07-23 13:00:00', ipAddress: '10.42.0.15', details: 'Custom role: Support Agent' }
+];
+
+let CURRENT_SESSION_USER_ID = 'ADM-001';
+let nextAdminUserId = 6;
+let nextAuditLogId = 8;
+let nextRoleId = 1;
+let adminUserFilter = '';
+let adminUserStatusFilter = 'all';
+let auditLogFilter = '';
+let auditLogDateFilter = '';
+let editingAdminUserId = null;
+let editingRoleId = null;
+let purgeTargetUserId = null;
+const SIMULATED_CLIENT_IP = '10.42.0.15';
+
+function getCurrentAdminUser() {
+    return adminUsersDB.find(u => u.id === CURRENT_SESSION_USER_ID) || adminUsersDB[0];
+}
+
+function getRoleById(roleId) {
+    return rolesDB.find(r => r.id === roleId);
+}
+
+function getCurrentRole() {
+    const user = getCurrentAdminUser();
+    return user ? getRoleById(user.roleId) : null;
+}
+
+function roleHasPermission(role, permission) {
+    if (!role || !role.permissions) return false;
+    return role.permissions.includes(permission);
+}
+
+function canUser(permission) {
+    return roleHasPermission(getCurrentRole(), permission);
+}
+
+function requirePermission(permission, actionLabel) {
+    if (!canUser(permission)) {
+        showToast(`Access denied: ${actionLabel}. Your role (${getCurrentRole()?.name || 'Unknown'}) lacks the "${PERMISSION_LABELS[permission] || permission}" permission.`, 'warning');
+        logAuditEvent(`BLOCKED: ${actionLabel}`, null, 'security', { permission, endpoint: actionLabel });
+        return false;
+    }
+    return true;
+}
+
+function apiMiddleware(endpoint, permission) {
+    if (!requirePermission(permission, `API ${endpoint}`)) return false;
+    return true;
+}
+
+function logAuditEvent(action, targetId, targetType, details) {
+    const user = getCurrentAdminUser();
+    const entry = {
+        id: 'LOG-' + String(nextAuditLogId++).padStart(4, '0'),
+        userId: user?.id || 'unknown',
+        username: user?.username || 'unknown',
+        action,
+        targetId: targetId || '',
+        targetType: targetType || 'system',
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        ipAddress: SIMULATED_CLIENT_IP,
+        details: typeof details === 'string' ? details : (details ? JSON.stringify(details) : '')
+    };
+    auditLogsDB.unshift(entry);
+    return entry;
+}
+
+function updateTopBarUser() {
+    const user = getCurrentAdminUser();
+    const role = getCurrentRole();
+    const avatar = document.querySelector('.user-avatar');
+    const nameEl = document.querySelector('.user-profile div > div:first-child');
+    const roleEl = document.querySelector('.user-profile div > div:last-child');
+    if (avatar) avatar.textContent = (user?.username || 'SA').slice(0, 2).toUpperCase();
+    if (nameEl) nameEl.textContent = user?.username || 'System Admin';
+    if (roleEl) roleEl.textContent = role?.name || 'User';
+    populateRoleSwitcher();
+}
+
+function populateRoleSwitcher() {
+    const select = document.querySelector('.role-switcher');
+    if (!select) return;
+    const current = CURRENT_SESSION_USER_ID;
+    select.innerHTML = '<option value="">Switch role ▾</option>' +
+        adminUsersDB.filter(u => u.status === 'active').map(u =>
+            `<option value="${u.id}" ${u.id === current ? 'disabled' : ''}>${u.username} (${getRoleById(u.roleId)?.name})${u.id === current ? ' ✓' : ''}</option>`
+        ).join('');
+}
+
+function switchSessionUser(userId) {
+    const user = adminUsersDB.find(u => u.id === userId);
+    if (!user || user.status === 'banned') {
+        showToast('Cannot switch to banned or invalid user.', 'warning');
+        return;
+    }
+    CURRENT_SESSION_USER_ID = userId;
+    updateTopBarUser();
+    logAuditEvent(`Switched session to ${user.username}`, userId, 'session', 'Demo role switch');
+    showToast(`Now logged in as ${user.username} (${getRoleById(user.roleId)?.name})`, 'success');
+    if (currentPage && currentPage.startsWith('admin-')) navigateTo(currentPage);
+    else updateSidebarBadges();
+}
+
+function canAccessAdminPage(page) {
+    switch (page) {
+        case 'admin-users': return canUser('manage_users');
+        case 'admin-roles': return canUser('manage_roles');
+        case 'admin-settings': return canUser('manage_settings');
+        case 'admin-audit-logs': return canUser('view_logs');
+        default: return false;
+    }
+}
+
+function navigateToAdmin(page) {
+    if (!canAccessAdminPage(page)) {
+        showToast(`Access denied: ${page.replace('admin-', '').replace(/-/g, ' ')} page requires higher privileges.`, 'warning');
+        logAuditEvent(`BLOCKED page access: ${page}`, null, 'security');
+        return;
+    }
+    navigateTo(page);
+}
+
 const emailsDB = [
     { id: 'EM-001', folder: 'inbox', threadId: 'TH-001', from: 'Jean Kalenga', fromEmail: 'jean.kalenga@truckcontrol.local', to: [CURRENT_USER], cc: ['Ruth Mwansa'], bcc: [], subject: 'KBP clearance priority — NB-2024-001', body: 'Dear Team,\n\nPlease proceed to KBP Scan Bay. Documents are ready for cross-checking.\n\nRegards,\nJean Kalenga', sentAt: '2026-07-25 10:30', read: false, starred: true, important: true, attachments: [{ name: 'KBP_Scan_Notice.pdf', size: '128 KB' }], relatedType: 'trip', relatedRef: 'NB-2024-001', relatedLabel: 'NB-2024-001 / ABC123DRC' },
     { id: 'EM-002', folder: 'inbox', threadId: 'TH-002', from: 'Marie Mwamba', fromEmail: 'marie.mwamba@truckcontrol.local', to: [CURRENT_USER, 'Peter Mwansa'], cc: [], bcc: [], subject: 'Whisky TR8 reminder — NB-2024-008', body: 'TR8 has been issued. Please collect documents from Whisky office before 16:00 today.', sentAt: '2026-07-24 15:20', read: true, starred: false, important: false, attachments: [], relatedType: 'trip', relatedRef: 'NB-2024-008', relatedLabel: 'NB-2024-008 / JKL012DRC' },
@@ -479,9 +670,14 @@ function navigateTo(page) {
         case 'assets': renderAssets(ca); break;
         case 'runner-fees': renderRunnerFees(ca); break;
         case 'reports': renderReports(ca); break;
+        case 'admin-users': renderAdminUsers(ca); break;
+        case 'admin-roles': renderAdminRoles(ca); break;
+        case 'admin-settings': renderAdminSettings(ca); break;
+        case 'admin-audit-logs': renderAdminAuditLogs(ca); break;
         default: renderDashboard(ca);
     }
     updateSidebarBadges();
+    updateTopBarUser();
 }
 
 function navigateToPOD(filter) {
@@ -3667,8 +3863,11 @@ function submitMatrixContact() {
     if (contactId) {
         const idx = communicationMatrixDB.findIndex(c => c.id === contactId);
         if (idx >= 0) communicationMatrixDB[idx] = { ...communicationMatrixDB[idx], ...data };
+        logAuditEvent(`Updated Contact ${contactId}`, contactId, 'contact', name);
     } else {
-        communicationMatrixDB.unshift({ id: `CM-${String(nextMatrixContactId++).padStart(3, '0')}`, ...data });
+        const newId = `CM-${String(nextMatrixContactId++).padStart(3, '0')}`;
+        communicationMatrixDB.unshift({ id: newId, ...data });
+        logAuditEvent(`Created Contact ${newId}`, newId, 'contact', name);
     }
     closeModal('matrixContactModal');
     if (currentPage === 'communication-matrix') refreshMatrixTable();
@@ -4289,6 +4488,415 @@ function renderReports(container) {
 }
 
 // ============================================
+// ADMIN DASHBOARD — RBAC Pages
+// ============================================
+function renderAdminBreadcrumb(pageTitle) {
+    return `<div class="breadcrumb"><a href="#" onclick="event.preventDefault();navigateTo('dashboard')">Home</a> <span>›</span> <a href="#" onclick="event.preventDefault();navigateToAdmin('admin-users')">Admin</a> <span>›</span> <span>${pageTitle}</span></div>`;
+}
+
+function renderPermissionBadge(role) {
+    if (!role) return '<span class="status-badge inactive">No Role</span>';
+    const colors = { 'Super Admin': 'red', 'Manager': 'blue', 'Moderator': 'orange', 'User': 'gray' };
+    const cls = colors[role.name] || 'gray';
+    return `<span class="status-badge ${cls}">${role.name}</span>`;
+}
+
+function renderAdminUsers(container) {
+    if (!canAccessAdminPage('admin-users')) {
+        container.innerHTML = `<div class="access-denied"><h2>🚫 Access Denied</h2><p>You do not have permission to view User Management.</p><button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">Back to Dashboard</button></div>`;
+        return;
+    }
+    const canManage = canUser('manage_users');
+    const canDelete = canUser('delete');
+    const canPurge = canUser('purge');
+    const canEdit = canUser('edit_all') || canUser('edit_limited');
+    const filtered = adminUsersDB.filter(u => {
+        const matchSearch = !adminUserFilter || u.username.toLowerCase().includes(adminUserFilter.toLowerCase()) || u.email.toLowerCase().includes(adminUserFilter.toLowerCase()) || u.area.toLowerCase().includes(adminUserFilter.toLowerCase());
+        const matchStatus = adminUserStatusFilter === 'all' || u.status === adminUserStatusFilter;
+        return matchSearch && matchStatus;
+    });
+    container.innerHTML = `
+        ${renderAdminBreadcrumb('Manage Users')}
+        <div class="page-header admin-page-header">
+            <div><h1>👥 User Management</h1><p class="page-subtitle">View, edit, ban, and manage all application users. Backend middleware enforces permissions on every action.</p></div>
+            ${canManage ? '<button class="btn btn-primary" onclick="openAdminUserModal()">+ Add User</button>' : ''}
+        </div>
+        <div class="admin-toolbar">
+            <input type="text" class="form-control admin-search" placeholder="Search by username, email, or area..." value="${adminUserFilter}" onkeyup="adminUserFilter=this.value; renderAdminUsers(document.getElementById('contentArea'))">
+            <select class="form-control admin-filter" onchange="adminUserStatusFilter=this.value; renderAdminUsers(document.getElementById('contentArea'))">
+                <option value="all" ${adminUserStatusFilter === 'all' ? 'selected' : ''}>All Status</option>
+                <option value="active" ${adminUserStatusFilter === 'active' ? 'selected' : ''}>Active</option>
+                <option value="banned" ${adminUserStatusFilter === 'banned' ? 'selected' : ''}>Banned</option>
+            </select>
+        </div>
+        <div class="rbac-info-banner">
+            <strong>🔒 RBAC Middleware Active</strong> — Your role: <em>${getCurrentRole()?.name}</em>. Delete requires Manager+; Permanent Purge requires Super Admin only.
+        </div>
+        <div class="table-container">
+            <table class="data-table admin-table">
+                <thead><tr>
+                    <th>Username</th><th>Email</th><th>Role</th><th>Area</th><th>Status</th><th>Last Login</th><th>Actions</th>
+                </tr></thead>
+                <tbody>
+                    ${filtered.map(u => {
+                        const role = getRoleById(u.roleId);
+                        const isSelf = u.id === CURRENT_SESSION_USER_ID;
+                        return `<tr class="${u.status === 'banned' ? 'row-banned' : ''}">
+                            <td><strong>${u.username}</strong>${isSelf ? ' <span class="status-badge blue" style="font-size:10px;">You</span>' : ''}</td>
+                            <td>${u.email}</td>
+                            <td>${renderPermissionBadge(role)}</td>
+                            <td>${u.area}</td>
+                            <td>${u.status === 'active' ? '<span class="status-badge green">Active</span>' : '<span class="status-badge red">Banned</span>'}</td>
+                            <td>${u.lastLogin || '—'}</td>
+                            <td class="admin-actions">
+                                <button class="btn btn-outline btn-sm" onclick="viewAdminUser('${u.id}')" title="View Profile">👁️</button>
+                                ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="openAdminUserModal('${u.id}')" title="Edit User">✏️</button>` : ''}
+                                ${canManage ? `<button class="btn btn-outline btn-sm" onclick="resetAdminUserPassword('${u.id}')" title="Reset Password">🔑</button>` : ''}
+                                ${canDelete && u.status === 'active' && !isSelf ? `<button class="btn btn-warning btn-sm" onclick="banAdminUser('${u.id}')" title="Ban User (Soft Delete)">🚫</button>` : ''}
+                                ${canPurge && !isSelf ? `<button class="btn btn-danger btn-sm" onclick="openPurgeUserModal('${u.id}')" title="Permanent Purge (Super Admin)">💀</button>` : ''}
+                            </td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+        <div class="admin-stats-row">
+            <span>${filtered.length} users shown</span>
+            <span>${adminUsersDB.filter(u => u.status === 'active').length} active</span>
+            <span>${adminUsersDB.filter(u => u.status === 'banned').length} banned</span>
+        </div>`;
+}
+
+function renderAdminRoles(container) {
+    if (!canAccessAdminPage('admin-roles')) {
+        container.innerHTML = `<div class="access-denied"><h2>🚫 Access Denied</h2><p>Role Manager is restricted to Super Admin only.</p><button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">Back to Dashboard</button></div>`;
+        return;
+    }
+    container.innerHTML = `
+        ${renderAdminBreadcrumb('Role Manager')}
+        <div class="page-header admin-page-header">
+            <div><h1>🛡️ Role Manager</h1><p class="page-subtitle">Create roles and assign permissions. Only Super Admin can modify roles.</p></div>
+            <button class="btn btn-primary" onclick="openAdminRoleModal()">+ Create Role</button>
+        </div>
+        <div class="rbac-matrix-card">
+            <h3>Permission Matrix</h3>
+            <table class="data-table rbac-matrix-table">
+                <thead><tr><th>Role</th><th>Read</th><th>Create</th><th>Edit</th><th>Delete</th><th>Logs</th><th>Actions</th></tr></thead>
+                <tbody>
+                    ${rolesDB.map(r => `<tr>
+                        <td><strong>${r.name}</strong>${r.system ? ' <span class="status-badge gray" style="font-size:10px;">System</span>' : ''}<br><small>${r.description}</small></td>
+                        <td>${r.permissions.includes('read_all') ? '✅ All' : r.permissions.includes('read_own') ? '✅ Own' : '❌'}</td>
+                        <td>${r.permissions.includes('create') ? '✅' : '❌'}</td>
+                        <td>${r.permissions.includes('edit_all') ? '✅ All' : r.permissions.includes('edit_limited') ? '⚠️ Limited' : '❌'}</td>
+                        <td>${r.permissions.includes('delete') || r.permissions.includes('purge') ? '✅' : '❌'}</td>
+                        <td>${r.permissions.includes('view_logs') ? '✅' : '❌'}</td>
+                        <td>
+                            <button class="btn btn-outline btn-sm" onclick="openAdminRoleModal('${r.id}')" title="Edit Permissions">✏️ Edit</button>
+                            ${!r.system ? `<button class="btn btn-danger btn-sm" onclick="deleteAdminRole('${r.id}')">🗑️</button>` : ''}
+                        </td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        </div>`;
+}
+
+function renderAdminSettings(container) {
+    if (!canAccessAdminPage('admin-settings')) {
+        container.innerHTML = `<div class="access-denied"><h2>🚫 Access Denied</h2><p>System Settings require Manager or Super Admin privileges.</p><button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">Back to Dashboard</button></div>`;
+        return;
+    }
+    const s = systemSettingsDB;
+    container.innerHTML = `
+        ${renderAdminBreadcrumb('System Settings')}
+        <div class="page-header"><h1>⚙️ System Settings</h1><p class="page-subtitle">Global configuration — maintenance mode, sign-ups, interest rates, and backup policy.</p></div>
+        <div class="admin-settings-grid">
+            <div class="settings-card">
+                <h3>🔐 Access & Sign-ups</h3>
+                <div class="setting-row">
+                    <div><strong>Allow User Sign-ups</strong><p>When OFF, only admins can create accounts.</p></div>
+                    <label class="toggle-switch"><input type="checkbox" id="settingSignups" ${s.signupsEnabled ? 'checked' : ''} onchange="updateSystemSetting('signupsEnabled', this.checked)"><span class="toggle-slider"></span></label>
+                </div>
+                <div class="setting-row">
+                    <div><strong>Maintenance Mode</strong><p>When ON, only Super Admin can log in.</p></div>
+                    <label class="toggle-switch"><input type="checkbox" id="settingMaintenance" ${s.maintenanceMode ? 'checked' : ''} onchange="updateSystemSetting('maintenanceMode', this.checked)"><span class="toggle-slider"></span></label>
+                </div>
+                <div class="setting-row">
+                    <div><strong>Session Timeout (minutes)</strong></div>
+                    <input type="number" class="form-control setting-input" value="${s.sessionTimeoutMinutes}" min="5" max="480" onchange="updateSystemSetting('sessionTimeoutMinutes', parseInt(this.value))">
+                </div>
+                <div class="setting-row">
+                    <div><strong>Max Login Attempts</strong></div>
+                    <input type="number" class="form-control setting-input" value="${s.maxLoginAttempts}" min="3" max="20" onchange="updateSystemSetting('maxLoginAttempts', parseInt(this.value))">
+                </div>
+            </div>
+            <div class="settings-card">
+                <h3>💰 Business Config</h3>
+                <div class="setting-row">
+                    <div><strong>Default Interest Rate (%)</strong></div>
+                    <input type="number" class="form-control setting-input" value="${s.defaultInterestRate}" step="0.1" min="0" max="100" onchange="updateSystemSetting('defaultInterestRate', parseFloat(this.value))">
+                </div>
+                <div class="setting-row">
+                    <div><strong>Support Email</strong></div>
+                    <input type="email" class="form-control setting-input-wide" value="${s.supportEmail}" onchange="updateSystemSetting('supportEmail', this.value)">
+                </div>
+                <div class="setting-row">
+                    <div><strong>Application Name</strong></div>
+                    <input type="text" class="form-control setting-input-wide" value="${s.appName}" onchange="updateSystemSetting('appName', this.value)">
+                </div>
+            </div>
+            <div class="settings-card">
+                <h3>💾 Database Backup</h3>
+                <div class="setting-row">
+                    <div><strong>Backup Schedule</strong><p>Automatic daily backup recommended for Super Admin recovery.</p></div>
+                    <select class="form-control setting-input" onchange="updateSystemSetting('backupSchedule', this.value)">
+                        <option value="daily" ${s.backupSchedule === 'daily' ? 'selected' : ''}>Daily</option>
+                        <option value="weekly" ${s.backupSchedule === 'weekly' ? 'selected' : ''}>Weekly</option>
+                        <option value="monthly" ${s.backupSchedule === 'monthly' ? 'selected' : ''}>Monthly</option>
+                    </select>
+                </div>
+                <div class="setting-row">
+                    <div><strong>Retention (days)</strong></div>
+                    <input type="number" class="form-control setting-input" value="${s.backupRetentionDays}" min="7" max="365" onchange="updateSystemSetting('backupRetentionDays', parseInt(this.value))">
+                </div>
+                <button class="btn btn-outline" onclick="triggerManualBackup()">📦 Run Manual Backup Now</button>
+            </div>
+            <div class="settings-card demo-card">
+                <h3>🧪 Demo: Switch Session User</h3>
+                <p>Test RBAC by switching which user you are logged in as. This simulates backend token validation.</p>
+                <select class="form-control" onchange="if(this.value) switchSessionUser(this.value); this.value='';">
+                    <option value="">— Switch to user —</option>
+                    ${adminUsersDB.filter(u => u.status === 'active').map(u => `<option value="${u.id}">${u.username} (${getRoleById(u.roleId)?.name})</option>`).join('')}
+                </select>
+            </div>
+        </div>`;
+}
+
+function renderAdminAuditLogs(container) {
+    if (!canAccessAdminPage('admin-audit-logs')) {
+        container.innerHTML = `<div class="access-denied"><h2>🚫 Access Denied</h2><p>Audit Logs are visible to Manager and Super Admin only.</p><button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">Back to Dashboard</button></div>`;
+        return;
+    }
+    const filtered = auditLogsDB.filter(log => {
+        const matchSearch = !auditLogFilter || log.username.toLowerCase().includes(auditLogFilter.toLowerCase()) || log.action.toLowerCase().includes(auditLogFilter.toLowerCase()) || (log.targetId && log.targetId.toLowerCase().includes(auditLogFilter.toLowerCase()));
+        const matchDate = !auditLogDateFilter || log.timestamp.startsWith(auditLogDateFilter);
+        return matchSearch && matchDate;
+    });
+    container.innerHTML = `
+        ${renderAdminBreadcrumb('Audit Logs')}
+        <div class="page-header"><h1>📋 Audit Logs</h1><p class="page-subtitle">Complete timeline of every Create, Update, Delete, and blocked action. Searchable by user or date.</p></div>
+        <div class="admin-toolbar">
+            <input type="text" class="form-control admin-search" placeholder="Search by username, action, or target..." value="${auditLogFilter}" onkeyup="auditLogFilter=this.value; renderAdminAuditLogs(document.getElementById('contentArea'))">
+            <input type="date" class="form-control admin-filter" value="${auditLogDateFilter}" onchange="auditLogDateFilter=this.value; renderAdminAuditLogs(document.getElementById('contentArea'))">
+            <button class="btn btn-outline" onclick="auditLogFilter='';auditLogDateFilter='';renderAdminAuditLogs(document.getElementById('contentArea'))">Clear Filters</button>
+        </div>
+        <div class="audit-timeline">
+            ${filtered.length === 0 ? '<div class="audit-empty">No audit log entries match your filters.</div>' : filtered.map((log, i) => `
+                <div class="audit-entry ${log.action.startsWith('BLOCKED') ? 'blocked' : ''}">
+                    <div class="audit-dot ${i === 0 ? 'latest' : ''}"></div>
+                    <div class="audit-content">
+                        <div class="audit-header">
+                            <strong>${log.action}</strong>
+                            <span class="audit-time">${log.timestamp}</span>
+                        </div>
+                        <div class="audit-meta">
+                            <span>👤 ${log.username} (${log.userId})</span>
+                            ${log.targetId ? `<span>🎯 Target: ${log.targetId}</span>` : ''}
+                            <span>🌐 ${log.ipAddress}</span>
+                            <span class="audit-type">${log.targetType}</span>
+                        </div>
+                        ${log.details ? `<div class="audit-details">${log.details}</div>` : ''}
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+        <div class="admin-stats-row"><span>${filtered.length} of ${auditLogsDB.length} log entries</span></div>`;
+}
+
+function viewAdminUser(userId) {
+    const user = adminUsersDB.find(u => u.id === userId);
+    if (!user) return;
+    const role = getRoleById(user.roleId);
+    document.getElementById('adminUserViewBody').innerHTML = `
+        <div class="profile-view">
+            <div class="profile-avatar">${user.username.slice(0, 2).toUpperCase()}</div>
+            <h3>${user.username}</h3>
+            ${renderPermissionBadge(role)}
+            <div class="profile-grid">
+                <div><strong>Email</strong><br>${user.email}</div>
+                <div><strong>Area</strong><br>${user.area}</div>
+                <div><strong>Phone</strong><br>${user.phone || '—'}</div>
+                <div><strong>Status</strong><br>${user.status === 'active' ? '<span class="status-badge green">Active</span>' : '<span class="status-badge red">Banned</span>'}</div>
+                <div><strong>Created</strong><br>${user.createdAt}</div>
+                <div><strong>Last Login</strong><br>${user.lastLogin || '—'}</div>
+                ${user.status === 'banned' ? `<div class="profile-ban-info"><strong>Banned</strong><br>${user.bannedAt}<br><em>${user.bannedReason}</em></div>` : ''}
+            </div>
+        </div>`;
+    openModal('adminUserViewModal');
+}
+
+function openAdminUserModal(userId) {
+    if (!userId) {
+        if (!apiMiddleware('/api/users/create', 'manage_users')) return;
+    } else if (!canUser('edit_all') && !canUser('edit_limited')) {
+        showToast('Access denied: You cannot edit users.', 'warning');
+        return;
+    }
+    editingAdminUserId = userId || null;
+    const user = userId ? adminUsersDB.find(u => u.id === userId) : null;
+    document.getElementById('adminUserModalTitle').textContent = user ? '✏️ Edit User' : '➕ Add User';
+    document.getElementById('adminUserUsername').value = user?.username || '';
+    document.getElementById('adminUserEmail').value = user?.email || '';
+    document.getElementById('adminUserPhone').value = user?.phone || '';
+    document.getElementById('adminUserArea').value = user?.area || '';
+    const roleSelect = document.getElementById('adminUserRole');
+    roleSelect.innerHTML = rolesDB.map(r => `<option value="${r.id}" ${user?.roleId === r.id ? 'selected' : ''}>${r.name}</option>`).join('');
+    document.getElementById('adminUserPasswordGroup').style.display = user ? 'none' : 'block';
+    openModal('adminUserModal');
+}
+
+function submitAdminUser() {
+    const username = document.getElementById('adminUserUsername').value.trim();
+    const email = document.getElementById('adminUserEmail').value.trim();
+    const phone = document.getElementById('adminUserPhone').value.trim();
+    const area = document.getElementById('adminUserArea').value.trim();
+    const roleId = document.getElementById('adminUserRole').value;
+    if (!username || !email) { showToast('Username and email are required.', 'warning'); return; }
+    if (editingAdminUserId) {
+        if (!apiMiddleware('/api/users/edit/:id', 'edit_all') && !apiMiddleware('/api/users/edit/:id', 'edit_limited')) return;
+        const user = adminUsersDB.find(u => u.id === editingAdminUserId);
+        if (!user) return;
+        Object.assign(user, { username, email, phone, area, roleId });
+        logAuditEvent(`Updated User ${user.id}`, user.id, 'user', `Role: ${getRoleById(roleId)?.name}, Area: ${area}`);
+        showToast(`User ${username} updated.`, 'success');
+    } else {
+        if (!apiMiddleware('/api/users/create', 'manage_users')) return;
+        const id = 'ADM-' + String(nextAdminUserId++).padStart(3, '0');
+        adminUsersDB.push({ id, username, email, passwordHash: '[bcrypt-hash]', roleId, status: 'active', area, phone, createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16), lastLogin: null, bannedAt: null, bannedReason: '' });
+        logAuditEvent(`Created User ${id}`, id, 'user', `Role: ${getRoleById(roleId)?.name}`);
+        showToast(`User ${username} created.`, 'success');
+    }
+    closeModal('adminUserModal');
+    if (currentPage === 'admin-users') renderAdminUsers(document.getElementById('contentArea'));
+}
+
+function resetAdminUserPassword(userId) {
+    if (!apiMiddleware('/api/users/reset-password/:id', 'manage_users')) return;
+    const user = adminUsersDB.find(u => u.id === userId);
+    if (!user) return;
+    user.passwordHash = '[bcrypt-hash-reset-' + Date.now() + ']';
+    logAuditEvent(`Reset Password for ${userId}`, userId, 'user', 'Password reset via admin panel');
+    showToast(`Password reset for ${user.username}. New credentials sent to ${user.email}.`, 'success');
+}
+
+function banAdminUser(userId) {
+    if (!apiMiddleware('/api/users/ban/:id', 'delete')) return;
+    const user = adminUsersDB.find(u => u.id === userId);
+    if (!user || user.id === CURRENT_SESSION_USER_ID) return;
+    const reason = prompt('Ban reason (soft delete — user hidden but data retained):', 'Account deactivated by administrator');
+    if (reason === null) return;
+    user.status = 'banned';
+    user.bannedAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    user.bannedReason = reason;
+    logAuditEvent(`Banned User ${userId}`, userId, 'user', reason);
+    showToast(`${user.username} has been banned (soft delete).`, 'success');
+    if (currentPage === 'admin-users') renderAdminUsers(document.getElementById('contentArea'));
+}
+
+function openPurgeUserModal(userId) {
+    if (!apiMiddleware('/api/users/purge/:id', 'purge')) return;
+    purgeTargetUserId = userId;
+    const user = adminUsersDB.find(u => u.id === userId);
+    document.getElementById('purgeUserName').textContent = user?.username || userId;
+    openModal('adminPurgeModal');
+}
+
+function confirmPurgeUser() {
+    if (!apiMiddleware('/api/users/purge/:id', 'purge')) return;
+    const idx = adminUsersDB.findIndex(u => u.id === purgeTargetUserId);
+    if (idx === -1) return;
+    const user = adminUsersDB[idx];
+    if (user.id === CURRENT_SESSION_USER_ID) { showToast('Cannot purge your own account.', 'warning'); return; }
+    adminUsersDB.splice(idx, 1);
+    logAuditEvent(`PERMANENTLY PURGED User ${purgeTargetUserId}`, purgeTargetUserId, 'user', 'Hard delete — data wiped from database');
+    showToast(`${user.username} permanently purged from database.`, 'success');
+    closeModal('adminPurgeModal');
+    purgeTargetUserId = null;
+    if (currentPage === 'admin-users') renderAdminUsers(document.getElementById('contentArea'));
+}
+
+function openAdminRoleModal(roleId) {
+    if (!apiMiddleware('/api/roles/save', 'manage_roles')) return;
+    editingRoleId = roleId || null;
+    const role = roleId ? rolesDB.find(r => r.id === roleId) : null;
+    document.getElementById('adminRoleModalTitle').textContent = role ? `✏️ Edit Role: ${role.name}` : '➕ Create Role';
+    document.getElementById('adminRoleName').value = role?.name || '';
+    document.getElementById('adminRoleDescription').value = role?.description || '';
+    document.getElementById('adminRoleName').disabled = !!role?.system;
+    const permsContainer = document.getElementById('adminRolePermissions');
+    permsContainer.innerHTML = ALL_PERMISSIONS.map(p => `
+        <label class="perm-checkbox">
+            <input type="checkbox" name="rolePerm" value="${p}" ${role?.permissions?.includes(p) ? 'checked' : ''}>
+            <span>${PERMISSION_LABELS[p] || p}</span>
+        </label>
+    `).join('');
+    openModal('adminRoleModal');
+}
+
+function submitAdminRole() {
+    if (!apiMiddleware('/api/roles/save', 'manage_roles')) return;
+    const name = document.getElementById('adminRoleName').value.trim();
+    const description = document.getElementById('adminRoleDescription').value.trim();
+    const permissions = [...document.querySelectorAll('input[name="rolePerm"]:checked')].map(cb => cb.value);
+    if (!name) { showToast('Role name is required.', 'warning'); return; }
+    if (editingRoleId) {
+        const role = rolesDB.find(r => r.id === editingRoleId);
+        if (!role) return;
+        if (!role.system) role.name = name;
+        role.description = description;
+        role.permissions = permissions;
+        logAuditEvent(`Updated Role ${role.id}`, role.id, 'role', permissions.join(', '));
+        showToast(`Role "${name}" updated.`, 'success');
+    } else {
+        const id = 'role-custom-' + nextRoleId++;
+        rolesDB.push({ id, name, description, system: false, permissions });
+        logAuditEvent(`Created Role ${id}`, id, 'role', name);
+        showToast(`Role "${name}" created.`, 'success');
+    }
+    closeModal('adminRoleModal');
+    if (currentPage === 'admin-roles') renderAdminRoles(document.getElementById('contentArea'));
+}
+
+function deleteAdminRole(roleId) {
+    if (!apiMiddleware('/api/roles/delete/:id', 'manage_roles')) return;
+    const role = rolesDB.find(r => r.id === roleId);
+    if (!role || role.system) return;
+    if (!confirm(`Delete role "${role.name}"? Users with this role must be reassigned first.`)) return;
+    if (adminUsersDB.some(u => u.roleId === roleId)) { showToast('Cannot delete role — users are still assigned to it.', 'warning'); return; }
+    const idx = rolesDB.findIndex(r => r.id === roleId);
+    rolesDB.splice(idx, 1);
+    logAuditEvent(`Deleted Role ${roleId}`, roleId, 'role');
+    showToast(`Role "${role.name}" deleted.`, 'success');
+    if (currentPage === 'admin-roles') renderAdminRoles(document.getElementById('contentArea'));
+}
+
+function updateSystemSetting(key, value) {
+    if (!apiMiddleware('/api/settings/update', 'manage_settings')) {
+        if (currentPage === 'admin-settings') renderAdminSettings(document.getElementById('contentArea'));
+        return;
+    }
+    const old = systemSettingsDB[key];
+    systemSettingsDB[key] = value;
+    logAuditEvent('Updated System Settings', 'settings', 'settings', `${key}: ${old} → ${value}`);
+    showToast(`Setting "${key}" updated.`, 'success');
+}
+
+function triggerManualBackup() {
+    if (!apiMiddleware('/api/settings/backup', 'manage_settings')) return;
+    logAuditEvent('Manual Database Backup', 'database', 'backup', `Schedule: ${systemSettingsDB.backupSchedule}, Retention: ${systemSettingsDB.backupRetentionDays} days`);
+    showToast('Database backup initiated. Snapshot saved to secure storage.', 'success');
+}
+
+// ============================================
 // COMMENT MODAL FUNCTIONS
 // ============================================
 function formatWorkflowDate(isoStr) {
@@ -4544,6 +5152,8 @@ function showToast(message,type='success'){ const toast=document.getElementById(
 document.addEventListener('DOMContentLoaded',function(){
     syncAllAssetDocumentsToGlobalRegistry();
     initMatrixModalSelects();
+    updateTopBarUser();
+    populateRoleSwitcher();
     navigateTo('dashboard');
     updateSidebarBadges();
     document.querySelectorAll('.modal-overlay').forEach(overlay=>{ overlay.addEventListener('click',function(e){ if(e.target===this)this.classList.remove('show'); }); });
