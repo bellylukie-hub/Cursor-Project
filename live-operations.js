@@ -93,6 +93,9 @@
                     return `<td><span class="status-badge ${t.kpi}">${t.status || '—'}</span></td>`;
                 }
                 const val = t[c.field];
+                if (c.field === 'driver' && val && typeof renderDriverLink === 'function') {
+                    return `<td>${renderDriverLink(val, t.tripNumber)}</td>`;
+                }
                 return `<td>${val != null && val !== '' ? val : '—'}</td>`;
             }).join('');
             const commentBtn = canEdit

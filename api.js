@@ -265,4 +265,50 @@ async function syncTripsFromApi(authoritative) {
   }
 }
 
+async function fetchDriverContacts(params = {}) {
+  const qs = new URLSearchParams(
+    Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== '' && v !== 'all'))
+  ).toString();
+  const data = await apiRequest(`/driver-contacts${qs ? `?${qs}` : ''}`);
+  return data.contacts || [];
+}
+
+async function fetchDriverContactByTrip(tripNumber) {
+  try {
+    const data = await apiRequest(`/driver-contacts/by-trip/${encodeURIComponent(tripNumber)}`);
+    return data.contact;
+  } catch (e) {
+    if (String(e.message).includes('404') || String(e.message).includes('No driver contact')) return null;
+    throw e;
+  }
+}
+
+async function saveDriverContact(payload) {
+  const data = await apiRequest('/driver-contacts', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+  return data.contact;
+}
+
+function mergeDriverContactIntoLocalDb(contact) {
+  if (!contact || !contact.id || typeof driverContactsDB === 'undefined') return;
+  const idx = driverContactsDB.findIndex(c => c.id === contact.id);
+  if (idx >= 0) driverContactsDB[idx] = contact;
+  else driverContactsDB.unshift(contact);
+}
+
+async function syncDriverContactsFromApi() {
+  if (!apiAvailable || typeof driverContactsDB === 'undefined') return false;
+  try {
+    const contacts = await fetchDriverContacts();
+    driverContactsDB.length = 0;
+    contacts.forEach(c => driverContactsDB.push(c));
+    return true;
+  } catch (e) {
+    console.warn('Failed to sync driver contacts from API:', e.message);
+    return false;
+  }
+}
+
 loadStoredAuth();

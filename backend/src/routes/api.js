@@ -20,6 +20,12 @@ const {
   updateFleetSettings,
   listFleetOwners
 } = require('../services/turnaroundService');
+const {
+  listDriverContacts,
+  getDriverContactById,
+  getDriverContactByTrip,
+  upsertDriverContact
+} = require('../services/driverContactService');
 const db = require('../db/database');
 const env = require('../config/env');
 
@@ -176,6 +182,50 @@ router.post('/pod/:tripNumber/:stage', (req, res) => {
     if (!valid.includes(stage)) return res.status(400).json({ error: `Invalid stage. Use: ${valid.join(', ')}` });
     const trip = advancePodStage(req.params.tripNumber, stage, getUser(req));
     res.json({ trip });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Driver contacts (border team registration)
+router.get('/driver-contacts', (req, res) => {
+  try {
+    const contacts = listDriverContacts({
+      search: req.query.search,
+      direction: req.query.direction,
+      border: req.query.border,
+      registered: req.query.registered
+    });
+    res.json({ contacts });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/driver-contacts/by-trip/:tripNumber', (req, res) => {
+  try {
+    const contact = getDriverContactByTrip(req.params.tripNumber);
+    if (!contact) return res.status(404).json({ error: 'No driver contact for this trip' });
+    res.json({ contact });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/driver-contacts/:id', (req, res) => {
+  try {
+    const contact = getDriverContactById(req.params.id);
+    if (!contact) return res.status(404).json({ error: 'Driver contact not found' });
+    res.json({ contact });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/driver-contacts', (req, res) => {
+  try {
+    const contact = upsertDriverContact(req.body, getUser(req));
+    res.status(201).json({ contact, message: 'Driver contact saved' });
   } catch (e) {
     res.status(400).json({ error: e.message });
   }

@@ -876,6 +876,22 @@
         .status-badge.kbp { background: #ebf4ff; color: var(--kbp-color); }
         .status-badge.whisky { background: #f3effc; color: var(--whisky-color); }
 
+        a.driver-link {
+            color: var(--primary-light);
+            font-weight: 600;
+            text-decoration: none;
+            border-bottom: 1px dashed var(--primary-light);
+        }
+        a.driver-link:hover { color: var(--primary); border-bottom-style: solid; }
+
+        .driver-contact-form-panel {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 12px;
+        }
+
         /* KPI INDICATOR */
         .kpi-indicator { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 5px; }
         .kpi-indicator.green { background: var(--success); }
@@ -1448,6 +1464,9 @@
                     <a class="nav-item" onclick="navigateToCommunicationMatrix('contacts')" data-page="communication-matrix">
                         <span class="icon">📇</span> Communication Matrix <span class="badge" id="navMatrixBadge" title="Total contacts in matrix"></span>
                     </a>
+                    <a class="nav-item" onclick="navigateTo('driver-registry')" data-page="driver-registry">
+                        <span class="icon">📱</span> Driver Registry <span class="badge" id="navDriverRegistryBadge" title="Registered drivers"></span>
+                    </a>
                     <a class="nav-item" onclick="navigateToInternalComm('email')" data-page="internal-communication">
                         <span class="icon">✉️</span> Internal Communication <span class="badge" id="navInternalCommBadge" title="Unread emails and chats"></span>
                     </a>
@@ -1716,6 +1735,45 @@
             <div class="modal-header"><h3 id="assetDetailTitle">Asset Details</h3><button class="btn btn-outline" onclick="closeModal('assetDetailModal')">✕</button></div>
             <div class="modal-body" id="assetDetailBody"></div>
             <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('assetDetailModal')">Close</button></div>
+        </div>
+    </div>
+
+    <!-- DRIVER REGISTRATION MODAL (Border team — NB drivers) -->
+    <div class="modal-overlay" id="driverRegistrationModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>📱 Register Driver Contact</h3>
+                <button class="btn btn-outline" onclick="closeModal('driverRegistrationModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">
+                    Border team: register WhatsApp and DRC number for every NB driver passing through your office.
+                </p>
+                <form id="driverRegistrationForm" onsubmit="event.preventDefault(); submitDriverRegistration();">
+                    <input type="hidden" id="driverRegId">
+                    <div class="form-grid-2">
+                        <div class="form-group"><label>Trip #</label><input type="text" class="form-control" id="driverRegTrip" placeholder="NB-2024-001"></div>
+                        <div class="form-group"><label>Truck</label><input type="text" class="form-control" id="driverRegTruck" placeholder="ABC123DRC"></div>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group"><label>Driver Name <span class="required">*</span></label><input type="text" class="form-control" id="driverRegName" placeholder="Full name" required></div>
+                        <div class="form-group"><label>Transport Company</label><input type="text" class="form-control" id="driverRegOwner" placeholder="Owner / company"></div>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group"><label>DRC Number <span class="required">*</span></label><input type="text" class="form-control" id="driverRegDrc" placeholder="+243 8XX XXX XXX" required></div>
+                        <div class="form-group"><label>WhatsApp Number <span class="required">*</span></label><input type="text" class="form-control" id="driverRegWhatsapp" placeholder="+260 9XX XXX XXX" required></div>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group"><label>Direction</label><select class="form-control" id="driverRegDirection"><option value="NB">NB — North Bound</option><option value="SB">SB — South Bound</option></select></div>
+                        <div class="form-group"><label>Border / Area</label><select class="form-control" id="driverRegBorder"><option value="">— Select —</option><option>Kasumbalesa</option><option>Sakania</option><option>Mokambo</option></select></div>
+                    </div>
+                    <div class="form-group"><label>Notes</label><textarea class="form-control" id="driverRegNotes" rows="2" placeholder="Optional notes"></textarea></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('driverRegistrationModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitDriverRegistration()">💾 Save Driver Contact</button>
+            </div>
         </div>
     </div>
 

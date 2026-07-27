@@ -200,10 +200,28 @@ function initSchema() {
       timestamp TEXT DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS driver_contacts (
+      id TEXT PRIMARY KEY,
+      trip_number TEXT,
+      driver_name TEXT NOT NULL,
+      truck TEXT,
+      direction TEXT DEFAULT 'NB' CHECK(direction IN ('NB', 'SB')),
+      border TEXT,
+      owner TEXT,
+      drc_number TEXT NOT NULL,
+      whatsapp TEXT NOT NULL,
+      registered_by TEXT,
+      registered_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      notes TEXT
+    );
+
     CREATE INDEX IF NOT EXISTS idx_trips_direction ON trips(direction);
     CREATE INDEX IF NOT EXISTS idx_trips_turnaround ON trips(turnaround_id);
     CREATE INDEX IF NOT EXISTS idx_workflow_trip ON workflow_steps(trip_id);
     CREATE INDEX IF NOT EXISTS idx_border_trip ON border_clearance_steps(trip_id);
+    CREATE INDEX IF NOT EXISTS idx_driver_contacts_trip ON driver_contacts(trip_number);
+    CREATE INDEX IF NOT EXISTS idx_driver_contacts_name ON driver_contacts(driver_name);
   `);
 }
 

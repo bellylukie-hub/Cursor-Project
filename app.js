@@ -916,6 +916,17 @@ const communicationMatrixDB = [
     { id: 'CM-009', name: 'Jean Pierre', company: 'Sakania Border', function: 'Border Officer', email: 'jpierre@sakania.com', placeOfWork: 'Sakania Parking', phone: '+243 998 111222', whatsapp: '+243 998 111222', area: 'Sakania', active: false, notes: 'Inactive — on leave' }
 ];
 
+const driverContactsDB = [
+    { id: 'DC-001', tripNumber: 'NB-2024-001', driverName: 'John Doe', truck: 'ABC123DRC', direction: 'NB', border: 'Kasumbalesa', owner: 'Transport Co A', drcNumber: '+243 812 345678', whatsapp: '+260 977 123456', registeredBy: 'border_moderator', registeredAt: '2026-07-23T08:30:00', notes: 'Registered at KBP Step 7' },
+    { id: 'DC-002', tripNumber: 'NB-2024-008', driverName: 'Peter Mwansa', truck: 'JKL012DRC', direction: 'NB', border: 'Kasumbalesa', owner: 'Transport Co D', drcNumber: '+243 999 234567', whatsapp: '+260 966 234567', registeredBy: 'border_moderator', registeredAt: '2026-07-24T10:15:00', notes: 'Whisky process' },
+    { id: 'DC-003', tripNumber: 'NB-2024-015', driverName: 'Sarah Smith', truck: 'XYZ789DRC', direction: 'NB', border: 'Sakania', owner: 'Transport Co B', drcNumber: '+243 815 456789', whatsapp: '+260 977 345678', registeredBy: 'border_moderator', registeredAt: '2026-07-22T14:00:00', notes: '' },
+    { id: 'DC-004', tripNumber: 'SB-2024-003', driverName: 'Mike Johnson', truck: 'DEF456DRC', direction: 'SB', border: 'Kasumbalesa', owner: 'Transport Co A', drcNumber: '+243 810 567890', whatsapp: '+260 977 456789', registeredBy: 'border_moderator', registeredAt: '2026-07-20T09:00:00', notes: 'Inherited from NB turnaround' }
+];
+let driverRegistrySearchTerm = '';
+let driverRegistryDirectionFilter = 'all';
+let driverRegistryBorderFilter = 'all';
+let driverRegistryRegisteredFilter = 'all';
+
 const CURRENT_USER = 'Current User';
 const CURRENT_USER_EMAIL = 'current.user@truckcontrol.local';
 
@@ -1156,6 +1167,9 @@ async function bootApplication() {
     if (typeof syncTripsFromApi === 'function' && isApiAvailable()) {
         await syncTripsFromApi(true);
     }
+    if (typeof syncDriverContactsFromApi === 'function' && isApiAvailable()) {
+        await syncDriverContactsFromApi();
+    }
     navigateTo('dashboard');
     updateSidebarBadges();
     updateAdminNavVisibility();
@@ -1226,6 +1240,7 @@ const OPERATIONAL_MODULES = [
     { id: 'pod-management', label: 'POD Management', icon: '📋', global: false },
     { id: 'area-browser', label: 'Area Trucks', icon: '🗺️', global: false },
     { id: 'communication-matrix', label: 'Communication Matrix', icon: '📇', global: true },
+    { id: 'driver-registry', label: 'Driver Registry', icon: '📱', global: true },
     { id: 'internal-communication', label: 'Internal Communication', icon: '✉️', global: true },
     { id: 'assets', label: 'Assets & Equipment', icon: '🚗', global: true },
     { id: 'runner-fees', label: 'Runner Fees', icon: '💰', global: true },
@@ -1242,6 +1257,7 @@ const PAGE_MODULE_MAP = {
     'pod-management': 'pod-management',
     'area-browser': 'area-browser',
     'communication-matrix': 'communication-matrix',
+    'driver-registry': 'driver-registry',
     'internal-communication': 'internal-communication',
     assets: 'assets',
     'runner-fees': 'runner-fees',
@@ -1777,6 +1793,7 @@ function navigateTo(page) {
         case 'kolwezi': renderAreaPage(ca,'Kolwezi'); break;
         case 'area-browser': renderAreaBrowser(ca); break;
         case 'communication-matrix': renderCommunicationMatrix(ca); break;
+        case 'driver-registry': renderDriverRegistry(ca); break;
         case 'internal-communication': renderInternalCommunication(ca); break;
         case 'assets': renderAssets(ca); break;
         case 'runner-fees': renderRunnerFees(ca); break;
@@ -2727,6 +2744,7 @@ function renderBorderPerformanceCard(direction, data) {
 
 function getCommunicationDashboardStats() {
     const matrix = getMatrixStats();
+    const driverStats = getDriverRegistryStats();
     const emailCounts = getEmailFolderCounts();
     const unreadChats = chatRoomsDB.reduce((sum, room) => sum + (room.unreadCount || 0), 0);
     return {
@@ -2735,6 +2753,8 @@ function getCommunicationDashboardStats() {
         matrixInactiveContacts: matrix.inactiveContacts,
         matrixCompanies: matrix.companies,
         matrixAreas: matrix.areas,
+        driverRegistryTotal: driverStats.total,
+        driverRegistryNb: driverStats.nb,
         unreadEmails: emailCounts.unread,
         unreadChats,
         unreadMessages: emailCounts.unread + unreadChats,
@@ -2748,11 +2768,17 @@ function getCommunicationDashboardStats() {
 function updateSidebarBadges() {
     const comm = getCommunicationDashboardStats();
     const matrixBadge = document.getElementById('navMatrixBadge');
+    const driverBadge = document.getElementById('navDriverRegistryBadge');
     const internalBadge = document.getElementById('navInternalCommBadge');
     if (matrixBadge) {
         matrixBadge.textContent = comm.matrixTotalContacts;
         matrixBadge.title = `${comm.matrixTotalContacts} contacts in Communication Matrix`;
         matrixBadge.style.display = comm.matrixTotalContacts ? '' : 'none';
+    }
+    if (driverBadge) {
+        driverBadge.textContent = comm.driverRegistryTotal;
+        driverBadge.title = `${comm.driverRegistryTotal} registered driver(s) — ${comm.driverRegistryNb} NB`;
+        driverBadge.style.display = comm.driverRegistryTotal ? '' : 'none';
     }
     if (internalBadge) {
         internalBadge.textContent = comm.unreadMessages;
@@ -3243,7 +3269,7 @@ function renderDashboardTableRows(trips, listKey) {
             <td><strong>${t.tripNumber}</strong></td>
             <td>${t.truck}</td>
             <td>${t.owner}</td>
-            <td>${t.driver}</td>
+            <td>${renderDriverLink(t.driver, t.tripNumber)}</td>
             <td>${t.direction === 'NB' ? (t.entryBorder || '-') : (t.loadingPoint || '-')}</td>
             <td>${t.direction === 'NB' ? (t.offloadingPoint || '-') : (t.exitBorder || '-')}</td>
             <td>${t.area || '-'}</td>
@@ -3293,6 +3319,7 @@ function renderNBOperations(container) {
         </div>
         <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
             ${canEditInModule('nb-operations') ? `<button class="btn btn-primary" onclick="openUploadModal('NB')">📤 Upload NB Live File</button>` : ''}
+            ${canEditInModule('border-clearance') ? `<button class="btn btn-outline" onclick="openDriverRegistrationModal()">📱 Register NB Driver</button>` : ''}
             <button class="btn btn-outline" onclick="downloadTemplateCsv('NB')">📥 NB Template</button>
             ${canAccessModule('position-live') ? `<button class="btn btn-outline" onclick="navigateTo('position-live')">📍 Position Live</button>` : ''}
         </div>
@@ -3403,13 +3430,14 @@ function clearSBFilters() {
 // ============================================
 function renderBorderTableRows(rows) {
     if (!rows.length) {
-        return '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text-secondary);">No trucks match your search</td></tr>';
+        return '<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--text-secondary);">No trucks match your search</td></tr>';
     }
     return rows.map(t => `
         <tr>
             <td style="width:36px;text-align:center;">${renderListRowCheckbox('border', t.trip)}</td>
             <td><strong>${t.trip}</strong></td>
             <td>${t.truck}</td>
+            <td>${renderDriverLink(t.driver, t.trip)}</td>
             <td><span class="status-badge blue">${t.direction}</span></td>
             <td>${t.border}</td>
             <td>${t.processHtml}</td>
@@ -3511,6 +3539,7 @@ function renderBorderClearanceOverview(container) {
             <div class="filter-group"><label>KPI:</label><select id="borderKPIFilter" onchange="refreshBorderTable()"><option value="all">All</option><option value="green">🟢 On Track</option><option value="orange">🟠 Priority</option><option value="red">🔴 Overdue</option></select></div>
             <div class="search-filter"><span>🔍</span><input type="text" id="borderSearchInput" placeholder="Search by Trip#, Truck, Driver, Border, Status..." onkeyup="refreshBorderTable()"></div>
             <button class="btn btn-outline btn-sm" onclick="clearBorderFilters()">Clear</button>
+            ${canEditInModule('border-clearance') ? `<button class="btn btn-primary btn-sm" onclick="openDriverRegistrationModal()">📱 Register NB Driver</button>` : ''}
         </div>
 
         <div class="table-container">
@@ -3523,7 +3552,7 @@ function renderBorderClearanceOverview(container) {
             </div>
             <table><thead><tr>
                 <th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all border trucks" onchange="toggleAllListRows('border', this.checked)"></th>
-                <th>Trip #</th><th>Truck</th><th>Direction</th><th>Border</th><th>Process</th><th>Status</th><th>Hours</th><th>Target</th><th>KPI</th><th>Actions</th>
+                <th>Trip #</th><th>Truck</th><th>Driver</th><th>Direction</th><th>Border</th><th>Process</th><th>Status</th><th>Hours</th><th>Target</th><th>KPI</th><th>Actions</th>
             </tr></thead>
             <tbody id="borderTableBody">${renderBorderTableRowsFiltered()}</tbody></table>
         </div>
@@ -3563,6 +3592,7 @@ function buildKBPSteps(config) {
             : null;
         return {
             num: stepNum, title, time: `15/07/2026 ${times[i]}`, duration: durations[i],
+            stepKey,
             target: kpiTarget || (i === 1 ? '4 HRS' : (i === 3 || i === 4 ? '1 HR' : null)),
             transitionKpi: transitionLabel,
             user: users[i], area, status,
@@ -3579,9 +3609,15 @@ function renderKBPStepsForConfig(config) {
         const statusClass = s.status === 'completed' ? 'completed' : s.status === 'in-progress' ? 'in-progress' : 'pending';
         const statusIcon = s.status === 'completed' ? '✅' : s.status === 'in-progress' ? '🔄' : '⏳';
         const statusLabel = s.status === 'completed' ? '✅ Completed' : s.status === 'in-progress' ? '🔄 In Progress' : '⏳ Pending';
+        const driverStepBody = s.stepKey === 'driver-contact' ? `
+            <div class="driver-contact-form-panel">
+                <p style="font-size:13px;margin-bottom:12px;"><strong>Border team:</strong> Register the driver's WhatsApp and DRC number before completing this step.</p>
+                <button class="btn btn-primary btn-sm" onclick="openDriverRegistrationModal('${config.tripId || config.trip}')">📱 Open Driver Registration Form</button>
+                ${findDriverContactByTrip(config.tripId || config.trip) ? '<span class="status-badge green" style="margin-left:8px;">✓ Contact on file</span>' : '<span class="status-badge orange" style="margin-left:8px;">Pending registration</span>'}
+            </div>` : '';
         return `
         <div class="step-container ${statusClass}"><div class="step-header ${statusClass}" onclick="toggleStep(this)"><div class="step-number">${s.num}</div><div class="step-info"><div class="step-title">${s.title}</div><div class="step-meta"><span>${statusLabel}</span><span>📅 ${s.time}</span>${s.transitionKpi ? `<span class="kpi-transition-badge">↳ ${s.transitionKpi}</span>` : ''}${s.target ? `<span>🎯 Step: ${s.target}</span>` : ''}<span>⏱️ ${s.duration}</span></div></div><div class="step-status-icon">${statusIcon}</div></div>
-        <div class="step-body${i === 0 ? ' open' : ''}"><div class="user-log"><div class="user-info-row"><span class="user-tag">👤 ${s.user}</span><span class="area-tag">📍 ${s.area}</span></div><div class="log-entry"><div class="log-time">📅 ${s.time}</div><div class="log-action">${statusIcon} ${s.action}</div><div class="log-detail">📝 ${s.detail}</div>${s.status === 'in-progress' ? `<button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="wireBorderStepComplete('${config.tripId}', ${s.num})">✅ Complete Step ${s.num}</button>` : ''}</div></div></div></div>`;
+        <div class="step-body${i === 0 ? ' open' : ''}"><div class="user-log"><div class="user-info-row"><span class="user-tag">👤 ${s.user}</span><span class="area-tag">📍 ${s.area}</span></div><div class="log-entry"><div class="log-time">📅 ${s.time}</div><div class="log-action">${statusIcon} ${s.action}</div><div class="log-detail">📝 ${s.detail}</div>${driverStepBody}${s.status === 'in-progress' ? `<button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="wireBorderStepComplete('${config.tripId}', ${s.num})">✅ Complete Step ${s.num}</button>` : ''}</div></div></div></div>`;
     }).join('');
 
     if (config.finalApproval) {
@@ -3626,7 +3662,7 @@ function renderNBKBPBorderDetail(container, config) {
                 <div class="truck-info-item"><span class="truck-info-label">Trip Number</span><span class="truck-info-value large">${config.trip}</span></div>
                 <div class="truck-info-item"><span class="truck-info-label">Truck</span><span class="truck-info-value large">${config.truck}</span></div>
                 <div class="truck-info-item"><span class="truck-info-label">Trailer</span><span class="truck-info-value">${config.trailer}</span></div>
-                <div class="truck-info-item"><span class="truck-info-label">Driver</span><span class="truck-info-value">${config.driver}</span></div>
+                <div class="truck-info-item"><span class="truck-info-label">Driver</span><span class="truck-info-value">${renderDriverLink(config.driver, config.tripId || config.trip)}</span></div>
                 <div class="truck-info-item"><span class="truck-info-label">Direction</span><span class="truck-info-value">🔼 North Bound</span></div>
                 <div class="truck-info-item"><span class="truck-info-label">Owner</span><span class="truck-info-value">${config.owner}</span></div>
             </div>
@@ -3704,7 +3740,7 @@ function renderSBClearanceDetail(container, config) {
             <div class="truck-info-group">
                 <div class="truck-info-item"><span class="truck-info-label">Trip</span><span class="truck-info-value large">${config.trip}</span></div>
                 <div class="truck-info-item"><span class="truck-info-label">Truck</span><span class="truck-info-value large">${config.truck}</span></div>
-                <div class="truck-info-item"><span class="truck-info-label">Driver</span><span class="truck-info-value">${config.driver}</span></div>
+                <div class="truck-info-item"><span class="truck-info-label">Driver</span><span class="truck-info-value">${renderDriverLink(config.driver, config.tripId || config.trip)}</span></div>
                 <div class="truck-info-item"><span class="truck-info-label">Owner</span><span class="truck-info-value">${config.owner}</span></div>
                 <div class="truck-info-item"><span class="truck-info-label">Direction</span><span class="truck-info-value">🔽 South Bound</span></div>
                 <div class="truck-info-item"><span class="truck-info-label">Hours at Border</span><span class="truck-info-value">${config.timeValue}</span></div>
@@ -4275,7 +4311,7 @@ function renderPODManagement(container) {
 
 function renderAreaPage(container, areaName) {
     const trips = Object.values(tripsDB).filter(t=>t.area===areaName);
-    container.innerHTML = `<div class="page-header"><h1>🏢 ${areaName} Area</h1></div><div class="table-container"><div class="table-header"><h3>Trucks in ${areaName} (${trips.length})</h3></div><table><thead><tr><th>Trip</th><th>Truck</th><th>Driver</th><th>Direction</th><th>Status</th><th>Actions</th></tr></thead><tbody>${trips.map(t=>`<tr><td>${t.tripNumber}</td><td>${t.truck}</td><td>${t.driver}</td><td><span class="status-badge blue">${t.direction}</span></td><td><span class="status-badge ${t.kpi}">${t.status}</span></td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}', '${t.direction === 'SB' ? 'sb' : 'nb'}')">💬 Comment</button></td></tr>`).join('')||'<tr><td colspan="6">No trucks</td></tr>'}</tbody></table></div>`;
+    container.innerHTML = `<div class="page-header"><h1>🏢 ${areaName} Area</h1></div><div class="table-container"><div class="table-header"><h3>Trucks in ${areaName} (${trips.length})</h3></div><table><thead><tr><th>Trip</th><th>Truck</th><th>Driver</th><th>Direction</th><th>Status</th><th>Actions</th></tr></thead><tbody>${trips.map(t=>`<tr><td>${t.tripNumber}</td><td>${t.truck}</td><td>${renderDriverLink(t.driver, t.tripNumber)}</td><td><span class="status-badge blue">${t.direction}</span></td><td><span class="status-badge ${t.kpi}">${t.status}</span></td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}', '${t.direction === 'SB' ? 'sb' : 'nb'}')">💬 Comment</button></td></tr>`).join('')||'<tr><td colspan="6">No trucks</td></tr>'}</tbody></table></div>`;
 }
 
 // ============================================
@@ -5149,6 +5185,286 @@ function renderRunnerFees(container) {
             <div class="table-header"><h3>${runnerFeeMode === 'border' ? 'Border Runner — NB trucks' : runnerFeeMode === 'kanyaka-nb' ? 'Kanyaka Runner — NB' : 'Kanyaka Runner — SB'}</h3></div>
             <div style="overflow-x:auto;">${bodyHtml}</div>
         </div>`;
+}
+
+// ============================================
+// DRIVER REGISTRY (Border team — NB driver contacts)
+// ============================================
+function escapeJsString(s) {
+    return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+function findDriverContactByTrip(tripNumber) {
+    if (!tripNumber) return null;
+    return driverContactsDB.find(c => c.tripNumber === tripNumber) || null;
+}
+
+function getDriverRegistryStats() {
+    const nb = driverContactsDB.filter(c => c.direction === 'NB').length;
+    const sb = driverContactsDB.filter(c => c.direction === 'SB').length;
+    return { total: driverContactsDB.length, nb, sb };
+}
+
+function renderDriverLink(driverName, tripNumber) {
+    const name = driverName || '—';
+    if (!tripNumber || name === '—') return name;
+    const registered = findDriverContactByTrip(tripNumber);
+    const title = registered ? 'View / edit driver contact' : 'Register driver WhatsApp & DRC number';
+    return `<a href="#" class="driver-link" onclick="event.preventDefault();event.stopPropagation();openDriverRegistrationModal('${escapeJsString(tripNumber)}')" title="${title}">${name}${registered ? '' : ' <span style="font-size:10px;">📱</span>'}</a>`;
+}
+
+function resolveTripContext(tripNumber) {
+    if (tripNumber && tripsDB[tripNumber]) {
+        const t = tripsDB[tripNumber];
+        return {
+            tripNumber: t.tripNumber,
+            driverName: t.driver,
+            truck: t.truck,
+            direction: t.direction || 'NB',
+            border: t.entryBorder || t.exitBorder || t.area || '',
+            owner: t.owner || ''
+        };
+    }
+    const borderRow = borderClearanceTrucks.find(b => b.trip === tripNumber);
+    if (borderRow) {
+        return {
+            tripNumber: borderRow.trip,
+            driverName: borderRow.driver,
+            truck: borderRow.truck,
+            direction: borderRow.direction || 'NB',
+            border: borderRow.border || '',
+            owner: borderRow.owner || ''
+        };
+    }
+    return { tripNumber: tripNumber || '', driverName: '', truck: '', direction: 'NB', border: '', owner: '' };
+}
+
+async function openDriverRegistrationModal(tripNumber) {
+    document.getElementById('driverRegistrationForm').reset();
+    document.getElementById('driverRegId').value = '';
+
+    const ctx = resolveTripContext(tripNumber);
+    if (ctx.tripNumber) document.getElementById('driverRegTrip').value = ctx.tripNumber;
+    if (ctx.driverName) document.getElementById('driverRegName').value = ctx.driverName;
+    if (ctx.truck) document.getElementById('driverRegTruck').value = ctx.truck;
+    if (ctx.owner) document.getElementById('driverRegOwner').value = ctx.owner;
+    if (ctx.direction) document.getElementById('driverRegDirection').value = ctx.direction;
+    if (ctx.border) document.getElementById('driverRegBorder').value = ctx.border;
+
+    let existing = findDriverContactByTrip(ctx.tripNumber);
+    if (!existing && ctx.tripNumber && typeof fetchDriverContactByTrip === 'function' && isApiAvailable()) {
+        try {
+            existing = await fetchDriverContactByTrip(ctx.tripNumber);
+            if (existing && typeof mergeDriverContactIntoLocalDb === 'function') mergeDriverContactIntoLocalDb(existing);
+        } catch (_) { /* use local data */ }
+    }
+
+    if (existing) {
+        document.getElementById('driverRegId').value = existing.id || '';
+        document.getElementById('driverRegTrip').value = existing.tripNumber || ctx.tripNumber || '';
+        document.getElementById('driverRegName').value = existing.driverName || ctx.driverName || '';
+        document.getElementById('driverRegTruck').value = existing.truck || ctx.truck || '';
+        document.getElementById('driverRegOwner').value = existing.owner || ctx.owner || '';
+        document.getElementById('driverRegDrc').value = existing.drcNumber || '';
+        document.getElementById('driverRegWhatsapp').value = existing.whatsapp || '';
+        document.getElementById('driverRegDirection').value = existing.direction || ctx.direction || 'NB';
+        document.getElementById('driverRegBorder').value = existing.border || ctx.border || '';
+        document.getElementById('driverRegNotes').value = existing.notes || '';
+    }
+
+    openModal('driverRegistrationModal');
+}
+
+async function submitDriverRegistration() {
+    const id = document.getElementById('driverRegId').value.trim();
+    const tripNumber = document.getElementById('driverRegTrip').value.trim();
+    const driverName = document.getElementById('driverRegName').value.trim();
+    const truck = document.getElementById('driverRegTruck').value.trim();
+    const owner = document.getElementById('driverRegOwner').value.trim();
+    const drcNumber = document.getElementById('driverRegDrc').value.trim();
+    const whatsapp = document.getElementById('driverRegWhatsapp').value.trim();
+    const direction = document.getElementById('driverRegDirection').value;
+    const border = document.getElementById('driverRegBorder').value;
+    const notes = document.getElementById('driverRegNotes').value.trim();
+
+    if (!driverName || !drcNumber || !whatsapp) {
+        showToast('Driver name, DRC number, and WhatsApp are required', 'warning');
+        return;
+    }
+
+    const payload = { id: id || undefined, tripNumber, driverName, truck, owner, drcNumber, whatsapp, direction, border, notes };
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    const registeredBy = getCurrentAdminUser()?.username || CURRENT_USER;
+
+    try {
+        if (typeof saveDriverContact === 'function' && isApiAvailable()) {
+            const saved = await saveDriverContact(payload);
+            if (saved && typeof mergeDriverContactIntoLocalDb === 'function') mergeDriverContactIntoLocalDb(saved);
+            else {
+                const local = { id: id || `DC-${Date.now()}`, ...payload, registeredBy, registeredAt: now, updatedAt: now };
+                const idx = driverContactsDB.findIndex(c => c.id === local.id || (tripNumber && c.tripNumber === tripNumber));
+                if (idx >= 0) driverContactsDB[idx] = { ...driverContactsDB[idx], ...local };
+                else driverContactsDB.unshift(local);
+            }
+        } else {
+            const local = { id: id || `DC-${Date.now()}`, ...payload, registeredBy, registeredAt: now, updatedAt: now };
+            const idx = driverContactsDB.findIndex(c => c.id === local.id || (tripNumber && c.tripNumber === tripNumber));
+            if (idx >= 0) driverContactsDB[idx] = { ...driverContactsDB[idx], ...local };
+            else driverContactsDB.unshift(local);
+        }
+    } catch (e) {
+        showToast(e.message || 'Failed to save driver contact', 'warning');
+        return;
+    }
+
+    if (tripNumber && tripsDB[tripNumber]) {
+        tripsDB[tripNumber].driverContactRegistered = true;
+    }
+
+    logAuditEvent(`Registered driver contact for ${driverName}`, tripNumber || id, 'driver_contact', `${drcNumber} / ${whatsapp}`);
+    closeModal('driverRegistrationModal');
+    showToast(`Driver contact saved for ${driverName}`, 'success');
+    if (currentPage === 'driver-registry') refreshDriverRegistryTable();
+    if (currentPage === 'border-clearance') refreshBorderTable();
+    if (currentPage === 'nb-operations') refreshNBTable();
+    if (currentPage === 'sb-operations') refreshSBTable();
+    updateSidebarBadges();
+}
+
+function getFilteredDriverContacts() {
+    const search = driverRegistrySearchTerm || (document.getElementById('driverRegistrySearch')?.value || '').trim();
+    const direction = driverRegistryDirectionFilter || document.getElementById('driverRegistryDirection')?.value || 'all';
+    const border = driverRegistryBorderFilter || document.getElementById('driverRegistryBorder')?.value || 'all';
+    const registered = driverRegistryRegisteredFilter || document.getElementById('driverRegistryRegistered')?.value || 'all';
+
+    let items = [...driverContactsDB];
+    if (direction !== 'all') items = items.filter(c => c.direction === direction);
+    if (border !== 'all') items = items.filter(c => c.border === border);
+    if (registered === 'yes') items = items.filter(c => c.drcNumber && c.whatsapp);
+    if (registered === 'no') items = items.filter(c => !c.drcNumber || !c.whatsapp);
+    if (search) {
+        const term = search.toLowerCase();
+        items = items.filter(c =>
+            (c.driverName && c.driverName.toLowerCase().includes(term)) ||
+            (c.tripNumber && c.tripNumber.toLowerCase().includes(term)) ||
+            (c.truck && c.truck.toLowerCase().includes(term)) ||
+            (c.drcNumber && c.drcNumber.includes(term)) ||
+            (c.whatsapp && c.whatsapp.includes(term)) ||
+            (c.owner && c.owner.toLowerCase().includes(term)) ||
+            (c.border && c.border.toLowerCase().includes(term))
+        );
+    }
+    return items;
+}
+
+function renderDriverRegistryRows(items) {
+    if (!items.length) {
+        return '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text-secondary);">No drivers match your search</td></tr>';
+    }
+    return items.map(c => `
+        <tr>
+            <td><strong>${c.driverName}</strong></td>
+            <td>${c.tripNumber || '—'}</td>
+            <td>${c.truck || '—'}</td>
+            <td><span class="status-badge blue">${c.direction || '—'}</span></td>
+            <td>${c.border || '—'}</td>
+            <td>${c.owner || '—'}</td>
+            <td>${c.drcNumber || '—'}</td>
+            <td>${c.whatsapp ? `<a href="https://wa.me/${c.whatsapp.replace(/[^0-9]/g, '')}" target="_blank" rel="noopener">${c.whatsapp}</a>` : '—'}</td>
+            <td>${c.registeredBy || '—'}</td>
+            <td>${c.registeredAt ? c.registeredAt.replace('T', ' ').slice(0, 16) : '—'}</td>
+            <td>
+                <button class="btn btn-outline btn-sm" onclick="openDriverRegistrationModal('${escapeJsString(c.tripNumber || '')}')" title="Edit">✏️</button>
+                ${c.tripNumber ? `<button class="btn btn-outline btn-sm" onclick="navigateToTripView('${escapeJsString(c.tripNumber)}')" title="View trip">👁️</button>` : ''}
+            </td>
+        </tr>
+    `).join('');
+}
+
+function refreshDriverRegistryTable() {
+    driverRegistrySearchTerm = document.getElementById('driverRegistrySearch')?.value || '';
+    driverRegistryDirectionFilter = document.getElementById('driverRegistryDirection')?.value || 'all';
+    driverRegistryBorderFilter = document.getElementById('driverRegistryBorder')?.value || 'all';
+    driverRegistryRegisteredFilter = document.getElementById('driverRegistryRegistered')?.value || 'all';
+    const body = document.getElementById('driverRegistryTableBody');
+    const countEl = document.getElementById('driverRegistryCount');
+    const items = getFilteredDriverContacts();
+    if (body) body.innerHTML = renderDriverRegistryRows(items);
+    if (countEl) countEl.textContent = `${items.length} driver${items.length !== 1 ? 's' : ''}`;
+}
+
+function clearDriverRegistryFilters() {
+    driverRegistrySearchTerm = '';
+    driverRegistryDirectionFilter = 'all';
+    driverRegistryBorderFilter = 'all';
+    driverRegistryRegisteredFilter = 'all';
+    const search = document.getElementById('driverRegistrySearch');
+    const dir = document.getElementById('driverRegistryDirection');
+    const border = document.getElementById('driverRegistryBorder');
+    const reg = document.getElementById('driverRegistryRegistered');
+    if (search) search.value = '';
+    if (dir) dir.value = 'all';
+    if (border) border.value = 'all';
+    if (reg) reg.value = 'all';
+    refreshDriverRegistryTable();
+}
+
+function renderDriverRegistry(container) {
+    const stats = getDriverRegistryStats();
+    container.innerHTML = `
+        <div class="page-header">
+            <h1>📱 Driver Registry</h1>
+            <div class="breadcrumb">
+                <a href="#" onclick="navigateTo('dashboard')">Home</a> <span>›</span>
+                <span>Communication</span> <span>›</span>
+                <strong>Driver Registry</strong>
+            </div>
+        </div>
+
+        <div class="kpi-grid">
+            <div class="kpi-card blue"><div class="kpi-header"><span class="kpi-title">Total Registered</span></div><div class="kpi-value">${stats.total}</div><div class="kpi-trend">Drivers with contact details on file</div></div>
+            <div class="kpi-card green"><div class="kpi-header"><span class="kpi-title">NB Drivers</span></div><div class="kpi-value">${stats.nb}</div><div class="kpi-trend">North bound — border office registration</div></div>
+            <div class="kpi-card orange"><div class="kpi-header"><span class="kpi-title">SB Drivers</span></div><div class="kpi-value">${stats.sb}</div><div class="kpi-trend">South bound exit contacts</div></div>
+        </div>
+
+        <div class="assets-action-bar">
+            ${canEditInModule('driver-registry') || canEditInModule('border-clearance') ? `<button class="btn btn-primary" onclick="openDriverRegistrationModal()">📱 Register NB Driver</button>` : ''}
+        </div>
+
+        <div class="filters-bar">
+            <div class="filter-group"><label>Direction:</label><select id="driverRegistryDirection" onchange="refreshDriverRegistryTable()"><option value="all">All</option><option value="NB">NB</option><option value="SB">SB</option></select></div>
+            <div class="filter-group"><label>Border:</label><select id="driverRegistryBorder" onchange="refreshDriverRegistryTable()"><option value="all">All</option><option>Kasumbalesa</option><option>Sakania</option><option>Mokambo</option></select></div>
+            <div class="filter-group"><label>Status:</label><select id="driverRegistryRegistered" onchange="refreshDriverRegistryTable()"><option value="all">All</option><option value="yes">Registered</option><option value="no">Incomplete</option></select></div>
+            <div class="search-filter" style="flex:1;">
+                <span>🔍</span>
+                <input type="text" id="driverRegistrySearch" placeholder="Search driver, trip, truck, DRC number, WhatsApp, company, border..." value="${driverRegistrySearchTerm}" onkeyup="refreshDriverRegistryTable()">
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="clearDriverRegistryFilters()">Clear</button>
+        </div>
+
+        <div class="table-container">
+            <div class="table-header">
+                <h3>Registered Drivers</h3>
+                <div class="table-header-actions">
+                    <span id="driverRegistryCount" style="color:var(--text-secondary);">${stats.total} drivers</span>
+                </div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead><tr>
+                        <th>Driver</th><th>Trip #</th><th>Truck</th><th>Direction</th><th>Border</th><th>Company</th><th>DRC Number</th><th>WhatsApp</th><th>Registered By</th><th>Date</th><th>Actions</th>
+                    </tr></thead>
+                    <tbody id="driverRegistryTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="background:#e8f0fe;padding:15px;border-radius:8px;margin-top:20px;border-left:4px solid var(--primary-light);font-size:13px;">
+            <strong>📋 Border team workflow:</strong> Every NB driver passing through the border office must register their WhatsApp and DRC number. Click any driver name in NB, SB, or Border Operations to open the registration form, or use <strong>Register NB Driver</strong> above.
+        </div>
+    `;
+    refreshDriverRegistryTable();
+    updateSidebarBadges();
 }
 
 // ============================================

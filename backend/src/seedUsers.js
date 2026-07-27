@@ -61,6 +61,12 @@ function seedUsers() {
 
   console.log(`  Default password for all seeded users: ${DEFAULT_PASSWORD}`);
   console.log('  ⚠️  Change passwords after first login in production.');
+
+  const { seedDriverContacts } = require('./services/driverContactService');
+  seedDriverContacts([
+    { id: 'DC-001', tripNumber: 'NB-2024-001', driverName: 'John Doe', truck: 'ABC123DRC', direction: 'NB', border: 'Kasumbalesa', owner: 'Transport Co A', drcNumber: '+243 812 345678', whatsapp: '+260 977 123456', registeredBy: 'border_moderator', registeredAt: '2026-07-23 08:30:00', updatedAt: '2026-07-23 08:30:00', notes: 'KBP Step 7' },
+    { id: 'DC-002', tripNumber: 'NB-2024-008', driverName: 'Peter Mwansa', truck: 'JKL012DRC', direction: 'NB', border: 'Kasumbalesa', owner: 'Transport Co D', drcNumber: '+243 999 234567', whatsapp: '+260 966 234567', registeredBy: 'border_moderator', registeredAt: '2026-07-24 10:15:00', updatedAt: '2026-07-24 10:15:00', notes: '' }
+  ]);
 }
 
 module.exports = { seedUsers };
