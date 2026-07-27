@@ -24,8 +24,13 @@
         },
         POSITION: {
             name: 'Position File (3× daily)',
-            columns: ['TripNumber', 'Truck', 'Latitude', 'Longitude', 'Area', 'AreaStatus', 'ProcessComment', 'Timestamp'],
-            description: 'Position upload 3× per day — must match trucks from NB live file. Shows with area comments and process dates.'
+            columns: ['TripNumber', 'Truck', 'Position', 'Area', 'AreaStatus', 'ProcessComment', 'Timestamp'],
+            description: 'Position upload 3× per day — must match trucks from NB live file. Position 08:00 / mid day / evening columns on live page.'
+        },
+        LIVE: {
+            name: 'Live Operations Master',
+            columns: ['OrderNo', 'DateLoaded', 'DispatchDate', 'Delivered', 'TripNumber', 'OrderOwner', 'Transporter', 'FleetNr', 'Truck', 'Trailer1', 'Trailer2', 'Driver', 'DriverContact', 'ClearingAgent', 'Border', 'PaSentOn', 'Customer', 'Consignee', 'InvoiceParty', 'FromStation', 'LoadingPoint', 'ToStation', 'OffloadingPoint', 'CargoType', 'Commodity', 'CustomerRef'],
+            description: 'Master live file columns — reflected on Position Live page'
         }
     };
 
@@ -51,6 +56,207 @@
             Area: { field: 'area', label: 'Area' },
             Status: { field: 'status', label: 'Status', isStatus: true }
         }
+    };
+
+    /** Position Live page — static column definitions */
+    const LIVE_STATIC_COLUMNS = [
+        { key: 'rowNum', label: '#', computed: 'rowIndex', width: '40px' },
+        { key: 'orderNo', label: 'Order No', field: 'orderNo' },
+        { key: 'dateLoaded', label: 'Date Loaded', field: 'dateLoaded', format: 'date' },
+        { key: 'dispatchDate', label: 'Dispatch Date', field: 'dispatchDate', format: 'date' },
+        { key: 'delivered', label: 'Delivered', field: 'delivered', format: 'date' },
+        { key: 'tripNumber', label: 'Trip Ref.', field: 'tripNumber' },
+        { key: 'orderOwner', label: 'Order Owner', field: 'orderOwner' },
+        { key: 'transporter', label: 'Transporter', field: 'transporter' },
+        { key: 'fleetNr', label: 'Fleet Nr.', field: 'fleetNr' },
+        { key: 'truck', label: 'Truck', field: 'truck' },
+        { key: 'trailer1', label: 'Trailer 1', field: 'trailer1' },
+        { key: 'trailer2', label: 'Trailer 2', field: 'trailer2' },
+        { key: 'driver', label: 'Driver', field: 'driver', isDriverLink: true },
+        { key: 'driverContact', label: 'Driver Contact', computed: 'driverContact' },
+        { key: 'clearingAgent', label: 'Clearing Agent', field: 'clearingAgent' },
+        { key: 'border', label: 'Border', computed: 'border' },
+        { key: 'paSentOn', label: 'PA sent on', field: 'paSentOn', format: 'date' },
+        { key: 'customer', label: 'Customer', field: 'customer' },
+        { key: 'consignee', label: 'Consignee', field: 'consignee' },
+        { key: 'invoiceParty', label: 'Invoice Party', field: 'invoiceParty' },
+        { key: 'fromStation', label: 'From Station', field: 'fromStation' },
+        { key: 'loadingPoint', label: 'Loading Point', field: 'loadingPoint' },
+        { key: 'toStation', label: 'To Station', field: 'toStation' },
+        { key: 'offloadingPoint', label: 'Offloading Point', field: 'offloadingPoint' },
+        { key: 'cargoType', label: 'Cargo Type', field: 'cargoType' },
+        { key: 'commodity', label: 'Commodity', field: 'commodity' },
+        { key: 'customerRef', label: 'Customer Ref.', field: 'customerRef' },
+        { key: 'latestComment', label: 'Comment from User in Area', computed: 'latestComment', wide: true },
+        { key: 'positionMorning', label: 'Position 08:00', computed: 'position', slot: 'morning' },
+        { key: 'positionAfternoon', label: 'Position mid day', computed: 'position', slot: 'afternoon' },
+        { key: 'positionEvening', label: 'Position evening', computed: 'position', slot: 'evening' }
+    ];
+
+    const LIVE_POSITION_SLOT_MAP = {
+        morning: 'positionMorning',
+        afternoon: 'positionAfternoon',
+        evening: 'positionEvening'
+    };
+
+    window.LIVE_STATIC_COLUMNS = LIVE_STATIC_COLUMNS;
+
+    window.getLiveWorkflowSteps = function (direction) {
+        const wf = window.WORKFLOW_CONFIG || {};
+        return wf[direction] || wf.NB || [];
+    };
+
+    window.getLiveWorkflowDateColumns = function (direction) {
+        return getLiveWorkflowSteps(direction).map(step => ({
+            key: `wf_${step.key}`,
+            label: step.label,
+            workflowKey: step.key,
+            isWorkflowDate: true
+        }));
+    };
+
+    window.getLivePageColumns = function (direction) {
+        const wfCols = getLiveWorkflowDateColumns(direction);
+        const staticBeforeComment = LIVE_STATIC_COLUMNS.filter(c => c.key !== 'latestComment' && !c.slot && !c.key.startsWith('position'));
+        const commentCol = LIVE_STATIC_COLUMNS.find(c => c.key === 'latestComment');
+        const positionCols = LIVE_STATIC_COLUMNS.filter(c => c.key.startsWith('position'));
+        return [...staticBeforeComment, ...wfCols, commentCol, ...positionCols].filter(Boolean);
+    };
+
+    window.ensureTripLiveFields = function (trip) {
+        if (!trip) return trip;
+        trip.orderOwner = trip.orderOwner || trip.owner || '';
+        trip.transporter = trip.transporter || trip.owner || '';
+        trip.orderNo = trip.orderNo || trip.tripNumber || '';
+        trip.fromStation = trip.fromStation || (trip.direction === 'NB' ? (trip.entryBorder || '') : (trip.loadingPoint || ''));
+        trip.toStation = trip.toStation || (trip.direction === 'NB' ? (trip.offloadingPoint || '') : (trip.exitBorder || ''));
+        trip.dateLoaded = trip.dateLoaded || trip.workflowDates?.loadingProcess || trip.workflowDates?.loading || '';
+        trip.dispatchDate = trip.dispatchDate || trip.workflowDates?.dispatch || '';
+        trip.delivered = trip.delivered || trip.workflowDates?.pod || trip.deliveredDate || '';
+        trip.trailer1 = trip.trailer1 || trip.trailer || '';
+        if (!trip.positions) trip.positions = {};
+        return trip;
+    };
+
+    window.formatLiveDate = function (val) {
+        if (!val) return '—';
+        const d = new Date(val);
+        if (isNaN(d.getTime())) return val;
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) +
+            ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    };
+
+    window.getTripWorkflowStatusDate = function (trip, workflowKey) {
+        if (!trip) return '';
+        const dates = trip.workflowDates || {};
+        const areaDates = trip.areaStatusDates || {};
+        if (dates[workflowKey]) return dates[workflowKey];
+        const step = getLiveWorkflowSteps(trip.direction || 'NB').find(s => s.key === workflowKey);
+        if (step && areaDates[step.label]) return areaDates[step.label];
+        return '';
+    };
+
+    window.renderLatestAreaCommentHtml = function (tripNumber) {
+        const history = typeof getTripAreaHistory === 'function' ? getTripAreaHistory(tripNumber) : [];
+        const latest = history[0];
+        if (!latest || (!latest.notes && !latest.status)) return '—';
+        const text = latest.notes || latest.status;
+        const meta = `${latest.updatedBy || '—'} · ${latest.timestamp || '—'}`;
+        const stackCount = history.length;
+        return `<div class="live-comment-cell">
+            <div class="live-comment-text">${text}</div>
+            <div class="live-comment-meta">${meta}${stackCount > 1 ? ` <span class="live-comment-stack" title="${stackCount} comments on file">(+${stackCount - 1} earlier)</span>` : ''}</div>
+        </div>`;
+    };
+
+    window.getTripPositionText = function (tripNumber, slot) {
+        const trip = window.tripsDB?.[tripNumber];
+        if (trip?.positions?.[slot]) return trip.positions[slot];
+        const today = new Date().toISOString().slice(0, 10);
+        const upload = (window.positionUploadsDB || []).find(p => p.date === today && p.slot === slot);
+        if (!upload) return '—';
+        const match = upload.matched?.find(m => m.tripNumber === tripNumber);
+        if (!match) return '—';
+        return match.positionText || `${match.latitude}, ${match.longitude}` || '—';
+    };
+
+    window.resolveLiveCellValue = function (trip, col, rowIndex) {
+        ensureTripLiveFields(trip);
+        if (col.computed === 'rowIndex') return rowIndex + 1;
+        if (col.isWorkflowDate) {
+            const dateVal = getTripWorkflowStatusDate(trip, col.workflowKey);
+            return dateVal ? formatLiveDate(dateVal) : '—';
+        }
+        if (col.computed === 'driverContact') {
+            const dc = typeof findDriverContactByTrip === 'function' ? findDriverContactByTrip(trip.tripNumber) : null;
+            if (!dc) return '—';
+            return `${dc.whatsapp || ''}${dc.drcNumber ? ` / ${dc.drcNumber}` : ''}`.trim() || '—';
+        }
+        if (col.computed === 'border') {
+            return trip.direction === 'SB' ? (trip.exitBorder || trip.border || '—') : (trip.entryBorder || trip.border || '—');
+        }
+        if (col.computed === 'latestComment') return renderLatestAreaCommentHtml(trip.tripNumber);
+        if (col.computed === 'position' && col.slot) return getTripPositionText(trip.tripNumber, col.slot);
+        if (col.isDriverLink && trip.driver) {
+            return typeof renderDriverLink === 'function' ? renderDriverLink(trip.driver, trip.tripNumber) : trip.driver;
+        }
+        const val = trip[col.field];
+        if (col.format === 'date') return val ? formatLiveDate(val) : '—';
+        return val != null && val !== '' ? val : '—';
+    };
+
+    window.renderLivePageTableRows = function (trips, direction) {
+        const cols = getLivePageColumns(direction);
+        if (!trips.length) {
+            return `<tr><td colspan="${cols.length + 1}" style="text-align:center;padding:24px;color:var(--text-secondary);">No trucks on live page</td></tr>`;
+        }
+        return trips.map((trip, i) => {
+            const area = trip.area || trip.entryBorder || trip.exitBorder;
+            const canEdit = typeof canEditInModule === 'function' ? canEditInModule('position-live', area) : true;
+            const cells = cols.map(col => {
+                const content = resolveLiveCellValue(trip, col, i);
+                const cls = col.isWorkflowDate ? 'live-wf-date-cell' : (col.wide ? 'live-comment-col' : '');
+                const cellContent = col.isWorkflowDate
+                    ? (content !== '—' ? `<div class="live-status-date"><span class="live-status-date-value">${content}</span></div>` : '—')
+                    : content;
+                return `<td class="${cls}">${cellContent}</td>`;
+            }).join('');
+            const commentBtn = canEdit
+                ? `<button class="btn btn-primary btn-sm" onclick="openCommentModal('${trip.tripNumber}', '${trip.direction === 'SB' ? 'sb' : 'nb'}')">💬</button>`
+                : '';
+            return `<tr>${cells}<td class="live-actions-col">${commentBtn}</td></tr>`;
+        }).join('');
+    };
+
+    window.renderLivePageTableHeader = function (direction) {
+        const cols = getLivePageColumns(direction);
+        return cols.map(c => `<th${c.wide ? ' class="live-comment-col"' : ''}>${c.label}</th>`).join('') + '<th>Actions</th>';
+    };
+
+    window.mapLiveUploadFields = function (trip, row) {
+        const map = {
+            orderNo: row.OrderNo || row.orderNo,
+            dateLoaded: row.DateLoaded || row.dateLoaded,
+            dispatchDate: row.DispatchDate || row.dispatchDate,
+            delivered: row.Delivered || row.delivered,
+            orderOwner: row.OrderOwner || row.orderOwner,
+            transporter: row.Transporter || row.transporter,
+            fleetNr: row.FleetNr || row.fleetNr,
+            trailer1: row.Trailer1 || row.trailer1 || row.Trailer,
+            trailer2: row.Trailer2 || row.trailer2,
+            clearingAgent: row.ClearingAgent || row.clearingAgent,
+            paSentOn: row.PaSentOn || row.paSentOn,
+            customer: row.Customer || row.customer,
+            consignee: row.Consignee || row.consignee,
+            invoiceParty: row.InvoiceParty || row.invoiceParty,
+            fromStation: row.FromStation || row.fromStation,
+            toStation: row.ToStation || row.toStation,
+            cargoType: row.CargoType || row.cargoType,
+            commodity: row.Commodity || row.commodity,
+            customerRef: row.CustomerRef || row.customerRef
+        };
+        Object.entries(map).forEach(([k, v]) => { if (v) trip[k] = v; });
+        return trip;
     };
 
     window.getTemplateColumns = function (type) {
@@ -214,6 +420,7 @@
         if (page === 'pod-management') return 'pod';
         if (page === 'nb-operations') return 'nb';
         if (page === 'sb-operations') return 'sb';
+        if (page === 'position-live') return 'nb';
         if (page === 'assets') return 'asset';
         if (page === 'border-clearance' || page.includes('detail') || page.includes('kasumbalesa') ||
             page.includes('sakania') || page.includes('mokambo') || page.includes('whisky') || page.startsWith('sb-')) {
@@ -299,16 +506,20 @@
                     results.created++;
                 } else {
                     if (!window.tripsDB[tripNumber]) {
-                        window.tripsDB[tripNumber] = {
+                        window.tripsDB[tripNumber] = mapLiveUploadFields({
                             tripNumber, truck, driver: row.Driver || 'TBD', direction: 'NB',
-                            area: row.Area || 'Kasumbalesa', owner: row.Owner || 'Unknown',
-                            entryBorder: row.EntryBorder || 'Kasumbalesa',
+                            area: row.Area || 'Kasumbalesa', owner: row.Owner || row.OrderOwner || 'Unknown',
+                            entryBorder: row.EntryBorder || row.Border || 'Kasumbalesa',
                             offloadingPoint: row.OffloadingPoint || '', status: row.Status || 'Border Clearance',
                             daysInDRC: 0, kpi: 'green', borderProcess: row.BorderProcess || 'KBP',
-                            workflow: { border: 'current', kanyaka: 'pending', offloading: 'pending', pod: 'pending' }
-                        };
+                            workflow: { border: 'current', kanyaka: 'pending', offloading: 'pending', pod: 'pending' },
+                            positions: {}
+                        }, row);
                         results.created++;
-                    } else results.updated++;
+                    } else {
+                        mapLiveUploadFields(window.tripsDB[tripNumber], row);
+                        results.updated++;
+                    }
                 }
             } catch (e) { results.errors.push(`${tripNumber}: ${e.message}`); }
         }
@@ -328,15 +539,19 @@
             const truck = row.Truck || row.truck;
             if (!tripNumber || !truck) continue;
             if (!window.tripsDB[tripNumber]) {
-                window.tripsDB[tripNumber] = {
+                window.tripsDB[tripNumber] = mapLiveUploadFields({
                     tripNumber, truck, driver: row.Driver || 'TBD', direction: 'SB',
-                    area: row.Area || 'Kanyaka', owner: row.Owner || 'Unknown',
-                    loadingPoint: row.LoadingPoint || 'Kanyaka Mine', exitBorder: row.ExitBorder || 'Kasumbalesa',
+                    area: row.Area || 'Kanyaka', owner: row.Owner || row.OrderOwner || 'Unknown',
+                    loadingPoint: row.LoadingPoint || 'Kanyaka Mine', exitBorder: row.ExitBorder || row.Border || 'Kasumbalesa',
                     status: row.Status || 'Loading', daysInDRC: 0, kpi: 'green',
-                    workflow: { loadingProcess: 'current', documents: 'pending', seal: 'pending', escort: 'pending', dispatch: 'pending', kanyaka: 'pending', border: 'pending' }
-                };
+                    workflow: { loadingProcess: 'current', documents: 'pending', seal: 'pending', escort: 'pending', dispatch: 'pending', kanyaka: 'pending', border: 'pending' },
+                    positions: {}
+                }, row);
                 results.created++;
-            } else results.updated++;
+            } else {
+                mapLiveUploadFields(window.tripsDB[tripNumber], row);
+                results.updated++;
+            }
         }
         window.liveUploadsDB.unshift({
             id: 'LU-' + nextLiveUploadId++, type: 'SB', fileName, rowCount: rows.length,
@@ -367,11 +582,16 @@
             const trip = window.tripsDB[tripNumber] || nbTrips.find(t => t.truck.toUpperCase() === truck);
             const history = typeof getTripAreaHistory === 'function' ? getTripAreaHistory(trip?.tripNumber || tripNumber) : [];
 
+            const positionText = row.Position || row.position ||
+                ((row.Latitude || row.latitude) && (row.Longitude || row.longitude)
+                    ? `${row.Latitude || row.latitude}, ${row.Longitude || row.longitude}` : '');
+
             const entry = {
                 tripNumber: trip?.tripNumber || tripNumber,
                 truck: row.Truck || row.truck,
                 latitude: row.Latitude || row.latitude || '—',
                 longitude: row.Longitude || row.longitude || '—',
+                positionText,
                 area: row.Area || row.area || trip?.area || '—',
                 areaStatus: row.AreaStatus || row.areaStatus || trip?.areaStatus || '—',
                 processComment: row.ProcessComment || row.processComment || '',
@@ -379,6 +599,10 @@
                 areaUpdates: history,
                 matched: !!(trip && (nbTrucks.has(truck) || trip.direction === 'NB'))
             };
+            if (trip && positionText) {
+                if (!trip.positions) trip.positions = {};
+                trip.positions[useSlot] = positionText;
+            }
             if (entry.matched) matched.push(entry);
             else unmatched.push(entry);
         });
@@ -477,6 +701,7 @@
 
         if (typeof closeModal === 'function') closeModal('uploadModal');
         if (type === 'POSITION' && window.currentPage === 'position-live') renderPositionLive(document.getElementById('contentArea'));
+        else if ((type === 'NB' || type === 'SB') && window.currentPage === 'position-live') renderPositionLive(document.getElementById('contentArea'));
         else if (type === 'NB' && window.currentPage === 'nb-operations') window.navigateTo('nb-operations');
         else if (type === 'SB' && window.currentPage === 'sb-operations') window.navigateTo('sb-operations');
     };
@@ -526,42 +751,102 @@
         a.click();
     };
 
+    let livePageDirectionFilter = 'NB';
+    let livePageSearchTerm = '';
+
+    window.refreshPositionLiveTable = function () {
+        const body = document.getElementById('livePageTableBody');
+        const head = document.getElementById('livePageTableHead');
+        const countEl = document.getElementById('livePageTableCount');
+        if (!body) return;
+        const direction = document.getElementById('livePageDirectionFilter')?.value || livePageDirectionFilter || 'NB';
+        livePageDirectionFilter = direction;
+        const search = (document.getElementById('livePageSearch')?.value || livePageSearchTerm || '').toLowerCase();
+        let trips = Object.values(window.tripsDB || {}).filter(t => t.direction === direction);
+        if (search) {
+            trips = trips.filter(t =>
+                (t.tripNumber || '').toLowerCase().includes(search) ||
+                (t.truck || '').toLowerCase().includes(search) ||
+                (t.driver || '').toLowerCase().includes(search) ||
+                (t.orderNo || '').toLowerCase().includes(search) ||
+                (t.customer || '').toLowerCase().includes(search) ||
+                (t.owner || '').toLowerCase().includes(search)
+            );
+        }
+        if (head) head.innerHTML = `<tr>${renderLivePageTableHeader(direction)}</tr>`;
+        body.innerHTML = renderLivePageTableRows(trips, direction);
+        if (countEl) countEl.textContent = `${trips.length} truck${trips.length !== 1 ? 's' : ''}`;
+    };
+
     window.renderPositionLive = function (container) {
         const today = new Date().toISOString().slice(0, 10);
         const todayUploads = positionUploadsDB.filter(p => p.date === today);
+        const direction = livePageDirectionFilter || 'NB';
+        const wfSteps = getLiveWorkflowSteps(direction);
+
         container.innerHTML = `
             <div class="page-header admin-page-header">
-                <div><h1>📍 Position Live (3× Daily)</h1><p class="page-subtitle">Position files matched to NB trucks — with area comments and process timestamps.</p></div>
-                <button class="btn btn-primary" onclick="openUploadModal('POSITION')">📤 Upload Position File</button>
+                <div>
+                    <h1>📍 Position Live</h1>
+                    <p class="page-subtitle">Master live operations view — ${direction === 'NB' ? 'Border → Kanyaka → Offloading → POD' : 'Loading → Documents → Seal → Escort → Dispatch → Kanyaka → Border Exit'}</p>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn btn-primary" onclick="openUploadModal('POSITION')">📤 Upload Position File</button>
+                    <button class="btn btn-outline" onclick="openUploadModal('${direction}')">📤 Upload ${direction} Live File</button>
+                </div>
             </div>
             ${typeof getAreaFilterBanner === 'function' ? getAreaFilterBanner() : ''}
             <div class="kpi-row">
                 ${POSITION_SLOTS.map(slot => {
                     const up = todayUploads.find(u => u.slot === slot);
-                    return `<div class="kpi-mini"><div class="kpi-value">${up ? up.matched.length : '—'}</div><div class="kpi-label">${POSITION_SLOT_LABELS[slot]} ${slot}</div></div>`;
+                    return `<div class="kpi-mini"><div class="kpi-value">${up ? up.matched.length : '—'}</div><div class="kpi-label">${POSITION_SLOT_LABELS[slot]}</div></div>`;
                 }).join('')}
             </div>
-            ${todayUploads.length === 0 ? '<p style="padding:20px;color:var(--text-secondary);">No position uploads today. Upload NB live file first, then position 3× daily.</p>' : ''}
-            ${todayUploads.map(up => `
-                <div class="settings-card" style="margin-bottom:16px;">
-                    <h3>${up.slotLabel} — ${up.fileName} <small>(${up.matched.length} matched)</small></h3>
-                    <table class="data-table report-table"><thead><tr>
-                        <th>Trip</th><th>Truck</th><th>Position</th><th>Area Status</th><th>Comment</th><th>Process History</th>
-                    </tr></thead><tbody>
-                        ${up.matched.map(m => `<tr>
-                            <td>${m.tripNumber}</td><td>${m.truck}</td>
-                            <td>${m.latitude}, ${m.longitude}</td>
-                            <td>${m.areaStatus}</td><td>${m.processComment || '—'}</td>
-                            <td>${(m.areaUpdates || []).slice(0, 3).map(h => `<small>${h.timestamp}: ${h.status} (${h.updatedBy})</small>`).join('<br>') || '—'}</td>
-                        </tr>`).join('')}
-                    </tbody></table>
-                    ${up.unmatched.length ? `<p style="color:var(--orange);font-size:12px;margin-top:8px;">⚠️ ${up.unmatched.length} trucks not matched to NB live file</p>` : ''}
-                </div>`).join('')}
+
+            <div class="filters-bar">
+                <div class="filter-group"><label>Direction:</label>
+                    <select id="livePageDirectionFilter" onchange="refreshPositionLiveTable()">
+                        <option value="NB"${direction === 'NB' ? ' selected' : ''}>NB — North Bound</option>
+                        <option value="SB"${direction === 'SB' ? ' selected' : ''}>SB — South Bound</option>
+                    </select>
+                </div>
+                <div class="search-filter" style="flex:1;">
+                    <span>🔍</span>
+                    <input type="text" id="livePageSearch" placeholder="Search trip, truck, driver, order, customer..." value="${livePageSearchTerm}" onkeyup="refreshPositionLiveTable()">
+                </div>
+                <button class="btn btn-outline btn-sm" onclick="livePageSearchTerm='';document.getElementById('livePageSearch').value='';refreshPositionLiveTable();">Clear</button>
+            </div>
+
+            <div class="table-container live-page-table-wrap">
+                <div class="table-header">
+                    <h3>Live Operations — ${direction}</h3>
+                    <span id="livePageTableCount" style="color:var(--text-secondary);"></span>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="live-page-table">
+                        <thead id="livePageTableHead"></thead>
+                        <tbody id="livePageTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div style="background:#edf2f7;padding:12px 16px;border-radius:8px;margin:16px 0;font-size:12px;">
+                <strong>Workflow status dates (${direction}):</strong>
+                ${wfSteps.map(s => s.label).join(' → ')} — dates appear as columns when recorded via status update + date in comments.
+            </div>
+
+            ${todayUploads.length ? todayUploads.map(up => `
+                <div class="settings-card" style="margin-bottom:12px;">
+                    <h4 style="margin:0 0 8px;">Today's ${up.slotLabel} upload — ${up.fileName} <small>(${up.matched.length} matched)</small></h4>
+                    ${up.unmatched.length ? `<p style="color:var(--orange);font-size:12px;">⚠️ ${up.unmatched.length} trucks not matched</p>` : ''}
+                </div>`).join('') : '<p style="padding:12px;color:var(--text-secondary);font-size:13px;">No position uploads today. Upload NB live file first, then position 3× daily (08:00, mid day, evening).</p>'}
+
             <div class="settings-card"><h3>Recent Live Uploads (NB/SB)</h3>
                 ${liveUploadsDB.slice(0, 5).map(u => `<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
                     <strong>${u.type}</strong> ${u.fileName} — ${u.rowCount} rows — ${u.uploadedAt} by ${u.uploadedBy}
                 </div>`).join('') || '<em>No uploads yet</em>'}
             </div>`;
+        refreshPositionLiveTable();
     };
 
     window.openUploadModal = function (direction) {
