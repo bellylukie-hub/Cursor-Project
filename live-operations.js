@@ -167,6 +167,257 @@
         return [...staticBeforeComment, ...wfCols, commentCol, ...positionCols, ...retained].filter(Boolean);
     };
 
+    const COLUMN_PREFS_KEY = 'truckcontrol_live_column_prefs';
+    const DEFAULT_FROZEN_COLUMNS = ['rowNum', 'tripNumber', 'truck'];
+    const COL_WIDTH_ESTIMATE = {
+        rowNum: 44, tripNumber: 108, truck: 118, orderNo: 96, driver: 120,
+        latestComment: 220, retained_area: 100, retained_status: 130, retained_kpi: 110
+    };
+
+    window.normalizeKpi = function (kpi) {
+        return kpi === 'orange' || kpi === 'red' ? kpi : 'green';
+    };
+
+    window.getKpiLabel = function (kpi) {
+        const k = normalizeKpi(kpi);
+        if (typeof getKPILabel === 'function') return getKPILabel(k);
+        return k === 'red' ? 'Overdue' : k === 'orange' ? 'Priority' : 'On Track';
+    };
+
+    window.renderKpiTruckCell = function (trip) {
+        const kpi = normalizeKpi(trip.kpi);
+        const truck = trip.truck || '—';
+        return `<span class="live-truck-cell kpi-${kpi}" title="${getKpiLabel(kpi)}">${truck}</span>`;
+    };
+
+    window.renderKpiStatusBadge = function (trip, borderRow) {
+        const kpi = normalizeKpi(trip.kpi || borderRow?.kpi);
+        const status = trip.status || borderRow?.status || '—';
+        return `<span class="status-badge kpi-status-badge kpi-${kpi}">${status}</span>`;
+    };
+
+    window.renderKpiPill = function (trip, borderRow) {
+        const kpi = normalizeKpi(trip.kpi || borderRow?.kpi);
+        const label = borderRow?.kpiLabel || getKpiLabel(kpi);
+        return `<span class="kpi-pill kpi-${kpi}"><span class="kpi-indicator ${kpi}"></span>${label}</span>`;
+    };
+
+    window.renderBorderProcessBadge = function (trip, borderRow) {
+        const proc = borderRow?.process || trip.borderProcess || '—';
+        const procClass = /kbp/i.test(proc) ? 'kbp' : /whisky/i.test(proc) ? 'whisky' : /sb/i.test(proc) ? 'sb-exit' : 'process-neutral';
+        return `<span class="status-badge ${procClass}">${proc}</span>`;
+    };
+
+    window.getColumnPrefs = function (context) {
+        try {
+            const all = JSON.parse(localStorage.getItem(COLUMN_PREFS_KEY) || '{}');
+            const prefs = all[context] || {};
+            return {
+                hidden: Array.isArray(prefs.hidden) ? prefs.hidden : [],
+                frozen: Array.isArray(prefs.frozen) && prefs.frozen.length ? prefs.frozen : [...DEFAULT_FROZEN_COLUMNS]
+            };
+        } catch {
+            return { hidden: [], frozen: [...DEFAULT_FROZEN_COLUMNS] };
+        }
+    };
+
+    window.saveColumnPrefs = function (context, prefs) {
+        try {
+            const all = JSON.parse(localStorage.getItem(COLUMN_PREFS_KEY) || '{}');
+            all[context] = prefs;
+            localStorage.setItem(COLUMN_PREFS_KEY, JSON.stringify(all));
+        } catch (_) { /* ignore */ }
+    };
+
+    window.getEffectiveOperationsColumns = function (context) {
+        const prefs = getColumnPrefs(context);
+        return getFullOperationsColumns(context).filter(c => !prefs.hidden.includes(c.key));
+    };
+
+    window.isColumnFrozen = function (context, colKey) {
+        return getColumnPrefs(context).frozen.includes(colKey);
+    };
+
+    window.renderLiveColumnHeaderCell = function (col, context) {
+        const frozen = isColumnFrozen(context, col.key);
+        const cls = [
+            col.wide ? 'live-comment-col' : '',
+            col.isWorkflowDate ? 'live-wf-date-cell' : '',
+            frozen ? 'live-col-frozen' : ''
+        ].filter(Boolean).join(' ');
+        return `<th class="${cls}" data-col-key="${col.key}" data-frozen="${frozen ? '1' : '0'}">${col.label}${frozen ? ' <span class="col-pin" title="Frozen column">📌</span>' : ''}</th>`;
+    };
+
+    window.renderLiveColumnBodyCell = function (col, context, innerHtml) {
+        const frozen = isColumnFrozen(context, col.key);
+        const cls = [
+            col.wide ? 'live-comment-col' : '',
+            col.isWorkflowDate ? 'live-wf-date-cell' : '',
+            frozen ? 'live-col-frozen' : ''
+        ].filter(Boolean).join(' ');
+        return `<td class="${cls}" data-col-key="${col.key}" data-frozen="${frozen ? '1' : '0'}">${innerHtml}</td>`;
+    };
+
+    window.renderLiveColumnToolbar = function (context, tableId, listKey) {
+        const cols = getFullOperationsColumns(context);
+        const prefs = getColumnPrefs(context);
+        const hiddenCount = prefs.hidden.length;
+        const frozenCount = prefs.frozen.length;
+        return `<div class="live-column-toolbar">
+            <button type="button" class="btn btn-outline btn-sm" onclick="openLiveColumnPanel('${context}', '${tableId}', '${listKey || ''}')">⚙️ Columns${hiddenCount ? ` <span class="badge">${cols.length - hiddenCount}/${cols.length}</span>` : ''}</button>
+            <span class="live-column-hint">${frozenCount} frozen · ${hiddenCount} hidden</span>
+        </div>`;
+    };
+
+    window.openLiveColumnPanel = function (context, tableId, listKey) {
+        const cols = getFullOperationsColumns(context);
+        const prefs = getColumnPrefs(context);
+        let panel = document.getElementById('liveColumnPanel');
+        if (!panel) {
+            panel = document.createElement('div');
+            panel.id = 'liveColumnPanel';
+            panel.className = 'live-column-panel';
+            document.body.appendChild(panel);
+        }
+        panel.innerHTML = `
+            <div class="live-column-panel-header">
+                <strong>⚙️ Show / Hide & Freeze Columns</strong>
+                <button type="button" class="btn btn-outline btn-sm" onclick="closeLiveColumnPanel()">✕</button>
+            </div>
+            <p class="live-column-panel-desc">Toggle visibility. Pin 📌 columns to freeze them when scrolling horizontally. Preferences are saved per page.</p>
+            <div class="live-column-panel-actions">
+                <button type="button" class="btn btn-outline btn-sm" onclick="resetLiveColumnPrefs('${context}', '${tableId}', '${listKey}')">Reset defaults</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="showAllLiveColumns('${context}', '${tableId}', '${listKey}')">Show all</button>
+            </div>
+            <div class="live-column-list">
+                ${cols.map(col => {
+                    const visible = !prefs.hidden.includes(col.key);
+                    const frozen = prefs.frozen.includes(col.key);
+                    return `<label class="live-column-item">
+                        <input type="checkbox" ${visible ? 'checked' : ''} onchange="toggleLiveColumnVisibility('${context}', '${col.key}', '${tableId}', '${listKey}')">
+                        <span class="live-column-label">${col.label}</span>
+                        <button type="button" class="col-freeze-btn${frozen ? ' active' : ''}" title="${frozen ? 'Unfreeze' : 'Freeze column'}" onclick="event.preventDefault();toggleLiveColumnFreeze('${context}', '${col.key}', '${tableId}', '${listKey}')">📌</button>
+                    </label>`;
+                }).join('')}
+            </div>`;
+        panel.classList.add('show');
+        panel.dataset.context = context;
+        panel.dataset.tableId = tableId;
+        panel.dataset.listKey = listKey || '';
+    };
+
+    window.closeLiveColumnPanel = function () {
+        const panel = document.getElementById('liveColumnPanel');
+        if (panel) panel.classList.remove('show');
+    };
+
+    window.toggleLiveColumnVisibility = function (context, colKey, tableId, listKey) {
+        const prefs = getColumnPrefs(context);
+        const idx = prefs.hidden.indexOf(colKey);
+        if (idx >= 0) prefs.hidden.splice(idx, 1);
+        else prefs.hidden.push(colKey);
+        saveColumnPrefs(context, prefs);
+        refreshLiveTableWithColumns(context, tableId, listKey);
+        openLiveColumnPanel(context, tableId, listKey);
+    };
+
+    window.toggleLiveColumnFreeze = function (context, colKey, tableId, listKey) {
+        const prefs = getColumnPrefs(context);
+        const idx = prefs.frozen.indexOf(colKey);
+        if (idx >= 0) prefs.frozen.splice(idx, 1);
+        else prefs.frozen.push(colKey);
+        saveColumnPrefs(context, prefs);
+        refreshLiveTableWithColumns(context, tableId, listKey);
+        openLiveColumnPanel(context, tableId, listKey);
+    };
+
+    window.showAllLiveColumns = function (context, tableId, listKey) {
+        const prefs = getColumnPrefs(context);
+        prefs.hidden = [];
+        saveColumnPrefs(context, prefs);
+        refreshLiveTableWithColumns(context, tableId, listKey);
+        openLiveColumnPanel(context, tableId, listKey);
+    };
+
+    window.resetLiveColumnPrefs = function (context, tableId, listKey) {
+        saveColumnPrefs(context, { hidden: [], frozen: [...DEFAULT_FROZEN_COLUMNS] });
+        refreshLiveTableWithColumns(context, tableId, listKey);
+        openLiveColumnPanel(context, tableId, listKey);
+    };
+
+    window.refreshLiveTableWithColumns = function (context, tableId, listKey) {
+        const table = document.getElementById(tableId);
+        if (!table) return;
+        const headRow = table.querySelector('thead tr');
+        if (context === 'BORDER') {
+            if (headRow) headRow.innerHTML = getBorderOperationsTableHeaderHtml();
+            const body = document.getElementById('borderTableBody');
+            if (body && typeof renderBorderTableRowsFiltered === 'function') body.innerHTML = renderBorderTableRowsFiltered();
+        } else if (context === 'POSITION' || context.startsWith('POSITION_')) {
+            if (typeof refreshPositionLiveTable === 'function') refreshPositionLiveTable();
+        } else if (context === 'NB') {
+            if (headRow) headRow.innerHTML = getOperationsTableHeaderHtml('NB', listKey || 'nb');
+            const body = document.getElementById('nbTableBody');
+            if (body && typeof renderNBTableRowsFiltered === 'function') body.innerHTML = renderNBTableRowsFiltered();
+        } else if (context === 'SB') {
+            if (headRow) headRow.innerHTML = getOperationsTableHeaderHtml('SB', listKey || 'sb');
+            const body = document.getElementById('sbTableBody');
+            if (body && typeof renderSBTableRowsFiltered === 'function') body.innerHTML = renderSBTableRowsFiltered();
+        }
+        applyLiveTableLayout(tableId, context);
+    };
+
+    function getKpiRowBg(tr) {
+        if (!tr) return '#fff';
+        if (tr.classList.contains('kpi-row-green')) return '#f0fff8';
+        if (tr.classList.contains('kpi-row-orange')) return '#fffaf0';
+        if (tr.classList.contains('kpi-row-red')) return '#fff5f5';
+        return '#fff';
+    }
+
+    window.applyLiveTableLayout = function (tableId, context) {
+        const table = document.getElementById(tableId);
+        if (!table) return;
+        const prefs = getColumnPrefs(context);
+        table.querySelectorAll('[data-col-key]').forEach(el => {
+            const key = el.dataset.colKey;
+            const hidden = prefs.hidden.includes(key);
+            const frozen = prefs.frozen.includes(key) && !hidden;
+            el.style.display = hidden ? 'none' : '';
+            el.classList.toggle('live-col-frozen', frozen);
+            if (!frozen) {
+                el.style.position = '';
+                el.style.left = '';
+                el.style.zIndex = '';
+                el.style.background = '';
+            }
+        });
+        let left = 0;
+        const checkboxCol = table.querySelector('thead th:first-child input[type="checkbox"]');
+        if (checkboxCol) left = checkboxCol.closest('th').offsetWidth || 36;
+        prefs.frozen.forEach(key => {
+            if (prefs.hidden.includes(key)) return;
+            const cells = table.querySelectorAll(`[data-col-key="${key}"]`);
+            cells.forEach(cell => {
+                if (cell.style.display === 'none') return;
+                cell.style.position = 'sticky';
+                cell.style.left = left + 'px';
+                cell.style.zIndex = cell.tagName === 'TH' ? 5 : 4;
+                cell.style.background = cell.tagName === 'TH' ? '#edf2f7' : getKpiRowBg(cell.closest('tr'));
+            });
+            const sample = cells[0];
+            left += (sample && sample.offsetWidth) || COL_WIDTH_ESTIMATE[key] || 96;
+        });
+        table.querySelectorAll('tbody tr').forEach(tr => {
+            const actions = tr.querySelector('.live-actions-col');
+            if (actions) actions.style.background = getKpiRowBg(tr);
+        });
+    };
+
+    window.getKpiRowClass = function (trip) {
+        return `kpi-row-${normalizeKpi(trip?.kpi)}`;
+    };
+
     window.mergeBorderRowWithTrip = function (borderRow) {
         const trip = (window.tripsDB && window.tripsDB[borderRow.trip]) || {};
         return {
@@ -193,14 +444,17 @@
             case 'area':
                 return trip.area || borderRow?.border || '—';
             case 'borderProcess':
-                if (borderRow?.processHtml) return borderRow.processHtml;
-                return trip.borderProcess || '—';
+                return renderBorderProcessBadge(trip, borderRow);
             case 'status':
-                return `<span class="status-badge ${trip.kpi || 'green'}">${trip.status || borderRow?.status || '—'}</span>`;
-            case 'days':
-                return trip.daysInDRC != null && trip.daysInDRC !== '' ? trip.daysInDRC : '—';
+                return renderKpiStatusBadge(trip, borderRow);
+            case 'days': {
+                const daysVal = trip.daysInDRC != null && trip.daysInDRC !== ''
+                    ? trip.daysInDRC
+                    : (borderRow?.hours != null && borderRow.hours !== '' ? borderRow.hours : '—');
+                return `<span class="kpi-days kpi-${normalizeKpi(trip.kpi)}">${daysVal}</span>`;
+            }
             case 'kpi':
-                return `<span class="kpi-indicator ${trip.kpi || 'green'}"></span> ${typeof getKPILabel === 'function' ? getKPILabel(trip.kpi) : (borderRow?.kpiLabel || trip.kpi || '—')}`;
+                return renderKpiPill(trip, borderRow);
             default:
                 return '—';
         }
@@ -296,6 +550,7 @@
         }
         if (col.computed === 'latestComment') return renderLatestAreaCommentHtml(trip.tripNumber);
         if (col.computed === 'position' && col.slot) return getTripPositionText(trip.tripNumber, col.slot);
+        if (col.field === 'truck') return renderKpiTruckCell(trip);
         if (col.isDriverLink && trip.driver) {
             return typeof renderDriverLink === 'function' ? renderDriverLink(trip.driver, trip.tripNumber) : trip.driver;
         }
@@ -304,28 +559,39 @@
         return val != null && val !== '' ? val : '—';
     };
 
+    window.getPositionLiveContextKey = function (direction) {
+        return `POSITION_${direction || 'NB'}`;
+    };
+
+    window.getEffectiveLivePageColumns = function (direction) {
+        const ctx = getPositionLiveContextKey(direction);
+        const prefs = getColumnPrefs(ctx);
+        return getLivePageColumns(direction).filter(c => !prefs.hidden.includes(c.key));
+    };
+
     window.renderLivePageTableRows = function (trips, direction) {
-        const cols = getLivePageColumns(direction);
+        const ctx = getPositionLiveContextKey(direction);
+        const cols = getEffectiveLivePageColumns(direction);
         if (!trips.length) {
             return `<tr><td colspan="${cols.length + 1}" style="text-align:center;padding:24px;color:var(--text-secondary);">No trucks on live page</td></tr>`;
         }
         return trips.map((trip, i) => {
+            ensureTripLiveFields(trip);
             const area = trip.area || trip.entryBorder || trip.exitBorder;
             const canEdit = typeof canEditInModule === 'function' ? canEditInModule('position-live', area) : true;
-            const cells = cols.map(col => {
-                const cls = col.isWorkflowDate ? 'live-wf-date-cell' : (col.wide ? 'live-comment-col' : '');
-                return `<td class="${cls}">${renderOperationsCellHtml(trip, col, i)}</td>`;
-            }).join('');
+            const cells = cols.map(col => renderLiveColumnBodyCell(col, ctx, renderOperationsCellHtml(trip, col, i))).join('');
+            const kpi = normalizeKpi(trip.kpi);
             const commentBtn = canEdit
-                ? `<button class="btn btn-primary btn-sm" onclick="openCommentModal('${trip.tripNumber}', '${trip.direction === 'SB' ? 'sb' : 'nb'}')">💬</button>`
+                ? `<button class="btn btn-sm kpi-comment-btn kpi-${kpi}" onclick="openCommentModal('${trip.tripNumber}', '${trip.direction === 'SB' ? 'sb' : 'nb'}')">💬</button>`
                 : '';
-            return `<tr>${cells}<td class="live-actions-col">${commentBtn}</td></tr>`;
+            return `<tr class="${getKpiRowClass(trip)}">${cells}<td class="live-actions-col">${commentBtn}</td></tr>`;
         }).join('');
     };
 
     window.renderLivePageTableHeader = function (direction) {
-        const cols = getLivePageColumns(direction);
-        return cols.map(c => `<th${c.wide ? ' class="live-comment-col"' : ''}>${c.label}</th>`).join('') + '<th>Actions</th>';
+        const ctx = getPositionLiveContextKey(direction);
+        const cols = getEffectiveLivePageColumns(direction);
+        return cols.map(c => renderLiveColumnHeaderCell(c, ctx)).join('') + '<th class="live-actions-col">Actions</th>';
     };
 
     window.mapLiveUploadFields = function (trip, row) {
@@ -385,34 +651,25 @@
 
     window.getOperationsTableHeaderHtml = function (type, listKey) {
         const context = type === 'SB' ? 'SB' : 'NB';
-        const cols = getFullOperationsColumns(context);
+        const cols = getEffectiveOperationsColumns(context);
         const checkbox = listKey
-            ? `<th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all trucks" onchange="toggleAllListRows('${listKey}', this.checked)"></th>`
+            ? `<th style="width:36px;text-align:center;" class="live-col-checkbox"><input type="checkbox" aria-label="Select all trucks" onchange="toggleAllListRows('${listKey}', this.checked)"></th>`
             : '';
-        const headers = cols.map(c => {
-            let cls = '';
-            if (c.wide) cls = 'live-comment-col';
-            else if (c.isWorkflowDate) cls = 'live-wf-date-cell';
-            return `<th${cls ? ` class="${cls}"` : ''}>${c.label}</th>`;
-        }).join('');
-        return `${checkbox}${headers}<th>Actions</th>`;
+        const headers = cols.map(c => renderLiveColumnHeaderCell(c, context)).join('');
+        return `${checkbox}${headers}<th class="live-actions-col">Actions</th>`;
     };
 
     window.getBorderOperationsTableHeaderHtml = function () {
-        const cols = getFullOperationsColumns('BORDER');
-        const checkbox = `<th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all border trucks" onchange="toggleAllListRows('border', this.checked)"></th>`;
-        const headers = cols.map(c => {
-            let cls = '';
-            if (c.wide) cls = 'live-comment-col';
-            else if (c.isWorkflowDate) cls = 'live-wf-date-cell';
-            return `<th${cls ? ` class="${cls}"` : ''}>${c.label}</th>`;
-        }).join('');
-        return `${checkbox}${headers}<th>Actions</th>`;
+        const context = 'BORDER';
+        const cols = getEffectiveOperationsColumns(context);
+        const checkbox = `<th style="width:36px;text-align:center;" class="live-col-checkbox"><input type="checkbox" aria-label="Select all border trucks" onchange="toggleAllListRows('border', this.checked)"></th>`;
+        const headers = cols.map(c => renderLiveColumnHeaderCell(c, context)).join('');
+        return `${checkbox}${headers}<th class="live-actions-col">Actions</th>`;
     };
 
     window.renderOperationsTableRows = function (trips, listKey, type) {
         const context = type === 'SB' ? 'SB' : 'NB';
-        const cols = getFullOperationsColumns(context);
+        const cols = getEffectiveOperationsColumns(context);
         const moduleId = type === 'NB' ? 'nb-operations' : 'sb-operations';
         const statusCtx = type === 'NB' ? 'nb' : 'sb';
         const colSpan = (listKey ? 1 : 0) + cols.length + 1;
@@ -423,16 +680,14 @@
             ensureTripLiveFields(t);
             const area = t.area || t.entryBorder || t.exitBorder || t.offloadingPoint || t.loadingPoint;
             const canEdit = typeof canEditInModule !== 'function' || canEditInModule(moduleId, area);
-            const cells = cols.map(col => {
-                const cls = col.wide ? 'live-comment-col' : (col.isWorkflowDate ? 'live-wf-date-cell' : '');
-                return `<td class="${cls}">${renderOperationsCellHtml(t, col, i)}</td>`;
-            }).join('');
+            const cells = cols.map(col => renderLiveColumnBodyCell(col, context, renderOperationsCellHtml(t, col, i))).join('');
+            const kpi = normalizeKpi(t.kpi);
             const commentBtn = canEdit
-                ? `<button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}', '${statusCtx}')">💬 Comment</button>`
+                ? `<button class="btn btn-sm kpi-comment-btn kpi-${kpi}" onclick="openCommentModal('${t.tripNumber}', '${statusCtx}')">💬 Comment</button>`
                 : '';
             const viewBtn = typeof renderTripViewButton === 'function' ? renderTripViewButton(t.tripNumber) : '';
-            return `<tr>
-                ${listKey ? `<td style="width:36px;text-align:center;">${typeof renderListRowCheckbox === 'function' ? renderListRowCheckbox(listKey, t.tripNumber) : ''}</td>` : ''}
+            return `<tr class="${getKpiRowClass(t)}">
+                ${listKey ? `<td style="width:36px;text-align:center;" class="live-col-checkbox">${typeof renderListRowCheckbox === 'function' ? renderListRowCheckbox(listKey, t.tripNumber) : ''}</td>` : ''}
                 ${cells}
                 <td class="live-actions-col">${commentBtn}${viewBtn}</td>
             </tr>`;
@@ -440,7 +695,8 @@
     };
 
     window.renderBorderOperationsTableRows = function (rows) {
-        const cols = getFullOperationsColumns('BORDER');
+        const context = 'BORDER';
+        const cols = getEffectiveOperationsColumns(context);
         const colSpan = cols.length + 2;
         if (!rows.length) {
             return `<tr><td colspan="${colSpan}" style="text-align:center;padding:24px;color:var(--text-secondary);">No trucks match your search</td></tr>`;
@@ -450,16 +706,14 @@
             ensureTripLiveFields(trip);
             const canEdit = typeof canEditInModule === 'function' ? canEditInModule('border-clearance', borderRow.border) : true;
             const statusCtx = borderRow.direction === 'SB' ? 'sb' : 'border';
-            const cells = cols.map(col => {
-                const cls = col.wide ? 'live-comment-col' : (col.isWorkflowDate ? 'live-wf-date-cell' : '');
-                return `<td class="${cls}">${renderOperationsCellHtml(trip, col, i)}</td>`;
-            }).join('');
+            const cells = cols.map(col => renderLiveColumnBodyCell(col, context, renderOperationsCellHtml(trip, col, i))).join('');
+            const kpi = normalizeKpi(trip.kpi);
             const commentBtn = canEdit
-                ? `<button class="btn btn-${borderRow.commentBtn || 'primary'} btn-sm" onclick="openCommentModal('${borderRow.trip}', '${statusCtx}')">💬</button>`
+                ? `<button class="btn btn-sm kpi-comment-btn kpi-${kpi}" onclick="openCommentModal('${borderRow.trip}', '${statusCtx}')">💬</button>`
                 : '';
             const viewBtn = `<button class="btn btn-outline btn-sm" onclick="navigateToTripView('${borderRow.trip}')">👁️</button>`;
-            return `<tr>
-                <td style="width:36px;text-align:center;">${typeof renderListRowCheckbox === 'function' ? renderListRowCheckbox('border', borderRow.trip) : ''}</td>
+            return `<tr class="${getKpiRowClass(trip)}">
+                <td style="width:36px;text-align:center;" class="live-col-checkbox">${typeof renderListRowCheckbox === 'function' ? renderListRowCheckbox('border', borderRow.trip) : ''}</td>
                 ${cells}
                 <td class="live-actions-col">${commentBtn}${viewBtn}</td>
             </tr>`;
@@ -953,6 +1207,7 @@
         if (head) head.innerHTML = `<tr>${renderLivePageTableHeader(direction)}</tr>`;
         body.innerHTML = renderLivePageTableRows(trips, direction);
         if (countEl) countEl.textContent = `${trips.length} truck${trips.length !== 1 ? 's' : ''}`;
+        applyLiveTableLayout('livePageTable', getPositionLiveContextKey(direction));
     };
 
     window.renderPositionLive = function (container) {
@@ -997,10 +1252,13 @@
             <div class="table-container live-page-table-wrap">
                 <div class="table-header">
                     <h3>Live Operations — ${direction}</h3>
-                    <span id="livePageTableCount" style="color:var(--text-secondary);"></span>
+                    <div class="table-header-actions" style="display:flex;align-items:center;gap:12px;">
+                        ${renderLiveColumnToolbar(getPositionLiveContextKey(direction), 'livePageTable', '')}
+                        <span id="livePageTableCount" style="color:var(--text-secondary);"></span>
+                    </div>
                 </div>
                 <div style="overflow-x:auto;">
-                    <table class="live-page-table">
+                    <table class="live-page-table" id="livePageTable">
                         <thead id="livePageTableHead"></thead>
                         <tbody id="livePageTableBody"></tbody>
                     </table>

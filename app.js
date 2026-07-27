@@ -3339,18 +3339,20 @@ function renderNBOperations(container) {
         <div class="table-container">
             <div class="table-header">
                 <h3>Active NB Trucks</h3>
-                <div class="table-header-actions">
+                <div class="table-header-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                    ${typeof renderLiveColumnToolbar === 'function' ? renderLiveColumnToolbar('NB', 'nbOperationsTable', 'nb') : ''}
                     <span id="nbTableCount" style="color:var(--text-secondary);">${trips.length} trucks</span>
                     ${canEditInModule('nb-operations') ? renderExportToolbar('nb') : ''}
                 </div>
             </div>
             <div style="overflow-x:auto;">
-            <table class="live-page-table operations-live-table"><thead><tr>
+            <table class="live-page-table operations-live-table" id="nbOperationsTable"><thead><tr>
                 ${typeof getOperationsTableHeaderHtml === 'function' ? getOperationsTableHeaderHtml('NB', 'nb') : '<th>Trip #</th><th>Truck</th><th>Owner</th><th>Driver</th><th>Border</th><th>Offloading</th><th>Area</th><th>Status</th><th>Days</th><th>KPI</th><th>Actions</th>'}
             </tr></thead>
             <tbody id="nbTableBody">${renderNBTableRowsFiltered()}</tbody></table>
             </div>
         </div>`;
+    setTimeout(() => { if (typeof applyLiveTableLayout === 'function') applyLiveTableLayout('nbOperationsTable', 'NB'); }, 0);
 }
 
 function renderNBTableRowsFiltered() {
@@ -3366,6 +3368,7 @@ function renderNBTableRowsFiltered() {
 function refreshNBTable() {
     const nbBody = document.getElementById('nbTableBody');
     if (nbBody) nbBody.innerHTML = renderNBTableRowsFiltered();
+    if (typeof applyLiveTableLayout === 'function') applyLiveTableLayout('nbOperationsTable', 'NB');
 }
 
 function clearNBFilters() {
@@ -3405,18 +3408,20 @@ function renderSBOperations(container) {
         <div class="table-container">
             <div class="table-header">
                 <h3>Active SB Trucks</h3>
-                <div class="table-header-actions">
+                <div class="table-header-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                    ${typeof renderLiveColumnToolbar === 'function' ? renderLiveColumnToolbar('SB', 'sbOperationsTable', 'sb') : ''}
                     <span id="sbTableCount" style="color:var(--text-secondary);">${trips.length} trucks</span>
                     ${canEditInModule('sb-operations') ? renderExportToolbar('sb') : ''}
                 </div>
             </div>
             <div style="overflow-x:auto;">
-            <table class="live-page-table operations-live-table"><thead><tr>
+            <table class="live-page-table operations-live-table" id="sbOperationsTable"><thead><tr>
                 ${typeof getOperationsTableHeaderHtml === 'function' ? getOperationsTableHeaderHtml('SB', 'sb') : '<th>Trip #</th><th>Truck</th><th>Owner</th><th>Driver</th><th>Loading Point</th><th>Exit Border</th><th>Area</th><th>Status</th><th>Days</th><th>KPI</th><th>Actions</th>'}
             </tr></thead>
             <tbody id="sbTableBody">${renderSBTableRowsFiltered()}</tbody></table>
             </div>
         </div>`;
+    setTimeout(() => { if (typeof applyLiveTableLayout === 'function') applyLiveTableLayout('sbOperationsTable', 'SB'); }, 0);
 }
 
 function renderSBTableRowsFiltered() {
@@ -3432,6 +3437,7 @@ function renderSBTableRowsFiltered() {
 function refreshSBTable() {
     const sbBody = document.getElementById('sbTableBody');
     if (sbBody) sbBody.innerHTML = renderSBTableRowsFiltered();
+    if (typeof applyLiveTableLayout === 'function') applyLiveTableLayout('sbOperationsTable', 'SB');
 }
 
 function clearSBFilters() {
@@ -3515,6 +3521,7 @@ function refreshBorderTable() {
         head.innerHTML = `<tr>${getBorderOperationsTableHeaderHtml()}</tr>`;
     }
     if (body) body.innerHTML = renderBorderTableRowsFiltered();
+    if (typeof applyLiveTableLayout === 'function') applyLiveTableLayout('borderOperationsTable', 'BORDER');
 }
 
 function clearBorderFilters() {
@@ -3569,13 +3576,14 @@ function renderBorderClearanceOverview(container) {
         <div class="table-container">
             <div class="table-header">
                 <h3>All Border Trucks</h3>
-                <div class="table-header-actions">
+                <div class="table-header-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                    ${typeof renderLiveColumnToolbar === 'function' ? renderLiveColumnToolbar('BORDER', 'borderOperationsTable', 'border') : ''}
                     <span id="borderTableCount" style="color:var(--text-secondary);">${total} trucks</span>
                     ${renderExportToolbar('border')}
                 </div>
             </div>
             <div style="overflow-x:auto;">
-            <table class="live-page-table operations-live-table"><thead id="borderTableHead"><tr>
+            <table class="live-page-table operations-live-table" id="borderOperationsTable"><thead id="borderTableHead"><tr>
                 ${typeof getBorderOperationsTableHeaderHtml === 'function' ? getBorderOperationsTableHeaderHtml() : '<th>Trip #</th><th>Truck</th><th>Driver</th><th>Direction</th><th>Border</th><th>Process</th><th>Status</th><th>Days</th><th>KPI</th><th>Actions</th>'}
             </tr></thead>
             <tbody id="borderTableBody">${renderBorderTableRowsFiltered()}</tbody></table>
@@ -3585,6 +3593,7 @@ function renderBorderClearanceOverview(container) {
         <div style="background:#e8f0fe;padding:15px;border-radius:8px;margin-top:20px;border-left:4px solid var(--primary-light);font-size:13px;">
             <strong>📋 NB BN Process (Sakania & Mokambo):</strong> Same sequential steps as Kasumbalesa KBP — Arrival → Brigade → Scanning → Green Stamp → Red Stamp → Cross-check → Driver Details → Final Approval
         </div>`;
+    setTimeout(() => { if (typeof applyLiveTableLayout === 'function') applyLiveTableLayout('borderOperationsTable', 'BORDER'); }, 0);
 }
 
 // ============================================
