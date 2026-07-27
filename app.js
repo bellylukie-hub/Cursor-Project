@@ -3344,10 +3344,12 @@ function renderNBOperations(container) {
                     ${canEditInModule('nb-operations') ? renderExportToolbar('nb') : ''}
                 </div>
             </div>
-            <table><thead><tr>
+            <div style="overflow-x:auto;">
+            <table class="live-page-table operations-live-table"><thead><tr>
                 ${typeof getOperationsTableHeaderHtml === 'function' ? getOperationsTableHeaderHtml('NB', 'nb') : '<th>Trip #</th><th>Truck</th><th>Owner</th><th>Driver</th><th>Border</th><th>Offloading</th><th>Area</th><th>Status</th><th>Days</th><th>KPI</th><th>Actions</th>'}
             </tr></thead>
             <tbody id="nbTableBody">${renderNBTableRowsFiltered()}</tbody></table>
+            </div>
         </div>`;
 }
 
@@ -3408,10 +3410,12 @@ function renderSBOperations(container) {
                     ${canEditInModule('sb-operations') ? renderExportToolbar('sb') : ''}
                 </div>
             </div>
-            <table><thead><tr>
+            <div style="overflow-x:auto;">
+            <table class="live-page-table operations-live-table"><thead><tr>
                 ${typeof getOperationsTableHeaderHtml === 'function' ? getOperationsTableHeaderHtml('SB', 'sb') : '<th>Trip #</th><th>Truck</th><th>Owner</th><th>Driver</th><th>Loading Point</th><th>Exit Border</th><th>Area</th><th>Status</th><th>Days</th><th>KPI</th><th>Actions</th>'}
             </tr></thead>
             <tbody id="sbTableBody">${renderSBTableRowsFiltered()}</tbody></table>
+            </div>
         </div>`;
 }
 
@@ -3442,6 +3446,9 @@ function clearSBFilters() {
 // BORDER CLEARANCE OVERVIEW
 // ============================================
 function renderBorderTableRows(rows) {
+    if (typeof renderBorderOperationsTableRows === 'function') {
+        return renderBorderOperationsTableRows(rows);
+    }
     if (!rows.length) {
         return '<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--text-secondary);">No trucks match your search</td></tr>';
     }
@@ -3502,7 +3509,11 @@ function renderBorderTableRowsFiltered() {
 }
 
 function refreshBorderTable() {
+    const head = document.getElementById('borderTableHead');
     const body = document.getElementById('borderTableBody');
+    if (head && typeof getBorderOperationsTableHeaderHtml === 'function') {
+        head.innerHTML = `<tr>${getBorderOperationsTableHeaderHtml()}</tr>`;
+    }
     if (body) body.innerHTML = renderBorderTableRowsFiltered();
 }
 
@@ -3563,11 +3574,12 @@ function renderBorderClearanceOverview(container) {
                     ${renderExportToolbar('border')}
                 </div>
             </div>
-            <table><thead><tr>
-                <th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all border trucks" onchange="toggleAllListRows('border', this.checked)"></th>
-                <th>Trip #</th><th>Truck</th><th>Driver</th><th>Direction</th><th>Border</th><th>Process</th><th>Status</th><th>Hours</th><th>Target</th><th>KPI</th><th>Actions</th>
+            <div style="overflow-x:auto;">
+            <table class="live-page-table operations-live-table"><thead id="borderTableHead"><tr>
+                ${typeof getBorderOperationsTableHeaderHtml === 'function' ? getBorderOperationsTableHeaderHtml() : '<th>Trip #</th><th>Truck</th><th>Driver</th><th>Direction</th><th>Border</th><th>Process</th><th>Status</th><th>Days</th><th>KPI</th><th>Actions</th>'}
             </tr></thead>
             <tbody id="borderTableBody">${renderBorderTableRowsFiltered()}</tbody></table>
+            </div>
         </div>
 
         <div style="background:#e8f0fe;padding:15px;border-radius:8px;margin-top:20px;border-left:4px solid var(--primary-light);font-size:13px;">
@@ -7791,7 +7803,8 @@ function refreshPageAfterComment() {
     else if (currentPage === 'nb-operations') refreshNBTable();
     else if (currentPage === 'sb-operations') refreshSBTable();
     else if (currentPage === 'position-live' && typeof refreshPositionLiveTable === 'function') refreshPositionLiveTable();
-    else if (currentPage?.includes('detail') || currentPage === 'border-clearance') navigateTo(currentPage);
+    else if (currentPage === 'border-clearance' && typeof refreshBorderTable === 'function') refreshBorderTable();
+    else if (currentPage?.includes('detail')) navigateTo(currentPage);
 }
 
 function selectCommentType(type, element) {

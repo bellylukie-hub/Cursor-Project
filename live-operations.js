@@ -11,16 +11,23 @@
         CAR: ['Available', 'On Trip', 'At Loading', 'At Border', 'Dispatched', 'Returned']
     };
 
+    const LIVE_UPLOAD_CSV_COLUMNS = [
+        'OrderNo', 'DateLoaded', 'DispatchDate', 'Delivered', 'TripNumber', 'OrderOwner', 'Transporter',
+        'FleetNr', 'Truck', 'Trailer1', 'Trailer2', 'Driver', 'ClearingAgent', 'Border',
+        'PaSentOn', 'Customer', 'Consignee', 'InvoiceParty', 'FromStation', 'LoadingPoint',
+        'ToStation', 'OffloadingPoint', 'CargoType', 'Commodity', 'CustomerRef'
+    ];
+
     window.uploadTemplatesDB = {
         NB: {
             name: 'NB Live Upload',
-            columns: ['TripNumber', 'Truck', 'Driver', 'Owner', 'EntryBorder', 'OffloadingPoint', 'Area', 'BorderProcess', 'Status'],
-            description: 'Northbound live file — uploaded trucks enter border clearance workflow'
+            columns: LIVE_UPLOAD_CSV_COLUMNS,
+            description: 'Northbound live file — full template columns for Active NB Trucks table'
         },
         SB: {
             name: 'SB Live Upload',
-            columns: ['TripNumber', 'Truck', 'Driver', 'Owner', 'LoadingPoint', 'ExitBorder', 'Area', 'Status'],
-            description: 'Southbound live file — trucks enter loading → documents → seal → escort → dispatch flow'
+            columns: LIVE_UPLOAD_CSV_COLUMNS,
+            description: 'Southbound live file — full template columns for Active SB Trucks table'
         },
         POSITION: {
             name: 'Position File (3× daily)',
@@ -117,10 +124,100 @@
 
     window.getLivePageColumns = function (direction) {
         const wfCols = getLiveWorkflowDateColumns(direction);
-        const staticBeforeComment = LIVE_STATIC_COLUMNS.filter(c => c.key !== 'latestComment' && !c.slot && !c.key.startsWith('position'));
+        const staticBeforeComment = LIVE_STATIC_COLUMNS.filter(c => c.key !== 'latestComment' && !c.key.startsWith('position'));
         const commentCol = LIVE_STATIC_COLUMNS.find(c => c.key === 'latestComment');
         const positionCols = LIVE_STATIC_COLUMNS.filter(c => c.key.startsWith('position'));
         return [...staticBeforeComment, ...wfCols, commentCol, ...positionCols].filter(Boolean);
+    };
+
+    window.getOperationsRetainedColumns = function (context) {
+        const cols = [
+            { key: 'retained_area', label: 'Area', retained: 'area' },
+            { key: 'retained_status', label: 'Status', retained: 'status', isStatus: true },
+            { key: 'retained_days', label: 'Days', retained: 'days' },
+            { key: 'retained_kpi', label: 'KPI', retained: 'kpi' }
+        ];
+        if (context === 'NB' || context === 'BORDER') {
+            cols.splice(1, 0, { key: 'retained_borderProcess', label: 'Border Process', retained: 'borderProcess' });
+        }
+        return cols;
+    };
+
+    window.getWorkflowColumnsForContext = function (context) {
+        if (context === 'NB') return getLiveWorkflowDateColumns('NB');
+        if (context === 'SB') return getLiveWorkflowDateColumns('SB');
+        if (context === 'BORDER') {
+            const dir = document.getElementById('borderDirectionFilter')?.value || 'all';
+            if (dir === 'NB') return getLiveWorkflowDateColumns('NB');
+            if (dir === 'SB') return getLiveWorkflowDateColumns('SB');
+            return [
+                ...getLiveWorkflowDateColumns('NB').map(c => ({ ...c, key: `nb_${c.key}`, workflowDirection: 'NB' })),
+                ...getLiveWorkflowDateColumns('SB').map(c => ({ ...c, key: `sb_${c.key}`, workflowDirection: 'SB' }))
+            ];
+        }
+        return [];
+    };
+
+    window.getFullOperationsColumns = function (context) {
+        const staticBeforeComment = LIVE_STATIC_COLUMNS.filter(c => c.key !== 'latestComment' && !c.key.startsWith('position'));
+        const commentCol = LIVE_STATIC_COLUMNS.find(c => c.key === 'latestComment');
+        const positionCols = LIVE_STATIC_COLUMNS.filter(c => c.key.startsWith('position'));
+        const wfCols = getWorkflowColumnsForContext(context);
+        const retained = getOperationsRetainedColumns(context);
+        return [...staticBeforeComment, ...wfCols, commentCol, ...positionCols, ...retained].filter(Boolean);
+    };
+
+    window.mergeBorderRowWithTrip = function (borderRow) {
+        const trip = (window.tripsDB && window.tripsDB[borderRow.trip]) || {};
+        return {
+            ...trip,
+            tripNumber: borderRow.trip,
+            truck: borderRow.truck || trip.truck,
+            driver: borderRow.driver || trip.driver,
+            direction: borderRow.direction || trip.direction || 'NB',
+            area: trip.area || borderRow.border,
+            borderProcess: borderRow.process || trip.borderProcess,
+            status: borderRow.status || trip.status,
+            daysInDRC: trip.daysInDRC != null ? trip.daysInDRC : 0,
+            kpi: borderRow.kpi || trip.kpi || 'green',
+            entryBorder: trip.entryBorder || (borderRow.direction === 'NB' ? borderRow.border : trip.entryBorder),
+            exitBorder: trip.exitBorder || (borderRow.direction === 'SB' ? borderRow.border : trip.exitBorder),
+            positions: trip.positions || {},
+            _borderRow: borderRow
+        };
+    };
+
+    window.resolveRetainedCellValue = function (trip, col) {
+        const borderRow = trip._borderRow;
+        switch (col.retained) {
+            case 'area':
+                return trip.area || borderRow?.border || '—';
+            case 'borderProcess':
+                if (borderRow?.processHtml) return borderRow.processHtml;
+                return trip.borderProcess || '—';
+            case 'status':
+                return `<span class="status-badge ${trip.kpi || 'green'}">${trip.status || borderRow?.status || '—'}</span>`;
+            case 'days':
+                return trip.daysInDRC != null && trip.daysInDRC !== '' ? trip.daysInDRC : '—';
+            case 'kpi':
+                return `<span class="kpi-indicator ${trip.kpi || 'green'}"></span> ${typeof getKPILabel === 'function' ? getKPILabel(trip.kpi) : (borderRow?.kpiLabel || trip.kpi || '—')}`;
+            default:
+                return '—';
+        }
+    };
+
+    window.renderOperationsCellHtml = function (trip, col, rowIndex) {
+        if (col.retained) return resolveRetainedCellValue(trip, col);
+        const content = resolveLiveCellValue(trip, col, rowIndex);
+        if (col.isWorkflowDate) {
+            const wfDir = col.workflowDirection || trip.direction || 'NB';
+            const dateVal = getTripWorkflowStatusDate(trip, col.workflowKey, wfDir);
+            const formatted = dateVal ? formatLiveDate(dateVal) : '—';
+            return formatted !== '—'
+                ? `<div class="live-status-date"><span class="live-status-date-label">${col.label}</span><span class="live-status-date-value">${formatted}</span></div>`
+                : '—';
+        }
+        return content;
     };
 
     window.ensureTripLiveFields = function (trip) {
@@ -146,12 +243,13 @@
             ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     };
 
-    window.getTripWorkflowStatusDate = function (trip, workflowKey) {
+    window.getTripWorkflowStatusDate = function (trip, workflowKey, workflowDirection) {
         if (!trip) return '';
+        const dir = workflowDirection || trip.direction || 'NB';
         const dates = trip.workflowDates || {};
         const areaDates = trip.areaStatusDates || {};
         if (dates[workflowKey]) return dates[workflowKey];
-        const step = getLiveWorkflowSteps(trip.direction || 'NB').find(s => s.key === workflowKey);
+        const step = getLiveWorkflowSteps(dir).find(s => s.key === workflowKey);
         if (step && areaDates[step.label]) return areaDates[step.label];
         return '';
     };
@@ -184,7 +282,8 @@
         ensureTripLiveFields(trip);
         if (col.computed === 'rowIndex') return rowIndex + 1;
         if (col.isWorkflowDate) {
-            const dateVal = getTripWorkflowStatusDate(trip, col.workflowKey);
+            const wfDir = col.workflowDirection || trip.direction || 'NB';
+            const dateVal = getTripWorkflowStatusDate(trip, col.workflowKey, wfDir);
             return dateVal ? formatLiveDate(dateVal) : '—';
         }
         if (col.computed === 'driverContact') {
@@ -214,12 +313,8 @@
             const area = trip.area || trip.entryBorder || trip.exitBorder;
             const canEdit = typeof canEditInModule === 'function' ? canEditInModule('position-live', area) : true;
             const cells = cols.map(col => {
-                const content = resolveLiveCellValue(trip, col, i);
                 const cls = col.isWorkflowDate ? 'live-wf-date-cell' : (col.wide ? 'live-comment-col' : '');
-                const cellContent = col.isWorkflowDate
-                    ? (content !== '—' ? `<div class="live-status-date"><span class="live-status-date-value">${content}</span></div>` : '—')
-                    : content;
-                return `<td class="${cls}">${cellContent}</td>`;
+                return `<td class="${cls}">${renderOperationsCellHtml(trip, col, i)}</td>`;
             }).join('');
             const commentBtn = canEdit
                 ? `<button class="btn btn-primary btn-sm" onclick="openCommentModal('${trip.tripNumber}', '${trip.direction === 'SB' ? 'sb' : 'nb'}')">💬</button>`
@@ -239,23 +334,37 @@
             dateLoaded: row.DateLoaded || row.dateLoaded,
             dispatchDate: row.DispatchDate || row.dispatchDate,
             delivered: row.Delivered || row.delivered,
-            orderOwner: row.OrderOwner || row.orderOwner,
-            transporter: row.Transporter || row.transporter,
+            tripNumber: row.TripNumber || row.tripNumber || trip.tripNumber,
+            orderOwner: row.OrderOwner || row.orderOwner || row.Owner || row.owner,
+            transporter: row.Transporter || row.transporter || row.Owner || row.owner,
             fleetNr: row.FleetNr || row.fleetNr,
+            truck: row.Truck || row.truck || trip.truck,
             trailer1: row.Trailer1 || row.trailer1 || row.Trailer,
             trailer2: row.Trailer2 || row.trailer2,
+            driver: row.Driver || row.driver || trip.driver,
             clearingAgent: row.ClearingAgent || row.clearingAgent,
             paSentOn: row.PaSentOn || row.paSentOn,
             customer: row.Customer || row.customer,
             consignee: row.Consignee || row.consignee,
             invoiceParty: row.InvoiceParty || row.invoiceParty,
             fromStation: row.FromStation || row.fromStation,
+            loadingPoint: row.LoadingPoint || row.loadingPoint || trip.loadingPoint,
             toStation: row.ToStation || row.toStation,
+            offloadingPoint: row.OffloadingPoint || row.offloadingPoint || trip.offloadingPoint,
             cargoType: row.CargoType || row.cargoType,
             commodity: row.Commodity || row.commodity,
-            customerRef: row.CustomerRef || row.customerRef
+            customerRef: row.CustomerRef || row.customerRef,
+            owner: row.OrderOwner || row.Owner || row.owner || trip.owner,
+            area: row.Area || row.area || trip.area,
+            borderProcess: row.BorderProcess || row.borderProcess || trip.borderProcess,
+            status: row.Status || row.status || trip.status
         };
-        Object.entries(map).forEach(([k, v]) => { if (v) trip[k] = v; });
+        const borderVal = row.Border || row.border || row.EntryBorder || row.entryBorder || row.ExitBorder || row.exitBorder;
+        if (borderVal) {
+            if (trip.direction === 'SB') trip.exitBorder = borderVal;
+            else trip.entryBorder = borderVal;
+        }
+        Object.entries(map).forEach(([k, v]) => { if (v != null && v !== '') trip[k] = v; });
         return trip;
     };
 
@@ -275,34 +384,48 @@
     };
 
     window.getOperationsTableHeaderHtml = function (type, listKey) {
-        const cols = getTemplateColumns(type);
+        const context = type === 'SB' ? 'SB' : 'NB';
+        const cols = getFullOperationsColumns(context);
         const checkbox = listKey
             ? `<th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all trucks" onchange="toggleAllListRows('${listKey}', this.checked)"></th>`
             : '';
-        const templateHeaders = cols.map(c => `<th>${c.label}</th>`).join('');
-        return `${checkbox}${templateHeaders}<th>Days</th><th>KPI</th><th>Actions</th>`;
+        const headers = cols.map(c => {
+            let cls = '';
+            if (c.wide) cls = 'live-comment-col';
+            else if (c.isWorkflowDate) cls = 'live-wf-date-cell';
+            return `<th${cls ? ` class="${cls}"` : ''}>${c.label}</th>`;
+        }).join('');
+        return `${checkbox}${headers}<th>Actions</th>`;
+    };
+
+    window.getBorderOperationsTableHeaderHtml = function () {
+        const cols = getFullOperationsColumns('BORDER');
+        const checkbox = `<th style="width:36px;text-align:center;"><input type="checkbox" aria-label="Select all border trucks" onchange="toggleAllListRows('border', this.checked)"></th>`;
+        const headers = cols.map(c => {
+            let cls = '';
+            if (c.wide) cls = 'live-comment-col';
+            else if (c.isWorkflowDate) cls = 'live-wf-date-cell';
+            return `<th${cls ? ` class="${cls}"` : ''}>${c.label}</th>`;
+        }).join('');
+        return `${checkbox}${headers}<th>Actions</th>`;
     };
 
     window.renderOperationsTableRows = function (trips, listKey, type) {
-        const cols = getTemplateColumns(type);
+        const context = type === 'SB' ? 'SB' : 'NB';
+        const cols = getFullOperationsColumns(context);
         const moduleId = type === 'NB' ? 'nb-operations' : 'sb-operations';
         const statusCtx = type === 'NB' ? 'nb' : 'sb';
-        const colSpan = (listKey ? 1 : 0) + cols.length + 3;
+        const colSpan = (listKey ? 1 : 0) + cols.length + 1;
         if (!trips.length) {
             return `<tr><td colspan="${colSpan}" style="text-align:center;padding:20px;color:var(--text-secondary);">No trucks match the current search/filter criteria</td></tr>`;
         }
-        return trips.map(t => {
+        return trips.map((t, i) => {
+            ensureTripLiveFields(t);
             const area = t.area || t.entryBorder || t.exitBorder || t.offloadingPoint || t.loadingPoint;
             const canEdit = typeof canEditInModule !== 'function' || canEditInModule(moduleId, area);
-            const cells = cols.map(c => {
-                if (c.isStatus) {
-                    return `<td><span class="status-badge ${t.kpi}">${t.status || '—'}</span></td>`;
-                }
-                const val = t[c.field];
-                if (c.field === 'driver' && val && typeof renderDriverLink === 'function') {
-                    return `<td>${renderDriverLink(val, t.tripNumber)}</td>`;
-                }
-                return `<td>${val != null && val !== '' ? val : '—'}</td>`;
+            const cells = cols.map(col => {
+                const cls = col.wide ? 'live-comment-col' : (col.isWorkflowDate ? 'live-wf-date-cell' : '');
+                return `<td class="${cls}">${renderOperationsCellHtml(t, col, i)}</td>`;
             }).join('');
             const commentBtn = canEdit
                 ? `<button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}', '${statusCtx}')">💬 Comment</button>`
@@ -311,18 +434,71 @@
             return `<tr>
                 ${listKey ? `<td style="width:36px;text-align:center;">${typeof renderListRowCheckbox === 'function' ? renderListRowCheckbox(listKey, t.tripNumber) : ''}</td>` : ''}
                 ${cells}
-                <td>${t.daysInDRC}</td>
-                <td><span class="kpi-indicator ${t.kpi}"></span> ${typeof getKPILabel === 'function' ? getKPILabel(t.kpi) : t.kpi}</td>
-                <td>${commentBtn}${viewBtn}</td>
+                <td class="live-actions-col">${commentBtn}${viewBtn}</td>
+            </tr>`;
+        }).join('');
+    };
+
+    window.renderBorderOperationsTableRows = function (rows) {
+        const cols = getFullOperationsColumns('BORDER');
+        const colSpan = cols.length + 2;
+        if (!rows.length) {
+            return `<tr><td colspan="${colSpan}" style="text-align:center;padding:24px;color:var(--text-secondary);">No trucks match your search</td></tr>`;
+        }
+        return rows.map((borderRow, i) => {
+            const trip = mergeBorderRowWithTrip(borderRow);
+            ensureTripLiveFields(trip);
+            const canEdit = typeof canEditInModule === 'function' ? canEditInModule('border-clearance', borderRow.border) : true;
+            const statusCtx = borderRow.direction === 'SB' ? 'sb' : 'border';
+            const cells = cols.map(col => {
+                const cls = col.wide ? 'live-comment-col' : (col.isWorkflowDate ? 'live-wf-date-cell' : '');
+                return `<td class="${cls}">${renderOperationsCellHtml(trip, col, i)}</td>`;
+            }).join('');
+            const commentBtn = canEdit
+                ? `<button class="btn btn-${borderRow.commentBtn || 'primary'} btn-sm" onclick="openCommentModal('${borderRow.trip}', '${statusCtx}')">💬</button>`
+                : '';
+            const viewBtn = `<button class="btn btn-outline btn-sm" onclick="navigateToTripView('${borderRow.trip}')">👁️</button>`;
+            return `<tr>
+                <td style="width:36px;text-align:center;">${typeof renderListRowCheckbox === 'function' ? renderListRowCheckbox('border', borderRow.trip) : ''}</td>
+                ${cells}
+                <td class="live-actions-col">${commentBtn}${viewBtn}</td>
             </tr>`;
         }).join('');
     };
 
     window.getTemplateExportConfig = function (type) {
-        const cols = getTemplateColumns(type);
+        const context = type === 'SB' ? 'SB' : 'NB';
+        const cols = getFullOperationsColumns(context);
         return {
-            headers: [...cols.map(c => c.label), 'Days in DRC', 'KPI'],
-            mapRow: t => [...cols.map(c => c.isStatus ? t.status : (t[c.field] || '')), t.daysInDRC, typeof getKPILabel === 'function' ? getKPILabel(t.kpi) : t.kpi]
+            headers: cols.map(c => c.label).concat(['Actions']),
+            mapRow: t => {
+                ensureTripLiveFields(t);
+                const cells = cols.map((col, i) => {
+                    if (col.retained === 'status') return t.status || '';
+                    if (col.retained === 'kpi') return typeof getKPILabel === 'function' ? getKPILabel(t.kpi) : t.kpi;
+                    if (col.retained === 'borderProcess') return t.borderProcess || '';
+                    if (col.isWorkflowDate) {
+                        const wfDir = col.workflowDirection || t.direction || context;
+                        const d = getTripWorkflowStatusDate(t, col.workflowKey, wfDir);
+                        return d ? formatLiveDate(d) : '';
+                    }
+                    if (col.computed === 'latestComment') {
+                        const h = typeof getTripAreaHistory === 'function' ? getTripAreaHistory(t.tripNumber)[0] : null;
+                        return h ? (h.notes || h.status || '') : '';
+                    }
+                    if (col.computed === 'driverContact') {
+                        const dc = typeof findDriverContactByTrip === 'function' ? findDriverContactByTrip(t.tripNumber) : null;
+                        return dc ? `${dc.whatsapp || ''} ${dc.drcNumber || ''}`.trim() : '';
+                    }
+                    if (col.computed === 'position' && col.slot) return getTripPositionText(t.tripNumber, col.slot);
+                    if (col.computed === 'border') return t.direction === 'SB' ? (t.exitBorder || '') : (t.entryBorder || '');
+                    if (col.computed === 'rowIndex') return '';
+                    if (col.isDriverLink) return t.driver || '';
+                    if (col.format === 'date' && t[col.field]) return formatLiveDate(t[col.field]);
+                    return t[col.field] || '';
+                });
+                return cells;
+            }
         };
     };
 
@@ -497,12 +673,13 @@
                     await uploadNbTrip({
                         tripNumber, truck,
                         driver: row.Driver || row.driver || 'TBD',
-                        owner: row.Owner || row.owner || 'Unknown',
+                        owner: row.OrderOwner || row.Owner || row.owner || 'Unknown',
                         area: row.Area || row.area || 'Kasumbalesa',
-                        entryBorder: row.EntryBorder || row.entryBorder || 'Kasumbalesa',
+                        entryBorder: row.Border || row.EntryBorder || row.entryBorder || 'Kasumbalesa',
                         offloadingPoint: row.OffloadingPoint || row.offloadingPoint || '',
                         borderProcess: row.BorderProcess || row.borderProcess || 'KBP'
                     });
+                    if (window.tripsDB[tripNumber]) mapLiveUploadFields(window.tripsDB[tripNumber], row);
                     results.created++;
                 } else {
                     if (!window.tripsDB[tripNumber]) {
