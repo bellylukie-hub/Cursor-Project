@@ -78,8 +78,25 @@ Password: `ChangeMe123!` (or `DEFAULT_ADMIN_PASSWORD` in `.env`)
 
 - **NB workflow:** Border → Kanyaka → Offloading → POD
 - **SB workflow:** Loading → Documents → Seal → Escort → Dispatch → Kanyaka → Border exit
+- **Live operations tables:** Full column template on NB, SB, Border, and Position Live pages
+- **Column manager:** Show/hide columns and freeze pinned columns when scrolling (saved per page)
+- **KPI color coordination:** On Track (green), Priority (orange), and Overdue (red) aligned across truck, status, KPI, and rows
+- **Border driver registry:** Register NB drivers (WhatsApp + DRC number) from Communication or border tables
 - **Admin:** Users, roles, KPI settings (per step + transitions), module permissions, audit logs
 - **Operations:** Dashboard, border clearance, POD, assets, communications, runner fees, reports
+
+## Windows setup (manual / PM2)
+
+If you see `Cannot find module 'express'`, dependencies were not installed yet. From the project root:
+
+```bat
+cd backend
+npm install
+npm run seed
+npm start
+```
+
+Open **http://localhost:3001**. For 24/7 hosting on Windows, use PM2 after `npm install -g pm2` — see [PRODUCTION.md](PRODUCTION.md).
 
 ## Project layout
 

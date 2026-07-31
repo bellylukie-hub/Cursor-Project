@@ -4,6 +4,14 @@
 
 TruckControl runs as a single Node.js service that serves the web UI and REST API on one port. SQLite stores operational data; JWT secures all `/api/*` routes except `/api/health` and `/api/auth/login`.
 
+### Included in this production release
+
+- Full live operations column template (NB, SB, Border, Position Live)
+- Column show/hide and freeze (per-page preferences in the browser)
+- Unified KPI colors: On Track (green), Priority (orange), Overdue (red)
+- Border driver registration and Driver Registry (Communication menu)
+- JWT login, RBAC, Docker, and PM2 deployment
+
 ## Quick start (Docker)
 
 ```bash
@@ -97,7 +105,7 @@ Open **http://localhost:3001** (or your `PORT` from `.env`).
 
 ```bash
 cd backend
-npm ci
+npm ci          # or: npm install
 export NODE_ENV=production
 export REQUIRE_AUTH=true
 export JWT_SECRET="your-long-random-secret"
@@ -108,6 +116,21 @@ npm start
 ```
 
 Visit **http://localhost:3001**.
+
+### Windows (Command Prompt / PowerShell)
+
+```bat
+cd C:\path\to\Cursor-Project
+copy .env.example .env
+REM Edit .env — set JWT_SECRET
+
+cd backend
+npm install
+npm run seed
+npm start
+```
+
+If `node src/index.js` fails with `Cannot find module 'express'`, run `npm install` inside the `backend` folder first (not from the project root).
 
 ### Development mode
 
