@@ -77,10 +77,10 @@
         { key: 'transporter', label: 'Transporter', field: 'transporter' },
         { key: 'fleetNr', label: 'Fleet Nr.', field: 'fleetNr' },
         { key: 'truck', label: 'Truck', field: 'truck' },
-        { key: 'trailer1', label: 'Trailer 1', field: 'trailer1' },
-        { key: 'trailer2', label: 'Trailer 2', field: 'trailer2' },
         { key: 'driver', label: 'Driver', field: 'driver', isDriverLink: true },
         { key: 'driverContact', label: 'Driver Contact', computed: 'driverContact' },
+        { key: 'trailer1', label: 'Trailer 1', field: 'trailer1' },
+        { key: 'trailer2', label: 'Trailer 2', field: 'trailer2' },
         { key: 'clearingAgent', label: 'Clearing Agent', field: 'clearingAgent' },
         { key: 'border', label: 'Border', computed: 'border' },
         { key: 'paSentOn', label: 'PA sent on', field: 'paSentOn', format: 'date' },
@@ -168,9 +168,9 @@
     };
 
     const COLUMN_PREFS_KEY = 'truckcontrol_live_column_prefs';
-    const DEFAULT_FROZEN_COLUMNS = ['rowNum', 'tripNumber', 'truck'];
+    const DEFAULT_FROZEN_COLUMNS = ['rowNum', 'tripNumber', 'truck', 'driver'];
     const COL_WIDTH_ESTIMATE = {
-        rowNum: 44, tripNumber: 108, truck: 118, orderNo: 96, driver: 120,
+        rowNum: 44, tripNumber: 108, truck: 118, driver: 130, driverContact: 150, orderNo: 96,
         latestComment: 220, retained_area: 100, retained_status: 130, retained_kpi: 110
     };
 
@@ -532,8 +532,13 @@
         return match.positionText || `${match.latitude}, ${match.longitude}` || '—';
     };
 
+    window.getTripNumber = function (trip) {
+        return trip?.tripNumber || trip?.trip || trip?._borderRow?.trip || '';
+    };
+
     window.resolveLiveCellValue = function (trip, col, rowIndex) {
         ensureTripLiveFields(trip);
+        const tripNumber = getTripNumber(trip);
         if (col.computed === 'rowIndex') return rowIndex + 1;
         if (col.isWorkflowDate) {
             const wfDir = col.workflowDirection || trip.direction || 'NB';
@@ -541,18 +546,21 @@
             return dateVal ? formatLiveDate(dateVal) : '—';
         }
         if (col.computed === 'driverContact') {
-            const dc = typeof findDriverContactByTrip === 'function' ? findDriverContactByTrip(trip.tripNumber) : null;
-            if (!dc) return '—';
-            return `${dc.whatsapp || ''}${dc.drcNumber ? ` / ${dc.drcNumber}` : ''}`.trim() || '—';
+            return typeof renderDriverContactCell === 'function'
+                ? renderDriverContactCell(tripNumber)
+                : '—';
         }
         if (col.computed === 'border') {
             return trip.direction === 'SB' ? (trip.exitBorder || trip.border || '—') : (trip.entryBorder || trip.border || '—');
         }
-        if (col.computed === 'latestComment') return renderLatestAreaCommentHtml(trip.tripNumber);
-        if (col.computed === 'position' && col.slot) return getTripPositionText(trip.tripNumber, col.slot);
+        if (col.computed === 'latestComment') return renderLatestAreaCommentHtml(tripNumber);
+        if (col.computed === 'position' && col.slot) return getTripPositionText(tripNumber, col.slot);
         if (col.field === 'truck') return renderKpiTruckCell(trip);
-        if (col.isDriverLink && trip.driver) {
-            return typeof renderDriverLink === 'function' ? renderDriverLink(trip.driver, trip.tripNumber) : trip.driver;
+        if (col.isDriverLink) {
+            const driverName = trip.driver || trip._borderRow?.driver || '';
+            return typeof renderDriverLink === 'function'
+                ? renderDriverLink(driverName, tripNumber)
+                : (driverName || '—');
         }
         const val = trip[col.field];
         if (col.format === 'date') return val ? formatLiveDate(val) : '—';

@@ -881,8 +881,50 @@
             font-weight: 600;
             text-decoration: none;
             border-bottom: 1px dashed var(--primary-light);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
         a.driver-link:hover { color: var(--primary); border-bottom-style: solid; }
+        a.driver-link.pending { color: #c05621; border-bottom-color: #ed8936; }
+        a.driver-link.registered { color: #276749; border-bottom-color: #48bb78; }
+        .driver-link-badge { font-size: 11px; line-height: 1; }
+        .driver-link-badge.pending { opacity: 0.9; }
+        .driver-link-badge.registered { color: #276749; font-weight: 700; }
+
+        .driver-contact-cell {
+            font-size: 11px;
+            line-height: 1.45;
+            min-width: 130px;
+            position: relative;
+            padding-right: 22px;
+        }
+        .driver-contact-register {
+            color: #c05621;
+            font-weight: 600;
+            font-size: 11px;
+            text-decoration: none;
+            border-bottom: 1px dashed #ed8936;
+        }
+        .driver-contact-register:hover { color: #9c4221; }
+        .driver-wa-link, .driver-drc-link {
+            color: var(--primary);
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .driver-wa-link:hover, .driver-drc-link:hover { text-decoration: underline; }
+        .driver-contact-edit {
+            position: absolute;
+            top: 0;
+            right: 0;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 12px;
+            opacity: 0.6;
+            padding: 0;
+        }
+        .driver-contact-edit:hover { opacity: 1; }
 
         .driver-contact-form-panel {
             background: #f7fafc;

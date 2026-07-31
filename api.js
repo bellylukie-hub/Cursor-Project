@@ -292,18 +292,20 @@ async function saveDriverContact(payload) {
 }
 
 function mergeDriverContactIntoLocalDb(contact) {
-  if (!contact || !contact.id || typeof driverContactsDB === 'undefined') return;
-  const idx = driverContactsDB.findIndex(c => c.id === contact.id);
-  if (idx >= 0) driverContactsDB[idx] = contact;
-  else driverContactsDB.unshift(contact);
+  if (!contact || typeof driverContactsDB === 'undefined') return;
+  const tripKey = contact.tripNumber || '';
+  let idx = contact.id ? driverContactsDB.findIndex(c => c.id === contact.id) : -1;
+  if (idx < 0 && tripKey) idx = driverContactsDB.findIndex(c => c.tripNumber === tripKey);
+  if (idx >= 0) driverContactsDB[idx] = { ...driverContactsDB[idx], ...contact };
+  else if (contact.id) driverContactsDB.unshift(contact);
 }
 
 async function syncDriverContactsFromApi() {
   if (!apiAvailable || typeof driverContactsDB === 'undefined') return false;
   try {
     const contacts = await fetchDriverContacts();
-    driverContactsDB.length = 0;
-    contacts.forEach(c => driverContactsDB.push(c));
+    if (!contacts.length) return true;
+    contacts.forEach(c => mergeDriverContactIntoLocalDb(c));
     return true;
   } catch (e) {
     console.warn('Failed to sync driver contacts from API:', e.message);

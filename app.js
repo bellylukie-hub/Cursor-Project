@@ -2065,13 +2065,14 @@ function filterSBTrucksByAreas(searchTerm) {
 
 function renderAreaBrowserTableRows(trips, direction) {
     if (!trips.length) {
-        return `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-secondary);">No trucks match the selected areas</td></tr>`;
+        return `<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-secondary);">No trucks match the selected areas</td></tr>`;
     }
     return trips.map(t => `
         <tr>
             <td><strong>${t.tripNumber}</strong></td>
             <td>${t.truck}</td>
-            <td>${t.driver}</td>
+            <td>${renderDriverLink(t.driver, t.tripNumber)}</td>
+            <td>${typeof renderDriverContactCell === 'function' ? renderDriverContactCell(t.tripNumber) : '—'}</td>
             <td>${direction === 'NB' ? (t.offloadingPoint || '—') : (t.loadingPoint || '—')}</td>
             <td>${t.area || '—'}</td>
             <td><span class="status-badge ${t.kpi}">${t.status}</span></td>
@@ -2207,6 +2208,7 @@ function renderAreaBrowser(container) {
                             <th style="padding:10px;text-align:left;">Trip</th>
                             <th style="padding:10px;text-align:left;">Truck</th>
                             <th style="padding:10px;text-align:left;">Driver</th>
+                            <th style="padding:10px;text-align:left;">Driver Contact</th>
                             <th style="padding:10px;text-align:left;">Offloading</th>
                             <th style="padding:10px;text-align:left;">Current Area</th>
                             <th style="padding:10px;text-align:left;">Status</th>
@@ -2232,6 +2234,7 @@ function renderAreaBrowser(container) {
                             <th style="padding:10px;text-align:left;">Trip</th>
                             <th style="padding:10px;text-align:left;">Truck</th>
                             <th style="padding:10px;text-align:left;">Driver</th>
+                            <th style="padding:10px;text-align:left;">Driver Contact</th>
                             <th style="padding:10px;text-align:left;">Loading</th>
                             <th style="padding:10px;text-align:left;">Current Area</th>
                             <th style="padding:10px;text-align:left;">Status</th>
@@ -5240,11 +5243,42 @@ function getDriverRegistryStats() {
 }
 
 function renderDriverLink(driverName, tripNumber) {
-    const name = driverName || '—';
-    if (!tripNumber || name === '—') return name;
-    const registered = findDriverContactByTrip(tripNumber);
-    const title = registered ? 'View / edit driver contact' : 'Register driver WhatsApp & DRC number';
-    return `<a href="#" class="driver-link" onclick="event.preventDefault();event.stopPropagation();openDriverRegistrationModal('${escapeJsString(tripNumber)}')" title="${title}">${name}${registered ? '' : ' <span style="font-size:10px;">📱</span>'}</a>`;
+    const tripId = tripNumber || '';
+    const name = (driverName || '').trim();
+    const label = name || 'Register driver';
+    if (!tripId) return name || '—';
+    const registered = findDriverContactByTrip(tripId);
+    const title = registered ? 'View / edit driver contact (WhatsApp & DRC)' : 'Click to register driver WhatsApp & DRC number';
+    const badge = registered
+        ? '<span class="driver-link-badge registered" title="Contact on file">✓</span>'
+        : '<span class="driver-link-badge pending" title="Contact not registered">📱</span>';
+    return `<a href="#" class="driver-link${registered ? ' registered' : ' pending'}" onclick="event.preventDefault();event.stopPropagation();openDriverRegistrationModal('${escapeJsString(tripId)}')" title="${title}">${label} ${badge}</a>`;
+}
+
+function formatPhoneHref(number, type) {
+    if (!number) return '';
+    const digits = String(number).replace(/[^0-9+]/g, '');
+    if (type === 'whatsapp') {
+        const wa = digits.replace(/^\+/, '');
+        return `https://wa.me/${wa}`;
+    }
+    return `tel:${digits}`;
+}
+
+function renderDriverContactCell(tripNumber) {
+    if (!tripNumber) return '—';
+    const dc = findDriverContactByTrip(tripNumber);
+    if (!dc || (!dc.whatsapp && !dc.drcNumber)) {
+        return `<a href="#" class="driver-contact-register" onclick="event.preventDefault();event.stopPropagation();openDriverRegistrationModal('${escapeJsString(tripNumber)}')">📱 Register contact</a>`;
+    }
+    const parts = [];
+    if (dc.whatsapp) {
+        parts.push(`<a href="${formatPhoneHref(dc.whatsapp, 'whatsapp')}" class="driver-wa-link" target="_blank" rel="noopener" title="WhatsApp" onclick="event.stopPropagation()">💬 ${dc.whatsapp}</a>`);
+    }
+    if (dc.drcNumber) {
+        parts.push(`<a href="${formatPhoneHref(dc.drcNumber, 'tel')}" class="driver-drc-link" title="DRC number" onclick="event.stopPropagation()">📞 ${dc.drcNumber}</a>`);
+    }
+    return `<div class="driver-contact-cell">${parts.join('<br>')}<button type="button" class="driver-contact-edit" onclick="event.stopPropagation();openDriverRegistrationModal('${escapeJsString(tripNumber)}')" title="Edit contact">✏️</button></div>`;
 }
 
 function resolveTripContext(tripNumber) {
@@ -5362,6 +5396,7 @@ async function submitDriverRegistration() {
     if (currentPage === 'border-clearance') refreshBorderTable();
     if (currentPage === 'nb-operations') refreshNBTable();
     if (currentPage === 'sb-operations') refreshSBTable();
+    if (currentPage === 'position-live' && typeof refreshPositionLiveTable === 'function') refreshPositionLiveTable();
     updateSidebarBadges();
 }
 
@@ -5397,7 +5432,7 @@ function renderDriverRegistryRows(items) {
     }
     return items.map(c => `
         <tr>
-            <td><strong>${c.driverName}</strong></td>
+            <td>${renderDriverLink(c.driverName, c.tripNumber)}</td>
             <td>${c.tripNumber || '—'}</td>
             <td>${c.truck || '—'}</td>
             <td><span class="status-badge blue">${c.direction || '—'}</span></td>
