@@ -19,7 +19,7 @@ copy_item() {
 copy_item \
   index.html app.js api.js live-operations.js \
   Dockerfile docker-compose.yml .dockerignore .env.example \
-  README.md PRODUCTION.md DEPLOY.md INSTALL-SERVER.md \
+  README.md PRODUCTION.md DEPLOY.md INSTALL-SERVER.md INSTALL-WAMP-DOCKER.md START-HERE.txt \
   ecosystem.config.cjs pm2-start.sh install-docker.sh install-linux.sh \
   samples scripts backend
 

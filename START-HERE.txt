@@ -1,0 +1,50 @@
+================================================================================
+  TruckControl — PRODUCTION SERVER PACKAGE
+================================================================================
+
+This ZIP is the full production web app (same as desktop, with login + database).
+
+QUICK START (Docker — recommended on WAMP + Docker server)
+------------------------------------------------------------
+1. Install Docker Desktop and start it
+2. Open Command Prompt in this folder:
+
+   copy .env.example .env
+   notepad .env          (set JWT_SECRET — required)
+
+   docker compose up -d --build
+
+3. Open: http://localhost:3001
+   Login: super_admin / ChangeMe123!
+
+4. After first login, edit .env → RUN_SEED=false → docker compose up -d
+
+GUIDES IN THIS FOLDER
+---------------------
+  INSTALL-WAMP-DOCKER.md   Windows + WAMP + Docker (your setup)
+  INSTALL-SERVER.md        Linux / general server
+  PRODUCTION.md            Full production reference
+
+WHAT IS INCLUDED
+----------------
+  - JWT login (production auth)
+  - NB / SB / Border / Position Live tables
+  - Column show/hide and freeze
+  - KPI colors (green / orange / red)
+  - Driver registry (click driver name → register WhatsApp + DRC)
+  - CSV upload (NB, SB, Position) — saved to SQLite database
+  - Docker + PM2 deployment files
+
+DEFAULT USERS (after seed)
+--------------------------
+  super_admin      Super Admin
+  ops_manager      Manager
+  border_moderator Moderator
+  Password: ChangeMe123!  (change after first login)
+
+TEST UPLOAD
+-----------
+  samples\NB_Live_Template.csv
+  samples\SB_Live_Template.csv
+
+================================================================================
