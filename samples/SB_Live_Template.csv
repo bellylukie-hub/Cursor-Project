@@ -1,0 +1,2 @@
+OrderNo,DateLoaded,DispatchDate,Delivered,TripNumber,OrderOwner,Transporter,FleetNr,Truck,Trailer1,Trailer2,Driver,ClearingAgent,Border,PaSentOn,Customer,Consignee,InvoiceParty,FromStation,LoadingPoint,ToStation,OffloadingPoint,CargoType,Commodity,CustomerRef
+ORD-2001,2026-07-29,,,SB-TEST-001,Transport Co A,Transport Co A,F02,DEF456DRC,TRL02,,Mike Johnson,Clearing Agent,Kasumbalesa,,Customer B,Consignee B,Invoice B,Kanyaka Mine,Kanyaka Mine,Kasumbalesa,Zambia,Copper,Cathodes,REF-002

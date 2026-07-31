@@ -4,3 +4,4 @@ backend/uploads/
 *.db
 .env
 package-lock.json
+dist/

@@ -167,6 +167,108 @@ function createSbTripFromTurnaround(nbTripNumber, payload = {}, user = {}) {
   return getTripFull(tripNumber);
 }
 
+function updateTripFromLiveUpload(tripNumber, payload, user = {}) {
+  const trip = db.prepare('SELECT * FROM trips WHERE trip_number = ?').get(tripNumber);
+  if (!trip) return null;
+
+  const truck = payload.truck || payload.plateNumber;
+  if (truck) {
+    const fleetOwner = getOrCreateFleetOwner(payload.owner || trip.owner);
+    const truckRec = getOrCreateTruck(truck, fleetOwner.id, payload.driver || trip.driver, payload.trailerPlate);
+    db.prepare('UPDATE trips SET truck_id = ? WHERE id = ?').run(truckRec.id, trip.id);
+  }
+
+  db.prepare(`
+    UPDATE trips SET
+      driver = COALESCE(?, driver),
+      owner = COALESCE(?, owner),
+      area = COALESCE(?, area),
+      entry_border = COALESCE(?, entry_border),
+      exit_border = COALESCE(?, exit_border),
+      offloading_point = COALESCE(?, offloading_point),
+      loading_point = COALESCE(?, loading_point),
+      border_process = COALESCE(?, border_process),
+      status = COALESCE(?, status),
+      updated_at = ?
+    WHERE trip_number = ?
+  `).run(
+    payload.driver || null,
+    payload.owner || null,
+    payload.area || null,
+    payload.entryBorder || null,
+    payload.exitBorder || null,
+    payload.offloadingPoint || null,
+    payload.loadingPoint || null,
+    payload.borderProcess || null,
+    payload.status || null,
+    now(),
+    tripNumber
+  );
+
+  logAudit(`Updated trip ${tripNumber} from live upload`, tripNumber, 'trip', JSON.stringify(payload), user);
+  return getTripFull(tripNumber);
+}
+
+function createSbTrip(payload, user = {}) {
+  const {
+    tripNumber,
+    truck: plateNumber,
+    driver,
+    owner: ownerName,
+    area,
+    loadingPoint,
+    exitBorder,
+    status = 'Loading'
+  } = payload;
+
+  if (!tripNumber || !plateNumber || !ownerName) {
+    throw new Error('tripNumber, truck (plate), and owner are required for SB upload');
+  }
+
+  const existing = db.prepare('SELECT id FROM trips WHERE trip_number = ?').get(tripNumber);
+  if (existing) throw new Error(`Trip ${tripNumber} already exists`);
+
+  const fleetOwner = getOrCreateFleetOwner(ownerName);
+  const truck = getOrCreateTruck(plateNumber, fleetOwner.id, driver, payload.trailerPlate);
+
+  const turnaroundId = generateId('TA');
+  const tripId = generateId('TRP');
+  const ts = now();
+
+  db.prepare(`
+    INSERT INTO turnarounds (id, truck_id, same_truck_enforced, status, created_at)
+    VALUES (?, ?, ?, 'sb_active', ?)
+  `).run(turnaroundId, truck.id, fleetOwner.require_same_truck_sb, ts);
+
+  db.prepare(`
+    INSERT INTO trips (
+      id, trip_number, direction, turnaround_id, truck_id, driver, owner, area,
+      exit_border, loading_point, status, current_step_key, created_at, updated_at
+    ) VALUES (?, ?, 'SB', ?, ?, ?, ?, ?, ?, ?, ?, 'loading', ?, ?)
+  `).run(
+    tripId, tripNumber, turnaroundId, truck.id, driver, ownerName, area || 'Kanyaka',
+    exitBorder || 'Kasumbalesa', loadingPoint || 'Kanyaka Mine', status, ts, ts
+  );
+
+  db.prepare('UPDATE turnarounds SET sb_trip_id = ? WHERE id = ?').run(tripId, turnaroundId);
+
+  initWorkflowSteps(tripId, 'SB');
+  initBorderSteps(tripId, 'SB', 'SB_EXIT');
+  initKanyakaRecord(tripId, 'SB');
+
+  logAudit(`Created SB trip ${tripNumber}`, tripNumber, 'trip', JSON.stringify(payload), user);
+  return getTripFull(tripNumber);
+}
+
+function upsertTripFromLiveUpload(direction, payload, user = {}) {
+  const tripNumber = payload.tripNumber;
+  if (!tripNumber) throw new Error('tripNumber is required');
+  const existing = db.prepare('SELECT id FROM trips WHERE trip_number = ?').get(tripNumber);
+  if (existing) return updateTripFromLiveUpload(tripNumber, payload, user);
+  if (direction === 'SB') return createSbTrip(payload, user);
+  return createNbTrip(payload, user);
+}
+
 function getTurnaroundFull(turnaroundId) {
   const turnaround = getTurnaround(turnaroundId);
   if (!turnaround) return null;
@@ -225,7 +327,10 @@ function listFleetOwners() {
 
 module.exports = {
   createNbTrip,
+  createSbTrip,
   createSbTripFromTurnaround,
+  updateTripFromLiveUpload,
+  upsertTripFromLiveUpload,
   getTurnaroundFull,
   listTurnarounds,
   updateFleetSettings,

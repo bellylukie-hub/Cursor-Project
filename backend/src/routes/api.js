@@ -14,7 +14,9 @@ const {
 } = require('../services/workflowEngine');
 const {
   createNbTrip,
+  createSbTrip,
   createSbTripFromTurnaround,
+  upsertTripFromLiveUpload,
   getTurnaroundFull,
   listTurnarounds,
   updateFleetSettings,
@@ -86,7 +88,7 @@ router.get('/trips/:tripNumber', (req, res) => {
 router.post('/trips/upload-nb', upload.single('file'), (req, res) => {
   try {
     const body = req.body;
-    const trip = createNbTrip({
+    const trip = upsertTripFromLiveUpload('NB', {
       tripNumber: body.tripNumber,
       truck: body.truck,
       driver: body.driver,
@@ -95,9 +97,29 @@ router.post('/trips/upload-nb', upload.single('file'), (req, res) => {
       entryBorder: body.entryBorder || 'Kasumbalesa',
       offloadingPoint: body.offloadingPoint,
       borderProcess: body.borderProcess || 'KBP',
-      trailerPlate: body.trailerPlate
+      trailerPlate: body.trailerPlate,
+      status: body.status
     }, getUser(req));
-    res.status(201).json({ trip, message: 'NB trip created. Truck must complete full border clearance before Kanyaka.' });
+    res.status(201).json({ trip, message: 'NB trip saved from live upload.' });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post('/trips/upload-sb', upload.single('file'), (req, res) => {
+  try {
+    const body = req.body;
+    const trip = upsertTripFromLiveUpload('SB', {
+      tripNumber: body.tripNumber,
+      truck: body.truck,
+      driver: body.driver,
+      owner: body.owner,
+      area: body.area || 'Kanyaka',
+      loadingPoint: body.loadingPoint || 'Kanyaka Mine',
+      exitBorder: body.exitBorder || body.border || 'Kasumbalesa',
+      status: body.status || 'Loading'
+    }, getUser(req));
+    res.status(201).json({ trip, message: 'SB trip saved from live upload.' });
   } catch (e) {
     res.status(400).json({ error: e.message });
   }

@@ -148,6 +148,19 @@ async function uploadNbTrip(payload) {
   return data;
 }
 
+async function uploadSbTrip(payload) {
+  const form = new FormData();
+  Object.entries(payload).forEach(([k, v]) => { if (v != null) form.append(k, v); });
+  const res = await fetch(`${API_BASE}/trips/upload-sb`, { method: 'POST', headers: authOnlyHeaders(), body: form });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Upload failed');
+  return data;
+}
+
+async function postLiveUploadRecord(payload) {
+  return apiRequest('/live-uploads', { method: 'POST', body: JSON.stringify(payload) });
+}
+
 async function advanceWorkflowStep(tripNumber, stepKey) {
   const backendKey = stepKey === 'loadingProcess' || stepKey === 'loadingPlan' ? 'loading'
     : stepKey === 'kanyaka' ? 'kanyaka_sb' : stepKey;

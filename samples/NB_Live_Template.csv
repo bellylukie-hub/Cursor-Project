@@ -1,0 +1,2 @@
+OrderNo,DateLoaded,DispatchDate,Delivered,TripNumber,OrderOwner,Transporter,FleetNr,Truck,Trailer1,Trailer2,Driver,ClearingAgent,Border,PaSentOn,Customer,Consignee,InvoiceParty,FromStation,LoadingPoint,ToStation,OffloadingPoint,CargoType,Commodity,CustomerRef
+ORD-1001,2026-07-28,,,NB-TEST-001,Transport Co A,Transport Co A,F01,ABC123DRC,TRL01,,John Doe,Clearing Agent,Kasumbalesa,,Customer A,Consignee A,Invoice A,Kasumbalesa,Kasumbalesa,Kolwezi,Kolwezi Mine,Copper,Cathodes,REF-001

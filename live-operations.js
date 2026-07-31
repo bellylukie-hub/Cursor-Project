@@ -930,43 +930,47 @@
             const tripNumber = row.TripNumber || row.tripNumber;
             const truck = row.Truck || row.truck;
             if (!tripNumber || !truck) { results.errors.push('Missing TripNumber or Truck'); continue; }
+            const payload = {
+                tripNumber, truck,
+                driver: row.Driver || row.driver || 'TBD',
+                owner: row.OrderOwner || row.Owner || row.owner || 'Unknown',
+                area: row.Area || row.area || 'Kasumbalesa',
+                entryBorder: row.Border || row.EntryBorder || row.entryBorder || 'Kasumbalesa',
+                offloadingPoint: row.OffloadingPoint || row.offloadingPoint || '',
+                borderProcess: row.BorderProcess || row.borderProcess || 'KBP',
+                status: row.Status || row.status
+            };
+            const existed = !!(window.tripsDB && window.tripsDB[tripNumber]);
             try {
                 if (typeof isApiAvailable === 'function' && isApiAvailable()) {
-                    await uploadNbTrip({
-                        tripNumber, truck,
-                        driver: row.Driver || row.driver || 'TBD',
-                        owner: row.OrderOwner || row.Owner || row.owner || 'Unknown',
-                        area: row.Area || row.area || 'Kasumbalesa',
-                        entryBorder: row.Border || row.EntryBorder || row.entryBorder || 'Kasumbalesa',
-                        offloadingPoint: row.OffloadingPoint || row.offloadingPoint || '',
-                        borderProcess: row.BorderProcess || row.borderProcess || 'KBP'
-                    });
-                    if (window.tripsDB[tripNumber]) mapLiveUploadFields(window.tripsDB[tripNumber], row);
+                    await uploadNbTrip(payload);
+                    results[existed ? 'updated' : 'created']++;
+                } else if (!window.tripsDB[tripNumber]) {
+                    window.tripsDB[tripNumber] = mapLiveUploadFields({
+                        tripNumber, truck, driver: payload.driver, direction: 'NB',
+                        area: payload.area, owner: payload.owner,
+                        entryBorder: payload.entryBorder,
+                        offloadingPoint: payload.offloadingPoint, status: payload.status || 'Border Clearance',
+                        daysInDRC: 0, kpi: 'green', borderProcess: payload.borderProcess,
+                        workflow: { border: 'current', kanyaka: 'pending', offloading: 'pending', pod: 'pending' },
+                        positions: {}
+                    }, row);
                     results.created++;
                 } else {
-                    if (!window.tripsDB[tripNumber]) {
-                        window.tripsDB[tripNumber] = mapLiveUploadFields({
-                            tripNumber, truck, driver: row.Driver || 'TBD', direction: 'NB',
-                            area: row.Area || 'Kasumbalesa', owner: row.Owner || row.OrderOwner || 'Unknown',
-                            entryBorder: row.EntryBorder || row.Border || 'Kasumbalesa',
-                            offloadingPoint: row.OffloadingPoint || '', status: row.Status || 'Border Clearance',
-                            daysInDRC: 0, kpi: 'green', borderProcess: row.BorderProcess || 'KBP',
-                            workflow: { border: 'current', kanyaka: 'pending', offloading: 'pending', pod: 'pending' },
-                            positions: {}
-                        }, row);
-                        results.created++;
-                    } else {
-                        mapLiveUploadFields(window.tripsDB[tripNumber], row);
-                        results.updated++;
-                    }
+                    mapLiveUploadFields(window.tripsDB[tripNumber], row);
+                    results.updated++;
                 }
             } catch (e) { results.errors.push(`${tripNumber}: ${e.message}`); }
         }
-        window.liveUploadsDB.unshift({
+        const uploadMeta = {
             id: 'LU-' + nextLiveUploadId++, type: 'NB', fileName, rowCount: rows.length,
             results, uploadedBy: window.getCurrentAdminUser?.()?.username || 'system',
             uploadedAt: new Date().toISOString().replace('T', ' ').slice(0, 19)
-        });
+        };
+        window.liveUploadsDB.unshift(uploadMeta);
+        if (typeof postLiveUploadRecord === 'function' && isApiAvailable()) {
+            try { await postLiveUploadRecord({ type: 'NB', fileName, rowCount: rows.length, results }); } catch (_) { /* logged locally */ }
+        }
         if (typeof syncTripsFromApi === 'function' && isApiAvailable()) await syncTripsFromApi();
         return results;
     };
@@ -977,26 +981,46 @@
             const tripNumber = row.TripNumber || row.tripNumber;
             const truck = row.Truck || row.truck;
             if (!tripNumber || !truck) continue;
-            if (!window.tripsDB[tripNumber]) {
-                window.tripsDB[tripNumber] = mapLiveUploadFields({
-                    tripNumber, truck, driver: row.Driver || 'TBD', direction: 'SB',
-                    area: row.Area || 'Kanyaka', owner: row.Owner || row.OrderOwner || 'Unknown',
-                    loadingPoint: row.LoadingPoint || 'Kanyaka Mine', exitBorder: row.ExitBorder || row.Border || 'Kasumbalesa',
-                    status: row.Status || 'Loading', daysInDRC: 0, kpi: 'green',
-                    workflow: { loadingProcess: 'current', documents: 'pending', seal: 'pending', escort: 'pending', dispatch: 'pending', kanyaka: 'pending', border: 'pending' },
-                    positions: {}
-                }, row);
-                results.created++;
-            } else {
-                mapLiveUploadFields(window.tripsDB[tripNumber], row);
-                results.updated++;
-            }
+            const payload = {
+                tripNumber, truck,
+                driver: row.Driver || row.driver || 'TBD',
+                owner: row.OrderOwner || row.Owner || row.owner || 'Unknown',
+                area: row.Area || row.area || 'Kanyaka',
+                loadingPoint: row.LoadingPoint || row.loadingPoint || 'Kanyaka Mine',
+                exitBorder: row.ExitBorder || row.Border || 'Kasumbalesa',
+                status: row.Status || row.status || 'Loading'
+            };
+            const existed = !!(window.tripsDB && window.tripsDB[tripNumber]);
+            try {
+                if (typeof isApiAvailable === 'function' && isApiAvailable()) {
+                    await uploadSbTrip(payload);
+                    results[existed ? 'updated' : 'created']++;
+                } else if (!window.tripsDB[tripNumber]) {
+                    window.tripsDB[tripNumber] = mapLiveUploadFields({
+                        tripNumber, truck, driver: payload.driver, direction: 'SB',
+                        area: payload.area, owner: payload.owner,
+                        loadingPoint: payload.loadingPoint, exitBorder: payload.exitBorder,
+                        status: payload.status, daysInDRC: 0, kpi: 'green',
+                        workflow: { loadingProcess: 'current', documents: 'pending', seal: 'pending', escort: 'pending', dispatch: 'pending', kanyaka: 'pending', border: 'pending' },
+                        positions: {}
+                    }, row);
+                    results.created++;
+                } else {
+                    mapLiveUploadFields(window.tripsDB[tripNumber], row);
+                    results.updated++;
+                }
+            } catch (e) { results.errors.push(`${tripNumber}: ${e.message}`); }
         }
-        window.liveUploadsDB.unshift({
+        const uploadMeta = {
             id: 'LU-' + nextLiveUploadId++, type: 'SB', fileName, rowCount: rows.length,
             results, uploadedBy: window.getCurrentAdminUser?.()?.username || 'system',
             uploadedAt: new Date().toISOString().replace('T', ' ').slice(0, 19)
-        });
+        };
+        window.liveUploadsDB.unshift(uploadMeta);
+        if (typeof postLiveUploadRecord === 'function' && isApiAvailable()) {
+            try { await postLiveUploadRecord({ type: 'SB', fileName, rowCount: rows.length, results }); } catch (_) { /* logged locally */ }
+        }
+        if (typeof syncTripsFromApi === 'function' && isApiAvailable()) await syncTripsFromApi();
         return results;
     };
 
