@@ -3156,6 +3156,98 @@ function renderBorderPerformanceCard(direction, data) {
     `;
 }
 
+function getBorderClearanceRowsBase() {
+    let rows = [...borderClearanceTrucks];
+    if (!userIsSuperAdmin()) {
+        rows = rows.filter(t => canModuleAction('border-clearance', 'view', t.border));
+    }
+    return rows;
+}
+
+function getOperationsTripsBase(direction) {
+    const moduleId = direction === 'NB' ? 'nb-operations' : 'sb-operations';
+    if (typeof canAccessModule === 'function' && !canAccessModule(moduleId)) return [];
+    let trips = Object.values(tripsDB).filter(t => t.direction === direction);
+    trips = filterTripsByUserArea(trips);
+    return filterTripsByModulePermission(trips, moduleId);
+}
+
+function countTripsForOperationsModule(direction) {
+    const trips = getOperationsTripsBase(direction);
+    return {
+        total: trips.length,
+        atRisk: trips.filter(t => t.kpi === 'orange' || t.kpi === 'red').length
+    };
+}
+
+function getAreaTrucksSidebarCount() {
+    if (typeof canAccessModule === 'function' && !canAccessModule('area-browser')) return 0;
+    const nb = filterNBTrucksByAreas('');
+    const sb = filterSBTrucksByAreas('');
+    return nb.length + sb.length;
+}
+
+function getPODSidebarStats() {
+    if (typeof canAccessModule === 'function' && !canAccessModule('pod-management')) {
+        return { total: 0, pending: 0, overdue: 0, actionNeeded: 0 };
+    }
+    const items = podDB.filter(p => userIsSuperAdmin() || canModuleAction('pod-management', 'view', p.area));
+    const pending = items.filter(p => !p.collected).length;
+    const overdue = items.filter(p => p.overdue).length;
+    return {
+        total: items.length,
+        pending,
+        overdue,
+        actionNeeded: items.filter(p => !p.collected || p.overdue).length
+    };
+}
+
+function getDashboardSidebarStats() {
+    const stats = getDashboardStats();
+    return { atRisk: stats.orange + stats.red, red: stats.red, orange: stats.orange };
+}
+
+function setNavBadge(el, count, opts = {}) {
+    if (!el) return;
+    const n = Number(count) || 0;
+    if (n <= 0 && !opts.showZero) {
+        el.style.display = 'none';
+        el.textContent = '';
+        return;
+    }
+    el.style.display = '';
+    el.textContent = String(n);
+    el.classList.remove('warning', 'red');
+    if (opts.variant === 'red' || opts.red) el.classList.add('red');
+    else if (opts.variant === 'warning' || opts.warning) el.classList.add('warning');
+    if (opts.title) el.title = opts.title;
+}
+
+function getSidebarBadgeStats() {
+    const comm = getCommunicationDashboardStats();
+    const nb = countTripsForOperationsModule('NB');
+    const sb = countTripsForOperationsModule('SB');
+    const borderRows = getBorderClearanceRowsBase();
+    const borderAtRisk = borderRows.filter(r => r.kpi === 'orange' || r.kpi === 'red').length;
+    const pod = getPODSidebarStats();
+    const dash = getDashboardSidebarStats();
+    return {
+        dashboard: dash,
+        nb,
+        sb,
+        border: { total: borderRows.length, atRisk: borderAtRisk },
+        pod,
+        area: getAreaTrucksSidebarCount(),
+        matrix: comm.matrixTotalContacts,
+        drivers: comm.driverRegistryTotal,
+        internalUnread: comm.unreadMessages,
+        internalDetail: comm
+    };
+}
+
+let systemAlertsCache = [];
+let alertPanelMenuFilter = null;
+
 function getCommunicationDashboardStats() {
     const matrix = getMatrixStats();
     const driverStats = getDriverRegistryStats();
@@ -3180,34 +3272,76 @@ function getCommunicationDashboardStats() {
 }
 
 function updateSidebarBadges() {
-    const comm = getCommunicationDashboardStats();
-    const matrixBadge = document.getElementById('navMatrixBadge');
-    const driverBadge = document.getElementById('navDriverRegistryBadge');
-    const internalBadge = document.getElementById('navInternalCommBadge');
-    if (matrixBadge) {
-        matrixBadge.textContent = comm.matrixTotalContacts;
-        matrixBadge.title = `${comm.matrixTotalContacts} contacts in Communication Matrix`;
-        matrixBadge.style.display = comm.matrixTotalContacts ? '' : 'none';
-    }
-    if (driverBadge) {
-        driverBadge.textContent = comm.driverRegistryTotal;
-        driverBadge.title = `${comm.driverRegistryTotal} registered driver(s) — ${comm.driverRegistryNb} NB`;
-        driverBadge.style.display = comm.driverRegistryTotal ? '' : 'none';
-    }
-    if (internalBadge) {
-        internalBadge.textContent = comm.unreadMessages;
-        internalBadge.title = `${comm.unreadEmails} unread email(s), ${comm.unreadChats} unread chat(s)`;
-        internalBadge.style.display = comm.unreadMessages ? '' : 'none';
-    }
-    updateAlertPanel();
+    const stats = getSidebarBadgeStats();
+    const comm = stats.internalDetail;
+
+    setNavBadge(document.getElementById('navDashboardBadge'), stats.dashboard.atRisk, {
+        title: `${stats.dashboard.atRisk} priority/overdue trip(s) — open Dashboard`,
+        variant: stats.dashboard.red > 0 ? 'red' : 'warning'
+    });
+
+    setNavBadge(document.getElementById('navNbBadge'), stats.nb.total, {
+        title: `${stats.nb.total} NB truck(s)${stats.nb.atRisk ? ` · ${stats.nb.atRisk} priority/overdue` : ''}`,
+        warning: stats.nb.atRisk > 0
+    });
+
+    setNavBadge(document.getElementById('navSbBadge'), stats.sb.total, {
+        title: `${stats.sb.total} SB truck(s)${stats.sb.atRisk ? ` · ${stats.sb.atRisk} priority/overdue` : ''}`,
+        warning: stats.sb.atRisk > 0
+    });
+
+    setNavBadge(document.getElementById('navBorderBadge'), stats.border.total, {
+        title: `${stats.border.total} truck(s) in border clearance${stats.border.atRisk ? ` · ${stats.border.atRisk} need attention` : ''}`,
+        warning: stats.border.atRisk > 0
+    });
+
+    setNavBadge(document.getElementById('navPodBadge'), stats.pod.total, {
+        title: stats.pod.total
+            ? `${stats.pod.total} POD record(s) · ${stats.pod.pending} pending · ${stats.pod.overdue} overdue`
+            : 'No POD records',
+        warning: stats.pod.actionNeeded > 0
+    });
+
+    setNavBadge(document.getElementById('navAreaBadge'), stats.area, {
+        title: `${stats.area} truck(s) across selected areas`,
+        showZero: false
+    });
+
+    setNavBadge(document.getElementById('navMatrixBadge'), stats.matrix, {
+        title: `${stats.matrix} contact(s) in Communication Matrix`
+    });
+
+    setNavBadge(document.getElementById('navDriverRegistryBadge'), stats.drivers, {
+        title: `${stats.drivers} registered driver(s) — ${comm.driverRegistryNb} NB`
+    });
+
+    setNavBadge(document.getElementById('navInternalCommBadge'), stats.internalUnread, {
+        title: `${comm.unreadEmails} unread email(s), ${comm.unreadChats} unread chat(s)`,
+        warning: stats.internalUnread > 0
+    });
+
+    updateAlertPanel(alertPanelMenuFilter);
 }
+
+const ALERT_MENU_SECTIONS = [
+    { key: 'dashboard', label: 'Main — Dashboard', icon: '📊', page: 'dashboard' },
+    { key: 'nb-operations', label: 'NB Operations', icon: '🚛', page: 'nb-operations' },
+    { key: 'sb-operations', label: 'SB Operations', icon: '🚛', page: 'sb-operations' },
+    { key: 'border-clearance', label: 'Border Clearance', icon: '🛂', page: 'border-clearance' },
+    { key: 'pod-management', label: 'POD Management', icon: '📋', page: 'pod-management' },
+    { key: 'area-browser', label: 'Area Trucks', icon: '🗺️', page: 'area-browser' },
+    { key: 'internal-communication', label: 'Internal Communication', icon: '✉️', page: 'internal-communication' },
+    { key: 'communication-matrix', label: 'Communication Matrix', icon: '📇', page: 'communication-matrix' },
+    { key: 'driver-registry', label: 'Driver Registry', icon: '📱', page: 'driver-registry' },
+    { key: 'assets', label: 'Documents & Assets', icon: '📄', page: 'assets' }
+];
 
 function collectSystemAlerts() {
     const alerts = [];
 
     emailsDB.filter(e => !e.mirrorOf && e.folder === 'inbox' && !e.read).forEach(e => {
         alerts.push({
-            id: `email-${e.id}`, category: 'Email', level: e.important ? 'orange' : 'blue', icon: '✉️',
+            id: `email-${e.id}`, menuKey: 'internal-communication', category: 'Unread Email', level: e.important ? 'orange' : 'blue', icon: '✉️',
             title: e.subject,
             subtitle: `From: ${e.from}${e.relatedLabel ? ` · ${e.relatedLabel}` : ''}`,
             time: e.sentAt,
@@ -3217,7 +3351,7 @@ function collectSystemAlerts() {
 
     chatRoomsDB.filter(r => (r.unreadCount || 0) > 0).forEach(r => {
         alerts.push({
-            id: `chat-${r.id}`, category: 'Chat', level: 'blue',
+            id: `chat-${r.id}`, menuKey: 'internal-communication', category: 'Unread Chat', level: 'blue',
             icon: r.type === 'group' ? '👥' : '💬',
             title: `${r.name} — ${r.unreadCount} unread message${r.unreadCount !== 1 ? 's' : ''}`,
             subtitle: r.lastMessage,
@@ -3226,40 +3360,9 @@ function collectSystemAlerts() {
         });
     });
 
-    Object.values(tripsDB).filter(t => t.kpi === 'orange' || t.kpi === 'red').forEach(trip => {
-        alerts.push({
-            id: `trip-${trip.tripNumber}`, category: 'Operations', level: trip.kpi,
-            icon: trip.kpi === 'red' ? '🔴' : '🟠',
-            title: `${trip.tripNumber} — ${trip.status}`,
-            subtitle: `${trip.truck} | ${trip.driver} | ${trip.area || '—'} | ${trip.daysInDRC} days in DRC`,
-            time: trip.kpi === 'red' ? 'Overdue — action required' : 'Priority attention',
-            action: { type: 'trip', ref: trip.tripNumber }
-        });
-    });
-
-    podDB.filter(p => p.overdue || (!p.collected && p.kpi === 'red')).forEach(p => {
-        alerts.push({
-            id: `pod-${p.trip}`, category: 'POD', level: p.overdue ? 'red' : 'orange', icon: '📋',
-            title: `POD ${p.overdue ? 'Overdue' : 'Pending'} — ${p.trip}`,
-            subtitle: `${p.truck} | ${p.driver} | ${p.area}`,
-            time: p.overdue ? 'Collection overdue' : 'Awaiting POD collection',
-            action: { type: 'pod', ref: p.overdue ? 'overdue' : 'pending' }
-        });
-    });
-
-    documentsDB.filter(d => d.status === 'expired' || d.status === 'expiring').forEach(d => {
-        alerts.push({
-            id: `doc-${d.id}`, category: 'Documents', level: d.status === 'expired' ? 'red' : 'orange', icon: '📄',
-            title: `${d.type} — ${d.label}`,
-            subtitle: `${d.entity} | ${d.truck || '—'}`,
-            time: `Expiry: ${d.expiry}`,
-            action: { type: 'document', ref: d.id }
-        });
-    });
-
     emailsDB.filter(e => !e.mirrorOf && e.folder === 'drafts').forEach(e => {
         alerts.push({
-            id: `draft-${e.id}`, category: 'Email', level: 'orange', icon: '📝',
+            id: `draft-${e.id}`, menuKey: 'internal-communication', category: 'Email Draft', level: 'orange', icon: '📝',
             title: `Draft: ${e.subject}`,
             subtitle: `To: ${e.to.join(', ') || '—'}`,
             time: e.sentAt,
@@ -3267,62 +3370,154 @@ function collectSystemAlerts() {
         });
     });
 
+    ['NB', 'SB'].forEach(direction => {
+        const menuKey = direction === 'SB' ? 'sb-operations' : 'nb-operations';
+        getOperationsTripsBase(direction)
+            .filter(t => t.kpi === 'orange' || t.kpi === 'red')
+            .forEach(trip => {
+                alerts.push({
+                    id: `trip-${trip.tripNumber}`, menuKey, category: direction === 'SB' ? 'SB Trip Alert' : 'NB Trip Alert',
+                    level: trip.kpi, icon: trip.kpi === 'red' ? '🔴' : '🟠',
+                    title: `${trip.tripNumber} — ${trip.status}`,
+                    subtitle: `${trip.truck} | ${trip.driver} | ${trip.area || '—'} | ${trip.daysInDRC} days in DRC`,
+                    time: trip.kpi === 'red' ? 'Overdue — action required' : 'Priority attention',
+                    action: { type: 'trip', ref: trip.tripNumber, context: direction === 'SB' ? 'sb' : 'nb' }
+                });
+            });
+    });
+
+    getBorderClearanceRowsBase().filter(b => b.kpi === 'orange' || b.kpi === 'red').forEach(b => {
+        alerts.push({
+            id: `border-${b.trip}`, menuKey: 'border-clearance', category: 'Border Clearance', level: b.kpi,
+            icon: b.kpi === 'red' ? '🔴' : '🟠',
+            title: `${b.trip} — ${b.status}`,
+            subtitle: `${b.truck} | ${b.driver} | ${b.border} · ${b.process} · ${b.hours}h / ${b.target}`,
+            time: b.kpiLabel || (b.kpi === 'red' ? 'Overdue' : 'Priority'),
+            action: { type: 'border', ref: b.trip }
+        });
+    });
+
+    podDB.filter(p => p.overdue || (!p.collected && (p.kpi === 'red' || p.kpi === 'orange'))).forEach(p => {
+        if (!userIsSuperAdmin() && !canModuleAction('pod-management', 'view', p.area)) return;
+        alerts.push({
+            id: `pod-${p.trip}`, menuKey: 'pod-management', category: 'POD', level: p.overdue ? 'red' : 'orange', icon: '📋',
+            title: `POD ${p.overdue ? 'Overdue' : 'Pending'} — ${p.trip}`,
+            subtitle: `${p.truck} | ${p.driver} | ${p.area}`,
+            time: p.overdue ? 'Collection overdue' : 'Awaiting POD collection',
+            action: { type: 'pod', ref: p.overdue ? 'overdue' : 'pending', trip: p.trip }
+        });
+    });
+
+    documentsDB.filter(d => d.status === 'expired' || d.status === 'expiring').forEach(d => {
+        alerts.push({
+            id: `doc-${d.id}`, menuKey: 'assets', category: 'Document', level: d.status === 'expired' ? 'red' : 'orange', icon: '📄',
+            title: `${d.type} — ${d.label}`,
+            subtitle: `${d.entity} | ${d.truck || '—'}`,
+            time: `Expiry: ${d.expiry}`,
+            action: { type: 'document', ref: d.id }
+        });
+    });
+
+    const dashAtRisk = getDashboardSidebarStats().atRisk;
+    if (dashAtRisk > 0) {
+        alerts.push({
+            id: 'dashboard-summary', menuKey: 'dashboard', category: 'Dashboard Summary', level: getDashboardSidebarStats().red > 0 ? 'red' : 'orange',
+            icon: '📊',
+            title: `${dashAtRisk} trip(s) need attention`,
+            subtitle: 'Priority or overdue trucks across NB and SB operations',
+            time: 'Open Dashboard to review KPI cards and alerts',
+            action: { type: 'page', ref: 'dashboard' }
+        });
+    }
+
     const levelOrder = { red: 0, orange: 1, blue: 2 };
-    const categoryOrder = { Email: 0, Chat: 1, Operations: 2, POD: 3, Documents: 4 };
-    return alerts.sort((a, b) => {
+    const menuOrder = Object.fromEntries(ALERT_MENU_SECTIONS.map((s, i) => [s.key, i]));
+    systemAlertsCache = alerts.sort((a, b) => {
+        const byMenu = (menuOrder[a.menuKey] ?? 99) - (menuOrder[b.menuKey] ?? 99);
+        if (byMenu !== 0) return byMenu;
         const byLevel = (levelOrder[a.level] ?? 9) - (levelOrder[b.level] ?? 9);
         if (byLevel !== 0) return byLevel;
-        return (categoryOrder[a.category] ?? 9) - (categoryOrder[b.category] ?? 9);
+        return String(a.title).localeCompare(String(b.title));
     });
+    return systemAlertsCache;
 }
 
-function renderAlertPanelContent(alerts) {
-    if (!alerts.length) {
-        return '<div style="padding:32px 20px;text-align:center;color:var(--text-secondary);"><div style="font-size:32px;margin-bottom:8px;">✅</div>No alerts — you\'re all caught up!</div>';
+function renderAlertPanelContent(alerts, menuFilter) {
+    const list = menuFilter ? alerts.filter(a => a.menuKey === menuFilter) : alerts;
+    if (!list.length) {
+        if (!alerts.length) {
+            return '<div style="padding:32px 20px;text-align:center;color:var(--text-secondary);"><div style="font-size:32px;margin-bottom:8px;">✅</div>No alerts — you\'re all caught up!</div>';
+        }
+        const section = ALERT_MENU_SECTIONS.find(s => s.key === menuFilter);
+        const label = section ? `${section.icon} ${section.label}` : 'this section';
+        return `<div style="padding:32px 20px;text-align:center;color:var(--text-secondary);"><div style="font-size:32px;margin-bottom:8px;">✅</div>No alerts for ${label}.</div>`;
     }
-    const grouped = {};
-    alerts.forEach(a => {
-        if (!grouped[a.category]) grouped[a.category] = [];
-        grouped[a.category].push(a);
-    });
-    const order = ['Email', 'Chat', 'Operations', 'POD', 'Documents'];
-    const icons = { Email: '✉️', Chat: '💬', Operations: '🚛', POD: '📋', Documents: '📄' };
-    return order.filter(cat => grouped[cat]?.length).map(cat => `
-        <div class="alert-section-title">${icons[cat]} ${cat} (${grouped[cat].length})</div>
-        ${grouped[cat].map(a => `
-            <div class="alert-item ${a.level}" onclick="handleSystemAlertClick('${a.id}')">
-                <div class="alert-title">${a.icon} ${a.title}</div>
-                <div class="alert-time">${a.subtitle}</div>
-                <div class="alert-time" style="margin-top:3px;">${a.time}</div>
-            </div>
-        `).join('')}
-    `).join('');
+
+    const sections = menuFilter
+        ? ALERT_MENU_SECTIONS.filter(s => s.key === menuFilter)
+        : ALERT_MENU_SECTIONS;
+
+    return sections.map(sec => {
+        const items = list.filter(a => a.menuKey === sec.key);
+        if (!items.length) return '';
+        return `
+            <div class="alert-menu-section-title">${sec.icon} ${sec.label} (${items.length})</div>
+            ${items.map(a => `
+                <div class="alert-item ${a.level}" onclick="handleSystemAlertClick('${a.id.replace(/'/g, "\\'")}')">
+                    <div class="alert-title">${a.icon} ${a.title}</div>
+                    <div class="alert-time">${a.subtitle}</div>
+                    <div class="alert-time" style="margin-top:3px;">${a.time}</div>
+                    <div class="alert-time" style="margin-top:2px;font-size:10px;color:var(--primary);">${a.category}</div>
+                </div>
+            `).join('')}
+        `;
+    }).filter(Boolean).join('');
 }
 
-function updateAlertPanel() {
+function updateAlertPanel(menuFilter) {
+    if (menuFilter !== undefined) alertPanelMenuFilter = menuFilter;
     const alerts = collectSystemAlerts();
+    const visible = alertPanelMenuFilter
+        ? alerts.filter(a => a.menuKey === alertPanelMenuFilter)
+        : alerts;
     const countEl = document.getElementById('alertCount');
     const body = document.getElementById('alertPanelBody');
     const footer = document.getElementById('alertPanelFooter');
-    const btn = document.querySelector('.notification-btn');
+    const btn = document.getElementById('notificationBellBtn') || document.querySelector('.notification-btn');
     if (countEl) {
         countEl.textContent = alerts.length;
         countEl.style.display = alerts.length ? 'flex' : 'none';
     }
     if (btn) btn.classList.toggle('has-alerts', alerts.length > 0);
-    if (body) body.innerHTML = renderAlertPanelContent(alerts);
+    if (body) {
+        const filterHint = alertPanelMenuFilter
+            ? (() => {
+                const sec = ALERT_MENU_SECTIONS.find(s => s.key === alertPanelMenuFilter);
+                return sec
+                    ? `<div class="alert-panel-filter-hint">Showing alerts for <strong>${sec.icon} ${sec.label}</strong> · <a href="#" onclick="event.preventDefault();clearAlertPanelFilter()">Show all</a></div>`
+                    : '';
+            })()
+            : '';
+        body.innerHTML = filterHint + renderAlertPanelContent(alerts, alertPanelMenuFilter);
+    }
     if (footer) {
-        const emailCount = alerts.filter(a => a.category === 'Email').length;
-        const chatCount = alerts.filter(a => a.category === 'Chat').length;
-        const opsCount = alerts.length - emailCount - chatCount;
+        const counts = ALERT_MENU_SECTIONS.map(sec => {
+            const n = alerts.filter(a => a.menuKey === sec.key).length;
+            return n ? `${sec.icon} ${n}` : null;
+        }).filter(Boolean);
         footer.innerHTML = alerts.length
-            ? `${alerts.length} alert${alerts.length !== 1 ? 's' : ''} · ✉️ ${emailCount} email · 💬 ${chatCount} chat · 🚛 ${opsCount} operations`
+            ? `${visible.length} shown · ${alerts.length} total alert${alerts.length !== 1 ? 's' : ''}${counts.length ? ' · ' + counts.join(' · ') : ''}`
             : '';
     }
 }
 
+function clearAlertPanelFilter() {
+    alertPanelMenuFilter = null;
+    updateAlertPanel(null);
+}
+
 function handleSystemAlertClick(alertId) {
-    const alert = collectSystemAlerts().find(a => a.id === alertId);
+    const alert = systemAlertsCache.find(a => a.id === alertId) || collectSystemAlerts().find(a => a.id === alertId);
     if (!alert) return;
     document.getElementById('alertPanel')?.classList.remove('show');
 
@@ -3356,16 +3551,32 @@ function handleSystemAlertClick(alertId) {
             break;
         }
         case 'trip':
-            openCommentModal(alert.action.ref);
+            if (alert.action.context === 'sb' || alert.action.context === 'nb') {
+                openCommentModal(alert.action.ref, alert.action.context);
+            } else {
+                openCommentModal(alert.action.ref);
+            }
+            break;
+        case 'border':
+            navigateTo('border-clearance');
+            setTimeout(() => openCommentModal(alert.action.ref, 'border'), 100);
             break;
         case 'pod':
-            navigateToPOD(alert.action.ref);
+            if (alert.action.trip) {
+                navigateTo('pod-management');
+                setTimeout(() => openCommentModal(alert.action.trip, 'pod'), 100);
+            } else {
+                navigateToPOD(alert.action.ref);
+            }
             break;
         case 'document':
             navigateToDocument(alert.action.ref);
             break;
+        case 'page':
+            navigateTo(alert.action.ref);
+            break;
     }
-    updateAlertPanel();
+    updateAlertPanel(alertPanelMenuFilter);
 }
 
 function handleAlertClick(tripNumber) { handleSystemAlertClick(`trip-${tripNumber}`); }
@@ -8789,11 +9000,26 @@ function handleUpload() {
     closeModal('uploadModal');
 }
 function handleGlobalSearch(){ const term=document.getElementById('globalSearch').value.toLowerCase(); if(!term)return; for(const[key,trip]of Object.entries(tripsDB)){ if(trip.tripNumber.toLowerCase().includes(term)||trip.truck.toLowerCase().includes(term)||trip.driver.toLowerCase().includes(term)){ showToast(`Found: ${trip.tripNumber} - ${trip.truck}`,'success'); return; } } showToast('No matching trucks found','warning'); }
-function toggleAlerts() {
+function openNavAlerts(menuKey) {
     const panel = document.getElementById('alertPanel');
     if (!panel) return;
-    updateAlertPanel();
-    panel.classList.toggle('show');
+    alertPanelMenuFilter = menuKey || null;
+    updateAlertPanel(alertPanelMenuFilter);
+    panel.classList.add('show');
+}
+
+function toggleAlerts(menuFilter) {
+    const panel = document.getElementById('alertPanel');
+    if (!panel) return;
+    const willOpen = !panel.classList.contains('show');
+    if (willOpen) {
+        if (menuFilter !== undefined) alertPanelMenuFilter = menuFilter || null;
+        updateAlertPanel(alertPanelMenuFilter);
+        panel.classList.add('show');
+    } else {
+        panel.classList.remove('show');
+        alertPanelMenuFilter = null;
+    }
 }
 function openModal(modalId){ document.getElementById(modalId).classList.add('show'); }
 function closeModal(modalId){ document.getElementById(modalId).classList.remove('show'); }
@@ -8844,8 +9070,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
     document.addEventListener('click', function (event) {
         const ap = document.getElementById('alertPanel');
-        const nb = document.querySelector('.notification-btn');
-        if (ap && nb && !ap.contains(event.target) && !nb.contains(event.target) && ap.classList.contains('show')) ap.classList.remove('show');
+        const nb = document.getElementById('notificationBellBtn') || document.querySelector('.notification-btn');
+        if (ap && nb && !ap.contains(event.target) && !nb.contains(event.target) && ap.classList.contains('show')) {
+            ap.classList.remove('show');
+            alertPanelMenuFilter = null;
+        }
     });
     console.log('🚛 TruckControl DRC — Production Ready');
 });
