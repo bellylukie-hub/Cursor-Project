@@ -1283,6 +1283,20 @@
         .workflow-pill.completed { background: #c6f6d5; color: #22543d; }
         .workflow-pill.current { background: #bee3f8; color: #2a4365; font-weight: 600; }
         .workflow-pill.pending { opacity: 0.6; }
+        .turnaround-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 20px; }
+        .turnaround-stat-card { background: white; border-radius: 10px; padding: 16px; box-shadow: var(--shadow); border: 1px solid var(--border); text-align: center; }
+        .turnaround-stat-value { font-size: 26px; font-weight: 700; color: var(--text-primary); }
+        .turnaround-stat-value.green { color: var(--green); }
+        .turnaround-stat-value.blue { color: var(--primary-light); }
+        .turnaround-stat-value.orange { color: var(--orange); }
+        .turnaround-stat-label { font-size: 11px; color: var(--text-secondary); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
+        .turnaround-list-meta { font-size: 13px; color: var(--text-secondary); margin: -8px 0 16px; }
+        .turnaround-filters { margin-bottom: 20px; align-items: flex-end; }
+        .turnaround-table { font-size: 13px; }
+        .turnaround-row:hover { background: #f7fafc; }
+        .turnaround-row.expanded { background: #ebf8ff; }
+        .turnaround-detail-row td { padding: 0 12px 16px !important; background: #f8fafc; border-bottom: 2px solid var(--border); }
+        .turnaround-detail-card { border: none; box-shadow: none; background: transparent; }
         .report-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
         .report-card { background: white; border-radius: 12px; padding: 20px; box-shadow: var(--shadow); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; border: 1px solid var(--border); }
         .report-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); border-color: var(--primary-light); }

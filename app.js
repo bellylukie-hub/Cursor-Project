@@ -7105,6 +7105,112 @@ function renderInternalCommunication(container) {
 // TURNAROUNDS — NB → POD → SB lifecycle (API-linked)
 // ============================================
 let turnaroundsCache = [];
+let turnaroundSearchTerm = '';
+let turnaroundStatusFilter = 'all';
+let turnaroundOwnerFilter = 'all';
+let turnaroundSameTruckFilter = 'all';
+let turnaroundDateFrom = '';
+let turnaroundDateTo = '';
+let turnaroundExpandedId = null;
+
+function parseTurnaroundDate(val) {
+    if (!val) return null;
+    const d = new Date(String(val).replace(' ', 'T'));
+    return isNaN(d.getTime()) ? null : d;
+}
+
+function formatTurnaroundDate(val) {
+    const d = parseTurnaroundDate(val);
+    if (!d) return '—';
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function getTurnaroundStatusLabel(status) {
+    const labels = {
+        nb_active: 'NB in progress',
+        nb_complete: 'NB complete — awaiting SB',
+        sb_active: 'SB in progress',
+        completed: 'Round trip complete'
+    };
+    return labels[status] || status || '—';
+}
+
+function getTurnaroundStatusClass(status) {
+    if (status === 'completed') return 'green';
+    if (status === 'sb_active') return 'blue';
+    if (status === 'nb_complete') return 'orange';
+    return 'gray';
+}
+
+function buildLocalTurnaroundsFromTrips() {
+    const allTrips = Object.values(tripsDB || {});
+    const byTaId = {};
+
+    allTrips.forEach(t => {
+        const taId = t.turnaroundId || t.turnaround?.id;
+        if (!taId) return;
+        if (!byTaId[taId]) {
+            byTaId[taId] = {
+                id: taId,
+                status: t.turnaround?.status || 'nb_active',
+                truck: { plate: t.truck, driver: t.driver },
+                fleetOwner: { name: t.owner },
+                sameTruckEnforced: t.sameTruckEnforced !== false,
+                createdAt: t.lastUpdatedAt || t.createdAt || new Date().toISOString(),
+                completedAt: t.turnaround?.completed_at || null,
+                nbTrip: null,
+                sbTrip: null,
+                nbTripNumber: null,
+                sbTripNumber: null
+            };
+        }
+        if (t.direction === 'NB') {
+            byTaId[taId].nbTrip = t;
+            byTaId[taId].nbTripNumber = t.tripNumber;
+            byTaId[taId].truck = { plate: t.truck, driver: t.driver };
+            byTaId[taId].fleetOwner = { name: t.owner };
+        } else if (t.direction === 'SB') {
+            byTaId[taId].sbTrip = t;
+            byTaId[taId].sbTripNumber = t.tripNumber;
+        }
+    });
+
+    const sbByTruck = {};
+    allTrips.filter(t => t.direction === 'SB').forEach(t => {
+        const key = String(t.truck || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (key && !sbByTruck[key]) sbByTruck[key] = t;
+    });
+
+    const linkedNb = new Set(Object.values(byTaId).map(r => r.nbTrip?.tripNumber).filter(Boolean));
+    allTrips.filter(t => t.direction === 'NB').forEach(nb => {
+        if (linkedNb.has(nb.tripNumber)) return;
+        const truckKey = String(nb.truck || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const sb = truckKey ? sbByTruck[truckKey] : null;
+        let status = 'nb_active';
+        if (sb) status = sb.workflow?.border === 'completed' ? 'completed' : 'sb_active';
+        else if (nb.workflow?.pod === 'completed') status = 'nb_complete';
+
+        byTaId['local-' + nb.tripNumber] = {
+            id: 'local-' + nb.tripNumber,
+            status,
+            truck: { plate: nb.truck, driver: nb.driver },
+            fleetOwner: { name: nb.owner },
+            sameTruckEnforced: true,
+            nbTripNumber: nb.tripNumber,
+            sbTripNumber: sb?.tripNumber || null,
+            createdAt: nb.lastUpdatedAt || new Date().toISOString(),
+            completedAt: status === 'completed' ? (sb?.lastUpdatedAt || null) : null,
+            nbTrip: nb,
+            sbTrip: sb || null
+        };
+    });
+
+    return Object.values(byTaId).sort((a, b) => {
+        const da = parseTurnaroundDate(a.createdAt)?.getTime() || 0;
+        const db = parseTurnaroundDate(b.createdAt)?.getTime() || 0;
+        return db - da;
+    });
+}
 
 async function loadTurnarounds() {
     if (typeof isApiAvailable === 'function' && isApiAvailable()) {
@@ -7119,31 +7225,243 @@ async function loadTurnarounds() {
             console.warn('Turnarounds API:', e.message);
         }
     }
-    return [];
+    turnaroundsCache = buildLocalTurnaroundsFromTrips();
+    return turnaroundsCache;
+}
+
+function getTurnaroundOwnerOptions(turnarounds) {
+    const owners = new Set();
+    turnarounds.forEach(t => {
+        const name = t.fleetOwner?.name || t.nbTrip?.owner || t.sbTrip?.owner;
+        if (name) owners.add(name);
+    });
+    return [...owners].sort();
+}
+
+function getTurnaroundStats(turnarounds) {
+    return {
+        total: turnarounds.length,
+        nbOnly: turnarounds.filter(t => t.nbTrip && !t.sbTrip).length,
+        withSb: turnarounds.filter(t => t.sbTrip).length,
+        completed: turnarounds.filter(t => t.status === 'completed').length,
+        sbActive: turnarounds.filter(t => t.status === 'sb_active').length,
+        sameTruck: turnarounds.filter(t => t.sameTruckEnforced).length
+    };
+}
+
+function filterTurnarounds(turnarounds) {
+    const term = (turnaroundSearchTerm || '').trim().toLowerCase();
+    const from = turnaroundDateFrom ? parseTurnaroundDate(turnaroundDateFrom + 'T00:00:00') : null;
+    const to = turnaroundDateTo ? parseTurnaroundDate(turnaroundDateTo + 'T23:59:59') : null;
+
+    return turnarounds.filter(t => {
+        if (turnaroundStatusFilter !== 'all' && t.status !== turnaroundStatusFilter) return false;
+        if (turnaroundOwnerFilter !== 'all') {
+            const owner = t.fleetOwner?.name || t.nbTrip?.owner || t.sbTrip?.owner || '';
+            if (owner !== turnaroundOwnerFilter) return false;
+        }
+        if (turnaroundSameTruckFilter === 'yes' && !t.sameTruckEnforced) return false;
+        if (turnaroundSameTruckFilter === 'no' && t.sameTruckEnforced) return false;
+
+        const created = parseTurnaroundDate(t.createdAt);
+        if (from && created && created < from) return false;
+        if (to && created && created > to) return false;
+
+        if (term) {
+            const hay = [
+                t.id, t.truck?.plate, t.truck?.driver,
+                t.fleetOwner?.name, t.nbTripNumber, t.sbTripNumber,
+                t.nbTrip?.tripNumber, t.sbTrip?.tripNumber,
+                t.nbTrip?.driver, t.sbTrip?.driver,
+                t.nbTrip?.status, t.sbTrip?.status,
+                getTurnaroundStatusLabel(t.status)
+            ].filter(Boolean).join(' ').toLowerCase();
+            if (!hay.includes(term)) return false;
+        }
+        return true;
+    });
+}
+
+function renderTurnaroundStatsBar(stats, filteredCount, totalCount) {
+    return `
+        <div class="turnaround-stat-grid">
+            <div class="turnaround-stat-card"><div class="turnaround-stat-value">${stats.total}</div><div class="turnaround-stat-label">Total round trips</div></div>
+            <div class="turnaround-stat-card"><div class="turnaround-stat-value green">${stats.completed}</div><div class="turnaround-stat-label">Completed</div></div>
+            <div class="turnaround-stat-card"><div class="turnaround-stat-value blue">${stats.withSb}</div><div class="turnaround-stat-label">With SB leg</div></div>
+            <div class="turnaround-stat-card"><div class="turnaround-stat-value orange">${stats.nbOnly}</div><div class="turnaround-stat-label">NB only (awaiting SB)</div></div>
+            <div class="turnaround-stat-card"><div class="turnaround-stat-value">${stats.sbActive}</div><div class="turnaround-stat-label">SB in progress</div></div>
+            <div class="turnaround-stat-card"><div class="turnaround-stat-value">${stats.sameTruck}</div><div class="turnaround-stat-label">Same-truck policy</div></div>
+        </div>
+        <p class="turnaround-list-meta">${filteredCount} of ${totalCount} round trip${totalCount !== 1 ? 's' : ''} shown</p>`;
+}
+
+function renderTurnaroundFiltersBar(ownerOptions) {
+    return `
+        <div class="filters-bar turnaround-filters">
+            <div class="search-filter" style="flex:1;min-width:220px;">
+                <span>🔍</span>
+                <input type="text" id="turnaroundSearchInput" class="form-control" placeholder="Search truck, trip #, driver, owner, status…"
+                    value="${turnaroundSearchTerm}" onkeyup="turnaroundSearchTerm=this.value;refreshTurnaroundsList()">
+            </div>
+            <div class="filter-group">
+                <label>Status</label>
+                <select id="turnaroundStatusFilter" class="form-control" onchange="turnaroundStatusFilter=this.value;refreshTurnaroundsList()">
+                    <option value="all"${turnaroundStatusFilter === 'all' ? ' selected' : ''}>All statuses</option>
+                    <option value="nb_active"${turnaroundStatusFilter === 'nb_active' ? ' selected' : ''}>NB in progress</option>
+                    <option value="nb_complete"${turnaroundStatusFilter === 'nb_complete' ? ' selected' : ''}>Awaiting SB</option>
+                    <option value="sb_active"${turnaroundStatusFilter === 'sb_active' ? ' selected' : ''}>SB in progress</option>
+                    <option value="completed"${turnaroundStatusFilter === 'completed' ? ' selected' : ''}>Completed</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Transporter</label>
+                <select id="turnaroundOwnerFilter" class="form-control" onchange="turnaroundOwnerFilter=this.value;refreshTurnaroundsList()">
+                    <option value="all"${turnaroundOwnerFilter === 'all' ? ' selected' : ''}>All transporters</option>
+                    ${ownerOptions.map(o => `<option value="${o}"${turnaroundOwnerFilter === o ? ' selected' : ''}>${o}</option>`).join('')}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Same truck</label>
+                <select id="turnaroundSameTruckFilter" class="form-control" onchange="turnaroundSameTruckFilter=this.value;refreshTurnaroundsList()">
+                    <option value="all"${turnaroundSameTruckFilter === 'all' ? ' selected' : ''}>All</option>
+                    <option value="yes"${turnaroundSameTruckFilter === 'yes' ? ' selected' : ''}>Required</option>
+                    <option value="no"${turnaroundSameTruckFilter === 'no' ? ' selected' : ''}>Not required</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>From</label>
+                <input type="date" id="turnaroundDateFrom" class="form-control" value="${turnaroundDateFrom}"
+                    onchange="turnaroundDateFrom=this.value;refreshTurnaroundsList()">
+            </div>
+            <div class="filter-group">
+                <label>To</label>
+                <input type="date" id="turnaroundDateTo" class="form-control" value="${turnaroundDateTo}"
+                    onchange="turnaroundDateTo=this.value;refreshTurnaroundsList()">
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" onclick="clearTurnaroundFilters()">Clear</button>
+        </div>`;
+}
+
+function renderTurnaroundsTableRows(filtered) {
+    if (!filtered.length) {
+        return `<tr><td colspan="11" style="text-align:center;padding:28px;color:var(--text-secondary);">No round trips match your search and filters.</td></tr>`;
+    }
+    return filtered.map(t => {
+        const nb = t.nbTrip;
+        const sb = t.sbTrip;
+        const expanded = turnaroundExpandedId === t.id;
+        const statusCls = getTurnaroundStatusClass(t.status);
+        const actions = [];
+        if (nb && !sb && nb.workflow?.pod === 'completed') {
+            actions.push(`<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();handleCreateSbTrip('${nb.tripNumber}')">Create SB</button>`);
+        } else if (nb && !sb) {
+            actions.push('<span class="status-badge orange">Awaiting POD</span>');
+        }
+        if (sb && sb.workflow?.kanyaka === 'current' && !sb.kanyaka?.gov_list_uploaded) {
+            actions.push(`<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();handleUploadGovList('${sb.tripNumber}')">Gov List</button>`);
+        }
+
+        return `
+            <tr class="turnaround-row${expanded ? ' expanded' : ''}" onclick="toggleTurnaroundExpand('${t.id}')" style="cursor:pointer;">
+                <td><strong>${t.truck?.plate || '—'}</strong><br><small style="color:var(--text-secondary);">${t.truck?.driver || nb?.driver || '—'}</small></td>
+                <td>${t.fleetOwner?.name || nb?.owner || '—'}</td>
+                <td>${nb ? `<a href="#" class="truck-link" onclick="event.stopPropagation();navigateToTripView('${nb.tripNumber}')">${nb.tripNumber}</a>` : '—'}</td>
+                <td>${nb ? `<span class="status-badge ${nb.kpi || 'green'}">${nb.status}</span>` : '—'}</td>
+                <td>${sb ? `<a href="#" class="truck-link" onclick="event.stopPropagation();navigateToTripView('${sb.tripNumber}')">${sb.tripNumber}</a>` : '<span class="text-muted">—</span>'}</td>
+                <td>${sb ? `<span class="status-badge ${sb.kpi || 'green'}">${sb.status}</span>` : '—'}</td>
+                <td><span class="status-badge ${statusCls}">${getTurnaroundStatusLabel(t.status)}</span></td>
+                <td>${t.sameTruckEnforced ? '✓ Same truck' : 'Different OK'}</td>
+                <td>${formatTurnaroundDate(t.createdAt)}</td>
+                <td>${formatTurnaroundDate(t.completedAt)}</td>
+                <td onclick="event.stopPropagation()">${actions.join(' ') || '—'}</td>
+            </tr>
+            ${expanded ? `<tr class="turnaround-detail-row"><td colspan="11">${renderTurnaroundCard(t)}</td></tr>` : ''}`;
+    }).join('');
+}
+
+function renderTurnaroundsListHtml(turnarounds) {
+    const filtered = filterTurnarounds(turnarounds);
+    const stats = getTurnaroundStats(turnarounds);
+    const owners = getTurnaroundOwnerOptions(turnarounds);
+    return `
+        ${renderTurnaroundStatsBar(stats, filtered.length, turnarounds.length)}
+        ${renderTurnaroundFiltersBar(owners)}
+        <div class="table-container">
+            <div class="table-header">
+                <h3>Round trip list — all trucks</h3>
+                <span style="color:var(--text-secondary);font-size:13px;">Click a row to expand NB/SB workflow detail</span>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="data-table turnaround-table">
+                    <thead><tr>
+                        <th>Truck / Driver</th>
+                        <th>Transporter</th>
+                        <th>NB Trip</th>
+                        <th>NB Status</th>
+                        <th>SB Trip</th>
+                        <th>SB Status</th>
+                        <th>Round trip</th>
+                        <th>Policy</th>
+                        <th>Started</th>
+                        <th>Completed</th>
+                        <th>Actions</th>
+                    </tr></thead>
+                    <tbody id="turnaroundsTableBody">${renderTurnaroundsTableRows(filtered)}</tbody>
+                </table>
+            </div>
+        </div>`;
+}
+
+function refreshTurnaroundsList() {
+    turnaroundSearchTerm = document.getElementById('turnaroundSearchInput')?.value ?? turnaroundSearchTerm;
+    turnaroundStatusFilter = document.getElementById('turnaroundStatusFilter')?.value ?? turnaroundStatusFilter;
+    turnaroundOwnerFilter = document.getElementById('turnaroundOwnerFilter')?.value ?? turnaroundOwnerFilter;
+    turnaroundSameTruckFilter = document.getElementById('turnaroundSameTruckFilter')?.value ?? turnaroundSameTruckFilter;
+    turnaroundDateFrom = document.getElementById('turnaroundDateFrom')?.value ?? turnaroundDateFrom;
+    turnaroundDateTo = document.getElementById('turnaroundDateTo')?.value ?? turnaroundDateTo;
+    const wrap = document.getElementById('turnaroundsListWrap');
+    if (wrap) wrap.innerHTML = renderTurnaroundsListHtml(turnaroundsCache);
+}
+
+function clearTurnaroundFilters() {
+    turnaroundSearchTerm = '';
+    turnaroundStatusFilter = 'all';
+    turnaroundOwnerFilter = 'all';
+    turnaroundSameTruckFilter = 'all';
+    turnaroundDateFrom = '';
+    turnaroundDateTo = '';
+    turnaroundExpandedId = null;
+    refreshTurnaroundsList();
+}
+
+function toggleTurnaroundExpand(id) {
+    turnaroundExpandedId = turnaroundExpandedId === id ? null : id;
+    refreshTurnaroundsList();
 }
 
 function renderTurnarounds(container) {
     loadTurnarounds().then(turnarounds => {
         const apiStatus = (typeof isApiAvailable === 'function' && isApiAvailable())
             ? '<span class="status-badge green">Backend Connected</span>'
-            : '<span class="status-badge orange">Offline — start backend on port 3001</span>';
+            : '<span class="status-badge orange">Offline — using local trip pairing by truck</span>';
 
         container.innerHTML = `
             <div class="page-header admin-page-header">
                 <div>
                     <h1>🔄 Truck Turnarounds</h1>
-                    <p class="page-subtitle">NB clearance → Kanyaka → Offload → POD → SB (same truck/trip when fleet policy requires it).</p>
+                    <p class="page-subtitle">NB clearance → Kanyaka → Offload → POD → SB round trips for every truck. Summary above, full list below with search and date filters.</p>
                 </div>
                 ${apiStatus}
             </div>
             <div class="rbac-info-banner">
                 <strong>Operational flow:</strong>
-                NB: Border (all steps) → Kanyaka Transit → Offloading → POD →
+                NB: Border → Kanyaka Transit → Offloading → POD →
                 SB: Loading → Documents → Seal → Escort → Dispatch → Kanyaka Gov List → Border Exit
             </div>
-            <div id="turnaroundsList">
-                ${turnarounds.length === 0 ? '<p style="padding:20px;color:var(--text-secondary);">No turnarounds in database. Start the backend and run <code>npm run seed</code> in /backend, or upload an NB trip.</p>' : ''}
-                ${turnarounds.map(t => renderTurnaroundCard(t)).join('')}
+            <div id="turnaroundsListWrap">
+                ${turnarounds.length === 0
+                    ? '<p style="padding:20px;color:var(--text-secondary);">No turnarounds found. Start the backend and run <code>npm run seed</code> in /backend, or upload NB/SB live trips.</p>'
+                    : renderTurnaroundsListHtml(turnarounds)}
             </div>
             <div class="rbac-info-banner" style="margin-top:20px;">
                 Fleet same-truck policy for SB is configured under <a href="#" onclick="event.preventDefault();navigateToAdmin('admin-fleet-settings')">Admin → Fleet — Same Truck for SB</a>.
@@ -7178,7 +7496,7 @@ function renderTurnaroundCard(t) {
            <button class="btn btn-outline btn-sm" onclick="handleKanyakaException('${sb.tripNumber}')">⚠️ Kanyaka Exception</button>` : '';
 
     return `
-        <div class="settings-card" style="margin-bottom:16px;">
+        <div class="settings-card turnaround-detail-card" style="margin:0;">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
                 <div>
                     <strong>${t.truck?.plate || '—'}</strong> — ${t.fleetOwner?.name || ''}
