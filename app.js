@@ -1055,7 +1055,7 @@ const areaStatusesDB = [
     { id: 'AS-001', area: 'Kasumbalesa', isBorder: true, borderForNB: true, borderForSB: true, isOffloadingPoint: false, isLoadingPoint: false, isKanyakaHub: false, kanyakaForNB: false, kanyakaForSB: false,
       statusesNB: ['Arrived at Border', 'KBP Parking', 'KBP Scan Bay', 'Whisky Process', 'Customs Clearance', 'Border Clearance Complete'],
       statusesSB: ['Exit Queue', 'Gov List Check', 'Exit Processing'],
-      statusesBorderNB: ['KBP Parking', 'KBP Scan Bay', 'Whisky Process', 'Customs Clearance', 'Driver Contact Recorded'],
+      statusesBorderNB: ['Entry on DRC', 'KBP Parking', 'KBP Scan Bay', 'BAE Submitted', 'Whisky Process', 'Customs Clearance', 'Driver Contact Recorded'],
       statusesBorderSB: ['Gov List Uploaded', 'Customs Declaration', 'Seal Verification', 'Exit to Zambia'], active: true },
     { id: 'AS-002', area: 'Kanyaka', isBorder: false, borderForNB: false, borderForSB: false, isOffloadingPoint: true, isLoadingPoint: true, isKanyakaHub: true, kanyakaForNB: true, kanyakaForSB: true,
       statusesNB: ['In Transit to Kanyaka', 'At Kanyaka Depot', 'Transit Complete'],
@@ -1088,10 +1088,13 @@ const CLEARING_AGENTS = ['Jean Kalenga', 'Marie Mwamba', 'Ruth Mwansa', 'Inspect
 /** Per-trip area status updates as truck moves between processes */
 const tripAreaUpdatesDB = {
     'NB-2024-001': [
-        { area: 'Kasumbalesa', status: 'KBP Parking', notes: 'Driver waiting at scan bay — queue approx 2h', updatedBy: 'border_moderator', timestamp: '2026-07-25 09:15:00', statusDate: '2026-07-25T09:15' },
-        { area: 'Kasumbalesa', status: 'KBP Parking', notes: 'Arrived at brigade office', updatedBy: 'border_moderator', timestamp: '2026-07-23 08:30:00', statusDate: '2026-07-23T08:30' }
+        { area: 'Kasumbalesa', status: 'KBP Parking', notes: 'Driver waiting at scan bay — queue approx 2h', updatedBy: 'border_moderator', timestamp: '2026-07-25 09:15:00', statusDate: '2026-07-25T09:15', workflowKey: 'border' },
+        { area: 'Kasumbalesa', status: 'BAE Submitted', notes: 'BAE documents submitted to customs', updatedBy: 'border_moderator', timestamp: '2026-07-24 14:20:00', statusDate: '2026-07-24T14:00', workflowKey: 'border' },
+        { area: 'Kasumbalesa', status: 'Entry on DRC', notes: 'Truck entered DRC side under KBP process', updatedBy: 'border_moderator', timestamp: '2026-07-23 08:30:00', statusDate: '2026-07-23T08:00', workflowKey: 'border' }
     ]
 };
+
+if (typeof window !== 'undefined') window.tripAreaUpdatesDB = tripAreaUpdatesDB;
 
 let nextAreaStatusId = 8;
 let editingAreaStatusId = null;
@@ -1144,17 +1147,49 @@ function getAreaFilterBanner() {
     return `<div class="rbac-info-banner"><strong>Area filter active:</strong> Showing trucks for <em>${areas.join(', ')}</em> only — logged in as <em>${user?.username}</em></div>`;
 }
 
-function recordTripAreaUpdate(tripNumber, area, status, notes, statusDate) {
+function resolveWorkflowKeyForTripStatus(trip, statusUpdate, statusContext) {
+    if (!trip) return null;
+    const steps = WORKFLOW_CONFIG[trip.direction] || WORKFLOW_CONFIG.NB;
+    const matchStep = steps.find(s => s.label === statusUpdate);
+    if (matchStep) return matchStep.key;
+    const currentKey = steps.map(s => s.key).find(k => trip.workflow && trip.workflow[k] === 'current');
+    if (currentKey) return currentKey;
+    const ctx = statusContext || (typeof currentCommentStatusContext !== 'undefined' ? currentCommentStatusContext : null);
+    const status = String(statusUpdate || '').toLowerCase();
+    if (ctx === 'border' || ctx === 'pod') return ctx === 'pod' ? 'pod' : 'border';
+    if (ctx === 'nb') {
+        if (/border|kbp|whisky|customs|bae|entry|arrived/i.test(status)) return 'border';
+        if (/kanyaka|transit/i.test(status)) return 'kanyaka';
+        if (/offload|mine|gate/i.test(status)) return 'offloading';
+        if (/pod/i.test(status)) return 'pod';
+        return 'border';
+    }
+    if (ctx === 'sb') {
+        if (/load/i.test(status)) return 'loadingProcess';
+        if (/document/i.test(status)) return 'documents';
+        if (/seal/i.test(status)) return 'seal';
+        if (/escort/i.test(status)) return 'escort';
+        if (/dispatch/i.test(status)) return 'dispatch';
+        if (/kanyaka|gov/i.test(status)) return 'kanyaka';
+        if (/border|exit/i.test(status)) return 'border';
+        return 'loadingProcess';
+    }
+    return null;
+}
+
+function recordTripAreaUpdate(tripNumber, area, status, notes, statusDate, workflowKey) {
     if (!tripAreaUpdatesDB[tripNumber]) tripAreaUpdatesDB[tripNumber] = [];
     const user = getCurrentAdminUser();
     const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    const trip = tripsDB[tripNumber];
+    const wKey = workflowKey || resolveWorkflowKeyForTripStatus(trip, status);
     tripAreaUpdatesDB[tripNumber].unshift({
         area, status, notes: notes || '',
         updatedBy: user?.username || 'unknown',
         timestamp,
-        statusDate: statusDate || null
+        statusDate: statusDate || null,
+        workflowKey: wKey || null
     });
-    const trip = tripsDB[tripNumber];
     if (trip) {
         trip.areaStatus = status;
         trip.area = area || trip.area;
@@ -1163,6 +1198,16 @@ function recordTripAreaUpdate(tripNumber, area, status, notes, statusDate) {
         if (statusDate && status) {
             if (!trip.areaStatusDates) trip.areaStatusDates = {};
             trip.areaStatusDates[status] = statusDate;
+        }
+        if (wKey && status) {
+            if (!trip.workflowStatusLog) trip.workflowStatusLog = {};
+            trip.workflowStatusLog[wKey] = {
+                status,
+                statusDate: statusDate || trip.workflowStatusLog[wKey]?.statusDate || null,
+                updatedBy: user?.username || 'unknown',
+                updatedAt: timestamp,
+                area: area || trip.area
+            };
         }
     }
     logAuditEvent(`Area status: ${status} (${area})`, tripNumber, 'trip', notes);
@@ -1961,7 +2006,7 @@ const borderPerformanceData = {
 };
 
 const tripsDB = {
-    'NB-2024-001': { tripNumber:'NB-2024-001',truck:'ABC123DRC',driver:'John Doe',direction:'NB',area:'Kasumbalesa',owner:'Transport Co A',orderNo:'ORD-1001',transporter:'Transport Co A',fleetNr:'FLT-042',trailer1:'TRL-456',customer:'Mining Corp',consignee:'Kolwezi Mine',commodity:'Copper Cathodes',cargoType:'Bulk',customerRef:'CUST-7788',clearingAgent:'Jean Kalenga',entryBorder:'Kasumbalesa',offloadingPoint:'Kolwezi Mine',fromStation:'Kasumbalesa',toStation:'Kolwezi Mine',status:'KBP Process',daysInDRC:5,kpi:'orange',borderProcess:'KBP',workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'},workflowDates:{border:'2026-07-23T08:00'},areaStatus:'KBP Parking',areaStatusDates:{'KBP Parking':'2026-07-23T08:00'},positions:{},lastUpdatedBy:'border_moderator',lastUpdatedAt:'2026-07-25 09:15:00'},
+    'NB-2024-001': { tripNumber:'NB-2024-001',truck:'ABC123DRC',driver:'John Doe',direction:'NB',area:'Kasumbalesa',owner:'Transport Co A',orderNo:'ORD-1001',transporter:'Transport Co A',fleetNr:'FLT-042',trailer1:'TRL-456',customer:'Mining Corp',consignee:'Kolwezi Mine',commodity:'Copper Cathodes',cargoType:'Bulk',customerRef:'CUST-7788',clearingAgent:'Jean Kalenga',entryBorder:'Kasumbalesa',offloadingPoint:'Kolwezi Mine',fromStation:'Kasumbalesa',toStation:'Kolwezi Mine',status:'KBP Process',daysInDRC:5,kpi:'orange',borderProcess:'KBP',workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'},workflowDates:{border:'2026-07-23T08:00'},areaStatus:'KBP Parking',areaStatusDates:{'Entry on DRC':'2026-07-23T08:00','BAE Submitted':'2026-07-24T14:00','KBP Parking':'2026-07-25T09:15'},workflowStatusLog:{border:{status:'KBP Parking',statusDate:'2026-07-25T09:15',updatedBy:'border_moderator',updatedAt:'2026-07-25 09:15:00',area:'Kasumbalesa'}},positions:{},lastUpdatedBy:'border_moderator',lastUpdatedAt:'2026-07-25 09:15:00'},
     'NB-2024-008': { tripNumber:'NB-2024-008',truck:'JKL012DRC',driver:'Peter Mwansa',direction:'NB',area:'Kasumbalesa',owner:'Transport Co D',entryBorder:'Kasumbalesa',offloadingPoint:'KCC Mine',status:'Whisky Process',daysInDRC:3,kpi:'orange',borderProcess:'Whisky',workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}},
     'NB-2024-015': { tripNumber:'NB-2024-015',truck:'XYZ789DRC',driver:'Sarah Smith',direction:'NB',area:'Kolwezi',owner:'Transport Co B',entryBorder:'Sakania',offloadingPoint:'Kolwezi Mine',status:'Offloading',daysInDRC:12,kpi:'orange',workflow:{border:'completed',kanyaka:'completed',offloading:'current',pod:'pending'},workflowDates:{border:'2026-07-18T10:00',kanyaka:'2026-07-20T14:00',offloading:'2026-07-24T09:00'}},
     'NB-2024-022': { tripNumber:'NB-2024-022',truck:'GHI789DRC',driver:'Jean Pierre',direction:'NB',area:'Lubumbashi',owner:'Transport Co C',entryBorder:'Mokambo',offloadingPoint:'Lubumbashi',status:'POD Missing',daysInDRC:15,kpi:'red',workflow:{border:'completed',kanyaka:'completed',offloading:'completed',pod:'current'}},
@@ -8305,7 +8350,8 @@ function applyTripStatusUpdate(trip, statusUpdate, commentText, statusDate) {
             trip.status = statusUpdate;
             logAuditEvent(`POD status: ${statusUpdate}`, currentCommentTrip, 'trip', commentText);
         } else if (ctx === 'nb' || ctx === 'sb' || ctx === 'border') {
-            recordTripAreaUpdate(currentCommentTrip, trip.area, statusUpdate, commentText, statusDate);
+            const wKey = resolveWorkflowKeyForTripStatus(trip, statusUpdate, ctx);
+            recordTripAreaUpdate(currentCommentTrip, trip.area, statusUpdate, commentText, statusDate, wKey);
         }
     } else {
         trip.status = statusUpdate;
@@ -8518,23 +8564,17 @@ function submitComment() {
         applyTripStatusUpdate(trip, statusUpdate, commentText, statusDateVal);
         if (statusDateVal && trip) {
             if (!trip.workflowDates) trip.workflowDates = {};
-            const steps = WORKFLOW_CONFIG[trip.direction] || WORKFLOW_CONFIG.NB;
-            const matchStep = steps.find(s => s.label === statusUpdate);
-            const currentKey = steps.map(s => s.key).find(k => trip.workflow && trip.workflow[k] === 'current');
-            const keyToUse = matchStep?.key || currentKey;
-            if (keyToUse) trip.workflowDates[keyToUse] = statusDateVal;
+            const wKey = resolveWorkflowKeyForTripStatus(trip, statusUpdate, currentCommentStatusContext);
+            if (wKey) trip.workflowDates[wKey] = statusDateVal;
         }
     } else if (!statusUpdate && commentText && trip) {
         const last = getTripAreaHistory(currentCommentTrip)[0];
         const preservedStatus = trip.areaStatus || last?.status || trip.status;
-        recordTripAreaUpdate(currentCommentTrip, trip.area, preservedStatus, commentText, statusDateVal || null);
+        const wKey = resolveWorkflowKeyForTripStatus(trip, preservedStatus, currentCommentStatusContext);
+        recordTripAreaUpdate(currentCommentTrip, trip.area, preservedStatus, commentText, statusDateVal || null, wKey);
         if (statusDateVal && preservedStatus) {
             if (!trip.workflowDates) trip.workflowDates = {};
-            const steps = WORKFLOW_CONFIG[trip.direction] || WORKFLOW_CONFIG.NB;
-            const matchStep = steps.find(s => s.label === preservedStatus);
-            const currentKey = steps.map(s => s.key).find(k => trip.workflow && trip.workflow[k] === 'current');
-            const keyToUse = matchStep?.key || currentKey;
-            if (keyToUse) trip.workflowDates[keyToUse] = statusDateVal;
+            if (wKey) trip.workflowDates[wKey] = statusDateVal;
         }
     }
     document.getElementById('validationMessage').classList.remove('show');

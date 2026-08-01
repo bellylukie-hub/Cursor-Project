@@ -568,12 +568,7 @@
         if (col.retained) return resolveRetainedCellValue(trip, col);
         const content = resolveLiveCellValue(trip, col, rowIndex);
         if (col.isWorkflowDate) {
-            const wfDir = col.workflowDirection || trip.direction || 'NB';
-            const dateVal = getTripWorkflowStatusDate(trip, col.workflowKey, wfDir);
-            const formatted = dateVal ? formatLiveDate(dateVal) : '—';
-            return formatted !== '—'
-                ? `<div class="live-status-date"><span class="live-status-date-label">${col.label}</span><span class="live-status-date-value">${formatted}</span></div>`
-                : '—';
+            return renderLiveWorkflowStatusCell(trip, col);
         }
         return content;
     };
@@ -607,9 +602,77 @@
         const dates = trip.workflowDates || {};
         const areaDates = trip.areaStatusDates || {};
         if (dates[workflowKey]) return dates[workflowKey];
+        const log = trip.workflowStatusLog?.[workflowKey];
+        if (log?.statusDate) return log.statusDate;
         const step = getLiveWorkflowSteps(dir).find(s => s.key === workflowKey);
         if (step && areaDates[step.label]) return areaDates[step.label];
         return '';
+    };
+
+    window.getTripWorkflowStatusHistory = function (trip, workflowKey) {
+        if (!trip || !workflowKey) return [];
+        const tripNumber = trip.tripNumber || trip.trip;
+        const history = typeof getTripAreaHistory === 'function' ? getTripAreaHistory(tripNumber) : [];
+        return history.filter(h => h.workflowKey === workflowKey);
+    };
+
+    window.getTripWorkflowStatusEntry = function (trip, workflowKey, workflowDirection) {
+        if (!trip || !workflowKey) return null;
+        const log = trip.workflowStatusLog?.[workflowKey];
+        if (log?.status) return log;
+        const dateVal = getTripWorkflowStatusDate(trip, workflowKey, workflowDirection);
+        const history = getTripWorkflowStatusHistory(trip, workflowKey);
+        if (history.length) {
+            const latest = history[0];
+            return {
+                status: latest.status,
+                statusDate: latest.statusDate || dateVal,
+                updatedBy: latest.updatedBy,
+                updatedAt: latest.timestamp,
+                area: latest.area
+            };
+        }
+        if (!dateVal) return null;
+        const dir = workflowDirection || trip.direction || 'NB';
+        const step = getLiveWorkflowSteps(dir).find(s => s.key === workflowKey);
+        const areaDates = trip.areaStatusDates || {};
+        const statusTitle = Object.keys(areaDates).find(s => areaDates[s] === dateVal)
+            || trip.areaStatus
+            || trip.status
+            || step?.label;
+        return {
+            status: statusTitle,
+            statusDate: dateVal,
+            updatedBy: trip.lastUpdatedBy,
+            updatedAt: trip.lastUpdatedAt,
+            area: trip.area
+        };
+    };
+
+    window.renderLiveWorkflowStatusCell = function (trip, col) {
+        const wfDir = col.workflowDirection || trip.direction || 'NB';
+        const entry = getTripWorkflowStatusEntry(trip, col.workflowKey, wfDir);
+        if (!entry || (!entry.status && !entry.statusDate)) return '—';
+        const formatted = entry.statusDate ? formatLiveDate(entry.statusDate) : '—';
+        const history = getTripWorkflowStatusHistory(trip, col.workflowKey);
+        const historyHtml = history.length > 1
+            ? `<div class="live-status-history">${history.slice(1, 4).map(h => `
+                <div class="live-status-history-item">
+                    <span class="live-status-title">${h.status}</span>
+                    ${h.statusDate ? `<span class="live-status-date-value">${formatLiveDate(h.statusDate)}</span>` : ''}
+                    <span class="live-status-log">👤 ${h.updatedBy || '—'} · ${h.timestamp ? formatLiveDate(h.timestamp) : '—'}</span>
+                </div>`).join('')}${history.length > 4 ? `<div class="live-status-history-more">+${history.length - 4} earlier</div>` : ''}</div>`
+            : '';
+        const logLine = entry.updatedBy
+            ? `👤 ${entry.updatedBy}${entry.updatedAt ? ' · ' + formatLiveDate(entry.updatedAt) : ''}`
+            : '';
+        return `<div class="live-status-date-block" title="${col.label}">
+            <span class="live-status-step-label">${col.label}</span>
+            <span class="live-status-title">${entry.status || col.label}</span>
+            ${formatted !== '—' ? `<span class="live-status-date-value">${formatted}</span>` : ''}
+            ${logLine ? `<span class="live-status-log">${logLine}</span>` : ''}
+            ${historyHtml}
+        </div>`;
     };
 
     window.renderLatestAreaCommentHtml = function (tripNumber) {
@@ -645,9 +708,7 @@
         const tripNumber = getTripNumber(trip);
         if (col.computed === 'rowIndex') return rowIndex + 1;
         if (col.isWorkflowDate) {
-            const wfDir = col.workflowDirection || trip.direction || 'NB';
-            const dateVal = getTripWorkflowStatusDate(trip, col.workflowKey, wfDir);
-            return dateVal ? formatLiveDate(dateVal) : '—';
+            return renderLiveWorkflowStatusCell(trip, col);
         }
         if (col.computed === 'driverContact') {
             return typeof renderDriverContactCell === 'function'
@@ -1480,7 +1541,7 @@
 
             <div style="background:#edf2f7;padding:12px 16px;border-radius:8px;margin:16px 0;font-size:12px;">
                 <strong>Workflow status dates (${direction}):</strong>
-                ${wfSteps.map(s => s.label).join(' → ')} — dates appear as columns when recorded via status update + date in comments.
+                ${wfSteps.map(s => s.label).join(' → ')} — each column shows the <strong>status title</strong> set by the user, the <strong>status date</strong>, and a log of <strong>who updated</strong> it and when.
             </div>
 
             ${todayUploads.length ? todayUploads.map(up => `
