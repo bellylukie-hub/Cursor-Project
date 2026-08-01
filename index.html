@@ -940,19 +940,22 @@
         .live-page-table th { white-space: nowrap; font-size: 11px; padding: 8px 10px; background: #f7fafc; position: sticky; top: 0; z-index: 1; }
         .live-page-table td { padding: 8px 10px; vertical-align: top; border-bottom: 1px solid #edf2f7; }
         .live-comment-col { min-width: 200px; max-width: 280px; }
-        .live-comment-cell .live-comment-text { font-size: 12px; margin-bottom: 4px; }
-        .live-comment-cell .live-comment-meta { font-size: 10px; color: var(--text-secondary); }
-        .live-comment-stack { color: var(--primary-light); cursor: help; }
+        .live-comment-cell .live-comment-text { font-size: 12px; line-height: 1.4; }
         .live-wf-date-cell { min-width: 140px; max-width: 200px; }
-        .live-status-date-block { display: flex; flex-direction: column; gap: 2px; }
+        .live-log-entry { display: flex; flex-direction: column; gap: 2px; }
+        .live-log-entry + .live-log-entry { margin-top: 8px; padding-top: 8px; border-top: 1px solid #edf2f7; }
         .live-status-step-label { display: block; font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.02em; }
         .live-status-title { display: block; font-size: 11px; font-weight: 700; color: var(--primary); line-height: 1.3; }
-        .live-status-date-label { display: block; font-size: 10px; font-weight: 600; color: var(--text-secondary); margin-bottom: 2px; }
         .live-status-date-value { display: block; font-size: 11px; font-weight: 600; color: #2d3748; }
         .live-status-log { display: block; font-size: 10px; color: var(--text-secondary); line-height: 1.35; margin-top: 2px; }
-        .live-status-history { margin-top: 6px; padding-top: 6px; border-top: 1px dashed #e2e8f0; display: flex; flex-direction: column; gap: 6px; }
-        .live-status-history-item { display: flex; flex-direction: column; gap: 1px; }
-        .live-status-history-more { font-size: 10px; color: var(--primary-light); font-style: italic; }
+        .live-expandable-panel { position: relative; }
+        .live-expandable-panel.has-more { cursor: pointer; }
+        .live-expandable-panel.has-more:hover .live-expandable-latest { background: #f7fafc; border-radius: 6px; }
+        .live-expandable-trigger { font-size: 10px; color: var(--primary-light); margin-top: 4px; font-weight: 600; }
+        .live-expandable-panel.expanded .live-expandable-trigger { display: none; }
+        .live-expandable-history { display: none; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e0; }
+        .live-expandable-panel.expanded .live-expandable-history { display: block; }
+        .live-expandable-panel.expanded { background: #f7fafc; border-radius: 6px; padding: 4px 6px; box-shadow: inset 0 0 0 1px #e2e8f0; }
         .live-actions-col { white-space: nowrap; position: sticky; right: 0; background: #fff; z-index: 2; }
 
         /* KPI-coordinated live operations rows */

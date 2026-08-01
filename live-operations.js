@@ -596,6 +596,62 @@
             ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     };
 
+    function escapeLiveHtml(str) {
+        return String(str || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function renderLiveLogEntryBlock(item, options) {
+        const opts = options || {};
+        const title = item.status || item.text || '—';
+        const dateVal = item.statusDate || item.date;
+        const formatted = dateVal ? formatLiveDate(dateVal) : '';
+        const updatedAt = item.updatedAt || item.timestamp;
+        const logLine = item.updatedBy
+            ? `👤 ${escapeLiveHtml(item.updatedBy)}${updatedAt ? ' · ' + formatLiveDate(updatedAt) : ''}`
+            : '';
+        if (opts.mode === 'comment') {
+            return `<div class="live-log-entry live-log-entry-comment">
+                <div class="live-comment-text">${escapeLiveHtml(title)}</div>
+                ${formatted && formatted !== '—' ? `<span class="live-status-date-value">${formatted}</span>` : ''}
+                ${logLine ? `<span class="live-status-log">${logLine}</span>` : ''}
+            </div>`;
+        }
+        return `<div class="live-log-entry">
+            ${opts.showStepLabel && opts.stepLabel ? `<span class="live-status-step-label">${escapeLiveHtml(opts.stepLabel)}</span>` : ''}
+            <span class="live-status-title">${escapeLiveHtml(title)}</span>
+            ${formatted && formatted !== '—' ? `<span class="live-status-date-value">${formatted}</span>` : ''}
+            ${logLine ? `<span class="live-status-log">${logLine}</span>` : ''}
+        </div>`;
+    }
+
+    function renderExpandableLiveCell(panelId, latestHtml, historyHtml, earlierCount) {
+        const hasMore = earlierCount > 0;
+        return `<div class="live-expandable-panel${hasMore ? ' has-more' : ''}" id="${panelId}"${hasMore ? ` onclick="toggleLiveCellExpand('${panelId}', event)"` : ''}>
+            <div class="live-expandable-latest">${latestHtml}</div>
+            ${hasMore ? `<div class="live-expandable-trigger">▼ ${earlierCount} earlier · click to view</div>
+            <div class="live-expandable-history" onclick="event.stopPropagation()">${historyHtml}</div>` : ''}
+        </div>`;
+    }
+
+    window.toggleLiveCellExpand = function (panelId, event) {
+        if (event) event.stopPropagation();
+        const panel = document.getElementById(panelId);
+        if (!panel || !panel.classList.contains('has-more')) return;
+        const willExpand = !panel.classList.contains('expanded');
+        document.querySelectorAll('.live-expandable-panel.expanded').forEach(p => p.classList.remove('expanded'));
+        if (willExpand) panel.classList.add('expanded');
+    };
+
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.live-expandable-panel')) {
+            document.querySelectorAll('.live-expandable-panel.expanded').forEach(p => p.classList.remove('expanded'));
+        }
+    });
+
     window.getTripWorkflowStatusDate = function (trip, workflowKey, workflowDirection) {
         if (!trip) return '';
         const dir = workflowDirection || trip.direction || 'NB';
@@ -651,41 +707,58 @@
 
     window.renderLiveWorkflowStatusCell = function (trip, col) {
         const wfDir = col.workflowDirection || trip.direction || 'NB';
-        const entry = getTripWorkflowStatusEntry(trip, col.workflowKey, wfDir);
-        if (!entry || (!entry.status && !entry.statusDate)) return '—';
-        const formatted = entry.statusDate ? formatLiveDate(entry.statusDate) : '—';
+        const tripNumber = getTripNumber(trip);
         const history = getTripWorkflowStatusHistory(trip, col.workflowKey);
-        const historyHtml = history.length > 1
-            ? `<div class="live-status-history">${history.slice(1, 4).map(h => `
-                <div class="live-status-history-item">
-                    <span class="live-status-title">${h.status}</span>
-                    ${h.statusDate ? `<span class="live-status-date-value">${formatLiveDate(h.statusDate)}</span>` : ''}
-                    <span class="live-status-log">👤 ${h.updatedBy || '—'} · ${h.timestamp ? formatLiveDate(h.timestamp) : '—'}</span>
-                </div>`).join('')}${history.length > 4 ? `<div class="live-status-history-more">+${history.length - 4} earlier</div>` : ''}</div>`
-            : '';
-        const logLine = entry.updatedBy
-            ? `👤 ${entry.updatedBy}${entry.updatedAt ? ' · ' + formatLiveDate(entry.updatedAt) : ''}`
-            : '';
-        return `<div class="live-status-date-block" title="${col.label}">
-            <span class="live-status-step-label">${col.label}</span>
-            <span class="live-status-title">${entry.status || col.label}</span>
-            ${formatted !== '—' ? `<span class="live-status-date-value">${formatted}</span>` : ''}
-            ${logLine ? `<span class="live-status-log">${logLine}</span>` : ''}
-            ${historyHtml}
-        </div>`;
+        const entry = history[0] || getTripWorkflowStatusEntry(trip, col.workflowKey, wfDir);
+        if (!entry || (!entry.status && !entry.statusDate)) return '—';
+
+        const latestHtml = renderLiveLogEntryBlock({
+            status: entry.status || col.label,
+            statusDate: entry.statusDate,
+            updatedBy: entry.updatedBy,
+            updatedAt: entry.updatedAt || entry.timestamp
+        }, { showStepLabel: true, stepLabel: col.label });
+
+        const earlier = history.length > 1 ? history.slice(1) : [];
+        const historyHtml = earlier.map(h => renderLiveLogEntryBlock({
+            status: h.status,
+            statusDate: h.statusDate,
+            updatedBy: h.updatedBy,
+            timestamp: h.timestamp
+        })).join('');
+
+        const panelId = `live-wf-${String(tripNumber).replace(/[^a-zA-Z0-9_-]/g, '_')}-${col.workflowKey || col.key}`;
+        return renderExpandableLiveCell(panelId, latestHtml, historyHtml, earlier.length);
+    };
+
+    window.getTripCommentHistory = function (tripNumber) {
+        const history = typeof getTripAreaHistory === 'function' ? getTripAreaHistory(tripNumber) : [];
+        const withNotes = history.filter(h => h.notes && String(h.notes).trim());
+        return withNotes.length ? withNotes : history.filter(h => h.notes || h.status);
     };
 
     window.renderLatestAreaCommentHtml = function (tripNumber) {
-        const history = typeof getTripAreaHistory === 'function' ? getTripAreaHistory(tripNumber) : [];
-        const latest = history[0];
+        const comments = getTripCommentHistory(tripNumber);
+        const latest = comments[0];
         if (!latest || (!latest.notes && !latest.status)) return '—';
-        const text = latest.notes || latest.status;
-        const meta = `${latest.updatedBy || '—'} · ${latest.timestamp || '—'}`;
-        const stackCount = history.length;
-        return `<div class="live-comment-cell">
-            <div class="live-comment-text">${text}</div>
-            <div class="live-comment-meta">${meta}${stackCount > 1 ? ` <span class="live-comment-stack" title="${stackCount} comments on file">(+${stackCount - 1} earlier)</span>` : ''}</div>
-        </div>`;
+
+        const latestHtml = renderLiveLogEntryBlock({
+            text: latest.notes || latest.status,
+            statusDate: latest.statusDate,
+            updatedBy: latest.updatedBy,
+            timestamp: latest.timestamp
+        }, { mode: 'comment' });
+
+        const earlier = comments.slice(1);
+        const historyHtml = earlier.map(c => renderLiveLogEntryBlock({
+            text: c.notes || c.status,
+            statusDate: c.statusDate,
+            updatedBy: c.updatedBy,
+            timestamp: c.timestamp
+        }, { mode: 'comment' })).join('');
+
+        const panelId = `live-comment-${String(tripNumber).replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+        return `<div class="live-comment-cell">${renderExpandableLiveCell(panelId, latestHtml, historyHtml, earlier.length)}</div>`;
     };
 
     window.getTripPositionText = function (tripNumber, slot) {
@@ -1541,7 +1614,7 @@
 
             <div style="background:#edf2f7;padding:12px 16px;border-radius:8px;margin:16px 0;font-size:12px;">
                 <strong>Workflow status dates (${direction}):</strong>
-                ${wfSteps.map(s => s.label).join(' → ')} — each column shows the <strong>status title</strong> set by the user, the <strong>status date</strong>, and a log of <strong>who updated</strong> it and when.
+                ${wfSteps.map(s => s.label).join(' → ')} — each column shows the latest <strong>status title</strong>, <strong>status date</strong>, and <strong>update log</strong>. Click a cell to view earlier statuses for that step.
             </div>
 
             ${todayUploads.length ? todayUploads.map(up => `
