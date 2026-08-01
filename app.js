@@ -25,6 +25,22 @@ const POD_STATUS_OPTIONS = [
     { id: 'sent-invoicing', label: 'Sent to Invoicing' },
     { id: 'overdue', label: 'Overdue' }
 ];
+const POD_STATUS_ID_MAP = Object.fromEntries(POD_STATUS_OPTIONS.map(s => [s.label, s.id]));
+
+function getPodStatusOptions() {
+    const labels = (typeof globalStatusListsDB !== 'undefined' && globalStatusListsDB.POD?.length)
+        ? globalStatusListsDB.POD
+        : POD_STATUS_OPTIONS.map(s => s.label);
+    return labels.map(label => ({
+        id: POD_STATUS_ID_MAP[label] || label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+        label
+    }));
+}
+
+function refreshPodStatusOptions() {
+    selectedPodStatuses = getPodStatusOptions().map(s => s.id);
+}
+
 selectedPodKpis = POD_KPI_OPTIONS.map(k => k.id);
 selectedPodStatuses = POD_STATUS_OPTIONS.map(s => s.id);
 let assetsSearchTerm = '';
@@ -622,6 +638,7 @@ function initKpiSettings() {
 function saveKpiSettingsToStorage() {
     localStorage.setItem(KPI_STORAGE_KEY, JSON.stringify(kpiSettingsDB));
     applyKpiSettingsToRuntime();
+    recalculateAllTripKpis();
     logAuditEvent('KPI settings updated', 'kpi-settings', 'config', `${kpiSettingsDB.filter(s => s.enabled).length} active rules`);
 }
 
@@ -654,6 +671,40 @@ function computeKpiLevel(elapsed, settingOrId) {
     if (elapsed >= target && target > 0) return { level: 'red', label: '🔴 OVERDUE', pct };
     if (elapsed >= warningAt) return { level: 'orange', label: '🟠 PRIORITY', pct };
     return { level: 'green', label: '🟢 ON TRACK', pct };
+}
+
+function getTripKpiSetting(trip) {
+    if (!trip) return null;
+    const steps = WORKFLOW_CONFIG[trip.direction] || WORKFLOW_CONFIG.NB;
+    const currentKey = steps.map(s => s.key).find(k => trip.workflow && trip.workflow[k] === 'current');
+    if (currentKey) {
+        const wfSetting = getKpiSetting(`wf-${String(trip.direction).toLowerCase()}-${currentKey}`);
+        if (wfSetting?.enabled) return wfSetting;
+    }
+    const stale = getKpiSetting('mod-dashboard-stale');
+    if (stale?.enabled) return stale;
+    const turnaround = getKpiSetting('turnaround-nb-to-sb');
+    return turnaround?.enabled ? turnaround : null;
+}
+
+function recalculateTripKpi(trip) {
+    if (!trip) return;
+    const setting = getTripKpiSetting(trip);
+    if (!setting) return;
+    let elapsed = 0;
+    if (setting.unit === 'days') {
+        elapsed = Number(trip.daysInDRC) || 0;
+    } else if (trip.lastUpdatedAt) {
+        const last = new Date(String(trip.lastUpdatedAt).replace(' ', 'T'));
+        elapsed = !isNaN(last.getTime()) ? (Date.now() - last.getTime()) / 3600000 : (Number(trip.daysInDRC) || 0) * 24;
+    } else {
+        elapsed = (Number(trip.daysInDRC) || 0) * 24;
+    }
+    trip.kpi = computeKpiLevel(elapsed, setting).level;
+}
+
+function recalculateAllTripKpis() {
+    Object.values(tripsDB).forEach(recalculateTripKpi);
 }
 
 function formatKpiSettingLine(s) {
@@ -721,6 +772,7 @@ function applyKpiSettingsToRuntime() {
             if (typeof b.avgHours === 'number') b.kpi = computeKpiLevel(b.avgHours, { targetValue: total, warningPct: 75, enabled: true }).level;
         });
     });
+    recalculateAllTripKpis();
 }
 
 const documentsDB = [
@@ -837,6 +889,7 @@ const tripAreaUpdatesDB = {
 
 let nextAreaStatusId = 8;
 let editingAreaStatusId = null;
+if (typeof window !== 'undefined') window.nextAreaStatusId = nextAreaStatusId;
 let currentReportType = 'operations-overview';
 let areaAssignmentFilter = '';
 
@@ -1029,6 +1082,16 @@ const auditLogsDB = [
     { id: 'LOG-0007', userId: 'ADM-001', username: 'super_admin', action: 'Created Role role-support', targetId: 'role-support', targetType: 'role', timestamp: '2026-07-23 13:00:00', ipAddress: '10.42.0.15', details: 'Custom role: Support Agent' }
 ];
 
+if (typeof window !== 'undefined') {
+    window.adminUsersDB = adminUsersDB;
+    window.rolesDB = rolesDB;
+    window.systemSettingsDB = systemSettingsDB;
+    window.auditLogsDB = auditLogsDB;
+    window.nextAdminUserId = nextAdminUserId;
+    window.nextAuditLogId = nextAuditLogId;
+    window.nextRoleId = nextRoleId;
+}
+
 let CURRENT_SESSION_USER_ID = 'ADM-001';
 let nextAdminUserId = 6;
 let nextAuditLogId = 8;
@@ -1092,6 +1155,8 @@ function logAuditEvent(action, targetId, targetType, details) {
         details: typeof details === 'string' ? details : (details ? JSON.stringify(details) : '')
     };
     auditLogsDB.unshift(entry);
+    if (typeof persistAuditLogs === 'function') persistAuditLogs();
+    if (typeof pushAuditToApi === 'function') pushAuditToApi(entry);
     return entry;
 }
 
@@ -1158,6 +1223,10 @@ async function handleLoginSubmit(event) {
     if (btn) { btn.disabled = true; btn.textContent = 'Signing in...'; }
     try {
         const data = await loginApi(username, password);
+        if (typeof checkMaintenanceModeForLogin === 'function' && !checkMaintenanceModeForLogin(data.user)) {
+            if (typeof logoutApi === 'function') logoutApi();
+            throw new Error('System is in maintenance mode. Only Super Admin can log in.');
+        }
         hideLoginScreen();
         applyAuthUserToSession(data.user);
         await bootApplication();
@@ -1178,9 +1247,15 @@ function handleLogout() {
 
 async function bootApplication() {
     if (typeof migrateAreaStatusesDB === 'function') migrateAreaStatusesDB();
+    if (typeof syncAdminFromApi === 'function' && isApiAvailable()) {
+        await syncAdminFromApi();
+    }
     if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
+    if (typeof applySystemSettingsToUi === 'function') applySystemSettingsToUi();
+    if (typeof startSessionTimeoutWatcher === 'function') startSessionTimeoutWatcher();
     if (typeof syncTripsFromApi === 'function' && isApiAvailable()) {
         await syncTripsFromApi(true);
+        recalculateAllTripKpis();
     }
     if (typeof syncDriverContactsFromApi === 'function' && isApiAvailable()) {
         await syncDriverContactsFromApi();
@@ -4145,7 +4220,7 @@ function renderPODFilterPanels() {
                     </div>
                 </div>
                 <div class="pod-status-checkbox-grid">
-                    ${POD_STATUS_OPTIONS.map(s => `
+                    ${getPodStatusOptions().map(s => `
                         <label class="pod-status-checkbox">
                             <input type="checkbox" value="${s.id}" ${selectedPodStatuses.includes(s.id) ? 'checked' : ''} onchange="togglePodStatus('${s.id}', this.checked)">
                             <span>${s.label}</span>
@@ -4186,7 +4261,7 @@ function togglePodStatus(statusId, checked) {
 }
 
 function selectAllPodStatuses() {
-    selectedPodStatuses = POD_STATUS_OPTIONS.map(s => s.id);
+    selectedPodStatuses = getPodStatusOptions().map(s => s.id);
     document.querySelectorAll('.pod-status-checkbox:not(.pod-kpi-checkbox) input').forEach(cb => { cb.checked = true; });
     refreshPODTable();
 }
@@ -4207,7 +4282,7 @@ function getFilteredPODItems() {
     if (kpis.length < POD_KPI_OPTIONS.length) {
         items = items.filter(p => kpis.includes(p.kpi));
     }
-    if (statuses.length < POD_STATUS_OPTIONS.length) {
+    if (statuses.length < getPodStatusOptions().length) {
         items = items.filter(p => statuses.includes(getPODStageStatus(p)));
     }
 
@@ -4246,7 +4321,7 @@ function refreshPODTable() {
 function clearPODFilters() {
     podSearchTerm = '';
     selectedPodKpis = POD_KPI_OPTIONS.map(k => k.id);
-    selectedPodStatuses = POD_STATUS_OPTIONS.map(s => s.id);
+    selectedPodStatuses = getPodStatusOptions().map(s => s.id);
     const input = document.getElementById('podSearchInput');
     if (input) input.value = '';
     document.querySelectorAll('.pod-kpi-checkbox input').forEach(cb => { cb.checked = true; });
@@ -7042,32 +7117,66 @@ function submitAdminUser() {
     const area = document.getElementById('adminUserArea').value.trim();
     const roleId = document.getElementById('adminUserRole').value;
     if (!username || !email) { showToast('Username and email are required.', 'warning'); return; }
-    if (editingAdminUserId) {
-        if (!apiMiddleware('/api/users/edit/:id', 'edit_all') && !apiMiddleware('/api/users/edit/:id', 'edit_limited')) return;
-        const user = adminUsersDB.find(u => u.id === editingAdminUserId);
-        if (!user) return;
-        Object.assign(user, { username, email, phone, area, roleId, assignedAreas: user.assignedAreas || [area] });
-        logAuditEvent(`Updated User ${user.id}`, user.id, 'user', `Role: ${getRoleById(roleId)?.name}, Area: ${area}`);
-        showToast(`User ${username} updated.`, 'success');
-    } else {
-        if (!apiMiddleware('/api/users/create', 'manage_users')) return;
-        const id = 'ADM-' + String(nextAdminUserId++).padStart(3, '0');
-        adminUsersDB.push({ id, username, email, passwordHash: '[bcrypt-hash]', roleId, status: 'active', area, assignedAreas: [area], phone, createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16), lastLogin: null, bannedAt: null, bannedReason: '' });
-        logAuditEvent(`Created User ${id}`, id, 'user', `Role: ${getRoleById(roleId)?.name}`);
-        showToast(`User ${username} created.`, 'success');
-    }
-    if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
-    closeModal('adminUserModal');
-    if (currentPage === 'admin-users') renderAdminUsers(document.getElementById('contentArea'));
+    (async () => {
+        try {
+            if (editingAdminUserId) {
+                if (!apiMiddleware('/api/users/edit/:id', 'edit_all') && !apiMiddleware('/api/users/edit/:id', 'edit_limited')) return;
+                const user = adminUsersDB.find(u => u.id === editingAdminUserId);
+                if (!user) return;
+                const payload = { username, email, phone, area, roleId, assignedAreas: user.assignedAreas || [area] };
+                if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof updateAdminUserApi === 'function') {
+                    const apiUser = await updateAdminUserApi(editingAdminUserId, payload);
+                    Object.assign(user, apiUser, { passwordHash: user.passwordHash });
+                } else {
+                    Object.assign(user, payload);
+                }
+                logAuditEvent(`Updated User ${user.id}`, user.id, 'user', `Role: ${getRoleById(roleId)?.name}, Area: ${area}`);
+                showToast(`User ${username} updated.`, 'success');
+            } else {
+                if (!apiMiddleware('/api/users/create', 'manage_users')) return;
+                const id = 'ADM-' + String(nextAdminUserId++).padStart(3, '0');
+                const payload = { id, username, email, phone, area, roleId, assignedAreas: [area] };
+                let user;
+                if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof createAdminUserApi === 'function') {
+                    user = await createAdminUserApi(payload);
+                    user.passwordHash = '[server]';
+                } else {
+                    user = { ...payload, passwordHash: '[bcrypt-hash]', status: 'active', createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16), lastLogin: null, bannedAt: null, bannedReason: '' };
+                }
+                adminUsersDB.push(user);
+                logAuditEvent(`Created User ${user.id}`, user.id, 'user', `Role: ${getRoleById(roleId)?.name}`);
+                showToast(`User ${username} created.`, 'success');
+            }
+            if (typeof persistAdminUsers === 'function') persistAdminUsers();
+            if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
+            closeModal('adminUserModal');
+            if (currentPage === 'admin-users') renderAdminUsers(document.getElementById('contentArea'));
+        } catch (e) {
+            showToast(e.message, 'warning');
+        }
+    })();
 }
 
 function resetAdminUserPassword(userId) {
     if (!apiMiddleware('/api/users/reset-password/:id', 'manage_users')) return;
     const user = adminUsersDB.find(u => u.id === userId);
     if (!user) return;
-    user.passwordHash = '[bcrypt-hash-reset-' + Date.now() + ']';
-    logAuditEvent(`Reset Password for ${userId}`, userId, 'user', 'Password reset via admin panel');
-    showToast(`Password reset for ${user.username}. New credentials sent to ${user.email}.`, 'success');
+    (async () => {
+        try {
+            let msg = `Password reset for ${user.username}. New credentials sent to ${user.email}.`;
+            if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof resetAdminUserPasswordApi === 'function') {
+                const result = await resetAdminUserPasswordApi(userId);
+                if (result.temporaryPassword) msg = `Temporary password for ${user.username}: ${result.temporaryPassword}`;
+            } else {
+                user.passwordHash = '[bcrypt-hash-reset-' + Date.now() + ']';
+            }
+            logAuditEvent(`Reset Password for ${userId}`, userId, 'user', 'Password reset via admin panel');
+            showToast(msg, 'success');
+            if (typeof persistAdminUsers === 'function') persistAdminUsers();
+        } catch (e) {
+            showToast(e.message, 'warning');
+        }
+    })();
 }
 
 function banAdminUser(userId) {
@@ -7076,12 +7185,24 @@ function banAdminUser(userId) {
     if (!user || user.id === CURRENT_SESSION_USER_ID) return;
     const reason = prompt('Ban reason (soft delete — user hidden but data retained):', 'Account deactivated by administrator');
     if (reason === null) return;
-    user.status = 'banned';
-    user.bannedAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
-    user.bannedReason = reason;
-    logAuditEvent(`Banned User ${userId}`, userId, 'user', reason);
-    showToast(`${user.username} has been banned (soft delete).`, 'success');
-    if (currentPage === 'admin-users') renderAdminUsers(document.getElementById('contentArea'));
+    (async () => {
+        try {
+            if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof banAdminUserApi === 'function') {
+                const apiUser = await banAdminUserApi(userId, reason);
+                Object.assign(user, apiUser);
+            } else {
+                user.status = 'banned';
+                user.bannedAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
+                user.bannedReason = reason;
+            }
+            logAuditEvent(`Banned User ${userId}`, userId, 'user', reason);
+            if (typeof persistAdminUsers === 'function') persistAdminUsers();
+            showToast(`${user.username} has been banned (soft delete).`, 'success');
+            if (currentPage === 'admin-users') renderAdminUsers(document.getElementById('contentArea'));
+        } catch (e) {
+            showToast(e.message, 'warning');
+        }
+    })();
 }
 
 function openPurgeUserModal(userId) {
@@ -7098,12 +7219,22 @@ function confirmPurgeUser() {
     if (idx === -1) return;
     const user = adminUsersDB[idx];
     if (user.id === CURRENT_SESSION_USER_ID) { showToast('Cannot purge your own account.', 'warning'); return; }
-    adminUsersDB.splice(idx, 1);
-    logAuditEvent(`PERMANENTLY PURGED User ${purgeTargetUserId}`, purgeTargetUserId, 'user', 'Hard delete — data wiped from database');
-    showToast(`${user.username} permanently purged from database.`, 'success');
-    closeModal('adminPurgeModal');
-    purgeTargetUserId = null;
-    if (currentPage === 'admin-users') renderAdminUsers(document.getElementById('contentArea'));
+    (async () => {
+        try {
+            if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof purgeAdminUserApi === 'function') {
+                await purgeAdminUserApi(purgeTargetUserId);
+            }
+            adminUsersDB.splice(idx, 1);
+            logAuditEvent(`PERMANENTLY PURGED User ${purgeTargetUserId}`, purgeTargetUserId, 'user', 'Hard delete — data wiped from database');
+            if (typeof persistAdminUsers === 'function') persistAdminUsers();
+            showToast(`${user.username} permanently purged from database.`, 'success');
+            closeModal('adminPurgeModal');
+            purgeTargetUserId = null;
+            if (currentPage === 'admin-users') renderAdminUsers(document.getElementById('contentArea'));
+        } catch (e) {
+            showToast(e.message, 'warning');
+        }
+    })();
 }
 
 function openAdminRoleModal(roleId) {
@@ -7130,22 +7261,42 @@ function submitAdminRole() {
     const description = document.getElementById('adminRoleDescription').value.trim();
     const permissions = [...document.querySelectorAll('input[name="rolePerm"]:checked')].map(cb => cb.value);
     if (!name) { showToast('Role name is required.', 'warning'); return; }
-    if (editingRoleId) {
-        const role = rolesDB.find(r => r.id === editingRoleId);
-        if (!role) return;
-        if (!role.system) role.name = name;
-        role.description = description;
-        role.permissions = permissions;
-        logAuditEvent(`Updated Role ${role.id}`, role.id, 'role', permissions.join(', '));
-        showToast(`Role "${name}" updated.`, 'success');
-    } else {
-        const id = 'role-custom-' + nextRoleId++;
-        rolesDB.push({ id, name, description, system: false, permissions });
-        logAuditEvent(`Created Role ${id}`, id, 'role', name);
-        showToast(`Role "${name}" created.`, 'success');
-    }
-    closeModal('adminRoleModal');
-    if (currentPage === 'admin-roles') renderAdminRoles(document.getElementById('contentArea'));
+    (async () => {
+        try {
+            if (editingRoleId) {
+                const role = rolesDB.find(r => r.id === editingRoleId);
+                if (!role) return;
+                const payload = { name: role.system ? role.name : name, description, permissions };
+                if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof updateAdminRoleApi === 'function') {
+                    const apiRole = await updateAdminRoleApi(editingRoleId, payload);
+                    Object.assign(role, apiRole);
+                } else {
+                    if (!role.system) role.name = name;
+                    role.description = description;
+                    role.permissions = permissions;
+                }
+                logAuditEvent(`Updated Role ${role.id}`, role.id, 'role', permissions.join(', '));
+                showToast(`Role "${name}" updated.`, 'success');
+            } else {
+                const id = 'role-custom-' + nextRoleId++;
+                const payload = { id, name, description, permissions };
+                let role;
+                if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof createAdminRoleApi === 'function') {
+                    role = await createAdminRoleApi(payload);
+                } else {
+                    role = { id, name, description, system: false, permissions };
+                }
+                rolesDB.push(role);
+                logAuditEvent(`Created Role ${id}`, id, 'role', name);
+                showToast(`Role "${name}" created.`, 'success');
+            }
+            if (typeof persistAdminRoles === 'function') persistAdminRoles();
+            closeModal('adminRoleModal');
+            if (currentPage === 'admin-roles') renderAdminRoles(document.getElementById('contentArea'));
+        } catch (e) {
+            showToast(e.message, 'warning');
+        }
+    })();
 }
 
 function deleteAdminRole(roleId) {
@@ -7154,11 +7305,21 @@ function deleteAdminRole(roleId) {
     if (!role || role.system) return;
     if (!confirm(`Delete role "${role.name}"? Users with this role must be reassigned first.`)) return;
     if (adminUsersDB.some(u => u.roleId === roleId)) { showToast('Cannot delete role — users are still assigned to it.', 'warning'); return; }
-    const idx = rolesDB.findIndex(r => r.id === roleId);
-    rolesDB.splice(idx, 1);
-    logAuditEvent(`Deleted Role ${roleId}`, roleId, 'role');
-    showToast(`Role "${role.name}" deleted.`, 'success');
-    if (currentPage === 'admin-roles') renderAdminRoles(document.getElementById('contentArea'));
+    (async () => {
+        try {
+            if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof deleteAdminRoleApi === 'function') {
+                await deleteAdminRoleApi(roleId);
+            }
+            const idx = rolesDB.findIndex(r => r.id === roleId);
+            rolesDB.splice(idx, 1);
+            logAuditEvent(`Deleted Role ${roleId}`, roleId, 'role');
+            if (typeof persistAdminRoles === 'function') persistAdminRoles();
+            showToast(`Role "${role.name}" deleted.`, 'success');
+            if (currentPage === 'admin-roles') renderAdminRoles(document.getElementById('contentArea'));
+        } catch (e) {
+            showToast(e.message, 'warning');
+        }
+    })();
 }
 
 function updateSystemSetting(key, value) {
@@ -7168,6 +7329,11 @@ function updateSystemSetting(key, value) {
     }
     const old = systemSettingsDB[key];
     systemSettingsDB[key] = value;
+    if (typeof persistSystemSettings === 'function') persistSystemSettings();
+    if (typeof applySystemSettingsToUi === 'function') applySystemSettingsToUi();
+    if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof patchSystemSettings === 'function') {
+        patchSystemSettings({ [key]: value }).catch(e => showToast(e.message, 'warning'));
+    }
     logAuditEvent('Updated System Settings', 'settings', 'settings', `${key}: ${old} → ${value}`);
     showToast(`Setting "${key}" updated.`, 'success');
 }
@@ -7389,6 +7555,10 @@ function submitAreaStatus() {
         areaStatusesDB.push({ id: 'AS-' + String(nextAreaStatusId++).padStart(3, '0'), ...data });
         logAuditEvent(`Created area statuses: ${area}`, area, 'area_status');
     }
+    if (typeof persistAreaStatuses === 'function') persistAreaStatuses();
+    if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof saveAreaStatusesFullApi === 'function') {
+        saveAreaStatusesFullApi(areaStatusesDB).catch(e => showToast(e.message, 'warning'));
+    }
     closeModal('areaStatusModal');
     showToast('Area status list saved', 'success');
     if (currentPage === 'admin-area-statuses') renderAdminAreaStatuses(document.getElementById('contentArea'));
@@ -7398,6 +7568,11 @@ function saveGlobalStatusList(cat) {
     const el = document.getElementById('globalStatus-' + cat);
     if (!el || !globalStatusListsDB) return;
     globalStatusListsDB[cat] = el.value.split(',').map(s => s.trim()).filter(Boolean);
+    if (typeof persistGlobalStatusLists === 'function') persistGlobalStatusLists();
+    if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof saveGlobalStatusListsApi === 'function') {
+        saveGlobalStatusListsApi(globalStatusListsDB).catch(e => showToast(e.message, 'warning'));
+    }
+    if (cat === 'POD' && typeof refreshPodStatusOptions === 'function') refreshPodStatusOptions();
     logAuditEvent(`Updated global status list: ${cat}`, cat, 'area_status');
     showToast(`${cat} statuses saved`, 'success');
 }
@@ -7405,7 +7580,15 @@ function saveGlobalStatusList(cat) {
 function deleteAreaStatus(id) {
     if (!confirm('Delete this area status list?')) return;
     const idx = areaStatusesDB.findIndex(a => a.id === id);
-    if (idx >= 0) { const name = areaStatusesDB[idx].area; areaStatusesDB.splice(idx, 1); logAuditEvent(`Deleted area statuses: ${name}`, name, 'area_status'); }
+    if (idx >= 0) {
+        const name = areaStatusesDB[idx].area;
+        areaStatusesDB.splice(idx, 1);
+        logAuditEvent(`Deleted area statuses: ${name}`, name, 'area_status');
+        if (typeof persistAreaStatuses === 'function') persistAreaStatuses();
+        if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof saveAreaStatusesFullApi === 'function') {
+            saveAreaStatusesFullApi(areaStatusesDB).catch(e => showToast(e.message, 'warning'));
+        }
+    }
     if (currentPage === 'admin-area-statuses') renderAdminAreaStatuses(document.getElementById('contentArea'));
 }
 
@@ -7471,6 +7654,15 @@ function submitAreaAssignment() {
     if (!areas.length) { showToast('Select at least one area', 'warning'); return; }
     user.assignedAreas = areas;
     user.area = areas.includes('All Areas') ? 'All Areas' : areas[0];
+    if (typeof persistAdminUsers === 'function') persistAdminUsers();
+    if (typeof isApiAvailable === 'function' && isApiAvailable()) {
+        if (typeof saveAreaAssignmentApi === 'function') {
+            saveAreaAssignmentApi(user.id, user.username, areas).catch(e => showToast(e.message, 'warning'));
+        }
+        if (typeof updateAdminUserApi === 'function') {
+            updateAdminUserApi(user.id, { assignedAreas: areas, area: user.area }).catch(() => {});
+        }
+    }
     logAuditEvent(`Assigned areas to ${user.username}`, user.id, 'user', areas.join(', '));
     closeModal('areaAssignmentModal');
     showToast(`Areas updated for ${user.username}`, 'success');
@@ -7587,6 +7779,10 @@ function submitModulePermissions() {
         });
     });
     user.modulePermissions = perms;
+    if (typeof persistAdminUsers === 'function') persistAdminUsers();
+    if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof saveModulePermissionsApi === 'function') {
+        saveModulePermissionsApi(user.id, perms).catch(e => showToast(e.message, 'warning'));
+    }
     logAuditEvent(`Updated module permissions for ${user.username}`, user.id, 'user');
     closeModal('modulePermissionModal');
     showToast(`Module permissions saved for ${user.username}`, 'success');
@@ -8128,6 +8324,7 @@ function showToast(message,type='success'){ const toast=document.getElementById(
 // INIT
 // ============================================
 document.addEventListener('DOMContentLoaded', async function () {
+    if (typeof loadAdminSettingsFromStorage === 'function') loadAdminSettingsFromStorage();
     initKpiSettings();
     syncAllAssetDocumentsToGlobalRegistry();
     adminUsersDB.forEach(u => ensureUserModulePermissions(u));

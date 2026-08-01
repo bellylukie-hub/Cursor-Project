@@ -65,6 +65,178 @@ router.get('/roles', (_req, res) => {
   }
 });
 
+// Admin — settings, users, roles, audit, area config
+const adminSvc = () => require('../services/adminService');
+
+router.get('/settings', (_req, res) => {
+  try {
+    res.json({ settings: adminSvc().getSystemSettings() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.patch('/settings', (req, res) => {
+  try {
+    const settings = adminSvc().updateSystemSettings(req.body, getUser(req));
+    res.json({ settings });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.get('/audit-logs', (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 200;
+    res.json({ logs: adminSvc().listAuditLogs(limit) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/audit-logs', (req, res) => {
+  try {
+    const { action, targetId, targetType, details } = req.body;
+    adminSvc().logAuditEntry(action, targetId, targetType, details, getUser(req));
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post('/users', (req, res) => {
+  try {
+    const user = adminSvc().createUser(req.body, getUser(req));
+    res.status(201).json({ user });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.patch('/users/:userId', (req, res) => {
+  try {
+    const user = adminSvc().updateUser(req.params.userId, req.body, getUser(req));
+    res.json({ user });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post('/users/:userId/ban', (req, res) => {
+  try {
+    const user = adminSvc().banUser(req.params.userId, req.body.reason, getUser(req));
+    res.json({ user });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.delete('/users/:userId', (req, res) => {
+  try {
+    adminSvc().purgeUser(req.params.userId, getUser(req));
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post('/users/:userId/reset-password', (req, res) => {
+  try {
+    const result = adminSvc().resetUserPassword(req.params.userId, getUser(req));
+    res.json(result);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post('/roles', (req, res) => {
+  try {
+    const role = adminSvc().createRole(req.body, getUser(req));
+    res.status(201).json({ role });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.patch('/roles/:roleId', (req, res) => {
+  try {
+    const role = adminSvc().updateRole(req.params.roleId, req.body, getUser(req));
+    res.json({ role });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.delete('/roles/:roleId', (req, res) => {
+  try {
+    adminSvc().deleteRole(req.params.roleId, getUser(req));
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.get('/admin/area-statuses-full', (_req, res) => {
+  try {
+    const records = adminSvc().getAreaStatusesFull();
+    res.json({ areaStatuses: records });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/admin/area-statuses-full', (req, res) => {
+  try {
+    const records = adminSvc().saveAreaStatusesFull(req.body.areaStatuses || [], getUser(req));
+    res.json({ areaStatuses: records });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.get('/admin/global-status-lists', (_req, res) => {
+  try {
+    res.json({ lists: adminSvc().getGlobalStatusLists() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/admin/global-status-lists', (req, res) => {
+  try {
+    const lists = adminSvc().saveGlobalStatusLists(req.body.lists || {}, getUser(req));
+    res.json({ lists });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.patch('/users/:userId/module-permissions', (req, res) => {
+  try {
+    const user = adminSvc().saveModulePermissions(req.params.userId, req.body.modulePermissions || {}, getUser(req));
+    res.json({ user });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.get('/admin/upload-templates', (_req, res) => {
+  try {
+    res.json({ templates: adminSvc().getUploadTemplates() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/admin/upload-templates', (req, res) => {
+  try {
+    const templates = adminSvc().saveUploadTemplates(req.body.templates || {}, getUser(req));
+    res.json({ templates });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 // Trips
 router.get('/trips', (req, res) => {
   try {

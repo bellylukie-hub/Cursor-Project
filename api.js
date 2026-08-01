@@ -326,4 +326,126 @@ async function syncDriverContactsFromApi() {
   }
 }
 
+async function syncDriverContactsFromApi() {
+  if (!apiAvailable || typeof driverContactsDB === 'undefined') return false;
+  try {
+    const contacts = await fetchDriverContacts();
+    if (!contacts.length) return true;
+    contacts.forEach(c => mergeDriverContactIntoLocalDb(c));
+    return true;
+  } catch (e) {
+    console.warn('Failed to sync driver contacts from API:', e.message);
+    return false;
+  }
+}
+
+// Admin settings API
+async function fetchAdminUsers() {
+  const data = await apiRequest('/users');
+  return data.users || [];
+}
+
+async function fetchAdminRoles() {
+  const data = await apiRequest('/roles');
+  return data.roles || [];
+}
+
+async function fetchSystemSettings() {
+  const data = await apiRequest('/settings');
+  return data.settings;
+}
+
+async function patchSystemSettings(patch) {
+  const data = await apiRequest('/settings', { method: 'PATCH', body: JSON.stringify(patch) });
+  return data.settings;
+}
+
+async function fetchAuditLogs() {
+  const data = await apiRequest('/audit-logs?limit=300');
+  return data.logs || [];
+}
+
+async function postAuditLog(payload) {
+  return apiRequest('/audit-logs', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+async function createAdminUserApi(payload) {
+  const data = await apiRequest('/users', { method: 'POST', body: JSON.stringify(payload) });
+  return data.user;
+}
+
+async function updateAdminUserApi(userId, payload) {
+  const data = await apiRequest(`/users/${encodeURIComponent(userId)}`, { method: 'PATCH', body: JSON.stringify(payload) });
+  return data.user;
+}
+
+async function banAdminUserApi(userId, reason) {
+  const data = await apiRequest(`/users/${encodeURIComponent(userId)}/ban`, { method: 'POST', body: JSON.stringify({ reason }) });
+  return data.user;
+}
+
+async function purgeAdminUserApi(userId) {
+  return apiRequest(`/users/${encodeURIComponent(userId)}`, { method: 'DELETE' });
+}
+
+async function resetAdminUserPasswordApi(userId) {
+  return apiRequest(`/users/${encodeURIComponent(userId)}/reset-password`, { method: 'POST' });
+}
+
+async function createAdminRoleApi(payload) {
+  const data = await apiRequest('/roles', { method: 'POST', body: JSON.stringify(payload) });
+  return data.role;
+}
+
+async function updateAdminRoleApi(roleId, payload) {
+  const data = await apiRequest(`/roles/${encodeURIComponent(roleId)}`, { method: 'PATCH', body: JSON.stringify(payload) });
+  return data.role;
+}
+
+async function deleteAdminRoleApi(roleId) {
+  return apiRequest(`/roles/${encodeURIComponent(roleId)}`, { method: 'DELETE' });
+}
+
+async function fetchAreaStatusesFull() {
+  const data = await apiRequest('/admin/area-statuses-full');
+  return data.areaStatuses;
+}
+
+async function saveAreaStatusesFullApi(areaStatuses) {
+  const data = await apiRequest('/admin/area-statuses-full', { method: 'POST', body: JSON.stringify({ areaStatuses }) });
+  return data.areaStatuses;
+}
+
+async function fetchGlobalStatusLists() {
+  const data = await apiRequest('/admin/global-status-lists');
+  return data.lists;
+}
+
+async function saveGlobalStatusListsApi(lists) {
+  const data = await apiRequest('/admin/global-status-lists', { method: 'POST', body: JSON.stringify({ lists }) });
+  return data.lists;
+}
+
+async function saveAreaAssignmentApi(userId, username, assignedAreas) {
+  return apiRequest('/area-assignments', { method: 'POST', body: JSON.stringify({ userId, username, assignedAreas }) });
+}
+
+async function saveModulePermissionsApi(userId, modulePermissions) {
+  const data = await apiRequest(`/users/${encodeURIComponent(userId)}/module-permissions`, {
+    method: 'PATCH',
+    body: JSON.stringify({ modulePermissions })
+  });
+  return data.user;
+}
+
+async function fetchUploadTemplates() {
+  const data = await apiRequest('/admin/upload-templates');
+  return data.templates;
+}
+
+async function saveUploadTemplatesApi(templates) {
+  const data = await apiRequest('/admin/upload-templates', { method: 'POST', body: JSON.stringify({ templates }) });
+  return data.templates;
+}
+
 loadStoredAuth();

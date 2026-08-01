@@ -89,6 +89,14 @@ function login(username, password, ipAddress) {
   if (user.status !== 'active') throw new Error('Account is not active');
   if (!verifyPassword(password, user.password_hash)) throw new Error('Invalid username or password');
 
+  const { isMaintenanceMode } = require('./adminService');
+  if (isMaintenanceMode()) {
+    const role = getRoleById(user.role_id);
+    if (role?.name !== 'Super Admin') {
+      throw new Error('System is in maintenance mode. Only Super Admin can log in.');
+    }
+  }
+
   db.prepare(`UPDATE users SET last_login = datetime('now') WHERE id = ?`).run(user.id);
   db.prepare(`
     INSERT INTO audit_logs (user_id, username, action, target_type, ip_address, details)

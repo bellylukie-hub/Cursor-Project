@@ -126,6 +126,92 @@
 
     window.LIVE_STATIC_COLUMNS = LIVE_STATIC_COLUMNS;
 
+    const LIVE_COLUMN_FIELD_MAP = {
+        OrderNo: 'orderNo', DateLoaded: 'dateLoaded', DispatchDate: 'dispatchDate', Delivered: 'delivered',
+        TripNumber: 'tripNumber', OrderOwner: 'orderOwner', Transporter: 'transporter', FleetNr: 'fleetNr',
+        Truck: 'truck', Trailer1: 'trailer1', Trailer2: 'trailer2', Driver: 'driver', DriverContact: 'driverContact',
+        ClearingAgent: 'clearingAgent', Border: 'border', PaSentOn: 'paSentOn', Customer: 'customer',
+        Consignee: 'consignee', InvoiceParty: 'invoiceParty', FromStation: 'fromStation',
+        LoadingPoint: 'loadingPoint', ToStation: 'toStation', OffloadingPoint: 'offloadingPoint',
+        CargoType: 'cargoType', Commodity: 'commodity', CustomerRef: 'customerRef'
+    };
+
+    const LIVE_COLUMN_LABEL_MAP = {
+        OrderNo: 'Order No', DateLoaded: 'Date Loaded', DispatchDate: 'Dispatch Date', Delivered: 'Delivered',
+        TripNumber: 'Trip Ref.', OrderOwner: 'Order Owner', Transporter: 'Transporter', FleetNr: 'Fleet Nr.',
+        Truck: 'Truck', Trailer1: 'Trailer 1', Trailer2: 'Trailer 2', Driver: 'Driver', DriverContact: 'Driver Contact',
+        ClearingAgent: 'Clearing Agent', Border: 'Border', PaSentOn: 'PA sent on', Customer: 'Customer',
+        Consignee: 'Consignee', InvoiceParty: 'Invoice Party', FromStation: 'From Station',
+        LoadingPoint: 'Loading Point', ToStation: 'To Station', OffloadingPoint: 'Offloading Point',
+        CargoType: 'Cargo Type', Commodity: 'Commodity', CustomerRef: 'Customer Ref.'
+    };
+
+    window.rebuildLiveColumnsFromTemplates = function () {
+        const liveTpl = uploadTemplatesDB.LIVE;
+        if (!liveTpl?.columns?.length) return;
+        const rowNum = LIVE_STATIC_COLUMNS.find(c => c.key === 'rowNum');
+        const commentCol = LIVE_STATIC_COLUMNS.find(c => c.key === 'latestComment');
+        const positionCols = LIVE_STATIC_COLUMNS.filter(c => c.key.startsWith('position'));
+        const dynamic = liveTpl.columns.map(col => {
+            const field = LIVE_COLUMN_FIELD_MAP[col] || col.charAt(0).toLowerCase() + col.slice(1);
+            const existing = LIVE_STATIC_COLUMNS.find(c => c.field === field || c.key === field);
+            if (existing && !existing.key.startsWith('position') && existing.key !== 'rowNum' && existing.key !== 'latestComment') {
+                return { ...existing };
+            }
+            const isDate = /date|delivered|sent/i.test(col);
+            const isDriver = col === 'Driver';
+            const isContact = col === 'DriverContact';
+            return {
+                key: field,
+                label: LIVE_COLUMN_LABEL_MAP[col] || col,
+                field: isContact || col === 'Border' ? undefined : field,
+                format: isDate ? 'date' : undefined,
+                isDriverLink: isDriver,
+                computed: col === 'Border' ? 'border' : (isContact ? 'driverContact' : undefined)
+            };
+        });
+        const next = [rowNum, ...dynamic, commentCol, ...positionCols].filter(Boolean);
+        LIVE_STATIC_COLUMNS.length = 0;
+        next.forEach(c => LIVE_STATIC_COLUMNS.push(c));
+        window.LIVE_STATIC_COLUMNS = LIVE_STATIC_COLUMNS;
+        ['NB', 'SB'].forEach(type => {
+            const tpl = uploadTemplatesDB[type];
+            if (!tpl?.columns?.length) return;
+            if (!window.TEMPLATE_COLUMN_REGISTRY[type]) window.TEMPLATE_COLUMN_REGISTRY[type] = {};
+            tpl.columns.forEach(col => {
+                if (!window.TEMPLATE_COLUMN_REGISTRY[type][col]) {
+                    const field = LIVE_COLUMN_FIELD_MAP[col] || col.charAt(0).toLowerCase() + col.slice(1);
+                    window.TEMPLATE_COLUMN_REGISTRY[type][col] = {
+                        field,
+                        label: LIVE_COLUMN_LABEL_MAP[col] || col,
+                        isStatus: col === 'Status'
+                    };
+                }
+            });
+        });
+    };
+
+    window.validateUploadHeaders = function (type, headers) {
+        const tpl = uploadTemplatesDB[type];
+        if (!tpl?.columns?.length) return { ok: true, missing: [] };
+        const required = tpl.columns.filter(c => !['Trailer2', 'CustomerRef', 'InvoiceParty'].includes(c));
+        const missing = required.filter(c => !headers.includes(c));
+        return { ok: missing.length === 0, missing };
+    };
+
+    if (typeof loadAdminSettingsFromStorage === 'undefined') {
+        try {
+            const stored = localStorage.getItem('truckcontrol_upload_templates');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                Object.entries(parsed).forEach(([k, v]) => {
+                    if (uploadTemplatesDB[k]) Object.assign(uploadTemplatesDB[k], v);
+                });
+            }
+        } catch (_) { /* ignore */ }
+    }
+    rebuildLiveColumnsFromTemplates();
+
     window.getLiveWorkflowSteps = function (direction) {
         const wf = window.WORKFLOW_CONFIG || {};
         return wf[direction] || wf.NB || [];
@@ -1225,6 +1311,15 @@
         const rows = parseCsvUpload(text);
         if (!rows.length) { if (typeof showToast === 'function') showToast('No data rows found', 'warning'); return; }
 
+        const headers = Object.keys(rows[0] || {});
+        const validation = validateUploadHeaders(type === 'LIVE' ? 'LIVE' : type, headers);
+        if (!validation.ok) {
+            if (typeof showToast === 'function') {
+                showToast(`Upload missing columns: ${validation.missing.join(', ')}`, 'warning');
+            }
+            return;
+        }
+
         let result;
         if (type === 'POSITION') {
             const slot = document.getElementById('positionSlot')?.value;
@@ -1272,12 +1367,22 @@
         const el = document.getElementById('tpl-cols-' + key);
         if (!el) return;
         uploadTemplatesDB[key].columns = el.value.split(',').map(c => c.trim()).filter(Boolean);
+        if (typeof persistUploadTemplates === 'function') persistUploadTemplates();
+        if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof saveUploadTemplatesApi === 'function') {
+            saveUploadTemplatesApi(uploadTemplatesDB).catch(e => {
+                if (typeof showToast === 'function') showToast(e.message, 'warning');
+            });
+        }
+        if (key === 'LIVE' || key === 'NB' || key === 'SB') rebuildLiveColumnsFromTemplates();
         if (typeof logAuditEvent === 'function') logAuditEvent(`Updated upload template: ${key}`, key, 'template');
-        if (typeof showToast === 'function') showToast(`Template ${key} saved — ${key === 'NB' || key === 'SB' ? 'operations table columns updated' : 'saved'}`, 'success');
+        if (typeof showToast === 'function') showToast(`Template ${key} saved — ${key === 'NB' || key === 'SB' || key === 'LIVE' ? 'operations table columns updated' : 'saved'}`, 'success');
         if (key === 'NB' && window.currentPage === 'nb-operations' && typeof refreshNBTable === 'function') refreshNBTable();
         else if (key === 'SB' && window.currentPage === 'sb-operations' && typeof refreshSBTable === 'function') refreshSBTable();
         else if (key === 'NB' && window.currentPage === 'nb-operations') window.navigateTo('nb-operations');
         else if (key === 'SB' && window.currentPage === 'sb-operations') window.navigateTo('sb-operations');
+        else if ((key === 'LIVE' || key === 'POSITION') && window.currentPage === 'position-live' && typeof refreshPositionLiveTable === 'function') {
+            refreshPositionLiveTable();
+        }
     };
 
     window.downloadTemplateCsv = function (key) {
