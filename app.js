@@ -7362,7 +7362,7 @@ function renderTurnaroundsTableRows(filtered) {
         }
 
         return `
-            <tr class="turnaround-row${expanded ? ' expanded' : ''}" onclick="toggleTurnaroundExpand('${t.id}')" style="cursor:pointer;">
+            <tr class="turnaround-row${expanded ? ' expanded' : ''}" onclick="toggleTurnaroundExpand('${escapeJsString(t.id)}')" style="cursor:pointer;">
                 <td><strong>${t.truck?.plate || '—'}</strong><br><small style="color:var(--text-secondary);">${t.truck?.driver || nb?.driver || '—'}</small></td>
                 <td>${t.fleetOwner?.name || nb?.owner || '—'}</td>
                 <td>${nb ? `<a href="#" class="truck-link" onclick="event.stopPropagation();navigateToTripView('${nb.tripNumber}')">${nb.tripNumber}</a>` : '—'}</td>

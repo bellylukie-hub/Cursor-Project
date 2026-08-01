@@ -1311,6 +1311,16 @@
             <div id="combinedReportResults">${renderCombinedReportResults()}</div>`;
     }
 
+    function openCombinedReportFromModule(moduleId) {
+        currentReportModuleId = COMBINED_REPORT_ID;
+        initCombinedReportState({
+            selectedModules: [moduleId],
+            selectedFieldKeys: getDefaultCombinedFieldKeys([moduleId]),
+            filters: { direction: 'all', kpi: 'all', area: 'all', border: 'all', podCollected: 'all', search: '' }
+        });
+        navigateTo('report-detail');
+    }
+
     function openCombinedReportBuilder(savedLayoutName) {
         currentReportModuleId = COMBINED_REPORT_ID;
         if (savedLayoutName) {
@@ -1516,6 +1526,7 @@
                 <div class="report-builder-actions">
                     <input type="text" class="form-control" id="reportLayoutName" placeholder="Layout name to save…" value="${reportBuilderState.layoutName || ''}" style="max-width:220px;">
                     <button class="btn btn-outline btn-sm" onclick="saveCustomReportLayout()">💾 Save Layout</button>
+                    <button class="btn btn-outline btn-sm" onclick="openCombinedReportFromModule('${moduleId}')" title="Add fields from other menus">🔗 Combine menus</button>
                     <button class="btn btn-primary btn-sm" onclick="exportCustomReport()">📥 Export CSV</button>
                     <button class="btn btn-outline btn-sm" onclick="refreshCustomReport()">🔄 Refresh</button>
                 </div>
@@ -1742,6 +1753,7 @@
     window.renderModuleReportButton = renderModuleReportButton;
     window.renderReports = renderReports;
     window.renderReportDetail = renderReportDetail;
+    window.openCombinedReportFromModule = openCombinedReportFromModule;
     window.openCombinedReportBuilder = openCombinedReportBuilder;
     window.runCombinedReport = runCombinedReport;
     window.onCombinedModuleToggle = onCombinedModuleToggle;

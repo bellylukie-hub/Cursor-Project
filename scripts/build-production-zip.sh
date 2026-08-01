@@ -1,4 +1,5 @@
 #!/bin/sh
+# Build TruckControl production ZIP (full app + documentation)
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="${1:-v1.2.0-production}"
@@ -25,10 +26,22 @@ copy_item \
   docs samples scripts backend
 
 chmod +x "$STAGE/install-docker.sh" "$STAGE/install-linux.sh" "$STAGE/pm2-start.sh" 2>/dev/null || true
+chmod +x "$STAGE/scripts/build-production-zip.sh" 2>/dev/null || true
 chmod +x "$STAGE/backend/docker-entrypoint.sh" 2>/dev/null || true
-rm -rf "$STAGE/backend/node_modules" "$STAGE/backend/data" "$STAGE/backend/uploads" "$STAGE/dist" 2>/dev/null || true
+
+# Exclude runtime / dev artifacts
+rm -rf \
+  "$STAGE/backend/node_modules" \
+  "$STAGE/backend/data" \
+  "$STAGE/backend/uploads" \
+  "$STAGE/dist" \
+  "$STAGE/node_modules" \
+  2>/dev/null || true
 
 cd "$OUT_DIR"
 zip -rq "$ZIP_NAME" "$FOLDER"
-echo "Created: $OUT_DIR/$ZIP_NAME ($(du -h "$OUT_DIR/$ZIP_NAME" | cut -f1))"
+BYTES=$(wc -c < "$ZIP_NAME" | tr -d ' ')
+echo "Created: $OUT_DIR/$ZIP_NAME ($(du -h "$OUT_DIR/$ZIP_NAME" | cut -f1), ${BYTES} bytes)"
+echo "Folder:  $STAGE"
 echo "Extract: unzip $ZIP_NAME && cd $FOLDER"
+echo "Docs:    docs/README.md  docs/USER-GUIDE.md  docs/INSTALLATION.md"

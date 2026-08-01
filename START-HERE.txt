@@ -1,16 +1,18 @@
 ================================================================================
-  TruckControl — PRODUCTION SERVER PACKAGE
+  TruckControl — PRODUCTION PACKAGE  (v1.2.0-production)
 ================================================================================
 
-This ZIP is the full production web app (same as desktop, with login + database).
+This ZIP is the full production web application with login, database, reports,
+themes, position sync, turnarounds, and complete documentation.
 
-QUICK START (Docker — recommended on WAMP + Docker server)
+QUICK START (Docker — recommended on Windows, Linux, macOS)
 ------------------------------------------------------------
-1. Install Docker Desktop and start it
-2. Open Command Prompt in this folder:
+1. Install Docker Desktop (Windows/Mac) or Docker Engine (Linux) and start it
+2. Open a terminal in this folder:
 
-   copy .env.example .env
-   notepad .env          (set JWT_SECRET — required)
+   cp .env.example .env          (Windows: copy .env.example .env)
+   Edit .env — set JWT_SECRET (required, 32+ random characters)
+   RUN_SEED=true for first install only
 
    docker compose up -d --build
 
@@ -19,32 +21,55 @@ QUICK START (Docker — recommended on WAMP + Docker server)
 
 4. After first login, edit .env → RUN_SEED=false → docker compose up -d
 
-GUIDES IN THIS FOLDER
----------------------
-  INSTALL-WAMP-DOCKER.md   Windows + WAMP + Docker (your setup)
-  INSTALL-SERVER.md        Linux / general server
-  PRODUCTION.md            Full production reference
+DOCUMENTATION (read these)
+--------------------------
+  docs/README.md           Documentation index — start here for all guides
+  docs/USER-GUIDE.md       Full user directive (menus, workflows, daily ops)
+  docs/INSTALLATION.md     Master install guide (Docker, WAMP, Linux, PM2, etc.)
+
+  INSTALL-WAMP-DOCKER.md   Windows + WAMP + Docker (detailed)
+  INSTALL-SERVER.md        Linux server quick install
+  PRODUCTION.md            Environment variables, PM2, security, API
+  README.md                Project overview
+
+INSTALL OPTIONS
+---------------
+  Docker          — easiest; works on Windows, Linux, macOS
+  WAMP + Docker   — Windows: run app in Docker; optional Apache proxy on :80
+  Linux manual    — ./install-linux.sh  then  cd backend && npm start
+  PM2 (24/7)      — pm2 start ecosystem.config.cjs  (see PRODUCTION.md)
+  XAMPP / LAMP    — reverse proxy to port 3001 only (see docs/INSTALLATION.md)
 
 WHAT IS INCLUDED
 ----------------
-  - JWT login (production auth)
-  - NB / SB / Border / Position Live tables
-  - Column show/hide and freeze
-  - KPI colors (green / orange / red)
-  - Driver registry (click driver name → register WhatsApp + DRC)
-  - CSV upload (NB, SB, Position) — saved to SQLite database
+  - JWT login and RBAC (users, roles, module permissions)
+  - NB / SB / Border / POD / Position Live operations tables
+  - Position upload sync to NB/SB (matched by trip + truck)
+  - Customizable per-menu and cross-menu reports
+  - Turnarounds list with filters and KPI summary
+  - Sidebar live badges and notification bell
+  - Themes, process guide, help assistant
+  - Driver registry, communication matrix, runner fees
+  - Admin: users, roles, KPI settings, audit logs, upload templates
   - Docker + PM2 deployment files
+  - Sample CSV templates in samples/
 
 DEFAULT USERS (after seed)
 --------------------------
   super_admin      Super Admin
   ops_manager      Manager
   border_moderator Moderator
+  driver_user      User
   Password: ChangeMe123!  (change after first login)
 
 TEST UPLOAD
 -----------
-  samples\NB_Live_Template.csv
-  samples\SB_Live_Template.csv
+  samples/NB_Live_Template.csv
+  samples/SB_Live_Template.csv
+
+REBUILD ZIP FROM SOURCE
+-----------------------
+  chmod +x scripts/build-production-zip.sh
+  ./scripts/build-production-zip.sh v1.2.0-production
 
 ================================================================================
