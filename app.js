@@ -828,7 +828,7 @@ function renderCommentModalKpiPanel(snapshot) {
         </div>`;
 }
 
-function kpiRequiresStructuredComment(kpi) {
+function kpiSuggestsStructuredComment(kpi) {
     const k = typeof normalizeKpi === 'function' ? normalizeKpi(kpi) : kpi;
     return k === 'orange' || k === 'red';
 }
@@ -843,16 +843,13 @@ function applyCommentModalKpiStyling(kpi) {
     const normalOpt = document.querySelector('.comment-type-option[data-type="normal"]');
     const structOpt = document.querySelector('.comment-type-option[data-type="structured"]');
     const selector = document.getElementById('commentTypeSelector');
-    if (kpiRequiresStructuredComment(k)) {
-        if (normalOpt) { normalOpt.style.display = 'none'; normalOpt.classList.remove('selected'); }
-        if (structOpt) structOpt.style.display = '';
-        if (selector) selector.classList.add('requires-structured');
+    if (normalOpt) normalOpt.style.display = '';
+    if (structOpt) structOpt.style.display = '';
+    if (selector) selector.classList.remove('requires-structured');
+    if (kpiSuggestsStructuredComment(k) && selectedCommentType !== 'normal') {
         selectedCommentType = 'structured';
-    } else {
-        if (normalOpt) normalOpt.style.display = '';
-        if (structOpt) structOpt.style.display = '';
-        if (selector) selector.classList.remove('requires-structured');
-        if (selectedCommentType === 'structured' && k === 'green') selectedCommentType = 'normal';
+    } else if (!kpiSuggestsStructuredComment(k) && selectedCommentType === 'structured') {
+        selectedCommentType = 'normal';
     }
 }
 
@@ -8139,7 +8136,7 @@ function openCommentModal(tripNumber, statusContext, podStage) {
     currentCommentKpi = kpiSnapshot.effective;
     document.getElementById('modalKPIDisplay').innerHTML = renderCommentModalKpiPanel(kpiSnapshot);
 
-    selectedCommentType = kpiRequiresStructuredComment(currentCommentKpi) ? 'structured' : 'normal';
+    selectedCommentType = kpiSuggestsStructuredComment(currentCommentKpi) ? 'structured' : 'normal';
     document.getElementById('normalCommentText').value = '';
     document.getElementById('problemDescription').value = '';
     document.getElementById('personContacted').value = '';
@@ -8331,10 +8328,6 @@ function refreshPageAfterComment() {
 }
 
 function selectCommentType(type, element) {
-    if (type === 'normal' && kpiRequiresStructuredComment(currentCommentKpi)) {
-        showToast('Priority and Overdue trips require a Problem Report comment.', 'warning');
-        return;
-    }
     selectedCommentType = type;
     updateCommentTypeUI();
 }
@@ -8354,23 +8347,33 @@ function updateCommentTypeUI() {
     if (selectedCommentType === 'normal') {
         document.getElementById('normalCommentSection').classList.remove('hidden');
         document.getElementById('structuredCommentSection').classList.add('hidden');
+        const alertHint = document.getElementById('normalCommentAlertHint');
+        if (alertHint) {
+            alertHint.style.display = (kpi === 'orange' || kpi === 'red') ? 'block' : 'none';
+        }
     } else {
         document.getElementById('normalCommentSection').classList.add('hidden');
         document.getElementById('structuredCommentSection').classList.remove('hidden');
+        const alertHint = document.getElementById('normalCommentAlertHint');
+        if (alertHint) alertHint.style.display = 'none';
         const box = document.getElementById('structuredCommentBox');
         const title = document.getElementById('commentTitle');
         if (kpi === 'red') {
             box.classList.add('red');
             box.classList.remove('orange');
-            title.textContent = '🔴 Structured Problem Report (Required — Overdue)';
+            title.textContent = '🔴 Structured Problem Report (Recommended — Overdue)';
             title.classList.add('red');
             title.classList.remove('orange');
-        } else {
+        } else if (kpi === 'orange') {
             box.classList.remove('red');
             box.classList.add('orange');
-            title.textContent = '🟠 Structured Problem Report (Required — Priority)';
+            title.textContent = '🟠 Structured Problem Report (Recommended — Priority)';
             title.classList.add('orange');
             title.classList.remove('red');
+        } else {
+            box.classList.remove('red', 'orange');
+            title.textContent = '⚠️ Structured Problem Report';
+            title.classList.remove('red', 'orange');
         }
     }
 }
@@ -8458,13 +8461,6 @@ function submitComment() {
     }
 
     if (selectedCommentType === 'normal') {
-        if (kpiRequiresStructuredComment(currentCommentKpi)) {
-            document.getElementById('validationMessage').textContent = '⚠️ Priority and Overdue trips require a Problem Report — not a normal comment.';
-            document.getElementById('validationMessage').classList.add('show');
-            selectedCommentType = 'structured';
-            updateCommentTypeUI();
-            return;
-        }
         if (!commentText && !statusUpdate) {
             document.getElementById('validationMessage').textContent = '⚠️ Please enter a comment or select a status update.';
             document.getElementById('validationMessage').classList.add('show');
