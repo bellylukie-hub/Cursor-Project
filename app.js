@@ -1291,6 +1291,11 @@ const auditLogsDB = [
     { id: 'LOG-0007', userId: 'ADM-001', username: 'super_admin', action: 'Created Role role-support', targetId: 'role-support', targetType: 'role', timestamp: '2026-07-23 13:00:00', ipAddress: '10.42.0.15', details: 'Custom role: Support Agent' }
 ];
 
+let CURRENT_SESSION_USER_ID = 'ADM-001';
+let nextAdminUserId = 6;
+let nextAuditLogId = 8;
+let nextRoleId = 1;
+
 if (typeof window !== 'undefined') {
     window.adminUsersDB = adminUsersDB;
     window.rolesDB = rolesDB;
@@ -1301,10 +1306,6 @@ if (typeof window !== 'undefined') {
     window.nextRoleId = nextRoleId;
 }
 
-let CURRENT_SESSION_USER_ID = 'ADM-001';
-let nextAdminUserId = 6;
-let nextAuditLogId = 8;
-let nextRoleId = 1;
 let adminUserFilter = '';
 let adminUserStatusFilter = 'all';
 let auditLogFilter = '';
