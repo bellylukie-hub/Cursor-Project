@@ -1366,7 +1366,8 @@ const systemSettingsDB = {
     backupSchedule: 'daily',
     backupRetentionDays: 30,
     appName: 'Truck Turnaround & Operations Control System',
-    supportEmail: 'support@truckcontrol.local'
+    supportEmail: 'support@truckcontrol.local',
+    activeTheme: 'ocean-blue'
 };
 
 const auditLogsDB = [
@@ -1607,6 +1608,7 @@ function canAccessAdminPage(page) {
         case 'admin-users': return canUser('manage_users');
         case 'admin-roles': return canUser('manage_roles');
         case 'admin-settings': return canUser('manage_settings');
+        case 'admin-themes': return canUser('manage_settings');
         case 'admin-kpi-settings': return canUser('manage_settings');
         case 'admin-audit-logs': return canUser('view_logs');
         case 'admin-area-statuses': return canUser('manage_roles') || canUser('manage_area_statuses');
@@ -2206,6 +2208,7 @@ function navigateTo(page) {
         case 'admin-users': renderAdminUsers(ca); break;
         case 'admin-roles': renderAdminRoles(ca); break;
         case 'admin-settings': renderAdminSettings(ca); break;
+        case 'admin-themes': renderAdminThemes(ca); break;
         case 'admin-kpi-settings': renderAdminKpiSettings(ca); break;
         case 'admin-audit-logs': renderAdminAuditLogs(ca); break;
         case 'admin-area-statuses': renderAdminAreaStatuses(ca); break;
@@ -7427,6 +7430,41 @@ function renderAdminSettings(container) {
         </div>`;
 }
 
+function renderAdminThemes(container) {
+    if (!canAccessAdminPage('admin-themes')) {
+        container.innerHTML = `<div class="access-denied"><h2>🚫 Access Denied</h2><p>Theme management requires Manager or Super Admin privileges.</p><button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">Back to Dashboard</button></div>`;
+        return;
+    }
+    const themes = window.APP_THEMES || [];
+    const activeId = systemSettingsDB.activeTheme || 'ocean-blue';
+    container.innerHTML = `
+        ${renderAdminBreadcrumb('Themes')}
+        <div class="page-header">
+            <h1>🎨 Application Themes</h1>
+            <p class="page-subtitle">Choose a colour theme for the entire application. Changes apply instantly for all users on this device.</p>
+        </div>
+        <div class="themes-grid">
+            ${themes.map(t => `
+                <div class="theme-card ${t.id === activeId ? 'active' : ''}" onclick="setAppTheme('${t.id}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setAppTheme('${t.id}');}">
+                    ${t.id === activeId ? '<span class="theme-card-badge">✓ Active</span>' : ''}
+                    <div class="theme-card-preview">
+                        ${t.preview.map(c => `<span style="background:${c}"></span>`).join('')}
+                    </div>
+                    <div class="theme-card-body">
+                        <h3><span>${t.icon}</span> ${t.name}</h3>
+                        <p>${t.description}</p>
+                        <div class="theme-swatch-row">
+                            ${t.preview.map(c => `<span class="theme-swatch" style="background:${c}" title="${c}"></span>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+        <div style="margin-top:24px;padding:16px 20px;background:#f7fafc;border-radius:10px;border-left:4px solid var(--primary-light);font-size:13px;">
+            <strong>Tip:</strong> Themes update the sidebar, buttons, links, and accent colours across every page. Your selection is saved automatically and restored on next login.
+        </div>`;
+}
+
 function renderAdminAuditLogs(container) {
     if (!canAccessAdminPage('admin-audit-logs')) {
         container.innerHTML = `<div class="access-denied"><h2>🚫 Access Denied</h2><p>Audit Logs are visible to Manager and Super Admin only.</p><button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">Back to Dashboard</button></div>`;
@@ -7731,6 +7769,7 @@ function updateSystemSetting(key, value) {
     systemSettingsDB[key] = value;
     if (typeof persistSystemSettings === 'function') persistSystemSettings();
     if (typeof applySystemSettingsToUi === 'function') applySystemSettingsToUi();
+    if (key === 'activeTheme' && typeof applyAppTheme === 'function') applyAppTheme(value);
     if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof patchSystemSettings === 'function') {
         patchSystemSettings({ [key]: value }).catch(e => showToast(e.message, 'warning'));
     }
@@ -8765,6 +8804,8 @@ function showToast(message,type='success'){ const toast=document.getElementById(
 // ============================================
 document.addEventListener('DOMContentLoaded', async function () {
     if (typeof loadAdminSettingsFromStorage === 'function') loadAdminSettingsFromStorage();
+    if (typeof hydrateAppThemeFromStorage === 'function') hydrateAppThemeFromStorage();
+    if (typeof refreshAppLogo === 'function') refreshAppLogo();
     initKpiSettings();
     syncAllAssetDocumentsToGlobalRegistry();
     adminUsersDB.forEach(u => ensureUserModulePermissions(u));

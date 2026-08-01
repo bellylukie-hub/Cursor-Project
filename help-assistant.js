@@ -48,6 +48,7 @@
             'admin-roles': '**Admin → Roles** defines permission sets (read, edit, manage users, etc.).',
             'admin-module-permissions': '**Admin → Module Permissions** controls view/edit/delete per module and per area.',
             'admin-area-statuses': '**Admin → Area Statuses** configures valid status lists for each area (NB, SB, border).',
+            'admin-themes': '**Admin → Themes** lets managers pick a colour theme (Ocean Blue, Midnight Pro, Forest Logistics, etc.) that applies across the whole app instantly.',
             'admin-kpi-settings': '**Admin → KPI Settings** sets SLA targets per workflow step and border process.'
         };
         return map[ctx.page] || null;

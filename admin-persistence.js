@@ -246,9 +246,11 @@
         if (!s) return;
         if (s.appName) {
             document.title = s.appName;
-            const brand = document.querySelector('.sidebar-header h2, .app-title, .logo-text');
-            if (brand) brand.textContent = s.appName.length > 40 ? 'TruckControl' : s.appName;
         }
+        if (s.activeTheme && typeof applyAppTheme === 'function') {
+            applyAppTheme(s.activeTheme);
+        }
+        if (typeof refreshAppLogo === 'function') refreshAppLogo();
     };
 
     let sessionActivityAt = Date.now();
