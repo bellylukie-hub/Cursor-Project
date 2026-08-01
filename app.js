@@ -110,7 +110,6 @@ const WORKFLOW_CONFIG = {
 };
 
 if (typeof window !== 'undefined') window.WORKFLOW_CONFIG = WORKFLOW_CONFIG;
-if (typeof window !== 'undefined') window.BORDER_PROCESS_DEFS = BORDER_PROCESS_DEFS;
 
 // ============================================
 // KPI SETTINGS — admin-configurable per process / page / workflow
@@ -285,6 +284,8 @@ const BORDER_PROCESS_DEFS = [
         ]
     }
 ];
+
+if (typeof window !== 'undefined') window.BORDER_PROCESS_DEFS = BORDER_PROCESS_DEFS;
 
 function buildBorderStepKpiSettings() {
     const rows = [];
