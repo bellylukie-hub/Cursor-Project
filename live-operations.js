@@ -50,7 +50,7 @@
         POSITION: {
             name: 'Position File (3× daily)',
             columns: ['TripNumber', 'Truck', 'Position', 'Area', 'AreaStatus', 'ProcessComment', 'Timestamp'],
-            description: 'Position upload 3× per day — must match trucks from NB live file. Position 08:00 / mid day / evening columns on live page.'
+            description: 'Position upload 3× per day — matched on Trip # + Truck to NB and SB live trips. Fills Position 08:00 / mid day / evening columns on NB, SB, and Position Live pages.'
         },
         LIVE: {
             name: 'Live Operations Master',
@@ -122,6 +122,62 @@
         morning: 'positionMorning',
         afternoon: 'positionAfternoon',
         evening: 'positionEvening'
+    };
+
+    window.normalizeTruckPlate = function (value) {
+        return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    };
+
+    /** Match a position row to a live trip using Trip # + Truck (both when available). */
+    window.findTripByTripAndTruck = function (tripNumber, truck, direction) {
+        const truckNorm = normalizeTruckPlate(truck);
+        const allTrips = Object.values(window.tripsDB || {});
+        let pool = direction ? allTrips.filter(t => t.direction === direction) : allTrips;
+
+        if (tripNumber && truckNorm) {
+            const exact = pool.find(t => t.tripNumber === tripNumber && normalizeTruckPlate(t.truck) === truckNorm);
+            if (exact) return exact;
+        }
+        if (tripNumber && window.tripsDB?.[tripNumber]) {
+            const byTrip = window.tripsDB[tripNumber];
+            if (!direction || byTrip.direction === direction) {
+                if (!truckNorm || normalizeTruckPlate(byTrip.truck) === truckNorm) return byTrip;
+            }
+        }
+        if (truckNorm) {
+            const byTruck = pool.filter(t => normalizeTruckPlate(t.truck) === truckNorm);
+            if (byTruck.length === 1) return byTruck[0];
+            if (tripNumber) {
+                const withTrip = byTruck.find(t => t.tripNumber === tripNumber);
+                if (withTrip) return withTrip;
+            }
+            return byTruck[0] || null;
+        }
+        return null;
+    };
+
+    window.positionRowMatchesTrip = function (entry, trip) {
+        if (!entry || !trip) return false;
+        const entryTruck = normalizeTruckPlate(entry.truck);
+        const tripTruck = normalizeTruckPlate(trip.truck);
+        if (entryTruck && tripTruck && entryTruck !== tripTruck) return false;
+        if (entry.tripNumber && trip.tripNumber && entry.tripNumber !== trip.tripNumber) return false;
+        return !!(entryTruck && tripTruck && entryTruck === tripTruck) ||
+            !!(entry.tripNumber && trip.tripNumber && entry.tripNumber === trip.tripNumber);
+    };
+
+    /** Re-apply today's position uploads onto trip.positions (trip + truck match). */
+    window.syncTodayPositionUploadsToTrips = function () {
+        const today = new Date().toISOString().slice(0, 10);
+        (window.positionUploadsDB || []).filter(p => p.date === today).forEach(upload => {
+            (upload.matched || []).forEach(entry => {
+                if (!entry.positionText) return;
+                const trip = findTripByTripAndTruck(entry.tripNumber, entry.truck, null);
+                if (!trip || !positionRowMatchesTrip(entry, trip)) return;
+                if (!trip.positions) trip.positions = {};
+                trip.positions[upload.slot] = entry.positionText;
+            });
+        });
     };
 
     window.LIVE_STATIC_COLUMNS = LIVE_STATIC_COLUMNS;
@@ -760,13 +816,18 @@
         return `<div class="live-comment-cell">${renderExpandableLiveCell(panelId, latestHtml, historyHtml, earlier.length)}</div>`;
     };
 
-    window.getTripPositionText = function (tripNumber, slot) {
-        const trip = window.tripsDB?.[tripNumber];
+    window.getTripPositionText = function (tripOrNumber, slot) {
+        const trip = typeof tripOrNumber === 'object' ? tripOrNumber : window.tripsDB?.[tripOrNumber];
+        const tripNumber = trip?.tripNumber || tripOrNumber;
+
+        if (typeof syncTodayPositionUploadsToTrips === 'function') syncTodayPositionUploadsToTrips();
         if (trip?.positions?.[slot]) return trip.positions[slot];
+
         const today = new Date().toISOString().slice(0, 10);
         const upload = (window.positionUploadsDB || []).find(p => p.date === today && p.slot === slot);
-        if (!upload) return '—';
-        const match = upload.matched?.find(m => m.tripNumber === tripNumber);
+        if (!upload || !trip) return '—';
+
+        const match = (upload.matched || []).find(entry => positionRowMatchesTrip(entry, trip));
         if (!match) return '—';
         return match.positionText || `${match.latitude}, ${match.longitude}` || '—';
     };
@@ -791,7 +852,7 @@
             return trip.direction === 'SB' ? (trip.exitBorder || trip.border || '—') : (trip.entryBorder || trip.border || '—');
         }
         if (col.computed === 'latestComment') return renderLatestAreaCommentHtml(tripNumber);
-        if (col.computed === 'position' && col.slot) return getTripPositionText(tripNumber, col.slot);
+        if (col.computed === 'position' && col.slot) return getTripPositionText(trip, col.slot);
         if (col.field === 'truck') return renderKpiTruckCell(trip);
         if (col.isDriverLink) {
             const driverName = trip.driver || trip._borderRow?.driver || '';
@@ -913,6 +974,7 @@
     };
 
     window.renderOperationsTableRows = function (trips, listKey, type, moduleIdOverride) {
+        if (typeof syncTodayPositionUploadsToTrips === 'function') syncTodayPositionUploadsToTrips();
         const context = type === 'SB' ? 'SB' : 'NB';
         const cols = getEffectiveOperationsColumns(context);
         const moduleId = moduleIdOverride || (type === 'NB' ? 'nb-operations' : 'sb-operations');
@@ -1103,7 +1165,7 @@
                         const dc = typeof findDriverContactByTrip === 'function' ? findDriverContactByTrip(t.tripNumber) : null;
                         return dc ? `${dc.whatsapp || ''} ${dc.drcNumber || ''}`.trim() : '';
                     }
-                    if (col.computed === 'position' && col.slot) return getTripPositionText(t.tripNumber, col.slot);
+                    if (col.computed === 'position' && col.slot) return getTripPositionText(t, col.slot);
                     if (col.computed === 'border') return t.direction === 'SB' ? (t.exitBorder || '') : (t.entryBorder || '');
                     if (col.computed === 'rowIndex') return '';
                     if (col.isDriverLink) return t.driver || '';
@@ -1546,15 +1608,13 @@
     window.processPositionUpload = async function (rows, fileName, slot) {
         const useSlot = slot || getCurrentPositionSlot();
         const today = new Date().toISOString().slice(0, 10);
-        const nbTrips = Object.values(window.tripsDB || {}).filter(t => t.direction === 'NB');
-        const nbTrucks = new Set(nbTrips.map(t => t.truck.toUpperCase()));
 
         const matched = [];
         const unmatched = [];
         rows.forEach(row => {
             const tripNumber = row.TripNumber || row.tripNumber;
-            const truck = (row.Truck || row.truck || '').toUpperCase();
-            const trip = window.tripsDB[tripNumber] || nbTrips.find(t => t.truck.toUpperCase() === truck);
+            const truck = row.Truck || row.truck;
+            const trip = findTripByTripAndTruck(tripNumber, truck, null);
             const history = typeof getTripAreaHistory === 'function' ? getTripAreaHistory(trip?.tripNumber || tripNumber) : [];
 
             const positionText = row.Position || row.position ||
@@ -1563,7 +1623,7 @@
 
             const entry = {
                 tripNumber: trip?.tripNumber || tripNumber,
-                truck: row.Truck || row.truck,
+                truck: trip?.truck || truck,
                 latitude: row.Latitude || row.latitude || '—',
                 longitude: row.Longitude || row.longitude || '—',
                 positionText,
@@ -1572,14 +1632,25 @@
                 processComment: row.ProcessComment || row.processComment || '',
                 timestamp: row.Timestamp || row.timestamp || new Date().toISOString().replace('T', ' ').slice(0, 19),
                 areaUpdates: history,
-                matched: !!(trip && (nbTrucks.has(truck) || trip.direction === 'NB'))
+                direction: trip?.direction || null,
+                matched: false
             };
-            if (trip && positionText) {
+
+            if (trip && positionText && positionRowMatchesTrip(
+                { tripNumber: entry.tripNumber, truck: entry.truck },
+                trip
+            )) {
                 if (!trip.positions) trip.positions = {};
                 trip.positions[useSlot] = positionText;
+                entry.tripNumber = trip.tripNumber;
+                entry.truck = trip.truck;
+                entry.direction = trip.direction;
+                entry.matched = true;
+                matched.push(entry);
+            } else if (positionText) {
+                entry.matched = false;
+                unmatched.push(entry);
             }
-            if (entry.matched) matched.push(entry);
-            else unmatched.push(entry);
         });
 
         const upload = {
@@ -1597,7 +1668,23 @@
                 await apiRequest('/position-uploads', { method: 'POST', body: JSON.stringify(upload) });
             } catch (_) { /* local ok */ }
         }
+        if (typeof syncTodayPositionUploadsToTrips === 'function') syncTodayPositionUploadsToTrips();
         return upload;
+    };
+
+    window.refreshOperationsAfterPositionUpload = function () {
+        if (typeof syncTodayPositionUploadsToTrips === 'function') syncTodayPositionUploadsToTrips();
+        const page = window.currentPage;
+        if (page === 'nb-operations' && typeof refreshNBTable === 'function') refreshNBTable();
+        else if (page === 'sb-operations' && typeof refreshSBTable === 'function') refreshSBTable();
+        else if (page === 'position-live' && typeof renderPositionLive === 'function') {
+            renderPositionLive(document.getElementById('contentArea'));
+        }         else if (page === 'area-browser') {
+            if (typeof refreshAreaBrowserPanels === 'function') refreshAreaBrowserPanels();
+            else if (typeof navigateTo === 'function') navigateTo('area-browser');
+        } else if (page === 'border-clearance' && typeof refreshBorderTable === 'function') {
+            refreshBorderTable();
+        }
     };
 
     window.wirePodStageAction = function (tripNumber, stage) {
@@ -1690,9 +1777,14 @@
         }
 
         if (typeof closeModal === 'function') closeModal('uploadModal');
-        if (type === 'POSITION' && window.currentPage === 'position-live') renderPositionLive(document.getElementById('contentArea'));
-        else if ((type === 'NB' || type === 'SB') && window.currentPage === 'position-live') renderPositionLive(document.getElementById('contentArea'));
-        else if (type === 'NB' && window.currentPage === 'nb-operations') window.navigateTo('nb-operations');
+        if (type === 'POSITION') {
+            if (typeof refreshOperationsAfterPositionUpload === 'function') refreshOperationsAfterPositionUpload();
+            else if (window.currentPage === 'position-live' && typeof renderPositionLive === 'function') {
+                renderPositionLive(document.getElementById('contentArea'));
+            }
+        } else if ((type === 'NB' || type === 'SB') && window.currentPage === 'position-live') {
+            renderPositionLive(document.getElementById('contentArea'));
+        } else if (type === 'NB' && window.currentPage === 'nb-operations') window.navigateTo('nb-operations');
         else if (type === 'SB' && window.currentPage === 'sb-operations') window.navigateTo('sb-operations');
     };
 
@@ -1716,7 +1808,7 @@
                     <button class="btn btn-primary btn-sm" onclick="saveUploadTemplate('${key}')">💾 Save Template</button>
                     <button class="btn btn-outline btn-sm" onclick="downloadTemplateCsv('${key}')">📥 Download CSV Template</button>
                 </div>`).join('')}
-            <div class="rbac-info-banner"><strong>NB / SB columns:</strong> Columns defined here are reflected in <em>Active NB Trucks</em> and <em>Active SB Trucks</em> tables and CSV exports. <strong>Position file:</strong> Upload 3× daily (morning 08:00, afternoon 14:00, evening 20:00). Trucks must match NB live file.</div>`;
+            <div class="rbac-info-banner"><strong>NB / SB columns:</strong> Columns defined here are reflected in <em>Active NB Trucks</em> and <em>Active SB Trucks</em> tables and CSV exports. <strong>Position file:</strong> Upload 3× daily (08:00, 14:00, 20:00). Each row is matched to live trips on <strong>Trip # + Truck</strong> and shown in the Position columns on NB, SB, and Position Live pages.</div>`;
     };
 
     window.saveUploadTemplate = function (key) {
