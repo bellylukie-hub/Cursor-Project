@@ -113,7 +113,7 @@
                 {
                     id: 'reports', icon: '📈', label: 'Reports', moduleId: 'reports',
                     keywords: ['reports', 'report', 'export', 'analytics', 'summary', 'customize', 'columns', 'csv'],
-                    description: 'Customizable reports for every sidebar menu — Dashboard, Operations, Areas, Communication, Management, and Admin. Pick columns, filter KPIs, save layouts, and export CSV.'
+                    description: 'Customizable reports for every sidebar menu. Use Cross-Menu Custom Report to combine fields from multiple menus (NB + Border + POD, etc.) with shared filters, or open a single-module report.'
                 },
                 {
                     id: 'turnarounds', icon: '🔄', label: 'Turnarounds', moduleId: 'turnarounds',

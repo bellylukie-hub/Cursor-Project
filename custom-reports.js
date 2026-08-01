@@ -4,6 +4,14 @@
  */
 (function () {
     const LAYOUT_STORAGE_KEY = 'truckcontrol_custom_report_layouts_v1';
+    const COMBINED_LAYOUT_STORAGE_KEY = 'truckcontrol_combined_report_layouts_v1';
+    const COMBINED_REPORT_ID = '__combined__';
+
+    /** Modules whose rows can be joined on trip # in a cross-menu report */
+    const TRIP_JOIN_MODULES = new Set([
+        'dashboard', 'nb-operations', 'sb-operations', 'border-clearance', 'pod-management',
+        'area-browser', 'position-live', 'driver-registry', 'runner-fees'
+    ]);
 
     const REPORT_CATALOG = [
         {
@@ -78,6 +86,20 @@
         selectedColumnIds: [],
         kpiFilter: 'all',
         searchTerm: '',
+        layoutName: ''
+    };
+
+    let combinedReportState = {
+        selectedModules: ['nb-operations', 'border-clearance', 'pod-management'],
+        selectedFieldKeys: [],
+        filters: {
+            direction: 'all',
+            kpi: 'all',
+            area: 'all',
+            border: 'all',
+            podCollected: 'all',
+            search: ''
+        },
         layoutName: ''
     };
 
@@ -798,6 +820,7 @@
     }
 
     function resolveReportModuleId(id) {
+        if (id === COMBINED_REPORT_ID) return COMBINED_REPORT_ID;
         return LEGACY_REPORT_MAP[id] || id;
     }
 
@@ -865,6 +888,587 @@
             return rows.filter(r => r.kpi === 'orange' || r.kpi === 'red');
         }
         return rows;
+    }
+
+    // ─── Cross-menu (multi-source) report builder ───────────────────────────
+
+    function getCatalogItem(moduleId) {
+        return REPORT_CATALOG.flatMap(s => s.items).find(i => i.id === moduleId);
+    }
+
+    function getAccessibleModuleIds() {
+        return REPORT_CATALOG.flatMap(s => s.items)
+            .map(i => i.id)
+            .filter(id => {
+                const def = REPORT_MODULE_REGISTRY[id];
+                return def && def.canAccess();
+            });
+    }
+
+    function getTripKeyFromRow(moduleId, row) {
+        if (!row) return null;
+        if (moduleId === 'border-clearance' || moduleId === 'pod-management' || moduleId === 'runner-fees') {
+            return row.trip || null;
+        }
+        if (moduleId === 'driver-registry') return row.tripNumber || null;
+        return row.tripNumber || row.trip || null;
+    }
+
+    function getModuleFieldCatalog(moduleId) {
+        const def = REPORT_MODULE_REGISTRY[moduleId];
+        if (!def) return [];
+        const label = def.label || moduleId;
+        return def.getColumns().map(c => ({
+            key: `${moduleId}:${c.id}`,
+            moduleId,
+            colId: c.id,
+            label: `${label} — ${c.label}`,
+            shortLabel: c.label,
+            getValue: c.getValue
+        }));
+    }
+
+    function getDefaultCombinedFieldKeys(moduleIds) {
+        const defaults = {
+            'nb-operations': ['tripNumber', 'truck', 'driver', 'status', 'kpi'],
+            'sb-operations': ['tripNumber', 'truck', 'driver', 'status', 'kpi'],
+            'border-clearance': ['trip', 'border', 'process', 'status', 'kpi'],
+            'pod-management': ['trip', 'collected', 'scanned', 'kpi'],
+            'driver-registry': ['driverName', 'whatsapp', 'drcNumber'],
+            'dashboard': ['tripNumber', 'direction', 'truck', 'kpi']
+        };
+        const keys = [];
+        moduleIds.forEach(mid => {
+            const cols = defaults[mid] || getModuleFieldCatalog(mid).slice(0, 3).map(f => f.colId);
+            cols.forEach(colId => keys.push(`${mid}:${colId}`));
+        });
+        return keys;
+    }
+
+    function initCombinedReportState(saved) {
+        const accessible = getAccessibleModuleIds();
+        combinedReportState.selectedModules = (saved?.selectedModules || combinedReportState.selectedModules)
+            .filter(id => accessible.includes(id));
+        if (!combinedReportState.selectedModules.length) {
+            combinedReportState.selectedModules = accessible.slice(0, Math.min(3, accessible.length));
+        }
+        combinedReportState.selectedFieldKeys = saved?.selectedFieldKeys?.length
+            ? saved.selectedFieldKeys.filter(k => combinedReportState.selectedModules.includes(k.split(':')[0]))
+            : getDefaultCombinedFieldKeys(combinedReportState.selectedModules);
+        combinedReportState.filters = { ...combinedReportState.filters, ...(saved?.filters || {}) };
+        combinedReportState.layoutName = saved?.layoutName || '';
+    }
+
+    function loadCombinedLayouts() {
+        try {
+            const raw = localStorage.getItem(COMBINED_LAYOUT_STORAGE_KEY);
+            return raw ? JSON.parse(raw) : {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function saveCombinedLayouts(layouts) {
+        try {
+            localStorage.setItem(COMBINED_LAYOUT_STORAGE_KEY, JSON.stringify(layouts));
+        } catch (e) { /* ignore */ }
+    }
+
+    function buildModuleLookups(moduleIds) {
+        const lookups = {};
+        moduleIds.forEach(mid => {
+            const def = REPORT_MODULE_REGISTRY[mid];
+            if (!def?.canAccess()) return;
+            lookups[mid] = new Map();
+            (def.getData() || []).forEach(row => {
+                const key = getTripKeyFromRow(mid, row);
+                if (key) lookups[mid].set(key, row);
+            });
+        });
+        return lookups;
+    }
+
+    function getPrimaryTripRow(merged) {
+        for (const mid of ['nb-operations', 'sb-operations', 'dashboard', 'area-browser', 'position-live', 'border-clearance', 'pod-management', 'driver-registry', 'runner-fees']) {
+            if (merged[mid]) return merged[mid];
+        }
+        return null;
+    }
+
+    function buildCombinedTripRows() {
+        const tripModules = combinedReportState.selectedModules.filter(id => TRIP_JOIN_MODULES.has(id));
+        if (!tripModules.length) return { tripRows: [], standaloneSections: buildStandaloneSections() };
+
+        const lookups = buildModuleLookups(tripModules);
+        const allKeys = new Set();
+        tripModules.forEach(mid => lookups[mid]?.forEach((_, k) => allKeys.add(k)));
+
+        let tripRows = [...allKeys].map(tripKey => {
+            const merged = { _tripKey: tripKey };
+            tripModules.forEach(mid => { merged[mid] = lookups[mid]?.get(tripKey) || null; });
+            return merged;
+        });
+
+        tripRows = applyCombinedFilters(tripRows);
+        return { tripRows, standaloneSections: buildStandaloneSections() };
+    }
+
+    function applyCombinedFilters(mergedRows) {
+        const f = combinedReportState.filters;
+        return mergedRows.filter(merged => {
+            const trip = getPrimaryTripRow(merged);
+            if (f.direction !== 'all' && trip?.direction && trip.direction !== f.direction) return false;
+            if (f.kpi !== 'all' && trip?.kpi && trip.kpi !== f.kpi) return false;
+            if (f.area !== 'all' && trip?.area && trip.area !== f.area) return false;
+            if (f.border !== 'all') {
+                const borders = [trip?.entryBorder, trip?.exitBorder, merged['border-clearance']?.border].filter(Boolean);
+                if (borders.length && !borders.includes(f.border)) return false;
+            }
+            if (f.podCollected === 'yes' && merged['pod-management'] && !merged['pod-management'].collected) return false;
+            if (f.podCollected === 'no' && merged['pod-management'] && merged['pod-management'].collected) return false;
+            if (f.podCollected === 'overdue' && merged['pod-management'] && !merged['pod-management'].overdue) return false;
+            if (f.search) {
+                const term = f.search.toLowerCase();
+                const blob = JSON.stringify(merged).toLowerCase();
+                if (!blob.includes(term)) return false;
+            }
+            return true;
+        });
+    }
+
+    function buildStandaloneSections() {
+        const standaloneIds = combinedReportState.selectedModules.filter(id => !TRIP_JOIN_MODULES.has(id));
+        return standaloneIds.map(moduleId => {
+            const def = REPORT_MODULE_REGISTRY[moduleId];
+            if (!def?.canAccess()) return null;
+            let rows = def.getData() || [];
+            const f = combinedReportState.filters;
+            if (f.search) {
+                const term = f.search.toLowerCase();
+                rows = rows.filter(r => JSON.stringify(r).toLowerCase().includes(term));
+            }
+            const fieldKeys = combinedReportState.selectedFieldKeys.filter(k => k.startsWith(moduleId + ':'));
+            const fields = fieldKeys.map(k => getModuleFieldCatalog(moduleId).find(c => c.key === k)).filter(Boolean);
+            const item = getCatalogItem(moduleId);
+            return { moduleId, title: item?.title || def.label, icon: item?.icon || '📄', rows, fields };
+        }).filter(Boolean);
+    }
+
+    function getActiveCombinedFields() {
+        return combinedReportState.selectedFieldKeys
+            .map(k => {
+                const moduleId = k.split(':')[0];
+                return getModuleFieldCatalog(moduleId).find(f => f.key === k);
+            })
+            .filter(Boolean);
+    }
+
+    function getAreaFilterOptions() {
+        const areas = new Set();
+        Object.values(tripsDB).forEach(t => { if (t.area) areas.add(t.area); });
+        return [...areas].sort();
+    }
+
+    function getBorderFilterOptions() {
+        return ['Kasumbalesa', 'Sakania', 'Mokambo'];
+    }
+
+    function renderCombinedSourcePicker() {
+        return REPORT_CATALOG.map(section => {
+            const items = section.items.filter(i => {
+                const def = REPORT_MODULE_REGISTRY[i.id];
+                return def && def.canAccess();
+            });
+            if (!items.length) return '';
+            return `
+                <div class="combined-source-group">
+                    <div class="combined-source-group-title">${section.section}</div>
+                    <div class="combined-source-chips">
+                        ${items.map(i => `
+                            <label class="combined-source-chip${TRIP_JOIN_MODULES.has(i.id) ? ' trip-join' : ' standalone'}">
+                                <input type="checkbox" value="${i.id}"
+                                    ${combinedReportState.selectedModules.includes(i.id) ? 'checked' : ''}
+                                    onchange="onCombinedModuleToggle('${i.id}', this.checked)">
+                                ${i.icon} ${i.title}
+                                ${TRIP_JOIN_MODULES.has(i.id) ? '<span class="combined-join-hint">links on Trip #</span>' : ''}
+                            </label>`).join('')}
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    function renderCombinedFieldPicker() {
+        const modules = combinedReportState.selectedModules;
+        if (!modules.length) {
+            return '<p class="report-empty">Select at least one menu data source above.</p>';
+        }
+        return modules.map(moduleId => {
+            const item = getCatalogItem(moduleId);
+            const fields = getModuleFieldCatalog(moduleId);
+            const selectedInModule = combinedReportState.selectedFieldKeys.filter(k => k.startsWith(moduleId + ':'));
+            return `
+                <div class="combined-field-module">
+                    <div class="combined-field-module-header">
+                        <strong>${item?.icon || ''} ${item?.title || moduleId}</strong>
+                        <span class="text-muted text-sm">${selectedInModule.length} / ${fields.length} fields</span>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="toggleCombinedModuleFields('${moduleId}', true)">All</button>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="toggleCombinedModuleFields('${moduleId}', false)">None</button>
+                    </div>
+                    <div class="report-column-chips">
+                        ${fields.map(f => `
+                            <label class="report-column-chip">
+                                <input type="checkbox" value="${f.key}"
+                                    ${combinedReportState.selectedFieldKeys.includes(f.key) ? 'checked' : ''}
+                                    onchange="onCombinedFieldToggle('${f.key}', this.checked)">
+                                ${f.shortLabel}
+                            </label>`).join('')}
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    function renderCombinedFilterBar() {
+        const f = combinedReportState.filters;
+        const areas = getAreaFilterOptions();
+        const hasPod = combinedReportState.selectedModules.includes('pod-management');
+        const layouts = loadCombinedLayouts();
+        return `
+            <div class="report-builder-row">
+                <div class="filter-group">
+                    <label>Direction</label>
+                    <select class="form-control" onchange="onCombinedFilterChange('direction', this.value)">
+                        <option value="all"${f.direction === 'all' ? ' selected' : ''}>All</option>
+                        <option value="NB"${f.direction === 'NB' ? ' selected' : ''}>NB</option>
+                        <option value="SB"${f.direction === 'SB' ? ' selected' : ''}>SB</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>KPI</label>
+                    <select class="form-control" onchange="onCombinedFilterChange('kpi', this.value)">
+                        <option value="all"${f.kpi === 'all' ? ' selected' : ''}>All KPIs</option>
+                        <option value="green"${f.kpi === 'green' ? ' selected' : ''}>🟢 On Track</option>
+                        <option value="orange"${f.kpi === 'orange' ? ' selected' : ''}>🟠 Priority</option>
+                        <option value="red"${f.kpi === 'red' ? ' selected' : ''}>🔴 Overdue</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Area</label>
+                    <select class="form-control" onchange="onCombinedFilterChange('area', this.value)">
+                        <option value="all"${f.area === 'all' ? ' selected' : ''}>All areas</option>
+                        ${areas.map(a => `<option value="${a}"${f.area === a ? ' selected' : ''}>${a}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Border</label>
+                    <select class="form-control" onchange="onCombinedFilterChange('border', this.value)">
+                        <option value="all"${f.border === 'all' ? ' selected' : ''}>All borders</option>
+                        ${getBorderFilterOptions().map(b => `<option value="${b}"${f.border === b ? ' selected' : ''}>${b}</option>`).join('')}
+                    </select>
+                </div>
+                ${hasPod ? `
+                <div class="filter-group">
+                    <label>POD status</label>
+                    <select class="form-control" onchange="onCombinedFilterChange('podCollected', this.value)">
+                        <option value="all"${f.podCollected === 'all' ? ' selected' : ''}>All POD</option>
+                        <option value="no"${f.podCollected === 'no' ? ' selected' : ''}>Pending</option>
+                        <option value="yes"${f.podCollected === 'yes' ? ' selected' : ''}>Collected</option>
+                        <option value="overdue"${f.podCollected === 'overdue' ? ' selected' : ''}>Overdue</option>
+                    </select>
+                </div>` : ''}
+                <div class="filter-group" style="flex:1;min-width:180px;">
+                    <label>Search all fields</label>
+                    <input type="text" class="form-control" placeholder="Trip, truck, driver…" value="${f.search || ''}"
+                        onkeyup="onCombinedFilterChange('search', this.value)">
+                </div>
+                <div class="filter-group">
+                    <label>Saved layout</label>
+                    <select class="form-control" onchange="onCombinedLayoutSelect(this.value)">
+                        <option value="">— New / unsaved —</option>
+                        ${Object.keys(layouts).map(n => `<option value="${n}"${combinedReportState.layoutName === n ? ' selected' : ''}>${n}</option>`).join('')}
+                    </select>
+                </div>
+            </div>`;
+    }
+
+    function renderCombinedReportBuilder() {
+        return `
+            <div class="report-builder-panel combined-report-panel">
+                <h3 class="combined-builder-title">🔧 Cross-Menu Report Builder</h3>
+                <p class="combined-builder-desc">Choose data from <strong>multiple menus</strong>, pick which fields appear in one report, and apply shared filters.</p>
+
+                <div class="combined-builder-step">
+                    <h4>1. Select menu data sources</h4>
+                    ${renderCombinedSourcePicker()}
+                </div>
+
+                <div class="combined-builder-step">
+                    <h4>2. Choose fields from each menu</h4>
+                    <div class="combined-field-picker">${renderCombinedFieldPicker()}</div>
+                </div>
+
+                <div class="combined-builder-step">
+                    <h4>3. Filter options</h4>
+                    ${renderCombinedFilterBar()}
+                </div>
+
+                <div class="report-builder-actions">
+                    <input type="text" class="form-control" id="combinedLayoutName" placeholder="Layout name to save…"
+                        value="${combinedReportState.layoutName || ''}" style="max-width:220px;">
+                    <button class="btn btn-outline btn-sm" onclick="saveCombinedReportLayout()">💾 Save Layout</button>
+                    <button class="btn btn-primary btn-sm" onclick="runCombinedReport()">▶ Generate Report</button>
+                    <button class="btn btn-outline btn-sm" onclick="exportCombinedReport()">📥 Export CSV</button>
+                </div>
+            </div>`;
+    }
+
+    function renderCombinedTripTable(tripRows, fields) {
+        if (!fields.length) {
+            return '<p class="report-empty">Select at least one field from the menus above.</p>';
+        }
+        if (!tripRows.length) {
+            return '<p class="report-empty">No trip-linked records match your filters. Try adjusting filters or adding more menu sources.</p>';
+        }
+        return `
+            <div class="table-container">
+                <div class="table-header">
+                    <h3>Combined Trip Report — ${tripRows.length} row${tripRows.length !== 1 ? 's' : ''}</h3>
+                    <span class="text-muted text-sm">Trip-linked menus merged on Trip #</span>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="data-table report-table">
+                        <thead><tr>
+                            <th>Trip #</th>
+                            ${fields.map(f => `<th>${f.label}</th>`).join('')}
+                        </tr></thead>
+                        <tbody>
+                            ${tripRows.map(merged => `
+                                <tr>
+                                    <td><strong>${merged._tripKey}</strong></td>
+                                    ${fields.map(f => {
+                                        const row = merged[f.moduleId];
+                                        const val = row ? f.getValue(row) : '—';
+                                        return `<td>${val ?? '—'}</td>`;
+                                    }).join('')}
+                                </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+    }
+
+    function renderCombinedStandaloneSection(section) {
+        if (!section.fields.length) return '';
+        return `
+            <div class="table-container combined-standalone-section">
+                <div class="table-header">
+                    <h3>${section.icon} ${section.title} — ${section.rows.length} record${section.rows.length !== 1 ? 's' : ''}</h3>
+                    <span class="text-muted text-sm">Standalone section (not trip-linked)</span>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="data-table report-table">
+                        <thead><tr>${section.fields.map(f => `<th>${f.shortLabel}</th>`).join('')}</tr></thead>
+                        <tbody>
+                            ${section.rows.length ? section.rows.map(r => `
+                                <tr>${section.fields.map(f => `<td>${f.getValue(r) ?? '—'}</td>`).join('')}</tr>
+                            `).join('') : '<tr><td colspan="99" class="report-empty">No records</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+    }
+
+    function renderCombinedReportResults() {
+        const tripFieldKeys = combinedReportState.selectedFieldKeys.filter(k => {
+            const mid = k.split(':')[0];
+            return TRIP_JOIN_MODULES.has(mid);
+        });
+        const fields = tripFieldKeys.map(k => getModuleFieldCatalog(k.split(':')[0]).find(f => f.key === k)).filter(Boolean);
+        const { tripRows, standaloneSections } = buildCombinedTripRows();
+
+        const tripModules = combinedReportState.selectedModules.filter(id => TRIP_JOIN_MODULES.has(id));
+        let html = '';
+        if (tripModules.length) {
+            html += renderCombinedTripTable(tripRows, fields);
+        }
+        standaloneSections.forEach(sec => { html += renderCombinedStandaloneSection(sec); });
+        if (!tripModules.length && !standaloneSections.length) {
+            html = '<p class="report-empty">Select menus and fields, then click Generate Report.</p>';
+        }
+        return html;
+    }
+
+    function renderCombinedReportDetail(container) {
+        container.innerHTML = `
+            <div class="page-header admin-page-header">
+                <div>
+                    <h1>🔧 Cross-Menu Custom Report</h1>
+                    <p class="page-subtitle">Combine fields from different menus into one report with shared filters.</p>
+                </div>
+                <button class="btn btn-outline" onclick="navigateTo('reports')">← All Reports</button>
+            </div>
+            ${typeof getAreaFilterBanner === 'function' ? getAreaFilterBanner() : ''}
+            ${renderCombinedReportBuilder()}
+            <div id="combinedReportResults">${renderCombinedReportResults()}</div>`;
+    }
+
+    function openCombinedReportBuilder(savedLayoutName) {
+        currentReportModuleId = COMBINED_REPORT_ID;
+        if (savedLayoutName) {
+            const layouts = loadCombinedLayouts();
+            initCombinedReportState(layouts[savedLayoutName] || null);
+            combinedReportState.layoutName = savedLayoutName;
+        } else {
+            initCombinedReportState(null);
+        }
+        navigateTo('report-detail');
+    }
+
+    function runCombinedReport() {
+        const wrap = document.getElementById('combinedReportResults');
+        if (wrap) wrap.innerHTML = renderCombinedReportResults();
+        else refreshCustomReport();
+        showToast('Report generated', 'success');
+    }
+
+    function onCombinedModuleToggle(moduleId, checked) {
+        if (checked) {
+            if (!combinedReportState.selectedModules.includes(moduleId)) {
+                combinedReportState.selectedModules.push(moduleId);
+                getDefaultCombinedFieldKeys([moduleId]).forEach(k => {
+                    if (!combinedReportState.selectedFieldKeys.includes(k)) {
+                        combinedReportState.selectedFieldKeys.push(k);
+                    }
+                });
+            }
+        } else {
+            combinedReportState.selectedModules = combinedReportState.selectedModules.filter(id => id !== moduleId);
+            combinedReportState.selectedFieldKeys = combinedReportState.selectedFieldKeys.filter(k => !k.startsWith(moduleId + ':'));
+        }
+        refreshCombinedBuilderUi();
+    }
+
+    function onCombinedFieldToggle(fieldKey, checked) {
+        if (checked && !combinedReportState.selectedFieldKeys.includes(fieldKey)) {
+            combinedReportState.selectedFieldKeys.push(fieldKey);
+            const moduleId = fieldKey.split(':')[0];
+            if (!combinedReportState.selectedModules.includes(moduleId)) {
+                combinedReportState.selectedModules.push(moduleId);
+            }
+        } else if (!checked) {
+            combinedReportState.selectedFieldKeys = combinedReportState.selectedFieldKeys.filter(k => k !== fieldKey);
+        }
+        const wrap = document.getElementById('combinedReportResults');
+        if (wrap) wrap.innerHTML = renderCombinedReportResults();
+    }
+
+    function toggleCombinedModuleFields(moduleId, selectAll) {
+        const fields = getModuleFieldCatalog(moduleId);
+        combinedReportState.selectedFieldKeys = combinedReportState.selectedFieldKeys.filter(k => !k.startsWith(moduleId + ':'));
+        if (selectAll) {
+            fields.forEach(f => combinedReportState.selectedFieldKeys.push(f.key));
+            if (!combinedReportState.selectedModules.includes(moduleId)) {
+                combinedReportState.selectedModules.push(moduleId);
+            }
+        }
+        refreshCombinedBuilderUi();
+    }
+
+    function onCombinedFilterChange(key, value) {
+        combinedReportState.filters[key] = value;
+        const wrap = document.getElementById('combinedReportResults');
+        if (wrap) wrap.innerHTML = renderCombinedReportResults();
+    }
+
+    function refreshCombinedBuilderUi() {
+        const panel = document.querySelector('.combined-report-panel');
+        if (!panel) {
+            refreshCustomReport();
+            return;
+        }
+        const temp = document.createElement('div');
+        temp.innerHTML = renderCombinedReportBuilder();
+        panel.replaceWith(temp.firstElementChild);
+        const wrap = document.getElementById('combinedReportResults');
+        if (wrap) wrap.innerHTML = renderCombinedReportResults();
+    }
+
+    function saveCombinedReportLayout() {
+        const name = document.getElementById('combinedLayoutName')?.value?.trim();
+        if (!name) {
+            showToast('Enter a layout name to save', 'warning');
+            return;
+        }
+        const layouts = loadCombinedLayouts();
+        layouts[name] = {
+            selectedModules: [...combinedReportState.selectedModules],
+            selectedFieldKeys: [...combinedReportState.selectedFieldKeys],
+            filters: { ...combinedReportState.filters },
+            layoutName: name
+        };
+        saveCombinedLayouts(layouts);
+        combinedReportState.layoutName = name;
+        showToast(`Cross-menu layout "${name}" saved`, 'success');
+        refreshCombinedBuilderUi();
+    }
+
+    function onCombinedLayoutSelect(name) {
+        if (!name) {
+            initCombinedReportState(null);
+            refreshCustomReport();
+            return;
+        }
+        const layouts = loadCombinedLayouts();
+        initCombinedReportState(layouts[name]);
+        combinedReportState.layoutName = name;
+        refreshCustomReport();
+    }
+
+    function exportCombinedReport() {
+        const { tripRows, standaloneSections } = buildCombinedTripRows();
+        const tripFields = combinedReportState.selectedFieldKeys
+            .filter(k => TRIP_JOIN_MODULES.has(k.split(':')[0]))
+            .map(k => getModuleFieldCatalog(k.split(':')[0]).find(f => f.key === k))
+            .filter(Boolean);
+
+        const sheets = [];
+        if (tripFields.length && tripRows.length) {
+            sheets.push({
+                name: 'Combined_Trips',
+                headers: ['Trip #', ...tripFields.map(f => f.label)],
+                rows: tripRows.map(m => [m._tripKey, ...tripFields.map(f => {
+                    const row = m[f.moduleId];
+                    return row ? f.getValue(row) : '—';
+                })])
+            });
+        }
+        standaloneSections.forEach(sec => {
+            if (!sec.fields.length || !sec.rows.length) return;
+            sheets.push({
+                name: sec.title.replace(/[^a-z0-9]/gi, '_').slice(0, 28),
+                headers: sec.fields.map(f => f.shortLabel),
+                rows: sec.rows.map(r => sec.fields.map(f => f.getValue(r)))
+            });
+        });
+
+        if (!sheets.length) {
+            showToast('No data to export — select fields and generate report first', 'warning');
+            return;
+        }
+
+        const primary = sheets[0];
+        const filename = `Cross_Menu_Report_${typeof formatExportDate === 'function' ? formatExportDate() : Date.now()}.csv`;
+        if (typeof downloadExcelCsv === 'function') {
+            downloadExcelCsv(filename, primary.headers, primary.rows);
+        }
+        if (sheets.length > 1) {
+            showToast(`Exported trip table. ${sheets.length - 1} standalone section(s) also ready — export again after switching if needed.`, 'success');
+        } else {
+            showToast(`Exported ${primary.rows.length} row${primary.rows.length !== 1 ? 's' : ''}`, 'success');
+        }
+    }
+
+    function isCombinedReportMode() {
+        return resolveReportModuleId(currentReportModuleId) === COMBINED_REPORT_ID;
     }
 
     function renderReportBuilderToolbar(moduleId) {
@@ -970,13 +1574,25 @@
         container.innerHTML = `
             <div class="page-header">
                 <h1>📈 Reports</h1>
-                <p class="page-subtitle">Customizable reports for every menu module — pick columns, filter KPIs, save layouts, and export to CSV.</p>
+                <p class="page-subtitle">Single-module reports or combine data from <strong>multiple menus</strong> with shared filters.</p>
             </div>
             ${typeof getAreaFilterBanner === 'function' ? getAreaFilterBanner() : ''}
+            <div class="report-grid" style="margin-bottom:28px;">
+                <div class="report-card report-card-featured" onclick="openCombinedReportBuilder()">
+                    <div class="report-card-icon">🔧</div>
+                    <h3>Cross-Menu Custom Report</h3>
+                    <p>Pick data sources from different menus (NB Ops + Border + POD + Drivers…), choose which fields to include, and apply filters — all in one report.</p>
+                    <span class="card-action">Build Combined Report →</span>
+                </div>
+            </div>
             ${sections || '<p style="padding:24px;color:var(--text-secondary);">No reports available for your role.</p>'}`;
     }
 
     function renderReportDetail(container) {
+        if (isCombinedReportMode()) {
+            renderCombinedReportDetail(container);
+            return;
+        }
         const moduleId = resolveReportModuleId(currentReportModuleId);
         const def = getReportDefinition(moduleId);
         if (!def.canAccess()) {
@@ -1013,7 +1629,9 @@
     }
 
     function refreshCustomReport() {
-        renderReportDetail(document.getElementById('contentArea'));
+        const container = document.getElementById('contentArea');
+        if (!container) return;
+        renderReportDetail(container);
     }
 
     function onReportBuilderSearch(value) {
@@ -1085,6 +1703,10 @@
     }
 
     function exportCustomReport() {
+        if (isCombinedReportMode()) {
+            exportCombinedReport();
+            return;
+        }
         const moduleId = resolveReportModuleId(currentReportModuleId);
         const def = getReportDefinition(moduleId);
         let rows = getReportRows(moduleId);
@@ -1120,6 +1742,15 @@
     window.renderModuleReportButton = renderModuleReportButton;
     window.renderReports = renderReports;
     window.renderReportDetail = renderReportDetail;
+    window.openCombinedReportBuilder = openCombinedReportBuilder;
+    window.runCombinedReport = runCombinedReport;
+    window.onCombinedModuleToggle = onCombinedModuleToggle;
+    window.onCombinedFieldToggle = onCombinedFieldToggle;
+    window.toggleCombinedModuleFields = toggleCombinedModuleFields;
+    window.onCombinedFilterChange = onCombinedFilterChange;
+    window.saveCombinedReportLayout = saveCombinedReportLayout;
+    window.onCombinedLayoutSelect = onCombinedLayoutSelect;
+    window.exportCombinedReport = exportCombinedReport;
     window.openModuleReport = openModuleReport;
     window.openReport = openReport;
     window.refreshCustomReport = refreshCustomReport;
