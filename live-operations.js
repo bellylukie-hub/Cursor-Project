@@ -669,7 +669,7 @@
         if (!trip || !workflowKey) return [];
         const tripNumber = trip.tripNumber || trip.trip;
         const history = typeof getTripAreaHistory === 'function' ? getTripAreaHistory(tripNumber) : [];
-        return history.filter(h => h.workflowKey === workflowKey);
+        return history.filter(h => resolveHistoryWorkflowKey(trip, h) === workflowKey);
     };
 
     window.getTripWorkflowStatusEntry = function (trip, workflowKey, workflowDirection) {
@@ -913,10 +913,10 @@
         return `${checkbox}${headers}<th class="live-actions-col">Actions</th>`;
     };
 
-    window.renderOperationsTableRows = function (trips, listKey, type) {
+    window.renderOperationsTableRows = function (trips, listKey, type, moduleIdOverride) {
         const context = type === 'SB' ? 'SB' : 'NB';
         const cols = getEffectiveOperationsColumns(context);
-        const moduleId = type === 'NB' ? 'nb-operations' : 'sb-operations';
+        const moduleId = moduleIdOverride || (type === 'NB' ? 'nb-operations' : 'sb-operations');
         const statusCtx = type === 'NB' ? 'nb' : 'sb';
         const colSpan = (listKey ? 1 : 0) + cols.length + 1;
         if (!trips.length) {
@@ -1047,12 +1047,121 @@
     window.getAggregatedSbStatuses = function () {
         const areas = window.areaStatusesDB || [];
         const fromAreas = [];
-        ['Kolwezi', 'Kanyaka', 'Kasumbalesa', 'Sakania', 'Mokambo'].forEach(name => {
+        ['Kolwezi', 'Kanyaka', 'Kasumbalesa', 'Sakania', 'Mokambo', 'Lubumbashi', 'Likasi'].forEach(name => {
             const rec = areas.find(a => a.area === name);
             if (!rec) return;
             fromAreas.push(...(rec.statusesSB || []), ...(rec.statusesBorderSB || []));
         });
         return [...new Set([...SB_WORKFLOW_STATUS_PIPELINE, ...fromAreas])];
+    };
+
+    window.buildAreaStatusWorkflowMaps = function () {
+        const nb = {};
+        const sb = {};
+        const assign = (map, statuses, key) => {
+            (statuses || []).forEach(s => {
+                if (!s) return;
+                map[String(s).toLowerCase().trim()] = key;
+            });
+        };
+        const areas = window.areaStatusesDB || [];
+        areas.forEach(rec => {
+            assign(nb, rec.statusesBorderNB, 'border');
+            assign(sb, rec.statusesBorderSB, 'border');
+            if (rec.isKanyakaHub || rec.kanyakaForNB) {
+                assign(nb, rec.statusesNB, 'kanyaka');
+            } else if (rec.isOffloadingPoint) {
+                assign(nb, (rec.statusesNB || []).filter(s => !/pod|awaiting|invoic/i.test(s)), 'offloading');
+                assign(nb, (rec.statusesNB || []).filter(s => /pod|awaiting|invoic/i.test(s)), 'pod');
+            } else if (rec.isBorder) {
+                assign(nb, rec.statusesNB, 'border');
+            } else if (rec.statusesNB?.length) {
+                assign(nb, rec.statusesNB, 'offloading');
+            }
+            (rec.statusesSB || []).forEach(s => {
+                const sl = String(s).toLowerCase().trim();
+                if (/^at mine|^loading|loading complete/i.test(s)) sb[sl] = 'loadingProcess';
+                else if (/document/i.test(s)) sb[sl] = 'documents';
+                else if (/seal/i.test(s)) sb[sl] = 'seal';
+                else if (/escort/i.test(s)) sb[sl] = 'escort';
+                else if (/dispatch/i.test(s)) sb[sl] = 'dispatch';
+                else if (/gov|kanyaka|transit/i.test(s)) sb[sl] = 'kanyaka';
+                else if (/exit|border|customs|declaration|verification/i.test(s)) sb[sl] = 'border';
+                else if (rec.isKanyakaHub) sb[sl] = 'kanyaka';
+                else if (rec.isLoadingPoint) sb[sl] = 'loadingProcess';
+                else sb[sl] = 'loadingProcess';
+            });
+        });
+        NB_WORKFLOW_STATUS_PIPELINE.forEach(s => {
+            const sl = String(s).toLowerCase();
+            if (/border|kbp|whisky|customs|arrived|bae|entry/i.test(sl)) nb[sl] = 'border';
+            else if (/kanyaka|transit/i.test(sl)) nb[sl] = 'kanyaka';
+            else if (/offload|mine|gate|depot/i.test(sl)) nb[sl] = 'offloading';
+            else if (/pod|awaiting|invoic/i.test(sl)) nb[sl] = 'pod';
+        });
+        SB_WORKFLOW_STATUS_PIPELINE.forEach(s => {
+            const sl = String(s).toLowerCase();
+            if (/^at mine|^loading|loading complete/i.test(sl)) sb[sl] = 'loadingProcess';
+            else if (/document/i.test(sl)) sb[sl] = 'documents';
+            else if (/seal/i.test(sl)) sb[sl] = 'seal';
+            else if (/escort/i.test(sl)) sb[sl] = 'escort';
+            else if (/dispatch/i.test(sl)) sb[sl] = 'dispatch';
+            else if (/kanyaka|gov/i.test(sl)) sb[sl] = 'kanyaka';
+            else if (/border|exit|customs|declaration/i.test(sl)) sb[sl] = 'border';
+        });
+        return { nb, sb };
+    };
+
+    window.inferWorkflowKeyFromAreaStatus = function (direction, areaName, statusText) {
+        if (!statusText) return null;
+        const maps = buildAreaStatusWorkflowMaps();
+        const map = direction === 'SB' ? maps.sb : maps.nb;
+        const hit = map[String(statusText).toLowerCase().trim()];
+        if (hit) return hit;
+        const status = String(statusText).toLowerCase();
+        const dir = direction === 'SB' ? 'SB' : 'NB';
+        if (dir === 'NB') {
+            if (/border|kbp|whisky|customs|bae|entry|arrived|bn process/i.test(status)) return 'border';
+            if (/kanyaka|transit to kanyaka|at kanyaka/i.test(status)) return 'kanyaka';
+            if (/pod|awaiting pod|invoic/i.test(status)) return 'pod';
+            if (/offload|mine gate|at mine|at depot/i.test(status)) return 'offloading';
+        } else {
+            if (/^at mine|^loading|loading complete/i.test(status)) return 'loadingProcess';
+            if (/document/i.test(status)) return 'documents';
+            if (/seal/i.test(status)) return 'seal';
+            if (/escort/i.test(status)) return 'escort';
+            if (/dispatch/i.test(status)) return 'dispatch';
+            if (/kanyaka|gov list/i.test(status)) return 'kanyaka';
+            if (/border|exit|customs|declaration/i.test(status)) return 'border';
+        }
+        const areas = window.areaStatusesDB || [];
+        const rec = areas.find(a => a.area === areaName);
+        if (rec?.isBorder) return 'border';
+        if (rec?.isKanyakaHub) return dir === 'SB' ? 'kanyaka' : 'kanyaka';
+        if (rec?.isOffloadingPoint && dir === 'NB') return 'offloading';
+        if (rec?.isLoadingPoint && dir === 'SB') return 'loadingProcess';
+        return null;
+    };
+
+    window.resolveHistoryWorkflowKey = function (trip, entry) {
+        if (!entry) return null;
+        if (entry.workflowKey) return entry.workflowKey;
+        const dir = trip?.direction || 'NB';
+        return inferWorkflowKeyFromAreaStatus(dir, entry.area || trip?.area, entry.status);
+    };
+
+    window.backfillTripAreaWorkflowKeys = function () {
+        const trips = window.tripsDB || {};
+        const db = window.tripAreaUpdatesDB || {};
+        Object.entries(db).forEach(([tripNumber, entries]) => {
+            const trip = trips[tripNumber];
+            if (!trip || !Array.isArray(entries)) return;
+            entries.forEach(entry => {
+                if (!entry.workflowKey && entry.status) {
+                    entry.workflowKey = resolveHistoryWorkflowKey(trip, entry);
+                }
+            });
+        });
     };
 
     window.getStatusesForAreaRecord = function (rec, direction) {

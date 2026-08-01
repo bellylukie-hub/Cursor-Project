@@ -79,7 +79,7 @@ let areaSbSearch = '';
 let areaDropdownOpen = true;
 let areaSelectorHidden = false;
 
-const listRowSelections = { nb: [], sb: [], border: [], pod: [], assets: [], commMatrix: [], internalComm: [] };
+const listRowSelections = { nb: [], sb: [], border: [], pod: [], assets: [], commMatrix: [], internalComm: [], areaNb: [], areaSb: [] };
 
 const areasDB = [
     { id: 'kanyaka', name: 'Kanyaka', icon: '🏗️', offloadingPoints: ['Kanyaka', 'Kanyaka Depot', 'Kanyaka Mine'], loadingPoints: ['Kanyaka', 'Kanyaka Depot', 'Kanyaka Mine'] },
@@ -1091,6 +1091,42 @@ const tripAreaUpdatesDB = {
         { area: 'Kasumbalesa', status: 'KBP Parking', notes: 'Driver waiting at scan bay — queue approx 2h', updatedBy: 'border_moderator', timestamp: '2026-07-25 09:15:00', statusDate: '2026-07-25T09:15', workflowKey: 'border' },
         { area: 'Kasumbalesa', status: 'BAE Submitted', notes: 'BAE documents submitted to customs', updatedBy: 'border_moderator', timestamp: '2026-07-24 14:20:00', statusDate: '2026-07-24T14:00', workflowKey: 'border' },
         { area: 'Kasumbalesa', status: 'Entry on DRC', notes: 'Truck entered DRC side under KBP process', updatedBy: 'border_moderator', timestamp: '2026-07-23 08:30:00', statusDate: '2026-07-23T08:00', workflowKey: 'border' }
+    ],
+    'NB-2024-015': [
+        { area: 'Kolwezi', status: 'Offloading', notes: 'Offloading at Kolwezi Mine gate', updatedBy: 'ops_manager', timestamp: '2026-07-24 09:30:00', statusDate: '2026-07-24T09:00', workflowKey: 'offloading' },
+        { area: 'Kanyaka', status: 'Transit Complete', notes: 'Cleared Kanyaka depot', updatedBy: 'ops_manager', timestamp: '2026-07-20 14:45:00', statusDate: '2026-07-20T14:00', workflowKey: 'kanyaka' },
+        { area: 'Sakania', status: 'Border Clearance Complete', notes: 'Sakania BN clearance done', updatedBy: 'border_moderator', timestamp: '2026-07-18 10:30:00', statusDate: '2026-07-18T10:00', workflowKey: 'border' }
+    ],
+    'NB-2024-031': [
+        { area: 'Kanyaka', status: 'At Kanyaka Depot', notes: 'Waiting for transit slot', updatedBy: 'ops_manager', timestamp: '2026-07-25 11:00:00', statusDate: '2026-07-25T10:30', workflowKey: 'kanyaka' },
+        { area: 'Kasumbalesa', status: 'Border Clearance Complete', notes: 'KBP clearance completed', updatedBy: 'border_moderator', timestamp: '2026-07-22 08:00:00', statusDate: '2026-07-22T08:00', workflowKey: 'border' }
+    ],
+    'NB-2024-045': [
+        { area: 'Kanyaka', status: 'Awaiting POD', notes: 'Offloading complete — POD team notified', updatedBy: 'ops_manager', timestamp: '2026-07-24 16:00:00', statusDate: '2026-07-24T15:30', workflowKey: 'pod' },
+        { area: 'Kolwezi', status: 'Offloading Complete', notes: 'All cargo offloaded', updatedBy: 'ops_manager', timestamp: '2026-07-23 12:00:00', statusDate: '2026-07-23T11:30', workflowKey: 'offloading' },
+        { area: 'Kanyaka', status: 'At Kanyaka Depot', notes: 'Transit through Kanyaka hub', updatedBy: 'ops_manager', timestamp: '2026-07-21 09:00:00', statusDate: '2026-07-21T08:30', workflowKey: 'kanyaka' }
+    ],
+    'SB-2024-003': [
+        { area: 'Kanyaka', status: 'Loading', notes: 'Loading at Kanyaka yard', updatedBy: 'ops_manager', timestamp: '2026-07-23 11:30:00', statusDate: '2026-07-23T11:00', workflowKey: 'loadingProcess' }
+    ],
+    'SB-2024-012': [
+        { area: 'Kolwezi', status: 'Escort Arranged', notes: 'Escort assigned for Kolwezi dispatch', updatedBy: 'ops_manager', timestamp: '2026-07-22 08:45:00', statusDate: '2026-07-22T08:00', workflowKey: 'escort' },
+        { area: 'Kolwezi', status: 'Seal Applied', notes: 'Seal verified at mine', updatedBy: 'ops_manager', timestamp: '2026-07-21 10:00:00', statusDate: '2026-07-21T09:30', workflowKey: 'seal' },
+        { area: 'Kolwezi', status: 'Documents Collected', notes: 'All loading documents received', updatedBy: 'ops_manager', timestamp: '2026-07-20 14:00:00', statusDate: '2026-07-20T13:30', workflowKey: 'documents' },
+        { area: 'Kolwezi', status: 'Loading Complete', notes: 'Loaded at Kolwezi Mine', updatedBy: 'ops_manager', timestamp: '2026-07-19 16:30:00', statusDate: '2026-07-19T16:00', workflowKey: 'loadingProcess' }
+    ],
+    'SB-2024-018': [
+        { area: 'Kasumbalesa', status: 'Border Exit', notes: 'Exit clearance in progress', updatedBy: 'border_moderator', timestamp: '2026-07-25 09:30:00', statusDate: '2026-07-25T09:00', workflowKey: 'border' },
+        { area: 'Kanyaka', status: 'Gov List Uploaded', notes: 'Gov list submitted for SB exit', updatedBy: 'ops_manager', timestamp: '2026-07-23 14:30:00', statusDate: '2026-07-23T14:00', workflowKey: 'kanyaka' },
+        { area: 'Kanyaka', status: 'Dispatched', notes: 'Truck dispatched from Kanyaka', updatedBy: 'ops_manager', timestamp: '2026-07-22 10:30:00', statusDate: '2026-07-22T10:00', workflowKey: 'dispatch' },
+        { area: 'Kanyaka', status: 'Escort Arranged', notes: 'Escort confirmed', updatedBy: 'ops_manager', timestamp: '2026-07-22 08:30:00', statusDate: '2026-07-22T08:00', workflowKey: 'escort' },
+        { area: 'Kanyaka', status: 'Seal Applied', notes: 'Seal applied at loading', updatedBy: 'ops_manager', timestamp: '2026-07-21 09:30:00', statusDate: '2026-07-21T09:00', workflowKey: 'seal' },
+        { area: 'Kanyaka', status: 'Documents Collected', notes: 'Export documents collected', updatedBy: 'ops_manager', timestamp: '2026-07-20 10:30:00', statusDate: '2026-07-20T10:00', workflowKey: 'documents' },
+        { area: 'Kanyaka', status: 'Loading Complete', notes: 'Loading finished at Kanyaka Mine', updatedBy: 'ops_manager', timestamp: '2026-07-19 16:30:00', statusDate: '2026-07-19T16:00', workflowKey: 'loadingProcess' }
+    ],
+    'SB-2024-019': [
+        { area: 'Kolwezi', status: 'Documents Collected', notes: 'Awaiting seal application', updatedBy: 'ops_manager', timestamp: '2026-07-25 10:00:00', statusDate: '2026-07-25T09:30', workflowKey: 'documents' },
+        { area: 'Kolwezi', status: 'Loading Complete', notes: 'Loaded at Kolwezi Mine', updatedBy: 'ops_manager', timestamp: '2026-07-24 15:00:00', statusDate: '2026-07-24T14:30', workflowKey: 'loadingProcess' }
     ]
 };
 
@@ -1149,6 +1185,17 @@ function getAreaFilterBanner() {
 
 function resolveWorkflowKeyForTripStatus(trip, statusUpdate, statusContext) {
     if (!trip) return null;
+    const dir = trip.direction === 'SB' ? 'SB' : 'NB';
+    if (typeof inferWorkflowKeyFromAreaStatus === 'function') {
+        const areaCandidates = [trip.area, trip.entryBorder, trip.exitBorder, trip.offloadingPoint, trip.loadingPoint]
+            .filter(Boolean);
+        for (const areaName of areaCandidates) {
+            const fromArea = inferWorkflowKeyFromAreaStatus(dir, areaName, statusUpdate);
+            if (fromArea) return fromArea;
+        }
+        const fromArea = inferWorkflowKeyFromAreaStatus(dir, null, statusUpdate);
+        if (fromArea) return fromArea;
+    }
     const steps = WORKFLOW_CONFIG[trip.direction] || WORKFLOW_CONFIG.NB;
     const matchStep = steps.find(s => s.label === statusUpdate);
     if (matchStep) return matchStep.key;
@@ -1499,6 +1546,7 @@ function handleLogout() {
 
 async function bootApplication() {
     if (typeof migrateAreaStatusesDB === 'function') migrateAreaStatusesDB();
+    if (typeof backfillTripAreaWorkflowKeys === 'function') backfillTripAreaWorkflowKeys();
     if (typeof syncAdminFromApi === 'function' && isApiAvailable()) {
         await syncAdminFromApi();
     }
@@ -2008,7 +2056,7 @@ const borderPerformanceData = {
 const tripsDB = {
     'NB-2024-001': { tripNumber:'NB-2024-001',truck:'ABC123DRC',driver:'John Doe',direction:'NB',area:'Kasumbalesa',owner:'Transport Co A',orderNo:'ORD-1001',transporter:'Transport Co A',fleetNr:'FLT-042',trailer1:'TRL-456',customer:'Mining Corp',consignee:'Kolwezi Mine',commodity:'Copper Cathodes',cargoType:'Bulk',customerRef:'CUST-7788',clearingAgent:'Jean Kalenga',entryBorder:'Kasumbalesa',offloadingPoint:'Kolwezi Mine',fromStation:'Kasumbalesa',toStation:'Kolwezi Mine',status:'KBP Process',daysInDRC:5,kpi:'orange',borderProcess:'KBP',workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'},workflowDates:{border:'2026-07-23T08:00'},areaStatus:'KBP Parking',areaStatusDates:{'Entry on DRC':'2026-07-23T08:00','BAE Submitted':'2026-07-24T14:00','KBP Parking':'2026-07-25T09:15'},workflowStatusLog:{border:{status:'KBP Parking',statusDate:'2026-07-25T09:15',updatedBy:'border_moderator',updatedAt:'2026-07-25 09:15:00',area:'Kasumbalesa'}},positions:{},lastUpdatedBy:'border_moderator',lastUpdatedAt:'2026-07-25 09:15:00'},
     'NB-2024-008': { tripNumber:'NB-2024-008',truck:'JKL012DRC',driver:'Peter Mwansa',direction:'NB',area:'Kasumbalesa',owner:'Transport Co D',entryBorder:'Kasumbalesa',offloadingPoint:'KCC Mine',status:'Whisky Process',daysInDRC:3,kpi:'orange',borderProcess:'Whisky',workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}},
-    'NB-2024-015': { tripNumber:'NB-2024-015',truck:'XYZ789DRC',driver:'Sarah Smith',direction:'NB',area:'Kolwezi',owner:'Transport Co B',entryBorder:'Sakania',offloadingPoint:'Kolwezi Mine',status:'Offloading',daysInDRC:12,kpi:'orange',workflow:{border:'completed',kanyaka:'completed',offloading:'current',pod:'pending'},workflowDates:{border:'2026-07-18T10:00',kanyaka:'2026-07-20T14:00',offloading:'2026-07-24T09:00'}},
+    'NB-2024-015': { tripNumber:'NB-2024-015',truck:'XYZ789DRC',driver:'Sarah Smith',direction:'NB',area:'Kolwezi',owner:'Transport Co B',entryBorder:'Sakania',offloadingPoint:'Kolwezi Mine',status:'Offloading',daysInDRC:12,kpi:'orange',workflow:{border:'completed',kanyaka:'completed',offloading:'current',pod:'pending'},workflowDates:{border:'2026-07-18T10:00',kanyaka:'2026-07-20T14:00',offloading:'2026-07-24T09:00'},workflowStatusLog:{border:{status:'Border Clearance Complete',statusDate:'2026-07-18T10:00',updatedBy:'border_moderator',updatedAt:'2026-07-18 10:30:00',area:'Sakania'},kanyaka:{status:'Transit Complete',statusDate:'2026-07-20T14:00',updatedBy:'ops_manager',updatedAt:'2026-07-20 14:45:00',area:'Kanyaka'},offloading:{status:'Offloading',statusDate:'2026-07-24T09:00',updatedBy:'ops_manager',updatedAt:'2026-07-24 09:30:00',area:'Kolwezi'}}},
     'NB-2024-022': { tripNumber:'NB-2024-022',truck:'GHI789DRC',driver:'Jean Pierre',direction:'NB',area:'Lubumbashi',owner:'Transport Co C',entryBorder:'Mokambo',offloadingPoint:'Lubumbashi',status:'POD Missing',daysInDRC:15,kpi:'red',workflow:{border:'completed',kanyaka:'completed',offloading:'completed',pod:'current'}},
     'NB-2024-031': { tripNumber:'NB-2024-031',truck:'MNO012DRC',driver:'David Mukendi',direction:'NB',area:'Kanyaka',owner:'Transport Co A',entryBorder:'Kasumbalesa',offloadingPoint:'Kanyaka Depot',status:'In Transit',daysInDRC:8,kpi:'green',workflow:{border:'completed',kanyaka:'current',offloading:'pending',pod:'pending'}},
     'SB-2024-003': { tripNumber:'SB-2024-003',truck:'DEF456DRC',driver:'Mike Johnson',direction:'SB',area:'Kanyaka',owner:'Transport Co A',loadingPoint:'Kanyaka',exitBorder:'Kasumbalesa',status:'Loading',daysInDRC:3,kpi:'green',workflow:{loadingProcess:'current',documents:'pending',seal:'pending',escort:'pending',dispatch:'pending',kanyaka:'pending',border:'pending'},workflowDates:{loadingProcess:'2026-07-23T11:00'}},
@@ -2018,7 +2066,7 @@ const tripsDB = {
     'NB-2024-043': { tripNumber:'NB-2024-043',truck:'UVW123DRC',driver:'Paul Chanda',direction:'NB',area:'Kolwezi',owner:'Transport Co B',entryBorder:'Sakania',offloadingPoint:'KCC Mine',status:'In Transit',daysInDRC:6,kpi:'green',addedToday:true,workflow:{border:'completed',kanyaka:'completed',offloading:'pending',pod:'pending'}},
     'NB-2024-044': { tripNumber:'NB-2024-044',truck:'XYZ456DRC',driver:'Grace Mutale',direction:'NB',area:'Lubumbashi',owner:'Transport Co A',entryBorder:'Mokambo',offloadingPoint:'Lubumbashi',status:'Offloading',daysInDRC:11,kpi:'orange',workflow:{border:'completed',kanyaka:'completed',offloading:'current',pod:'pending'}},
     'NB-2024-045': { tripNumber:'NB-2024-045',truck:'ABC789DRC',driver:'Henry Sampa',direction:'NB',area:'Kanyaka',owner:'Transport Co C',entryBorder:'Kasumbalesa',offloadingPoint:'Kanyaka Depot',status:'POD Collection',daysInDRC:9,kpi:'orange',workflow:{border:'completed',kanyaka:'completed',offloading:'completed',pod:'current'}},
-    'SB-2024-018': { tripNumber:'SB-2024-018',truck:'DEF321DRC',driver:'Linda Phiri',direction:'SB',area:'Kanyaka',owner:'Transport Co B',loadingPoint:'Kanyaka Mine',exitBorder:'Kasumbalesa',status:'Border Exit',daysInDRC:7,kpi:'green',workflow:{loadingProcess:'completed',documents:'completed',seal:'completed',escort:'completed',dispatch:'completed',kanyaka:'completed',border:'current'},workflowDates:{loadingProcess:'2026-07-19T16:00',documents:'2026-07-20T10:00',seal:'2026-07-21T09:00',escort:'2026-07-22T08:00',dispatch:'2026-07-22T10:00',kanyaka:'2026-07-23T14:00',border:'2026-07-25T09:00'}},
+    'SB-2024-018': { tripNumber:'SB-2024-018',truck:'DEF321DRC',driver:'Linda Phiri',direction:'SB',area:'Kanyaka',owner:'Transport Co B',loadingPoint:'Kanyaka Mine',exitBorder:'Kasumbalesa',status:'Border Exit',daysInDRC:7,kpi:'green',workflow:{loadingProcess:'completed',documents:'completed',seal:'completed',escort:'completed',dispatch:'completed',kanyaka:'completed',border:'current'},workflowDates:{loadingProcess:'2026-07-19T16:00',documents:'2026-07-20T10:00',seal:'2026-07-21T09:00',escort:'2026-07-22T08:00',dispatch:'2026-07-22T10:00',kanyaka:'2026-07-23T14:00',border:'2026-07-25T09:00'},workflowStatusLog:{loadingProcess:{status:'Loading Complete',statusDate:'2026-07-19T16:00',updatedBy:'ops_manager',updatedAt:'2026-07-19 16:30:00',area:'Kanyaka'},documents:{status:'Documents Collected',statusDate:'2026-07-20T10:00',updatedBy:'ops_manager',updatedAt:'2026-07-20 10:30:00',area:'Kanyaka'},seal:{status:'Seal Applied',statusDate:'2026-07-21T09:00',updatedBy:'ops_manager',updatedAt:'2026-07-21 09:30:00',area:'Kanyaka'},escort:{status:'Escort Arranged',statusDate:'2026-07-22T08:00',updatedBy:'ops_manager',updatedAt:'2026-07-22 08:30:00',area:'Kanyaka'},dispatch:{status:'Dispatched',statusDate:'2026-07-22T10:00',updatedBy:'ops_manager',updatedAt:'2026-07-22 10:30:00',area:'Kanyaka'},kanyaka:{status:'Gov List Uploaded',statusDate:'2026-07-23T14:00',updatedBy:'ops_manager',updatedAt:'2026-07-23 14:30:00',area:'Kanyaka'},border:{status:'Border Exit',statusDate:'2026-07-25T09:00',updatedBy:'border_moderator',updatedAt:'2026-07-25 09:30:00',area:'Kasumbalesa'}}},
     'SB-2024-019': { tripNumber:'SB-2024-019',truck:'GHI654DRC',driver:'Oscar Mwale',direction:'SB',area:'Kolwezi',owner:'Transport Co A',loadingPoint:'Kolwezi Mine',exitBorder:'Sakania',status:'Document Collection',daysInDRC:2,kpi:'orange',addedToday:true,workflow:{loadingProcess:'completed',documents:'current',seal:'pending',escort:'pending',dispatch:'pending',kanyaka:'pending',border:'pending'}},
     'SB-2024-020': { tripNumber:'SB-2024-020',truck:'JKL987DRC',driver:'Nancy Banda',direction:'SB',area:'Kanyaka',owner:'Transport Co D',loadingPoint:'Kanyaka',exitBorder:'Mokambo',status:'Dispatch',daysInDRC:6,kpi:'orange',workflow:{loadingProcess:'completed',documents:'completed',seal:'completed',escort:'completed',dispatch:'current',kanyaka:'pending',border:'pending'}},
     'NB-2024-046': { tripNumber:'NB-2024-046',truck:'MNO741DRC',driver:'Victor Lungu',direction:'NB',area:'Kasumbalesa',owner:'Transport Co D',entryBorder:'Kasumbalesa',offloadingPoint:'KCC Mine',status:'Whisky Process',daysInDRC:3,kpi:'orange',borderProcess:'Whisky',addedToday:true,workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}},
@@ -2402,24 +2450,27 @@ function filterSBTrucksByAreas(searchTerm) {
 }
 
 function renderAreaBrowserTableRows(trips, direction) {
+    const listKey = direction === 'SB' ? 'areaSb' : 'areaNb';
+    const type = direction;
+    if (typeof renderOperationsTableRows === 'function') {
+        return renderOperationsTableRows(trips, listKey, type, 'area-browser');
+    }
     if (!trips.length) {
         return `<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-secondary);">No trucks match the selected areas</td></tr>`;
     }
     return trips.map(t => `
         <tr>
             <td><strong>${t.tripNumber}</strong></td>
-            <td>${t.truck}</td>
-            <td>${renderDriverLink(t.driver, t.tripNumber)}</td>
-            <td>${typeof renderDriverContactCell === 'function' ? renderDriverContactCell(t.tripNumber) : '—'}</td>
-            <td>${direction === 'NB' ? (t.offloadingPoint || '—') : (t.loadingPoint || '—')}</td>
-            <td>${t.area || '—'}</td>
-            <td><span class="status-badge ${t.kpi}">${t.status}</span></td>
-            <td>
-                <button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}', '${direction === 'SB' ? 'sb' : 'nb'}')">💬</button>
-                ${renderTripViewButton(t.tripNumber)}
-            </td>
-        </tr>
-    `).join('');
+            <td>${t.tuck}</td>
+        </tr>`).join('');
+}
+
+function renderAreaBrowserLiveTableHeader(direction) {
+    const listKey = direction === 'SB' ? 'areaSb' : 'areaNb';
+    const type = direction === 'SB' ? 'SB' : 'NB';
+    return typeof getOperationsTableHeaderHtml === 'function'
+        ? getOperationsTableHeaderHtml(type, listKey)
+        : '';
 }
 
 function refreshAreaBrowserPanels() {
@@ -2427,12 +2478,20 @@ function refreshAreaBrowserPanels() {
     const sbTrips = filterSBTrucksByAreas(areaSbSearch);
     const nbBody = document.getElementById('areaNbTableBody');
     const sbBody = document.getElementById('areaSbTableBody');
+    const nbHead = document.getElementById('areaNbTableHead');
+    const sbHead = document.getElementById('areaSbTableHead');
     const nbCount = document.getElementById('areaNbCount');
     const sbCount = document.getElementById('areaSbCount');
+    if (nbHead) nbHead.innerHTML = `<tr>${renderAreaBrowserLiveTableHeader('NB')}</tr>`;
+    if (sbHead) sbHead.innerHTML = `<tr>${renderAreaBrowserLiveTableHeader('SB')}</tr>`;
     if (nbBody) nbBody.innerHTML = renderAreaBrowserTableRows(nbTrips, 'NB');
     if (sbBody) sbBody.innerHTML = renderAreaBrowserTableRows(sbTrips, 'SB');
     if (nbCount) nbCount.textContent = `${nbTrips.length} truck${nbTrips.length !== 1 ? 's' : ''}`;
     if (sbCount) sbCount.textContent = `${sbTrips.length} truck${sbTrips.length !== 1 ? 's' : ''}`;
+    if (typeof applyLiveTableLayout === 'function') {
+        applyLiveTableLayout('areaNbOperationsTable', 'NB');
+        applyLiveTableLayout('areaSbOperationsTable', 'SB');
+    }
 }
 
 function togglePendingArea(areaId, checked) {
@@ -2540,18 +2599,12 @@ function renderAreaBrowser(container) {
                             onkeyup="handleAreaNbSearch(this.value)">
                     </div>
                 </div>
-                <div class="panel-body">
-                    <table style="width:100%;font-size:13px;">
-                        <thead><tr style="background:#f7fafc;">
-                            <th style="padding:10px;text-align:left;">Trip</th>
-                            <th style="padding:10px;text-align:left;">Truck</th>
-                            <th style="padding:10px;text-align:left;">Driver</th>
-                            <th style="padding:10px;text-align:left;">Driver Contact</th>
-                            <th style="padding:10px;text-align:left;">Offloading</th>
-                            <th style="padding:10px;text-align:left;">Current Area</th>
-                            <th style="padding:10px;text-align:left;">Status</th>
-                            <th style="padding:10px;text-align:left;">Actions</th>
-                        </tr></thead>
+                <div class="panel-body" style="overflow-x:auto;">
+                    <div class="table-header-actions" style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+                        ${typeof renderLiveColumnToolbar === 'function' ? renderLiveColumnToolbar('NB', 'areaNbOperationsTable', 'areaNb') : ''}
+                    </div>
+                    <table class="live-page-table operations-live-table" id="areaNbOperationsTable" style="width:100%;font-size:13px;">
+                        <thead id="areaNbTableHead"><tr>${renderAreaBrowserLiveTableHeader('NB')}</tr></thead>
                         <tbody id="areaNbTableBody">${renderAreaBrowserTableRows(nbTrips, 'NB')}</tbody>
                     </table>
                 </div>
@@ -2566,18 +2619,12 @@ function renderAreaBrowser(container) {
                             onkeyup="handleAreaSbSearch(this.value)">
                     </div>
                 </div>
-                <div class="panel-body">
-                    <table style="width:100%;font-size:13px;">
-                        <thead><tr style="background:#f7fafc;">
-                            <th style="padding:10px;text-align:left;">Trip</th>
-                            <th style="padding:10px;text-align:left;">Truck</th>
-                            <th style="padding:10px;text-align:left;">Driver</th>
-                            <th style="padding:10px;text-align:left;">Driver Contact</th>
-                            <th style="padding:10px;text-align:left;">Loading</th>
-                            <th style="padding:10px;text-align:left;">Current Area</th>
-                            <th style="padding:10px;text-align:left;">Status</th>
-                            <th style="padding:10px;text-align:left;">Actions</th>
-                        </tr></thead>
+                <div class="panel-body" style="overflow-x:auto;">
+                    <div class="table-header-actions" style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+                        ${typeof renderLiveColumnToolbar === 'function' ? renderLiveColumnToolbar('SB', 'areaSbOperationsTable', 'areaSb') : ''}
+                    </div>
+                    <table class="live-page-table operations-live-table" id="areaSbOperationsTable" style="width:100%;font-size:13px;">
+                        <thead id="areaSbTableHead"><tr>${renderAreaBrowserLiveTableHeader('SB')}</tr></thead>
                         <tbody id="areaSbTableBody">${renderAreaBrowserTableRows(sbTrips, 'SB')}</tbody>
                     </table>
                 </div>
@@ -2586,6 +2633,12 @@ function renderAreaBrowser(container) {
 
         <button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">⬅️ Back to Dashboard</button>
     `;
+    setTimeout(() => {
+        if (typeof applyLiveTableLayout === 'function') {
+            applyLiveTableLayout('areaNbOperationsTable', 'NB');
+            applyLiveTableLayout('areaSbOperationsTable', 'SB');
+        }
+    }, 0);
 }
 
 function getDashboardStats() {
@@ -3656,7 +3709,7 @@ function refreshDashboard() {}
 function renderNBOperations(container) {
     const trips = filterTrips('NB', '');
     container.innerHTML = `
-        <div class="page-header"><h1>🚛 North Bound Operations</h1><div class="breadcrumb">Operations / NB Operations</div></div>
+        <div class="page-header"><h1>🚛 North Bound Operations</h1><div class="breadcrumb">Operations / NB Operations</div><p class="page-subtitle" style="margin-top:8px;font-size:13px;color:var(--text-secondary);">Each workflow column shows the latest area status with title, date, and user log — click to view earlier updates. Applies across Kasumbalesa, Kanyaka, Kolwezi, Lubumbashi, and all NB areas.</p></div>
         ${getAreaFilterBanner()}
         ${renderKpiTargetsBanner('nb')}
         <div class="kpi-grid">
@@ -3726,7 +3779,7 @@ function clearNBFilters() {
 function renderSBOperations(container) {
     const trips = filterTrips('SB', '');
     container.innerHTML = `
-        <div class="page-header"><h1>🚛 South Bound Operations</h1><div class="breadcrumb">Operations / SB Operations</div></div>
+        <div class="page-header"><h1>🚛 South Bound Operations</h1><div class="breadcrumb">Operations / SB Operations</div><p class="page-subtitle" style="margin-top:8px;font-size:13px;color:var(--text-secondary);">Each SB workflow step (Loading → Documents → Seal → Escort → Dispatch → Kanyaka → Border Exit) has its own column with latest status, date, and user log — click to expand history.</p></div>
         ${getAreaFilterBanner()}
         ${renderKpiTargetsBanner('sb')}
         <div class="kpi-grid">
@@ -4691,8 +4744,44 @@ function renderPODManagement(container) {
 }
 
 function renderAreaPage(container, areaName) {
-    const trips = Object.values(tripsDB).filter(t=>t.area===areaName);
-    container.innerHTML = `<div class="page-header"><h1>🏢 ${areaName} Area</h1></div><div class="table-container"><div class="table-header"><h3>Trucks in ${areaName} (${trips.length})</h3></div><table><thead><tr><th>Trip</th><th>Truck</th><th>Driver</th><th>Direction</th><th>Status</th><th>Actions</th></tr></thead><tbody>${trips.map(t=>`<tr><td>${t.tripNumber}</td><td>${t.truck}</td><td>${renderDriverLink(t.driver, t.tripNumber)}</td><td><span class="status-badge blue">${t.direction}</span></td><td><span class="status-badge ${t.kpi}">${t.status}</span></td><td><button class="btn btn-primary btn-sm" onclick="openCommentModal('${t.tripNumber}', '${t.direction === 'SB' ? 'sb' : 'nb'}')">💬 Comment</button></td></tr>`).join('')||'<tr><td colspan="6">No trucks</td></tr>'}</tbody></table></div>`;
+    const trips = Object.values(tripsDB).filter(t => t.area === areaName);
+    const nbTrips = trips.filter(t => t.direction === 'NB');
+    const sbTrips = trips.filter(t => t.direction === 'SB');
+    container.innerHTML = `
+        <div class="page-header"><h1>🏢 ${areaName} Area</h1><p class="page-subtitle">Full workflow status columns for all trucks in ${areaName}</p></div>
+        ${getAreaFilterBanner()}
+        ${nbTrips.length ? `
+        <div class="table-container" style="margin-bottom:24px;">
+            <div class="table-header"><h3>🔼 NB Trucks in ${areaName} (${nbTrips.length})</h3>
+                <div class="table-header-actions">${typeof renderLiveColumnToolbar === 'function' ? renderLiveColumnToolbar('NB', 'areaPageNbTable', 'areaNb') : ''}</div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="live-page-table operations-live-table" id="areaPageNbTable">
+                    <thead><tr>${renderAreaBrowserLiveTableHeader('NB')}</tr></thead>
+                    <tbody>${renderAreaBrowserTableRows(nbTrips, 'NB')}</tbody>
+                </table>
+            </div>
+        </div>` : ''}
+        ${sbTrips.length ? `
+        <div class="table-container">
+            <div class="table-header"><h3>🔽 SB Trucks in ${areaName} (${sbTrips.length})</h3>
+                <div class="table-header-actions">${typeof renderLiveColumnToolbar === 'function' ? renderLiveColumnToolbar('SB', 'areaPageSbTable', 'areaSb') : ''}</div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="live-page-table operations-live-table" id="areaPageSbTable">
+                    <thead><tr>${renderAreaBrowserLiveTableHeader('SB')}</tr></thead>
+                    <tbody>${renderAreaBrowserTableRows(sbTrips, 'SB')}</tbody>
+                </table>
+            </div>
+        </div>` : ''}
+        ${!trips.length ? '<p style="padding:20px;color:var(--text-secondary);">No trucks currently in this area.</p>' : ''}
+        <button class="btn btn-outline mt-20" onclick="navigateTo('area-browser')">⬅️ Back to Area Browser</button>`;
+    setTimeout(() => {
+        if (typeof applyLiveTableLayout === 'function') {
+            if (nbTrips.length) applyLiveTableLayout('areaPageNbTable', 'NB');
+            if (sbTrips.length) applyLiveTableLayout('areaPageSbTable', 'SB');
+        }
+    }, 0);
 }
 
 // ============================================
@@ -8370,6 +8459,11 @@ function refreshPageAfterComment() {
     else if (currentPage === 'sb-operations') refreshSBTable();
     else if (currentPage === 'position-live' && typeof refreshPositionLiveTable === 'function') refreshPositionLiveTable();
     else if (currentPage === 'border-clearance' && typeof refreshBorderTable === 'function') refreshBorderTable();
+    else if (currentPage === 'area-browser') refreshAreaBrowserPanels();
+    else if (currentPage === 'kanyaka' || currentPage === 'kolwezi') {
+        const areaName = currentPage === 'kanyaka' ? 'Kanyaka' : 'Kolwezi';
+        renderAreaPage(document.getElementById('contentArea'), areaName);
+    }
     else if (currentPage?.includes('detail')) navigateTo(currentPage);
 }
 
@@ -8468,7 +8562,7 @@ function submitComment() {
         }
         const trip = tripsDB[currentCommentTrip];
         if (trip) applyTripStatusUpdate(trip, statusUpdate, commentText || `POD ${currentPodPendingStage}`, statusDate);
-        if (commentText) recordTripAreaUpdate(currentCommentTrip, trip?.area || 'POD', statusUpdate, commentText, statusDate);
+        if (commentText) recordTripAreaUpdate(currentCommentTrip, trip?.area || 'POD', statusUpdate, commentText, statusDate, 'pod');
         const stage = currentPodPendingStage;
         currentPodPendingStage = null;
         const finish = () => {
