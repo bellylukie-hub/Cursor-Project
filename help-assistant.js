@@ -31,27 +31,222 @@
         return true;
     }
 
+    const MENU_GUIDE = [
+        {
+            section: 'Main',
+            items: [
+                {
+                    id: 'dashboard', icon: '📊', label: 'Dashboard',
+                    keywords: ['dashboard', 'home', 'overview', 'main'],
+                    description: 'Your command centre. See total trucks in DRC, NB/SB outstanding counts, POD pending, orange/red alerts, and quick links into trip lists. Click any stat card to drill down.'
+                }
+            ]
+        },
+        {
+            section: 'Operations',
+            items: [
+                {
+                    id: 'nb-operations', icon: '🚛', label: 'NB Operations', moduleId: 'nb-operations',
+                    keywords: ['nb operations', 'northbound', 'nb trucks', 'nb live'],
+                    description: 'Live northbound trucks entering DRC. Upload NB files, filter by area/border/KPI, and use workflow columns (Border → Kanyaka → Offloading → POD) with status dates and user logs. 💬 opens the comment modal.'
+                },
+                {
+                    id: 'sb-operations', icon: '🚛', label: 'SB Operations', moduleId: 'sb-operations',
+                    keywords: ['sb operations', 'southbound', 'sb trucks', 'sb live', 'loading', 'dispatch'],
+                    description: 'Live southbound trucks exiting DRC. Tracks Loading → Documents → Seal → Escort → Dispatch → Kanyaka → Border Exit. Upload SB files and update status per workflow column.'
+                },
+                {
+                    id: 'border-clearance', icon: '🛂', label: 'Border Clearance', moduleId: 'border-clearance',
+                    keywords: ['border clearance', 'border', 'kbp', 'whisky', 'direct', 'bn process', 'exit'],
+                    description: 'Dedicated border view with separate **NB** and **SB** tables. Each clearance status is its own column showing date and who recorded it. KPI cards summarise Kasumbalesa, Sakania, and Mokambo performance.'
+                },
+                {
+                    id: 'pod-management', icon: '📋', label: 'POD Management', moduleId: 'pod-management',
+                    keywords: ['pod', 'proof of delivery', 'pod management', 'invoicing', 'scan pod'],
+                    description: 'Proof-of-delivery pipeline: **Collect → Scan → Upload → Send to Invoicing**. Filter by area/KPI, use row action buttons or 💬 to advance each stage and track overdue PODs.'
+                }
+            ]
+        },
+        {
+            section: 'Areas',
+            items: [
+                {
+                    id: 'area-browser', icon: '🗺️', label: 'Area Trucks', moduleId: 'area-browser',
+                    keywords: ['area trucks', 'area browser', 'areas', 'kanyaka', 'kolwezi', 'kasumbalesa area'],
+                    description: 'Browse trucks by geographic area (Kanyaka, Kolwezi, Kasumbalesa, etc.). Full live table with NB/SB workflow status columns, comments, and filters — useful for area supervisors.'
+                }
+            ]
+        },
+        {
+            section: 'Communication',
+            items: [
+                {
+                    id: 'communication-matrix', icon: '📇', label: 'Communication Matrix', moduleId: 'communication-matrix',
+                    keywords: ['communication matrix', 'contacts', 'matrix', 'clearing agent', 'phone'],
+                    description: 'Directory of contacts by function and area — clearing agents, border officers, dispatchers, POD team. Add or edit contacts and link them to borders or areas.'
+                },
+                {
+                    id: 'driver-registry', icon: '📱', label: 'Driver Registry', moduleId: 'driver-registry',
+                    keywords: ['driver registry', 'driver contact', 'whatsapp', 'drc number', 'register driver'],
+                    description: 'NB driver contacts registered at border: name, truck, DRC mobile, WhatsApp, border, and registration notes. Used when recording driver details during clearance.'
+                },
+                {
+                    id: 'internal-communication', icon: '✉️', label: 'Internal Communication', moduleId: 'internal-communication',
+                    keywords: ['internal communication', 'email', 'chat', 'whatsapp', 'messages', 'inbox'],
+                    description: 'Team email (inbox, sent, drafts) plus chat rooms for borders, areas, and direct messages. Trip-linked threads for KBP queues, dispatch updates, and POD alerts.'
+                }
+            ]
+        },
+        {
+            section: 'Management',
+            items: [
+                {
+                    id: 'assets', icon: '🚗', label: 'Assets & Equipment', moduleId: 'assets',
+                    keywords: ['assets', 'equipment', 'vehicles', 'fleet documents', 'insurance'],
+                    description: 'Fleet assets and equipment register — vehicles, phones, radios. Track documents, expiry dates, operational status, and handover records.'
+                },
+                {
+                    id: 'runner-fees', icon: '💰', label: 'Runner Fees', moduleId: 'runner-fees',
+                    keywords: ['runner fees', 'runner', 'fees', 'transporter fees', 'border fees'],
+                    description: 'Calculate runner/transporter fees from border dwell time and Kanyaka transit. Filter by transporter and date range; supports border and Kanyaka NB/SB fee tiers.'
+                },
+                {
+                    id: 'reports', icon: '📈', label: 'Reports', moduleId: 'reports',
+                    keywords: ['reports', 'report', 'export', 'analytics', 'summary'],
+                    description: 'Operational reports — NB/SB performance, border clearance, POD, and area summaries. Pick a report type and date range, then view or export.'
+                },
+                {
+                    id: 'turnarounds', icon: '🔄', label: 'Turnarounds', moduleId: 'turnarounds',
+                    keywords: ['turnarounds', 'turnaround', 'same truck', 'nb to sb'],
+                    description: 'End-to-end NB→SB journey on the same truck: border clearance through POD, then SB loading through border exit. Links to fleet same-truck policy settings.'
+                },
+                {
+                    id: 'position-live', icon: '📍', label: 'Position Live', moduleId: 'position-live',
+                    keywords: ['position live', 'gps', 'position', 'tracking', 'location'],
+                    description: 'Live truck positions on the map with workflow status columns and latest comments. Upload position files and monitor fleet movement across borders and areas.'
+                }
+            ]
+        },
+        {
+            section: 'Admin',
+            items: [
+                {
+                    id: 'admin-users', icon: '👥', label: 'Manage Users', adminPage: 'admin-users',
+                    keywords: ['manage users', 'users', 'create user', 'accounts'],
+                    description: 'Create and edit user accounts, assign roles, areas, and contact details. Ban or activate users and reset passwords.'
+                },
+                {
+                    id: 'admin-roles', icon: '🛡️', label: 'Role Manager', adminPage: 'admin-roles',
+                    keywords: ['role manager', 'roles', 'permissions', 'super admin', 'moderator'],
+                    description: 'Define roles (Super Admin, Manager, Moderator, User) and their global permissions — read, edit, manage users, manage settings, view logs.'
+                },
+                {
+                    id: 'admin-settings', icon: '⚙️', label: 'System Settings', adminPage: 'admin-settings',
+                    keywords: ['system settings', 'settings', 'maintenance', 'session', 'backup'],
+                    description: 'Global config: sign-ups, maintenance mode, session timeout, interest rate, support email, app name, and database backup schedule.'
+                },
+                {
+                    id: 'admin-themes', icon: '🎨', label: 'Themes', adminPage: 'admin-themes',
+                    keywords: ['themes', 'theme', 'colours', 'colors', 'appearance', 'look'],
+                    description: 'Pick a colour theme (Ocean Blue, Midnight Pro, Forest Logistics, Copper Haul, Arctic Light, Royal Purple). Applies instantly across the whole application.'
+                },
+                {
+                    id: 'admin-kpi-settings', icon: '🎯', label: 'KPI Settings', adminPage: 'admin-kpi-settings',
+                    keywords: ['kpi settings', 'kpi targets', 'sla', 'targets', 'hours target'],
+                    description: 'Configure SLA targets per workflow step, border process step (KBP, Whisky, Direct, SB exit), POD stages, and module-level KPI rules.'
+                },
+                {
+                    id: 'admin-audit-logs', icon: '📋', label: 'Audit Logs', adminPage: 'admin-audit-logs',
+                    keywords: ['audit logs', 'audit', 'log', 'history', 'who changed'],
+                    description: 'Searchable timeline of every create, update, delete, and blocked action — who did it, when, from which IP, and what changed.'
+                },
+                {
+                    id: 'admin-area-statuses', icon: '📍', label: 'Area Status Lists', adminPage: 'admin-area-statuses',
+                    keywords: ['area status lists', 'area statuses', 'status list', 'configure statuses'],
+                    description: 'Configure valid status names per area for NB, SB, and border workflows (Kasumbalesa, Kanyaka, Kolwezi, Sakania, Mokambo, etc.).'
+                },
+                {
+                    id: 'admin-area-assignments', icon: '🗺️', label: 'Area Assignments', adminPage: 'admin-area-assignments',
+                    keywords: ['area assignments', 'assign areas', 'user areas', 'assigned areas'],
+                    description: 'Assign which geographic areas each user can see and work on. Controls data filtering for moderators and area teams.'
+                },
+                {
+                    id: 'admin-module-permissions', icon: '🔐', label: 'Module Permissions', adminPage: 'admin-module-permissions',
+                    keywords: ['module permissions', 'module access', 'view edit delete', 'per module'],
+                    description: 'Fine-grained access: set **view / edit / delete** per operational module (NB, SB, Border, POD, etc.) and per area for each user.'
+                },
+                {
+                    id: 'admin-fleet-settings', icon: '🚛', label: 'Fleet — Same Truck for SB', adminPage: 'admin-fleet-settings',
+                    keywords: ['fleet', 'same truck', 'sb fleet', 'turnaround truck'],
+                    description: 'Policy for whether the same physical truck must continue on the SB leg after NB turnaround. Affects turnarounds and trip linking.'
+                },
+                {
+                    id: 'admin-upload-templates', icon: '📤', label: 'Upload Templates', adminPage: 'admin-upload-templates',
+                    keywords: ['upload templates', 'templates', 'live file', 'column template', 'excel'],
+                    description: 'Super Admin only. Define column layouts for NB/SB live file uploads and position uploads — which fields appear in operations tables.'
+                }
+            ]
+        }
+    ];
+
+    function canSeeMenuItem(item, ctx) {
+        if (ctx.isSuperAdmin) return true;
+        if (item.adminPage && typeof canAccessAdminPage === 'function') {
+            return canAccessAdminPage(item.adminPage);
+        }
+        if (item.moduleId && typeof canAccessModule === 'function') {
+            return canAccessModule(item.moduleId);
+        }
+        return true;
+    }
+
+    function findMenuItems(query) {
+        const q = String(query || '').toLowerCase().trim();
+        if (!q) return [];
+        const hits = [];
+        MENU_GUIDE.forEach(sec => {
+            sec.items.forEach(item => {
+                const hay = [item.label, item.id, ...(item.keywords || [])].join(' ').toLowerCase();
+                if (hay.includes(q) || item.keywords?.some(k => q.includes(k) || k.includes(q))) {
+                    hits.push({ ...item, section: sec.section });
+                }
+            });
+        });
+        return hits;
+    }
+
+    function formatMenuItemLine(item, ctx) {
+        const allowed = canSeeMenuItem(item, ctx);
+        const line = `**${item.icon} ${item.label}** — ${item.description}`;
+        if (!allowed) {
+            return `${line}\n🔒 *You do not have access — please check with your Admin.*`;
+        }
+        return line;
+    }
+
+    function getFullMenuGuide(ctx) {
+        return MENU_GUIDE.map(sec => {
+            const lines = sec.items.map(item => `• ${formatMenuItemLine(item, ctx)}`).join('\n\n');
+            return `**${sec.section}**\n${lines}`;
+        }).join('\n\n');
+    }
+
+    function getMenuItemHelp(itemId, ctx) {
+        for (const sec of MENU_GUIDE) {
+            const item = sec.items.find(i => i.id === itemId);
+            if (item) {
+                return `**${sec.section} → ${item.icon} ${item.label}**\n\n${formatMenuItemLine(item, ctx)}`;
+            }
+        }
+        return null;
+    }
+
     function pageHelp(ctx) {
-        const map = {
-            dashboard: 'The **Dashboard** shows KPI summaries and quick links. Use filters to find trucks. Click a trip to open comments or view details.',
-            'nb-operations': '**NB Operations** lists northbound trucks. Upload live files, filter by area/border/KPI, and use 💬 to record status updates. Each workflow column shows the latest status date and who updated it.',
-            'sb-operations': '**SB Operations** tracks southbound loading through border exit. Status columns follow: Loading → Documents → Seal → Escort → Dispatch → Kanyaka → Border Exit.',
-            'border-clearance': '**Border Clearance** has separate **NB** and **SB** tables. Each status is its own column with date and user log. NB uses KBP / Whisky / Direct / BN processes depending on border.',
-            'pod-management': '**POD Management** tracks proof-of-delivery: Collect → Scan → Upload → Send to Invoicing. Use action buttons or 💬 on each row.',
-            'area-browser': '**Area Trucks** shows all trucks currently in a geographic area with full workflow status columns.',
-            'internal-communication': '**Internal Communication** provides email-style messages and team chat rooms linked to trips and borders.',
-            'driver-registry': '**Driver Registry** stores NB driver contacts registered at border (DRC number, WhatsApp).',
-            'assets': '**Assets & Equipment** manages fleet documents, insurance, and vehicle status.',
-            'reports': '**Reports** generates operational summaries. Choose report type and date range.',
-            'position-live': '**Position Live** shows truck GPS positions with workflow and comment columns.',
-            'admin-users': '**Admin → Users** creates accounts and assigns roles, areas, and module permissions.',
-            'admin-roles': '**Admin → Roles** defines permission sets (read, edit, manage users, etc.).',
-            'admin-module-permissions': '**Admin → Module Permissions** controls view/edit/delete per module and per area.',
-            'admin-area-statuses': '**Admin → Area Statuses** configures valid status lists for each area (NB, SB, border).',
-            'admin-themes': '**Admin → Themes** lets managers pick a colour theme (Ocean Blue, Midnight Pro, Forest Logistics, etc.) that applies across the whole app instantly.',
-            'admin-kpi-settings': '**Admin → KPI Settings** sets SLA targets per workflow step and border process.'
-        };
-        return map[ctx.page] || null;
+        for (const sec of MENU_GUIDE) {
+            const item = sec.items.find(i => i.id === ctx.page);
+            if (item) return formatMenuItemLine(item, ctx);
+        }
+        return null;
     }
 
     function workflowHelp(direction) {
@@ -99,7 +294,22 @@
 
         if (matchQuery(q, ['hello', 'hi', 'hey', 'help'])) {
             const pageTip = pageHelp(ctx);
-            return `Hello **${ctx.user?.username || 'there'}**! I'm your Truck Control assistant.\n\n${pageTip ? `You're on **${ctx.page}**: ${pageTip}\n\n` : ''}Ask about workflows, border processes, POD, permissions, or how to update status. Type **"my access"** to see what you can do.`;
+            return `Hello **${ctx.user?.username || 'there'}**! I'm your Truck Control assistant.\n\n${pageTip ? `You're on **${ctx.page}**: ${pageTip}\n\n` : ''}Ask about any **sidebar menu** item, workflows, borders, POD, or permissions.\n• Type **"menu"** for the full navigation guide\n• Type **"my access"** to see what you can open`;
+        }
+
+        if (matchQuery(q, ['menu', 'sidebar', 'navigation', 'all menus', 'all pages', 'menu guide', 'what is in the menu', 'list menus'])) {
+            return `**Sidebar menu guide** — every section and what it does:\n\n${getFullMenuGuide(ctx)}\n\nAsk about any item by name, e.g. *"What is Border Clearance?"* or *"Runner Fees"*`;
+        }
+
+        const menuHits = findMenuItems(q);
+        if (menuHits.length === 1) {
+            const item = menuHits[0];
+            return `**${item.section} → ${item.icon} ${item.label}**\n\n${formatMenuItemLine(item, ctx)}`;
+        }
+        if (menuHits.length > 1 && menuHits.length <= 4) {
+            return `I found several menu items matching that:\n\n${menuHits.map(item =>
+                `**${item.icon} ${item.label}** (${item.section})\n${item.description}`
+            ).join('\n\n')}\n\nAsk about one by its full name for more detail.`;
         }
 
         if (matchQuery(q, ['my access', 'my role', 'what can i', 'permissions', 'my permission'])) {
@@ -172,11 +382,12 @@
         }
 
         if (matchQuery(q, ['this page', 'current page', 'where am i'])) {
-            const tip = pageHelp(ctx);
-            return tip || `You are on page **${ctx.page || 'unknown'}**. Navigate using the sidebar or ask about NB/SB workflow, border clearance, or POD.`;
+            const tip = getMenuItemHelp(ctx.page, ctx);
+            if (tip) return tip;
+            return `You are on page **${ctx.page || 'unknown'}**. Type **"menu"** for the full sidebar guide.`;
         }
 
-        return `I didn't find a specific answer for that. Try asking about:\n• **NB workflow** or **SB workflow**\n• **Border KBP / Whisky / Direct**\n• **How to update status**\n• **POD process**\n• **My access** (what you can do)\n• **This page** (help for where you are now)\n\n${!ctx.isSuperAdmin ? 'For admin-only features, please **check with your Admin**.' : ''}`;
+        return `I didn't find a specific answer for that. Try:\n• **Menu** — full sidebar guide (Dashboard, Operations, Admin, etc.)\n• **NB workflow** or **SB workflow**\n• **Border KBP / Whisky / Direct**\n• **How to update status**\n• **POD process**\n• **My access** (what you can open)\n• Name any menu item, e.g. *Runner Fees*, *Themes*, *Position Live*\n\n${!ctx.isSuperAdmin ? 'For admin-only pages, please **check with your Admin**.' : ''}`;
     };
 
     function renderHelpMessages(messages) {
@@ -239,12 +450,12 @@
                 </div>
                 <div id="helpAssistantMessages" class="help-assistant-messages"></div>
                 <div class="help-quick-chips">
+                    <button type="button" onclick="sendHelpAssistantMessage('Menu guide')">Menu guide</button>
                     <button type="button" onclick="sendHelpAssistantMessage('My access')">My access</button>
                     <button type="button" onclick="sendHelpAssistantMessage('NB workflow')">NB workflow</button>
                     <button type="button" onclick="sendHelpAssistantMessage('SB workflow')">SB workflow</button>
-                    <button type="button" onclick="sendHelpAssistantMessage('Border KBP process')">Border</button>
+                    <button type="button" onclick="sendHelpAssistantMessage('Border clearance')">Border</button>
                     <button type="button" onclick="sendHelpAssistantMessage('How do I update status?')">Update status</button>
-                    <button type="button" onclick="sendHelpAssistantMessage('What comes next in the process?')">Next step</button>
                     <button type="button" onclick="sendHelpAssistantMessage('Help on this page')">This page</button>
                 </div>
                 <div class="help-assistant-input-row">
