@@ -11,6 +11,24 @@
         CAR: ['Available', 'On Trip', 'At Loading', 'At Border', 'Dispatched', 'Returned']
     };
 
+    /** Full NB journey statuses (border → Kanyaka → offloading → POD) */
+    const NB_WORKFLOW_STATUS_PIPELINE = [
+        'Arrived at Border', 'KBP Parking', 'KBP Scan Bay', 'Whisky Process', 'Customs Clearance',
+        'Border Clearance Complete', 'In Transit to Kanyaka', 'At Kanyaka Depot', 'Transit Complete',
+        'In Transit', 'At Mine Gate', 'Offloading', 'Offloading Complete', 'Awaiting POD'
+    ];
+
+    /** Full SB journey statuses (loading → documents → Kanyaka → border exit) */
+    const SB_WORKFLOW_STATUS_PIPELINE = [
+        'At Mine', 'Loading', 'Loading Complete', 'Documents Collected', 'Seal Applied', 'Escort Arranged',
+        'Dispatched', 'Gov List Pending', 'Gov List Uploaded', 'Dispatch Ready', 'Exit Pending',
+        'Exit Queue', 'Gov List Check', 'Exit Processing', 'Customs Declaration', 'Seal Verification',
+        'Exit to Zambia', 'Border Exit', 'Clearance Complete'
+    ];
+
+    window.NB_WORKFLOW_STATUS_PIPELINE = NB_WORKFLOW_STATUS_PIPELINE;
+    window.SB_WORKFLOW_STATUS_PIPELINE = SB_WORKFLOW_STATUS_PIPELINE;
+
     const LIVE_UPLOAD_CSV_COLUMNS = [
         'OrderNo', 'DateLoaded', 'DispatchDate', 'Delivered', 'TripNumber', 'OrderOwner', 'Transporter',
         'FleetNr', 'Truck', 'Trailer1', 'Trailer2', 'Driver', 'ClearingAgent', 'Border',
@@ -794,6 +812,42 @@
         window.areaStatusesDB = window.areaStatusesDB.map(normalizeAreaRecord);
     };
 
+    window.getAggregatedNbStatuses = function () {
+        const areas = window.areaStatusesDB || [];
+        const fromAreas = [];
+        ['Kasumbalesa', 'Sakania', 'Mokambo', 'Kanyaka', 'Kolwezi', 'Lubumbashi', 'Likasi'].forEach(name => {
+            const rec = areas.find(a => a.area === name);
+            if (!rec) return;
+            if (rec.isBorder) fromAreas.push(...(rec.statusesBorderNB || []), ...(rec.statusesNB || []).filter(s => /arrived|border/i.test(s)));
+            else fromAreas.push(...(rec.statusesNB || []));
+        });
+        return [...new Set([...NB_WORKFLOW_STATUS_PIPELINE, ...fromAreas])];
+    };
+
+    window.getAggregatedSbStatuses = function () {
+        const areas = window.areaStatusesDB || [];
+        const fromAreas = [];
+        ['Kolwezi', 'Kanyaka', 'Kasumbalesa', 'Sakania', 'Mokambo'].forEach(name => {
+            const rec = areas.find(a => a.area === name);
+            if (!rec) return;
+            fromAreas.push(...(rec.statusesSB || []), ...(rec.statusesBorderSB || []));
+        });
+        return [...new Set([...SB_WORKFLOW_STATUS_PIPELINE, ...fromAreas])];
+    };
+
+    window.getStatusesForAreaRecord = function (rec, direction) {
+        if (!rec) return [];
+        if (direction === 'SB') {
+            const list = [...(rec.statusesSB || [])];
+            if (rec.isBorder) list.push(...(rec.statusesBorderSB || []));
+            if (rec.isLoadingPoint) list.push(...(rec.statusesSB || []).filter(s => /load/i.test(s)));
+            return [...new Set(list)];
+        }
+        const list = [...(rec.statusesNB || [])];
+        if (rec.isBorder && rec.borderForNB !== false) list.push(...(rec.statusesBorderNB || []));
+        return [...new Set(list)];
+    };
+
     window.getStatusesForUpdateDropdown = function (statusContext, trip, asset) {
         const global = window.globalStatusListsDB || {};
         if (statusContext === 'pod') return [...(global.POD || [])];
@@ -801,33 +855,48 @@
         if (statusContext === 'car') return [...(global.CAR || [])];
 
         const areas = window.areaStatusesDB || [];
-        const findArea = (name) => areas.find(a => a.area === name);
+        const findArea = (name) => name ? areas.find(a => a.area === name) : null;
+        const matchArea = (trip) => {
+            if (!trip) return null;
+            const candidates = [trip.area, trip.entryBorder, trip.exitBorder, trip.offloadingPoint, trip.loadingPoint]
+                .filter(Boolean);
+            for (const c of candidates) {
+                const exact = findArea(c);
+                if (exact) return exact;
+                const partial = areas.find(a => c.toLowerCase().includes(a.area.toLowerCase()) || a.area.toLowerCase().includes(c.toLowerCase().split(' ')[0]));
+                if (partial) return partial;
+            }
+            if (trip.offloadingPoint) {
+                return areas.find(a => a.isOffloadingPoint && trip.offloadingPoint.toLowerCase().includes(a.area.toLowerCase()));
+            }
+            if (trip.loadingPoint) {
+                return areas.find(a => a.isLoadingPoint && trip.loadingPoint.toLowerCase().includes(a.area.toLowerCase()));
+            }
+            return null;
+        };
 
         if (statusContext === 'nb' && trip) {
-            const rec = findArea(trip.area) || findArea(trip.entryBorder) ||
-                areas.find(a => a.isOffloadingPoint && trip.offloadingPoint && trip.offloadingPoint.toLowerCase().includes(a.area.toLowerCase()));
-            if (!rec) return [];
-            const list = [...(rec.statusesNB || [])];
-            if (rec.isBorder && rec.borderForNB) list.push(...(rec.statusesBorderNB || []));
-            if (rec.isKanyakaHub && rec.kanyakaForNB) list.push(...(rec.statusesNB || []).filter(s => /kanyaka|transit/i.test(s)));
-            return [...new Set(list)];
+            const rec = matchArea(trip);
+            const areaSpecific = rec ? getStatusesForAreaRecord(rec, 'NB') : [];
+            const fullList = getAggregatedNbStatuses();
+            return [...new Set([...areaSpecific, ...fullList])];
         }
 
         if (statusContext === 'sb' && trip) {
-            const rec = findArea(trip.area) || findArea(trip.loadingPoint?.split(' ')[0]) || findArea(trip.exitBorder);
-            if (!rec) return [];
-            const list = [...(rec.statusesSB || [])];
-            if (rec.isLoadingPoint) list.push(...(rec.statusesSB || []).filter(s => /load/i.test(s)));
-            if (rec.isKanyakaHub && rec.kanyakaForSB) list.push(...(rec.statusesSB || []));
-            return [...new Set(list)];
+            const rec = matchArea(trip);
+            const areaSpecific = rec ? getStatusesForAreaRecord(rec, 'SB') : [];
+            const fullList = getAggregatedSbStatuses();
+            return [...new Set([...areaSpecific, ...fullList])];
         }
 
         if (statusContext === 'border' && trip) {
             const borderName = trip.direction === 'NB' ? (trip.entryBorder || trip.area) : (trip.exitBorder || trip.driverExitBorder || trip.area);
             const rec = findArea(borderName) || areas.find(a => a.isBorder);
-            if (!rec) return [];
-            if (trip.direction === 'NB') return [...new Set([...(rec.statusesBorderNB || []), ...(rec.statusesNB || [])])];
-            return [...new Set([...(rec.statusesBorderSB || []), ...(rec.statusesSB || [])])];
+            if (!rec) return trip.direction === 'NB' ? getAggregatedNbStatuses() : getAggregatedSbStatuses();
+            if (trip.direction === 'NB') {
+                return [...new Set([...getStatusesForAreaRecord(rec, 'NB'), ...getAggregatedNbStatuses()])];
+            }
+            return [...new Set([...getStatusesForAreaRecord(rec, 'SB'), ...getAggregatedSbStatuses()])];
         }
 
         return [];
@@ -855,6 +924,7 @@
 
     window.inferStatusContextFromPage = function (page) {
         if (!page) return null;
+        if (page === 'position-live') return null;
         if (page === 'pod-management') return 'pod';
         if (page === 'nb-operations') return 'nb';
         if (page === 'sb-operations') return 'sb';
@@ -1088,36 +1158,42 @@
         return upload;
     };
 
-    window.wirePodStageAction = async function (tripNumber, stage) {
+    window.wirePodStageAction = function (tripNumber, stage) {
+        if (typeof openPodActionModal === 'function') {
+            openPodActionModal(tripNumber, stage);
+            return;
+        }
+        return completePodStageLocal(tripNumber, stage);
+    };
+
+    window.completePodStageLocal = async function (tripNumber, stage, statusLabel, statusDate) {
         const labels = { collected: 'Collected', scanned: 'Scanned', uploaded: 'Uploaded', sent_to_invoicing: 'Sent to Invoicing' };
+        const pod = window.podDB?.find(p => p.trip === tripNumber);
+        const ts = statusDate || new Date().toISOString().slice(0, 16).replace('T', ' ');
+        if (pod) {
+            if (stage === 'collected') {
+                pod.collected = true;
+                pod.collectedOnTime = statusLabel !== 'Collected Late';
+                pod.collectedDate = ts;
+                pod.podStatus = statusLabel || 'Collected On-Time';
+            }
+            if (stage === 'scanned') { pod.scanned = true; pod.scannedDate = ts; pod.podStatus = statusLabel || 'Scanned'; }
+            if (stage === 'uploaded') { pod.uploaded = true; pod.uploadedDate = ts; pod.podStatus = statusLabel || 'Uploaded'; }
+            if (stage === 'sent_to_invoicing') { pod.sentToInvoicing = true; pod.sentDate = ts; pod.podStatus = statusLabel || 'Sent to Invoicing'; }
+        }
+        const trip = window.tripsDB?.[tripNumber];
+        if (trip && statusLabel) trip.status = statusLabel;
+
         if (typeof isApiAvailable === 'function' && isApiAvailable()) {
             try {
-                const trip = await advancePodStage(tripNumber, stage);
-                if (typeof mergeTripIntoLocalDb === 'function') mergeTripIntoLocalDb(trip);
-                const pod = window.podDB?.find(p => p.trip === tripNumber);
-                if (pod) {
-                    if (stage === 'collected') { pod.collected = true; pod.collectedOnTime = true; pod.collectedDate = new Date().toISOString().slice(0, 16).replace('T', ' '); }
-                    if (stage === 'scanned') pod.scanned = true;
-                    if (stage === 'uploaded') pod.uploaded = true;
-                    if (stage === 'sent_to_invoicing') pod.sentToInvoicing = true;
-                }
-                if (typeof logAuditEvent === 'function') logAuditEvent(`POD ${labels[stage]}: ${tripNumber}`, tripNumber, 'pod', stage);
-                if (typeof showToast === 'function') showToast(`POD ${labels[stage]} via API`, 'success');
-                if (window.currentPage === 'pod-management' && typeof refreshPODTable === 'function') refreshPODTable();
-                return true;
+                const apiTrip = await advancePodStage(tripNumber, stage);
+                if (typeof mergeTripIntoLocalDb === 'function') mergeTripIntoLocalDb(apiTrip);
             } catch (e) {
-                if (typeof showToast === 'function') showToast(e.message, 'warning');
-                return false;
+                if (typeof showToast === 'function') showToast(`Saved locally. API: ${e.message}`, 'warning');
             }
         }
-        const pod = window.podDB?.find(p => p.trip === tripNumber);
-        if (pod) {
-            if (stage === 'collected') { pod.collected = true; pod.collectedOnTime = true; }
-            if (stage === 'scanned') pod.scanned = true;
-            if (stage === 'uploaded') pod.uploaded = true;
-            if (stage === 'sent_to_invoicing') pod.sentToInvoicing = true;
-        }
-        if (typeof showToast === 'function') showToast(`POD ${labels[stage]} (local)`, 'success');
+        if (typeof logAuditEvent === 'function') logAuditEvent(`POD ${labels[stage]}: ${tripNumber}`, tripNumber, 'pod', statusLabel || stage);
+        if (typeof showToast === 'function') showToast(`POD ${labels[stage]} saved`, 'success');
         if (window.currentPage === 'pod-management' && typeof refreshPODTable === 'function') refreshPODTable();
         return true;
     };

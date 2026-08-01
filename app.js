@@ -819,8 +819,10 @@ const areaStatusesDB = [
       statusesSB: ['Gov List Upload', 'Exit Processing'],
       statusesBorderNB: ['Arrived', 'BN Process', 'Gov List', 'Clearance Complete'],
       statusesBorderSB: ['Gov List Uploaded', 'Seal Verification', 'Exit Complete'], active: true },
-    { id: 'AS-007', area: 'Likasi', isOffloadingPoint: true, statusesNB: ['In Transit', 'Offloading', 'Offloading Complete'], statusesSB: [], statusesBorderNB: [], statusesBorderSB: [], active: true }
+    { id: 'AS-007', area: 'Likasi', isOffloadingPoint: true, statusesNB: ['In Transit', 'Offloading', 'Offloading Complete', 'Awaiting POD'], statusesSB: [], statusesBorderNB: [], statusesBorderSB: [], active: true }
 ];
+
+window.areaStatusesDB = areaStatusesDB;
 
 const SB_EXIT_BORDERS = ['Kasumbalesa', 'Sakania', 'Mokambo'];
 const CLEARING_AGENTS = ['Jean Kalenga', 'Marie Mwamba', 'Ruth Mwansa', 'Inspector Kabwe', 'David Mukendi'];
@@ -1620,6 +1622,8 @@ const podDB = [
     { trip:'TR-1075', truck:'ZAM-4720', driver:'Peter Mwansa', area:'Likasi', offloadingPoint:'Likasi Mine', owner:'Copper Haul', collected:true, collectedOnTime:true, collectedDate:'2026-07-22 10:00', hoursToCollect:24, scanned:true, scannedDate:'2026-07-22 13:00', scannedBy:'Agent Mwila', uploaded:false, uploadedDate:null, sentToInvoicing:false, sentDate:null, kpi:'orange' },
     { trip:'TR-1080', truck:'ZAM-4733', driver:'Ruth Mwansa', area:'Kasumbalesa', offloadingPoint:'KCC Mine', owner:'Mine Trans', collected:false, collectedOnTime:false, collectedDate:null, hoursToCollect:null, scanned:false, scannedDate:null, scannedBy:null, uploaded:false, uploadedDate:null, sentToInvoicing:false, sentDate:null, kpi:'red', overdue:true }
 ];
+
+window.podDB = podDB;
 
 const borderPerformanceData = {
     NB: {
@@ -4062,10 +4066,10 @@ function renderPODTableRows(items) {
             <td><span class="status-badge ${p.kpi}"><span class="dot"></span> ${p.kpi === 'green' ? 'On Track' : p.kpi === 'orange' ? 'Priority' : 'Overdue'}</span></td>
             <td>
                 ${canEditInModule('pod-management', p.area) ? `<button class="btn btn-primary btn-sm" onclick="openCommentModal('${p.trip}', 'pod')">💬</button>` : ''}
-                ${canEditInModule('pod-management', p.area) && !p.collected ? `<button class="btn btn-outline btn-sm" onclick="wirePodStageAction('${p.trip}','collected')">📋 Collect</button>` : ''}
-                ${canEditInModule('pod-management', p.area) && p.collected && !p.scanned ? `<button class="btn btn-outline btn-sm" onclick="wirePodStageAction('${p.trip}','scanned')">🔍 Scan</button>` : ''}
-                ${canEditInModule('pod-management', p.area) && p.scanned && !p.uploaded ? `<button class="btn btn-outline btn-sm" onclick="wirePodStageAction('${p.trip}','uploaded')">📤 Upload</button>` : ''}
-                ${canEditInModule('pod-management', p.area) && p.uploaded && !p.sentToInvoicing ? `<button class="btn btn-outline btn-sm" onclick="wirePodStageAction('${p.trip}','sent_to_invoicing')">💰 Invoice</button>` : ''}
+                ${canEditInModule('pod-management', p.area) && !p.collected ? `<button class="btn btn-outline btn-sm" onclick="openPodActionModal('${p.trip}','collected')">📋 Collect</button>` : ''}
+                ${canEditInModule('pod-management', p.area) && p.collected && !p.scanned ? `<button class="btn btn-outline btn-sm" onclick="openPodActionModal('${p.trip}','scanned')">🔍 Scan</button>` : ''}
+                ${canEditInModule('pod-management', p.area) && p.scanned && !p.uploaded ? `<button class="btn btn-outline btn-sm" onclick="openPodActionModal('${p.trip}','uploaded')">📤 Upload</button>` : ''}
+                ${canEditInModule('pod-management', p.area) && p.uploaded && !p.sentToInvoicing ? `<button class="btn btn-outline btn-sm" onclick="openPodActionModal('${p.trip}','sent_to_invoicing')">💰 Invoice</button>` : ''}
             </td>
         </tr>
     `).join('');
@@ -7670,6 +7674,7 @@ function validateFollowUpDate() {
 }
 
 let currentCommentStatusContext = null;
+let currentPodPendingStage = null;
 let currentCommentAssetId = null;
 
 function getModuleIdFromStatusContext(ctx) {
@@ -7680,9 +7685,14 @@ function getModuleIdFromStatusContext(ctx) {
     return map[ctx] || getPageModule(currentPage);
 }
 
-function openCommentModal(tripNumber, statusContext) {
+function openPodActionModal(tripNumber, stage) {
+    openCommentModal(tripNumber, 'pod', stage);
+}
+
+function openCommentModal(tripNumber, statusContext, podStage) {
     currentCommentAssetId = null;
     currentCommentTrip = tripNumber;
+    currentPodPendingStage = podStage || null;
     const trip = tripsDB[tripNumber] || { tripNumber: tripNumber, truck: 'Unknown', driver: 'Unknown', kpi: 'green', direction: 'NB' };
 
     const ctx = statusContext || inferStatusContextFromPage(currentPage) ||
@@ -7736,6 +7746,36 @@ function openCommentModal(tripNumber, statusContext) {
         statusSelect.innerHTML = '<option value="">No status change</option>';
     }
 
+    if (currentPodPendingStage) {
+        const podTitles = {
+            collected: '📋 POD Collection',
+            scanned: '🔍 POD Scan',
+            uploaded: '📤 POD Upload',
+            sent_to_invoicing: '💰 Send to Invoicing'
+        };
+        const stageToStatus = {
+            collected: 'Collected On-Time',
+            scanned: 'Scanned',
+            uploaded: 'Uploaded',
+            sent_to_invoicing: 'Sent to Invoicing'
+        };
+        document.getElementById('commentModalTitle').textContent = `${podTitles[currentPodPendingStage] || 'POD'} — ${trip.tripNumber}`;
+        if (statusSelect && stageToStatus[currentPodPendingStage]) {
+            statusSelect.value = stageToStatus[currentPodPendingStage];
+        }
+        document.getElementById('statusDate').value = new Date().toISOString().slice(0, 16);
+        const req = document.getElementById('statusDateRequired');
+        if (req) req.style.display = 'inline';
+        const fileGroup = document.getElementById('fileUploadArea')?.closest('.form-group');
+        if (fileGroup) fileGroup.style.display = (currentPodPendingStage === 'uploaded' || currentPodPendingStage === 'scanned') ? '' : 'none';
+    } else {
+        document.getElementById('commentModalTitle').textContent = `💬 Add Comment - ${trip.tripNumber}`;
+        const req = document.getElementById('statusDateRequired');
+        if (req) req.style.display = 'none';
+        const fileGroup = document.getElementById('fileUploadArea')?.closest('.form-group');
+        if (fileGroup) fileGroup.style.display = '';
+    }
+
     const sbKanyakaSection = document.getElementById('sbKanyakaExitSection');
     const isSbKanyaka = trip.direction === 'SB' && (trip.workflow?.kanyaka === 'current' || trip.workflow?.dispatch === 'completed' || trip.area === 'Kanyaka' || (trip.status && trip.status.toLowerCase().includes('kanyaka')));
     if (sbKanyakaSection) {
@@ -7748,8 +7788,6 @@ function openCommentModal(tripNumber, statusContext) {
         }
     }
     toggleStatusDateField();
-
-    document.getElementById('commentModalTitle').textContent = `💬 Add Comment - ${trip.tripNumber}`;
     openModal('commentModal');
 }
 
@@ -7825,7 +7863,17 @@ function applyTripStatusUpdate(trip, statusUpdate, commentText, statusDate) {
     if (validStatuses.includes(statusUpdate)) {
         if (ctx === 'pod') {
             const pod = podDB.find(p => p.trip === currentCommentTrip);
-            if (pod) pod.podStatus = statusUpdate;
+            if (pod) {
+                pod.podStatus = statusUpdate;
+                if (/collected/i.test(statusUpdate)) {
+                    pod.collected = true;
+                    pod.collectedOnTime = !/late/i.test(statusUpdate);
+                    if (statusDate) pod.collectedDate = statusDate.replace('T', ' ').slice(0, 16);
+                }
+                if (/scanned/i.test(statusUpdate)) { pod.scanned = true; if (statusDate) pod.scannedDate = statusDate.replace('T', ' ').slice(0, 16); }
+                if (/uploaded/i.test(statusUpdate)) { pod.uploaded = true; if (statusDate) pod.uploadedDate = statusDate.replace('T', ' ').slice(0, 16); }
+                if (/invoicing/i.test(statusUpdate)) { pod.sentToInvoicing = true; if (statusDate) pod.sentDate = statusDate.replace('T', ' ').slice(0, 16); }
+            }
             trip.status = statusUpdate;
             logAuditEvent(`POD status: ${statusUpdate}`, currentCommentTrip, 'trip', commentText);
         } else if (ctx === 'nb' || ctx === 'sb' || ctx === 'border') {
@@ -7903,9 +7951,44 @@ function removeFile(index) {
 
 function submitComment() {
     const statusUpdate = document.getElementById('modalStatusUpdate').value;
+    const statusDate = document.getElementById('statusDate').value;
     const commentText = selectedCommentType === 'normal'
         ? document.getElementById('normalCommentText').value.trim()
         : document.getElementById('problemDescription').value.trim();
+
+    if (currentPodPendingStage && currentCommentStatusContext === 'pod') {
+        if (!statusUpdate) {
+            document.getElementById('validationMessage').textContent = '⚠️ Please select a POD status.';
+            document.getElementById('validationMessage').classList.add('show');
+            return;
+        }
+        if (!statusDate) {
+            document.getElementById('validationMessage').textContent = '⚠️ Please enter the status date and time.';
+            document.getElementById('validationMessage').classList.add('show');
+            return;
+        }
+        if (currentPodPendingStage === 'uploaded' && !uploadedFiles.length && !commentText) {
+            document.getElementById('validationMessage').textContent = '⚠️ Please upload the POD document or add a comment.';
+            document.getElementById('validationMessage').classList.add('show');
+            return;
+        }
+        const trip = tripsDB[currentCommentTrip];
+        if (trip) applyTripStatusUpdate(trip, statusUpdate, commentText || `POD ${currentPodPendingStage}`, statusDate);
+        if (commentText) recordTripAreaUpdate(currentCommentTrip, trip?.area || 'POD', statusUpdate, commentText, statusDate);
+        const stage = currentPodPendingStage;
+        currentPodPendingStage = null;
+        const finish = () => {
+            document.getElementById('validationMessage').classList.remove('show');
+            const fileMsg = uploadedFiles.length > 0 ? `\n📁 ${uploadedFiles.length} file(s) attached` : '';
+            showToast(`✅ POD action saved for ${currentCommentTrip}!${fileMsg}`, 'success');
+            closeModal('commentModal');
+            refreshPageAfterComment();
+        };
+        if (typeof completePodStageLocal === 'function') {
+            Promise.resolve(completePodStageLocal(currentCommentTrip, stage, statusUpdate, statusDate)).then(finish);
+        } else finish();
+        return;
+    }
 
     if (currentCommentAssetId) {
         if (!commentText && !statusUpdate) {
@@ -7930,8 +8013,8 @@ function submitComment() {
     }
 
     if(selectedCommentType==='normal'){
-        if(!commentText){
-            document.getElementById('validationMessage').textContent = '⚠️ Please enter a comment.';
+        if(!commentText && !statusUpdate){
+            document.getElementById('validationMessage').textContent = '⚠️ Please enter a comment or select a status update.';
             document.getElementById('validationMessage').classList.add('show');
             return;
         }
@@ -7952,13 +8035,13 @@ function submitComment() {
             return;
         }
     }
-    const statusDate = document.getElementById('statusDate').value;
+    const statusDateVal = document.getElementById('statusDate').value;
     const trip = tripsDB[currentCommentTrip];
 
     if (trip?.direction === 'SB') {
         const isExitAction = statusUpdate && (statusUpdate.includes('Border Exit') || statusUpdate.includes('Exit'));
         const isKanyakaStage = trip.workflow?.kanyaka === 'current' || trip.area === 'Kanyaka' || (trip.status && trip.status.toLowerCase().includes('kanyaka'));
-        if ((isExitAction || statusDate) && isKanyakaStage) {
+        if ((isExitAction || statusDateVal) && isKanyakaStage) {
             const border = document.getElementById('sbDriverExitBorder')?.value;
             const agent = document.getElementById('sbClearingAgent')?.value;
             if (!border) {
@@ -7974,32 +8057,32 @@ function submitComment() {
             trip.driverExitBorder = border;
             trip.clearingAgent = agent;
             trip.exitBorder = border;
-            if (statusDate) trip.exitDate = statusDate;
+            if (statusDateVal) trip.exitDate = statusDateVal;
             logAuditEvent(`SB Kanyaka exit prep: border=${border}, agent=${agent}`, currentCommentTrip, 'trip');
         }
     }
 
     if (statusUpdate && trip) {
-        applyTripStatusUpdate(trip, statusUpdate, commentText, statusDate);
-        if (statusDate && trip) {
+        applyTripStatusUpdate(trip, statusUpdate, commentText, statusDateVal);
+        if (statusDateVal && trip) {
             if (!trip.workflowDates) trip.workflowDates = {};
             const steps = WORKFLOW_CONFIG[trip.direction] || WORKFLOW_CONFIG.NB;
             const matchStep = steps.find(s => s.label === statusUpdate);
             const currentKey = steps.map(s => s.key).find(k => trip.workflow && trip.workflow[k] === 'current');
             const keyToUse = matchStep?.key || currentKey;
-            if (keyToUse) trip.workflowDates[keyToUse] = statusDate;
+            if (keyToUse) trip.workflowDates[keyToUse] = statusDateVal;
         }
     } else if (!statusUpdate && commentText && trip) {
         const last = getTripAreaHistory(currentCommentTrip)[0];
         const preservedStatus = trip.areaStatus || last?.status || trip.status;
-        recordTripAreaUpdate(currentCommentTrip, trip.area, preservedStatus, commentText, statusDate || null);
-        if (statusDate && preservedStatus) {
+        recordTripAreaUpdate(currentCommentTrip, trip.area, preservedStatus, commentText, statusDateVal || null);
+        if (statusDateVal && preservedStatus) {
             if (!trip.workflowDates) trip.workflowDates = {};
             const steps = WORKFLOW_CONFIG[trip.direction] || WORKFLOW_CONFIG.NB;
             const matchStep = steps.find(s => s.label === preservedStatus);
             const currentKey = steps.map(s => s.key).find(k => trip.workflow && trip.workflow[k] === 'current');
             const keyToUse = matchStep?.key || currentKey;
-            if (keyToUse) trip.workflowDates[keyToUse] = statusDate;
+            if (keyToUse) trip.workflowDates[keyToUse] = statusDateVal;
         }
     }
     document.getElementById('validationMessage').classList.remove('show');
