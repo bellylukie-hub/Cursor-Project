@@ -3,6 +3,7 @@
 // ============================================
 let currentPage = 'dashboard';
 let currentCommentTrip = null;
+let currentCommentKpi = 'green';
 let selectedCommentType = 'normal';
 let uploadedFiles = [];
 let dashboardSearchTerm = '';
@@ -135,6 +136,20 @@ const KPI_STEP_TYPES = [
 
 /** Each border process with individual step KPI targets */
 const BORDER_PROCESS_DEFS = [
+    {
+        id: 'direct',
+        parentCategory: 'border-nb',
+        label: 'Kasumbalesa — Direct Process',
+        border: 'Kasumbalesa',
+        direction: 'NB',
+        pageId: 'kasumbalesa-direct',
+        configKey: 'kasumbalesa-direct',
+        steps: [
+            { key: 'arrival', name: 'Truck Arrival at Border', shortName: 'Arrival', defaultTarget: 4, transitionToNext: 2, kpiType: 'time' },
+            { key: 'direct-clearance', name: 'Direct Clearance', shortName: 'Direct Clearance', defaultTarget: 12, transitionToNext: 4, kpiType: 'completion' },
+            { key: 'driver-contact', name: 'Driver Contact Details', shortName: 'Driver Contact', defaultTarget: 4, kpiType: 'completion' }
+        ]
+    },
     {
         id: 'kbp',
         parentCategory: 'border-nb',
@@ -689,18 +704,135 @@ function getTripKpiSetting(trip) {
 
 function recalculateTripKpi(trip) {
     if (!trip) return;
+    const tripKey = trip.tripNumber || trip.trip;
+    const borderRow = typeof borderClearanceTrucks !== 'undefined'
+        ? borderClearanceTrucks.find(b => b.trip === tripKey)
+        : null;
+    if (borderRow && borderRow.hours != null) {
+        const targetH = parseInt(String(borderRow.target || '48'), 10) || 48;
+        trip.kpi = computeKpiLevel(borderRow.hours, { targetValue: targetH, warningPct: 75, enabled: true }).level;
+        return;
+    }
+    const pod = typeof podDB !== 'undefined' ? podDB.find(p => p.trip === tripKey) : null;
+    if (pod?.kpi && (trip.workflow?.pod === 'current' || currentPage === 'pod-management')) {
+        trip.kpi = typeof normalizeKpi === 'function' ? normalizeKpi(pod.kpi) : pod.kpi;
+        return;
+    }
     const setting = getTripKpiSetting(trip);
     if (!setting) return;
-    let elapsed = 0;
-    if (setting.unit === 'days') {
-        elapsed = Number(trip.daysInDRC) || 0;
-    } else if (trip.lastUpdatedAt) {
-        const last = new Date(String(trip.lastUpdatedAt).replace(' ', 'T'));
-        elapsed = !isNaN(last.getTime()) ? (Date.now() - last.getTime()) / 3600000 : (Number(trip.daysInDRC) || 0) * 24;
-    } else {
-        elapsed = (Number(trip.daysInDRC) || 0) * 24;
-    }
+    const elapsed = setting.unit === 'days'
+        ? (Number(trip.daysInDRC) || 0)
+        : (Number(trip.daysInDRC) || 0) * 24;
     trip.kpi = computeKpiLevel(elapsed, setting).level;
+}
+
+function getBorderRowForTrip(tripNumber) {
+    return (typeof borderClearanceTrucks !== 'undefined')
+        ? borderClearanceTrucks.find(b => b.trip === tripNumber)
+        : null;
+}
+
+function resolveCommentContextKpi(tripNumber, statusContext) {
+    const borderRow = getBorderRowForTrip(tripNumber);
+    if ((statusContext === 'border' || borderRow) && borderRow?.kpi) {
+        return typeof normalizeKpi === 'function' ? normalizeKpi(borderRow.kpi) : borderRow.kpi;
+    }
+    if (statusContext === 'pod' && typeof podDB !== 'undefined') {
+        const pod = podDB.find(p => p.trip === tripNumber);
+        if (pod?.kpi) return typeof normalizeKpi === 'function' ? normalizeKpi(pod.kpi) : pod.kpi;
+    }
+    const trip = tripsDB[tripNumber];
+    if (trip?.kpi) return typeof normalizeKpi === 'function' ? normalizeKpi(trip.kpi) : trip.kpi;
+    return 'green';
+}
+
+function kpiRequiresStructuredComment(kpi) {
+    const k = typeof normalizeKpi === 'function' ? normalizeKpi(kpi) : kpi;
+    return k === 'orange' || k === 'red';
+}
+
+function renderModalKpiBadge(kpi) {
+    const k = typeof normalizeKpi === 'function' ? normalizeKpi(kpi) : kpi;
+    const label = typeof getKpiLabel === 'function' ? getKpiLabel(k) : getKPILabel(k);
+    return `<span class="status-badge ${k}"><span class="dot"></span> ${label}</span>`;
+}
+
+function applyCommentModalKpiStyling(kpi) {
+    const modal = document.querySelector('#commentModal .modal');
+    const k = typeof normalizeKpi === 'function' ? normalizeKpi(kpi) : kpi;
+    if (modal) {
+        modal.classList.remove('comment-modal-kpi-green', 'comment-modal-kpi-orange', 'comment-modal-kpi-red');
+        modal.classList.add(`comment-modal-kpi-${k}`);
+    }
+    const normalOpt = document.querySelector('.comment-type-option[data-type="normal"]');
+    const structOpt = document.querySelector('.comment-type-option[data-type="structured"]');
+    const selector = document.getElementById('commentTypeSelector');
+    if (kpiRequiresStructuredComment(k)) {
+        if (normalOpt) { normalOpt.style.display = 'none'; normalOpt.classList.remove('selected'); }
+        if (structOpt) structOpt.style.display = '';
+        if (selector) selector.classList.add('requires-structured');
+        selectedCommentType = 'structured';
+    } else {
+        if (normalOpt) normalOpt.style.display = '';
+        if (structOpt) structOpt.style.display = '';
+        if (selector) selector.classList.remove('requires-structured');
+        if (selectedCommentType === 'structured' && k === 'green') selectedCommentType = 'normal';
+    }
+}
+
+const KASUMBALESA_NB_PROCESSES = ['Direct', 'KBP', 'Whisky'];
+
+function normalizeKasumbalesaProcess(proc) {
+    if (!proc) return 'KBP';
+    if (/direct/i.test(proc)) return 'Direct';
+    if (/whisky/i.test(proc)) return 'Whisky';
+    return 'KBP';
+}
+
+function getKasumbalesaViewPage(process) {
+    const p = normalizeKasumbalesaProcess(process);
+    if (p === 'Whisky') return 'kasumbalesa-whisky';
+    if (p === 'Direct') return 'kasumbalesa-direct';
+    return 'kasumbalesa-detail';
+}
+
+function renderKasumbalesaProcessBadgeHtml(process) {
+    const p = normalizeKasumbalesaProcess(process);
+    const cls = p === 'Whisky' ? 'whisky' : p === 'Direct' ? 'direct' : 'kbp';
+    return `<span class="status-badge ${cls}">📍 ${p}</span>`;
+}
+
+function setTripKasumbalesaProcess(tripNumber, process) {
+    const trip = tripsDB[tripNumber];
+    if (!trip) return;
+    const normalized = normalizeKasumbalesaProcess(process);
+    trip.borderProcess = normalized;
+    const borderRow = getBorderRowForTrip(tripNumber);
+    if (borderRow) {
+        borderRow.process = normalized;
+        borderRow.processHtml = renderKasumbalesaProcessBadgeHtml(normalized);
+        borderRow.viewPage = getKasumbalesaViewPage(normalized);
+    }
+    logAuditEvent(`Kasumbalesa process: ${normalized}`, tripNumber, 'trip');
+}
+
+function onKasumbalesaProcessChange(process) {
+    if (!currentCommentTrip) return;
+    setTripKasumbalesaProcess(currentCommentTrip, process);
+    showToast(`Kasumbalesa border process set to ${normalizeKasumbalesaProcess(process)}`, 'success');
+}
+
+function showKasumbalesaProcessInModal(trip, statusContext) {
+    const section = document.getElementById('kasumbalesaProcessSection');
+    if (!section) return;
+    const isKasumbalesaNb = trip && trip.direction === 'NB' &&
+        (statusContext === 'border' || statusContext === 'nb') &&
+        (trip.entryBorder === 'Kasumbalesa' || trip.area === 'Kasumbalesa');
+    section.style.display = isKasumbalesaNb ? 'block' : 'none';
+    if (isKasumbalesaNb) {
+        const sel = document.getElementById('kasumbalesaProcessSelect');
+        if (sel) sel.value = normalizeKasumbalesaProcess(trip.borderProcess);
+    }
 }
 
 function recalculateAllTripKpis() {
@@ -757,6 +889,7 @@ function applyKpiSettingsToRuntime() {
     const perfMap = {
         'Kasumbalesa KBP': 'kbp',
         'Kasumbalesa Whisky': 'whisky',
+        'Kasumbalesa Direct': 'direct',
         'Sakania': 'sakania',
         'Mokambo': 'mokambo',
         'Kasumbalesa Exit': 'sb-kasumbalesa',
@@ -1361,6 +1494,7 @@ const PAGE_MODULE_MAP = {
     kanyaka: 'area-browser',
     kolwezi: 'area-browser',
     'kasumbalesa-detail': 'border-clearance',
+    'kasumbalesa-direct': 'border-clearance',
     'kasumbalesa-whisky': 'border-clearance',
     'sakania-nb': 'border-clearance',
     'mokambo-nb': 'border-clearance',
@@ -1615,6 +1749,14 @@ const KBP_STEP_TEMPLATE = [
 ];
 
 const nbBorderConfigs = {
+    'kasumbalesa-direct': {
+        pageId: 'kasumbalesa-direct', tabPrefix: 'direct', icon: '⚡', processName: 'Direct Process', processId: 'direct',
+        borderName: 'Kasumbalesa', locationPrefix: 'Direct', tripId: 'NB-2024-042',
+        trip: 'NB-2024-042', truck: 'RST890DRC', trailer: 'TRL-112', driver: 'Alice Bwalya', owner: 'Transport Co D',
+        kpi: 'green', kpiLabel: '🟢 ON TRACK', timeValue: '18:00', timePct: 38, targetHours: 48,
+        totalTime: '18 HRS', timeStatus: '🟢 UNDER TIME',
+        completedSteps: 2, finalApproval: false
+    },
     'kasumbalesa-kbp': {
         pageId: 'kasumbalesa-detail', tabPrefix: 'kbp', icon: '📍', processName: 'KBP Process', processId: 'kbp',
         borderName: 'Kasumbalesa', locationPrefix: 'KBP', tripId: 'NB-2024-001',
@@ -1675,7 +1817,7 @@ const borderClearanceTrucks = [
     { trip: 'NB-2024-008', truck: 'JKL012DRC', driver: 'Peter Mwansa', direction: 'NB', border: 'Kasumbalesa', processHtml: '<span class="status-badge whisky">📍 Whisky</span>', process: 'Whisky', status: 'TR8 Issued', hours: 52, target: '72h', kpi: 'orange', kpiLabel: 'Priority', viewPage: 'kasumbalesa-whisky', commentBtn: 'primary' },
     { trip: 'NB-2024-015', truck: 'XYZ789DRC', driver: 'Sarah Smith', direction: 'NB', border: 'Sakania', processHtml: '<span class="status-badge blue">BN Process</span>', process: 'BN Process', status: 'Cross-checking', hours: 40, target: '48h', kpi: 'orange', kpiLabel: 'Priority', viewPage: 'sakania-nb', commentBtn: 'primary' },
     { trip: 'NB-2024-022', truck: 'GHI789DRC', driver: 'Jean Pierre', direction: 'NB', border: 'Mokambo', processHtml: '<span class="status-badge blue">BN Process</span>', process: 'BN Process', status: 'Red Stamping', hours: 78, target: '72h', kpi: 'red', kpiLabel: 'Overdue', viewPage: 'mokambo-nb', commentBtn: 'danger' },
-    { trip: 'NB-2024-042', truck: 'RST890DRC', driver: 'Alice Bwalya', direction: 'NB', border: 'Kasumbalesa', processHtml: '<span class="status-badge kbp">📍 KBP</span>', process: 'KBP', status: 'Border Clearance', hours: 32, target: '48h', kpi: 'green', kpiLabel: 'On Track', viewPage: 'kasumbalesa-detail', commentBtn: 'primary' },
+    { trip: 'NB-2024-042', truck: 'RST890DRC', driver: 'Alice Bwalya', direction: 'NB', border: 'Kasumbalesa', processHtml: '<span class="status-badge direct">⚡ Direct</span>', process: 'Direct', status: 'Direct Clearance', hours: 18, target: '48h', kpi: 'green', kpiLabel: 'On Track', viewPage: 'kasumbalesa-direct', commentBtn: 'primary' },
     { trip: 'NB-2024-047', truck: 'PQR852DRC', driver: 'Emma Zulu', direction: 'NB', border: 'Sakania', processHtml: '<span class="status-badge blue">BN Process</span>', process: 'BN Process', status: 'Document Submission', hours: 16, target: '48h', kpi: 'green', kpiLabel: 'On Track', viewPage: 'sakania-nb', commentBtn: 'primary' },
     { trip: 'SB-2024-003', truck: 'DEF456DRC', driver: 'Mike Johnson', direction: 'SB', border: 'Kasumbalesa', processHtml: '<span class="status-badge green">SB Exit</span>', process: 'SB Exit', status: 'Seal Verification', hours: 24, target: '48h', kpi: 'green', kpiLabel: 'On Track', viewPage: 'sb-kasumbalesa', commentBtn: 'primary' },
     { trip: 'SB-2024-005', truck: 'MNO345DRC', driver: 'David Mukendi', direction: 'SB', border: 'Sakania', processHtml: '<span class="status-badge orange">SB Exit</span>', process: 'SB Exit', status: 'Customs Declaration', hours: 44, target: '48h', kpi: 'orange', kpiLabel: 'Priority', viewPage: 'sb-sakania', commentBtn: 'primary' },
@@ -1753,7 +1895,7 @@ const tripsDB = {
     'SB-2024-003': { tripNumber:'SB-2024-003',truck:'DEF456DRC',driver:'Mike Johnson',direction:'SB',area:'Kanyaka',owner:'Transport Co A',loadingPoint:'Kanyaka',exitBorder:'Kasumbalesa',status:'Loading',daysInDRC:3,kpi:'green',workflow:{loadingProcess:'current',documents:'pending',seal:'pending',escort:'pending',dispatch:'pending',kanyaka:'pending',border:'pending'},workflowDates:{loadingProcess:'2026-07-23T11:00'}},
     'SB-2024-005': { tripNumber:'SB-2024-005',truck:'MNO345DRC',driver:'David Mukendi',direction:'SB',area:'Kanyaka',owner:'Transport Co B',loadingPoint:'Kanyaka Mine',exitBorder:'Sakania',status:'Loading',daysInDRC:2,kpi:'orange',workflow:{loadingProcess:'current',documents:'pending',seal:'pending',escort:'pending',dispatch:'pending',kanyaka:'pending',border:'pending'}},
     'SB-2024-012': { tripNumber:'SB-2024-012',truck:'PQR678DRC',driver:'Joseph Kabwe',direction:'SB',area:'Kolwezi',owner:'Transport Co C',loadingPoint:'Kolwezi Mine',exitBorder:'Mokambo',status:'Escort Arrangement',daysInDRC:5,kpi:'green',workflow:{loadingProcess:'completed',documents:'completed',seal:'completed',escort:'current',dispatch:'pending',kanyaka:'pending',border:'pending'}},
-    'NB-2024-042': { tripNumber:'NB-2024-042',truck:'RST890DRC',driver:'Alice Bwalya',direction:'NB',area:'Kasumbalesa',owner:'Transport Co D',entryBorder:'Kasumbalesa',offloadingPoint:'Kolwezi Mine',status:'Border Clearance',daysInDRC:4,kpi:'green',addedToday:true,workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}},
+    'NB-2024-042': { tripNumber:'NB-2024-042',truck:'RST890DRC',driver:'Alice Bwalya',direction:'NB',area:'Kasumbalesa',owner:'Transport Co D',entryBorder:'Kasumbalesa',offloadingPoint:'Kolwezi Mine',status:'Direct Clearance',daysInDRC:4,kpi:'green',borderProcess:'Direct',addedToday:true,workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}},
     'NB-2024-043': { tripNumber:'NB-2024-043',truck:'UVW123DRC',driver:'Paul Chanda',direction:'NB',area:'Kolwezi',owner:'Transport Co B',entryBorder:'Sakania',offloadingPoint:'KCC Mine',status:'In Transit',daysInDRC:6,kpi:'green',addedToday:true,workflow:{border:'completed',kanyaka:'completed',offloading:'pending',pod:'pending'}},
     'NB-2024-044': { tripNumber:'NB-2024-044',truck:'XYZ456DRC',driver:'Grace Mutale',direction:'NB',area:'Lubumbashi',owner:'Transport Co A',entryBorder:'Mokambo',offloadingPoint:'Lubumbashi',status:'Offloading',daysInDRC:11,kpi:'orange',workflow:{border:'completed',kanyaka:'completed',offloading:'current',pod:'pending'}},
     'NB-2024-045': { tripNumber:'NB-2024-045',truck:'ABC789DRC',driver:'Henry Sampa',direction:'NB',area:'Kanyaka',owner:'Transport Co C',entryBorder:'Kasumbalesa',offloadingPoint:'Kanyaka Depot',status:'POD Collection',daysInDRC:9,kpi:'orange',workflow:{border:'completed',kanyaka:'completed',offloading:'completed',pod:'current'}},
@@ -1869,6 +2011,7 @@ function navigateTo(page) {
         case 'sb-operations': renderSBOperations(ca); break;
         case 'border-clearance': renderBorderClearanceOverview(ca); break;
         case 'kasumbalesa-detail': renderNBKBPBorderDetail(ca, nbBorderConfigs['kasumbalesa-kbp']); break;
+        case 'kasumbalesa-direct': renderNBKBPBorderDetail(ca, nbBorderConfigs['kasumbalesa-direct']); break;
         case 'kasumbalesa-whisky': renderKasumbalesaWhisky(ca); break;
         case 'sakania-nb': renderNBKBPBorderDetail(ca, nbBorderConfigs['sakania-nb']); break;
         case 'mokambo-nb': renderNBKBPBorderDetail(ca, nbBorderConfigs['mokambo-nb']); break;
@@ -1971,10 +2114,7 @@ function getTripViewPage(trip) {
     if (!trip) return null;
     if (trip.direction === 'NB') {
         if (trip.entryBorder === 'Kasumbalesa') {
-            if (trip.borderProcess === 'Whisky' || (trip.status && trip.status.includes('Whisky'))) {
-                return 'kasumbalesa-whisky';
-            }
-            return 'kasumbalesa-detail';
+            return getKasumbalesaViewPage(trip.borderProcess || trip.status);
         }
         if (trip.entryBorder === 'Sakania') return 'sakania-nb';
         if (trip.entryBorder === 'Mokambo') return 'mokambo-nb';
@@ -3564,12 +3704,14 @@ function renderBorderTableRows(rows) {
 function filterBorderClearanceTrucks() {
     const direction = document.getElementById('borderDirectionFilter')?.value || 'all';
     const border = document.getElementById('borderNameFilter')?.value || 'all';
+    const process = document.getElementById('borderProcessFilter')?.value || 'all';
     const kpi = document.getElementById('borderKPIFilter')?.value || 'all';
     const search = (document.getElementById('borderSearchInput')?.value || '').toLowerCase();
 
     let rows = [...borderClearanceTrucks];
     if (direction !== 'all') rows = rows.filter(t => t.direction === direction);
     if (border !== 'all') rows = rows.filter(t => t.border === border);
+    if (process !== 'all') rows = rows.filter(t => normalizeKasumbalesaProcess(t.process) === process);
     if (kpi !== 'all') rows = rows.filter(t => t.kpi === kpi);
     if (search) {
         rows = rows.filter(t =>
@@ -3609,10 +3751,12 @@ function refreshBorderTable() {
 function clearBorderFilters() {
     const direction = document.getElementById('borderDirectionFilter');
     const border = document.getElementById('borderNameFilter');
+    const process = document.getElementById('borderProcessFilter');
     const kpi = document.getElementById('borderKPIFilter');
     const search = document.getElementById('borderSearchInput');
     if (direction) direction.value = 'all';
     if (border) border.value = 'all';
+    if (process) process.value = 'all';
     if (kpi) kpi.value = 'all';
     if (search) search.value = '';
     refreshBorderTable();
@@ -3649,6 +3793,7 @@ function renderBorderClearanceOverview(container) {
         <div class="filters-bar">
             <div class="filter-group"><label>Direction:</label><select id="borderDirectionFilter" onchange="refreshBorderTable()"><option value="all">All</option><option value="NB">NB</option><option value="SB">SB</option></select></div>
             <div class="filter-group"><label>Border:</label><select id="borderNameFilter" onchange="refreshBorderTable()"><option value="all">All</option><option>Kasumbalesa</option><option>Sakania</option><option>Mokambo</option></select></div>
+            <div class="filter-group"><label>Kasumbalesa Process:</label><select id="borderProcessFilter" onchange="refreshBorderTable()"><option value="all">All</option>${KASUMBALESA_NB_PROCESSES.map(p => `<option value="${p}">${p}</option>`).join('')}</select></div>
             <div class="filter-group"><label>KPI:</label><select id="borderKPIFilter" onchange="refreshBorderTable()"><option value="all">All</option><option value="green">🟢 On Track</option><option value="orange">🟠 Priority</option><option value="red">🔴 Overdue</option></select></div>
             <div class="search-filter"><span>🔍</span><input type="text" id="borderSearchInput" placeholder="Search by Trip#, Truck, Driver, Border, Status..." onkeyup="refreshBorderTable()"></div>
             <button class="btn btn-outline btn-sm" onclick="clearBorderFilters()">Clear</button>
@@ -3781,6 +3926,7 @@ function renderNBKBPBorderDetail(container, config) {
                 <div class="truck-info-item"><span class="truck-info-label">Driver</span><span class="truck-info-value">${renderDriverLink(config.driver, config.tripId || config.trip)}</span></div>
                 <div class="truck-info-item"><span class="truck-info-label">Direction</span><span class="truck-info-value">🔼 North Bound</span></div>
                 <div class="truck-info-item"><span class="truck-info-label">Owner</span><span class="truck-info-value">${config.owner}</span></div>
+                ${config.borderName === 'Kasumbalesa' ? `<div class="truck-info-item"><span class="truck-info-label">Border Process</span><span class="truck-info-value">${renderKasumbalesaProcessBadgeHtml(config.processName?.replace(' Process', '') || 'KBP')}</span></div>` : ''}
             </div>
             <div style="display:flex;align-items:center;gap:15px;">
                 <span class="kpi-badge ${config.kpi}">${config.kpiLabel}</span>
@@ -7890,6 +8036,13 @@ function openCommentModal(tripNumber, statusContext, podStage) {
     currentCommentTrip = tripNumber;
     currentPodPendingStage = podStage || null;
     const trip = tripsDB[tripNumber] || { tripNumber: tripNumber, truck: 'Unknown', driver: 'Unknown', kpi: 'green', direction: 'NB' };
+    const borderRow = getBorderRowForTrip(tripNumber);
+    if (borderRow) {
+        trip.truck = trip.truck || borderRow.truck;
+        trip.driver = trip.driver || borderRow.driver;
+        trip.direction = trip.direction || borderRow.direction;
+        if (!tripsDB[tripNumber]) tripsDB[tripNumber] = trip;
+    }
 
     const ctx = statusContext || inferStatusContextFromPage(currentPage) ||
         (trip.direction === 'SB' ? 'sb' : trip.direction === 'NB' ? 'nb' : null);
@@ -7904,9 +8057,11 @@ function openCommentModal(tripNumber, statusContext, podStage) {
     document.getElementById('modalTripDisplay').textContent = trip.tripNumber;
     document.getElementById('modalTruckDisplay').textContent = trip.truck;
     document.getElementById('modalDriverDisplay').textContent = trip.driver;
-    document.getElementById('modalKPIDisplay').innerHTML = `<span class="status-badge ${trip.kpi}">${getKPILabel(trip.kpi)}</span>`;
 
-    selectedCommentType = (trip.kpi==='orange'||trip.kpi==='red')?'structured':'normal';
+    currentCommentKpi = resolveCommentContextKpi(tripNumber, ctx);
+    document.getElementById('modalKPIDisplay').innerHTML = renderModalKpiBadge(currentCommentKpi);
+
+    selectedCommentType = kpiRequiresStructuredComment(currentCommentKpi) ? 'structured' : 'normal';
     document.getElementById('normalCommentText').value = '';
     document.getElementById('problemDescription').value = '';
     document.getElementById('personContacted').value = '';
@@ -7925,6 +8080,8 @@ function openCommentModal(tripNumber, statusContext, podStage) {
     const workflowEl = document.getElementById('workflowStatus');
     if (workflowEl) workflowEl.innerHTML = renderWorkflowStatus(trip);
 
+    applyCommentModalKpiStyling(currentCommentKpi);
+    showKasumbalesaProcessInModal(trip, ctx);
     updateCommentTypeUI();
 
     const now = new Date();
@@ -8096,32 +8253,46 @@ function refreshPageAfterComment() {
 }
 
 function selectCommentType(type, element) {
+    if (type === 'normal' && kpiRequiresStructuredComment(currentCommentKpi)) {
+        showToast('Priority and Overdue trips require a Problem Report comment.', 'warning');
+        return;
+    }
     selectedCommentType = type;
     updateCommentTypeUI();
 }
 
 function updateCommentTypeUI() {
-    document.querySelectorAll('.comment-type-option').forEach(opt=>opt.classList.remove('selected'));
+    document.querySelectorAll('.comment-type-option').forEach(opt => opt.classList.remove('selected'));
     const sel = document.querySelector(`[data-type="${selectedCommentType}"]`);
-    if(sel) sel.classList.add('selected');
+    if (sel) sel.classList.add('selected');
 
-    if(selectedCommentType==='normal'){
+    const kpi = typeof normalizeKpi === 'function' ? normalizeKpi(currentCommentKpi) : currentCommentKpi;
+    const modal = document.querySelector('#commentModal .modal');
+    if (modal) {
+        modal.classList.remove('comment-modal-kpi-green', 'comment-modal-kpi-orange', 'comment-modal-kpi-red');
+        modal.classList.add(`comment-modal-kpi-${kpi}`);
+    }
+
+    if (selectedCommentType === 'normal') {
         document.getElementById('normalCommentSection').classList.remove('hidden');
         document.getElementById('structuredCommentSection').classList.add('hidden');
     } else {
         document.getElementById('normalCommentSection').classList.add('hidden');
         document.getElementById('structuredCommentSection').classList.remove('hidden');
-        const trip = tripsDB[currentCommentTrip];
-        if(trip && trip.kpi==='red'){
-            document.getElementById('structuredCommentBox').classList.add('red');
-            document.getElementById('commentTitle').textContent = '🔴 Structured Problem Report (Required for Overdue)';
-            document.getElementById('commentTitle').classList.add('red');
-            document.getElementById('commentTitle').classList.remove('orange');
+        const box = document.getElementById('structuredCommentBox');
+        const title = document.getElementById('commentTitle');
+        if (kpi === 'red') {
+            box.classList.add('red');
+            box.classList.remove('orange');
+            title.textContent = '🔴 Structured Problem Report (Required — Overdue)';
+            title.classList.add('red');
+            title.classList.remove('orange');
         } else {
-            document.getElementById('structuredCommentBox').classList.remove('red');
-            document.getElementById('commentTitle').textContent = '🟠 Structured Problem Report (Required for Priority/Overdue)';
-            document.getElementById('commentTitle').classList.add('orange');
-            document.getElementById('commentTitle').classList.remove('red');
+            box.classList.remove('red');
+            box.classList.add('orange');
+            title.textContent = '🟠 Structured Problem Report (Required — Priority)';
+            title.classList.add('orange');
+            title.classList.remove('red');
         }
     }
 }
@@ -8208,8 +8379,15 @@ function submitComment() {
         return;
     }
 
-    if(selectedCommentType==='normal'){
-        if(!commentText && !statusUpdate){
+    if (selectedCommentType === 'normal') {
+        if (kpiRequiresStructuredComment(currentCommentKpi)) {
+            document.getElementById('validationMessage').textContent = '⚠️ Priority and Overdue trips require a Problem Report — not a normal comment.';
+            document.getElementById('validationMessage').classList.add('show');
+            selectedCommentType = 'structured';
+            updateCommentTypeUI();
+            return;
+        }
+        if (!commentText && !statusUpdate) {
             document.getElementById('validationMessage').textContent = '⚠️ Please enter a comment or select a status update.';
             document.getElementById('validationMessage').classList.add('show');
             return;
@@ -8259,6 +8437,10 @@ function submitComment() {
     }
 
     if (statusUpdate && trip) {
+        const kasSel = document.getElementById('kasumbalesaProcessSelect');
+        if (kasSel && document.getElementById('kasumbalesaProcessSection')?.style.display !== 'none') {
+            setTripKasumbalesaProcess(currentCommentTrip, kasSel.value);
+        }
         applyTripStatusUpdate(trip, statusUpdate, commentText, statusDateVal);
         if (statusDateVal && trip) {
             if (!trip.workflowDates) trip.workflowDates = {};

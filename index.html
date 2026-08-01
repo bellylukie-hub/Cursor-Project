@@ -1238,6 +1238,12 @@
         .comment-type-option.green-option.selected { border-color: var(--success); background: #f0fff4; }
         .comment-type-option.orange-option.selected { border-color: var(--warning); background: #fffaf0; }
         .comment-type-option.red-option.selected { border-color: var(--danger); background: #fff5f5; }
+        .comment-type-option.disabled { opacity: 0.45; pointer-events: none; }
+        #commentModal .modal.comment-modal-kpi-orange { border-top: 4px solid var(--warning); }
+        #commentModal .modal.comment-modal-kpi-red { border-top: 4px solid var(--danger); }
+        #commentModal .modal.comment-modal-kpi-green { border-top: 4px solid var(--success); }
+        .structured-comment.orange { background: #fffaf0; border-color: var(--warning); }
+        .status-badge.direct { background: #ebf8ff; color: #2b6cb0; border: 1px solid #90cdf4; }
 
         /* STRUCTURED COMMENT */
         .structured-comment { background: #fffaf0; border: 2px solid var(--warning); border-radius: 8px; padding: 15px; margin-top: 15px; }
@@ -1748,6 +1754,15 @@
                     <div class="workflow-status" id="workflowStatus">
                         <!-- Dynamically filled -->
                     </div>
+                </div>
+                <div class="form-group" id="kasumbalesaProcessSection" style="display:none;">
+                    <label>Kasumbalesa Border Process <span class="required">*</span></label>
+                    <select class="form-control" id="kasumbalesaProcessSelect" onchange="onKasumbalesaProcessChange(this.value)">
+                        <option value="Direct">⚡ Direct</option>
+                        <option value="KBP">📍 KBP</option>
+                        <option value="Whisky">📍 Whisky</option>
+                    </select>
+                    <div class="field-hint">Choose Direct, KBP, or Whisky clearance path for this truck at Kasumbalesa.</div>
                 </div>
                 <div class="form-group">
                     <label>Comment Type <span class="required">*</span></label>

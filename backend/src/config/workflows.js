@@ -4,6 +4,12 @@
  * SB: load → documents → seal → escort → dispatch → Kanyaka (gov list) → border exit.
  */
 
+const NB_BORDER_DIRECT = [
+  'Truck Arrival at Border',
+  'Direct Clearance',
+  'Driver Contact Details'
+];
+
 const NB_BORDER_KBP = [
   'Truck Arrival & Entry',
   'Document Submission to Brigade Officer',
@@ -75,6 +81,7 @@ const FRONTEND_SB_KEY_MAP = {
 };
 
 function getBorderSteps(processType) {
+  if (processType === 'Direct') return NB_BORDER_DIRECT;
   if (processType === 'Whisky') return NB_BORDER_WHISKY;
   if (processType === 'KBP' || processType === 'BN') return NB_BORDER_KBP;
   return SB_BORDER_EXIT;
@@ -91,6 +98,7 @@ function getNextStepKey(direction, currentKey) {
 }
 
 module.exports = {
+  NB_BORDER_DIRECT,
   NB_BORDER_KBP,
   NB_BORDER_WHISKY,
   SB_BORDER_EXIT,

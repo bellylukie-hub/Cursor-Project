@@ -308,7 +308,7 @@
 
     window.renderBorderProcessBadge = function (trip, borderRow) {
         const proc = borderRow?.process || trip.borderProcess || '—';
-        const procClass = /kbp/i.test(proc) ? 'kbp' : /whisky/i.test(proc) ? 'whisky' : /sb/i.test(proc) ? 'sb-exit' : 'process-neutral';
+        const procClass = /direct/i.test(proc) ? 'direct' : /kbp/i.test(proc) ? 'kbp' : /whisky/i.test(proc) ? 'whisky' : /sb/i.test(proc) ? 'sb-exit' : 'process-neutral';
         return `<span class="status-badge ${procClass}">${proc}</span>`;
     };
 
