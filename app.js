@@ -79,7 +79,7 @@ let areaSbSearch = '';
 let areaDropdownOpen = true;
 let areaSelectorHidden = false;
 
-const listRowSelections = { nb: [], sb: [], border: [], pod: [], assets: [], commMatrix: [], internalComm: [], areaNb: [], areaSb: [] };
+const listRowSelections = { nb: [], sb: [], border: [], borderNb: [], borderSb: [], pod: [], assets: [], commMatrix: [], internalComm: [], areaNb: [], areaSb: [] };
 
 const areasDB = [
     { id: 'kanyaka', name: 'Kanyaka', icon: '🏗️', offloadingPoints: ['Kanyaka', 'Kanyaka Depot', 'Kanyaka Mine'], loadingPoints: ['Kanyaka', 'Kanyaka Depot', 'Kanyaka Mine'] },
@@ -1107,6 +1107,9 @@ const tripAreaUpdatesDB = {
         { area: 'Kanyaka', status: 'At Kanyaka Depot', notes: 'Transit through Kanyaka hub', updatedBy: 'ops_manager', timestamp: '2026-07-21 09:00:00', statusDate: '2026-07-21T08:30', workflowKey: 'kanyaka' }
     ],
     'SB-2024-003': [
+        { area: 'Kasumbalesa', status: 'Seal Verification', notes: 'Seal check in progress', updatedBy: 'border_moderator', timestamp: '2026-07-25 10:00:00', statusDate: '2026-07-25T09:30', workflowKey: 'border' },
+        { area: 'Kasumbalesa', status: 'Gov List Uploaded', notes: 'Gov list submitted', updatedBy: 'border_moderator', timestamp: '2026-07-24 14:00:00', statusDate: '2026-07-24T13:30', workflowKey: 'border' },
+        { area: 'Kasumbalesa', status: 'Arrived at Exit Border', notes: 'Arrived at exit queue', updatedBy: 'border_moderator', timestamp: '2026-07-23 16:00:00', statusDate: '2026-07-23T15:30', workflowKey: 'border' },
         { area: 'Kanyaka', status: 'Loading', notes: 'Loading at Kanyaka yard', updatedBy: 'ops_manager', timestamp: '2026-07-23 11:30:00', statusDate: '2026-07-23T11:00', workflowKey: 'loadingProcess' }
     ],
     'SB-2024-012': [
@@ -1116,18 +1119,12 @@ const tripAreaUpdatesDB = {
         { area: 'Kolwezi', status: 'Loading Complete', notes: 'Loaded at Kolwezi Mine', updatedBy: 'ops_manager', timestamp: '2026-07-19 16:30:00', statusDate: '2026-07-19T16:00', workflowKey: 'loadingProcess' }
     ],
     'SB-2024-018': [
-        { area: 'Kasumbalesa', status: 'Border Exit', notes: 'Exit clearance in progress', updatedBy: 'border_moderator', timestamp: '2026-07-25 09:30:00', statusDate: '2026-07-25T09:00', workflowKey: 'border' },
-        { area: 'Kanyaka', status: 'Gov List Uploaded', notes: 'Gov list submitted for SB exit', updatedBy: 'ops_manager', timestamp: '2026-07-23 14:30:00', statusDate: '2026-07-23T14:00', workflowKey: 'kanyaka' },
-        { area: 'Kanyaka', status: 'Dispatched', notes: 'Truck dispatched from Kanyaka', updatedBy: 'ops_manager', timestamp: '2026-07-22 10:30:00', statusDate: '2026-07-22T10:00', workflowKey: 'dispatch' },
-        { area: 'Kanyaka', status: 'Escort Arranged', notes: 'Escort confirmed', updatedBy: 'ops_manager', timestamp: '2026-07-22 08:30:00', statusDate: '2026-07-22T08:00', workflowKey: 'escort' },
-        { area: 'Kanyaka', status: 'Seal Applied', notes: 'Seal applied at loading', updatedBy: 'ops_manager', timestamp: '2026-07-21 09:30:00', statusDate: '2026-07-21T09:00', workflowKey: 'seal' },
-        { area: 'Kanyaka', status: 'Documents Collected', notes: 'Export documents collected', updatedBy: 'ops_manager', timestamp: '2026-07-20 10:30:00', statusDate: '2026-07-20T10:00', workflowKey: 'documents' },
-        { area: 'Kanyaka', status: 'Loading Complete', notes: 'Loading finished at Kanyaka Mine', updatedBy: 'ops_manager', timestamp: '2026-07-19 16:30:00', statusDate: '2026-07-19T16:00', workflowKey: 'loadingProcess' }
+        { area: 'Kasumbalesa', status: 'Exit to Zambia — Complete', notes: 'Exit clearance completed', updatedBy: 'border_moderator', timestamp: '2026-07-25 11:00:00', statusDate: '2026-07-25T10:30', workflowKey: 'border' },
+        { area: 'Kasumbalesa', status: 'Seal Verification', notes: 'Seal verified at exit', updatedBy: 'border_moderator', timestamp: '2026-07-25 09:00:00', statusDate: '2026-07-25T08:45', workflowKey: 'border' },
+        { area: 'Kasumbalesa', status: 'Customs Declaration Submitted', notes: 'Declaration filed', updatedBy: 'border_moderator', timestamp: '2026-07-24 15:00:00', statusDate: '2026-07-24T14:30', workflowKey: 'border' },
+        { area: 'Kasumbalesa', status: 'Gov List Uploaded', notes: 'Gov list uploaded for exit', updatedBy: 'border_moderator', timestamp: '2026-07-24 10:00:00', statusDate: '2026-07-24T09:30', workflowKey: 'border' },
+        { area: 'Kasumbalesa', status: 'Arrived at Exit Border', notes: 'Truck at Kasumbalesa exit', updatedBy: 'border_moderator', timestamp: '2026-07-24 08:00:00', statusDate: '2026-07-24T07:30', workflowKey: 'border' }
     ],
-    'SB-2024-019': [
-        { area: 'Kolwezi', status: 'Documents Collected', notes: 'Awaiting seal application', updatedBy: 'ops_manager', timestamp: '2026-07-25 10:00:00', statusDate: '2026-07-25T09:30', workflowKey: 'documents' },
-        { area: 'Kolwezi', status: 'Loading Complete', notes: 'Loaded at Kolwezi Mine', updatedBy: 'ops_manager', timestamp: '2026-07-24 15:00:00', statusDate: '2026-07-24T14:30', workflowKey: 'loadingProcess' }
-    ]
 };
 
 if (typeof window !== 'undefined') window.tripAreaUpdatesDB = tripAreaUpdatesDB;
@@ -1979,6 +1976,8 @@ const SB_CLEARANCE_STEPS = [
     'Exit to Zambia — Complete'
 ];
 
+if (typeof window !== 'undefined') window.SB_CLEARANCE_STEPS = SB_CLEARANCE_STEPS;
+
 const borderClearanceTrucks = [
     { trip: 'NB-2024-001', truck: 'ABC123DRC', driver: 'John Doe', direction: 'NB', border: 'Kasumbalesa', processHtml: '<span class="status-badge kbp">📍 KBP</span>', process: 'KBP', status: 'Cross-checking', hours: 38, target: '48h', kpi: 'orange', kpiLabel: 'Priority', viewPage: 'kasumbalesa-detail', commentBtn: 'primary' },
     { trip: 'NB-2024-008', truck: 'JKL012DRC', driver: 'Peter Mwansa', direction: 'NB', border: 'Kasumbalesa', processHtml: '<span class="status-badge whisky">📍 Whisky</span>', process: 'Whisky', status: 'TR8 Issued', hours: 52, target: '72h', kpi: 'orange', kpiLabel: 'Priority', viewPage: 'kasumbalesa-whisky', commentBtn: 'primary' },
@@ -1989,7 +1988,7 @@ const borderClearanceTrucks = [
     { trip: 'SB-2024-003', truck: 'DEF456DRC', driver: 'Mike Johnson', direction: 'SB', border: 'Kasumbalesa', processHtml: '<span class="status-badge green">SB Exit</span>', process: 'SB Exit', status: 'Seal Verification', hours: 24, target: '48h', kpi: 'green', kpiLabel: 'On Track', viewPage: 'sb-kasumbalesa', commentBtn: 'primary' },
     { trip: 'SB-2024-005', truck: 'MNO345DRC', driver: 'David Mukendi', direction: 'SB', border: 'Sakania', processHtml: '<span class="status-badge orange">SB Exit</span>', process: 'SB Exit', status: 'Customs Declaration', hours: 44, target: '48h', kpi: 'orange', kpiLabel: 'Priority', viewPage: 'sb-sakania', commentBtn: 'primary' },
     { trip: 'SB-2024-012', truck: 'PQR678DRC', driver: 'Joseph Kabwe', direction: 'SB', border: 'Mokambo', processHtml: '<span class="status-badge orange">SB Exit</span>', process: 'SB Exit', status: 'Gov List Upload', hours: 36, target: '72h', kpi: 'orange', kpiLabel: 'Priority', viewPage: 'sb-mokambo', commentBtn: 'primary' },
-    { trip: 'SB-2024-018', truck: 'DEF321DRC', driver: 'Linda Phiri', direction: 'SB', border: 'Kasumbalesa', processHtml: '<span class="status-badge green">SB Exit</span>', process: 'SB Exit', status: 'Border Exit', hours: 28, target: '48h', kpi: 'green', kpiLabel: 'On Track', viewPage: 'sb-kasumbalesa', commentBtn: 'primary' }
+    { trip: 'SB-2024-018', truck: 'DEF321DRC', driver: 'Linda Phiri', direction: 'SB', border: 'Kasumbalesa', processHtml: '<span class="status-badge green">SB Exit</span>', process: 'SB Exit', status: 'Exit to Zambia — Complete', hours: 28, target: '48h', kpi: 'green', kpiLabel: 'On Track', viewPage: 'sb-kasumbalesa', commentBtn: 'primary' }
 ];
 
 const podDB = [
@@ -2059,14 +2058,14 @@ const tripsDB = {
     'NB-2024-015': { tripNumber:'NB-2024-015',truck:'XYZ789DRC',driver:'Sarah Smith',direction:'NB',area:'Kolwezi',owner:'Transport Co B',entryBorder:'Sakania',offloadingPoint:'Kolwezi Mine',status:'Offloading',daysInDRC:12,kpi:'orange',workflow:{border:'completed',kanyaka:'completed',offloading:'current',pod:'pending'},workflowDates:{border:'2026-07-18T10:00',kanyaka:'2026-07-20T14:00',offloading:'2026-07-24T09:00'},workflowStatusLog:{border:{status:'Border Clearance Complete',statusDate:'2026-07-18T10:00',updatedBy:'border_moderator',updatedAt:'2026-07-18 10:30:00',area:'Sakania'},kanyaka:{status:'Transit Complete',statusDate:'2026-07-20T14:00',updatedBy:'ops_manager',updatedAt:'2026-07-20 14:45:00',area:'Kanyaka'},offloading:{status:'Offloading',statusDate:'2026-07-24T09:00',updatedBy:'ops_manager',updatedAt:'2026-07-24 09:30:00',area:'Kolwezi'}}},
     'NB-2024-022': { tripNumber:'NB-2024-022',truck:'GHI789DRC',driver:'Jean Pierre',direction:'NB',area:'Lubumbashi',owner:'Transport Co C',entryBorder:'Mokambo',offloadingPoint:'Lubumbashi',status:'POD Missing',daysInDRC:15,kpi:'red',workflow:{border:'completed',kanyaka:'completed',offloading:'completed',pod:'current'}},
     'NB-2024-031': { tripNumber:'NB-2024-031',truck:'MNO012DRC',driver:'David Mukendi',direction:'NB',area:'Kanyaka',owner:'Transport Co A',entryBorder:'Kasumbalesa',offloadingPoint:'Kanyaka Depot',status:'In Transit',daysInDRC:8,kpi:'green',workflow:{border:'completed',kanyaka:'current',offloading:'pending',pod:'pending'}},
-    'SB-2024-003': { tripNumber:'SB-2024-003',truck:'DEF456DRC',driver:'Mike Johnson',direction:'SB',area:'Kanyaka',owner:'Transport Co A',loadingPoint:'Kanyaka',exitBorder:'Kasumbalesa',status:'Loading',daysInDRC:3,kpi:'green',workflow:{loadingProcess:'current',documents:'pending',seal:'pending',escort:'pending',dispatch:'pending',kanyaka:'pending',border:'pending'},workflowDates:{loadingProcess:'2026-07-23T11:00'}},
+    'SB-2024-003': { tripNumber:'SB-2024-003',truck:'DEF456DRC',driver:'Mike Johnson',direction:'SB',area:'Kanyaka',owner:'Transport Co A',loadingPoint:'Kanyaka',exitBorder:'Kasumbalesa',status:'Loading',daysInDRC:3,kpi:'green',workflow:{loadingProcess:'current',documents:'pending',seal:'pending',escort:'pending',dispatch:'pending',kanyaka:'pending',border:'pending'},workflowDates:{loadingProcess:'2026-07-23T11:00'},areaStatusDates:{'Arrived at Exit Border':'2026-07-23T15:30','Gov List Uploaded':'2026-07-24T13:30','Seal Verification':'2026-07-25T09:30'}},
     'SB-2024-005': { tripNumber:'SB-2024-005',truck:'MNO345DRC',driver:'David Mukendi',direction:'SB',area:'Kanyaka',owner:'Transport Co B',loadingPoint:'Kanyaka Mine',exitBorder:'Sakania',status:'Loading',daysInDRC:2,kpi:'orange',workflow:{loadingProcess:'current',documents:'pending',seal:'pending',escort:'pending',dispatch:'pending',kanyaka:'pending',border:'pending'}},
     'SB-2024-012': { tripNumber:'SB-2024-012',truck:'PQR678DRC',driver:'Joseph Kabwe',direction:'SB',area:'Kolwezi',owner:'Transport Co C',loadingPoint:'Kolwezi Mine',exitBorder:'Mokambo',status:'Escort Arrangement',daysInDRC:5,kpi:'green',workflow:{loadingProcess:'completed',documents:'completed',seal:'completed',escort:'current',dispatch:'pending',kanyaka:'pending',border:'pending'}},
     'NB-2024-042': { tripNumber:'NB-2024-042',truck:'RST890DRC',driver:'Alice Bwalya',direction:'NB',area:'Kasumbalesa',owner:'Transport Co D',entryBorder:'Kasumbalesa',offloadingPoint:'Kolwezi Mine',status:'Direct Clearance',daysInDRC:4,kpi:'green',borderProcess:'Direct',addedToday:true,workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}},
     'NB-2024-043': { tripNumber:'NB-2024-043',truck:'UVW123DRC',driver:'Paul Chanda',direction:'NB',area:'Kolwezi',owner:'Transport Co B',entryBorder:'Sakania',offloadingPoint:'KCC Mine',status:'In Transit',daysInDRC:6,kpi:'green',addedToday:true,workflow:{border:'completed',kanyaka:'completed',offloading:'pending',pod:'pending'}},
     'NB-2024-044': { tripNumber:'NB-2024-044',truck:'XYZ456DRC',driver:'Grace Mutale',direction:'NB',area:'Lubumbashi',owner:'Transport Co A',entryBorder:'Mokambo',offloadingPoint:'Lubumbashi',status:'Offloading',daysInDRC:11,kpi:'orange',workflow:{border:'completed',kanyaka:'completed',offloading:'current',pod:'pending'}},
     'NB-2024-045': { tripNumber:'NB-2024-045',truck:'ABC789DRC',driver:'Henry Sampa',direction:'NB',area:'Kanyaka',owner:'Transport Co C',entryBorder:'Kasumbalesa',offloadingPoint:'Kanyaka Depot',status:'POD Collection',daysInDRC:9,kpi:'orange',workflow:{border:'completed',kanyaka:'completed',offloading:'completed',pod:'current'}},
-    'SB-2024-018': { tripNumber:'SB-2024-018',truck:'DEF321DRC',driver:'Linda Phiri',direction:'SB',area:'Kanyaka',owner:'Transport Co B',loadingPoint:'Kanyaka Mine',exitBorder:'Kasumbalesa',status:'Border Exit',daysInDRC:7,kpi:'green',workflow:{loadingProcess:'completed',documents:'completed',seal:'completed',escort:'completed',dispatch:'completed',kanyaka:'completed',border:'current'},workflowDates:{loadingProcess:'2026-07-19T16:00',documents:'2026-07-20T10:00',seal:'2026-07-21T09:00',escort:'2026-07-22T08:00',dispatch:'2026-07-22T10:00',kanyaka:'2026-07-23T14:00',border:'2026-07-25T09:00'},workflowStatusLog:{loadingProcess:{status:'Loading Complete',statusDate:'2026-07-19T16:00',updatedBy:'ops_manager',updatedAt:'2026-07-19 16:30:00',area:'Kanyaka'},documents:{status:'Documents Collected',statusDate:'2026-07-20T10:00',updatedBy:'ops_manager',updatedAt:'2026-07-20 10:30:00',area:'Kanyaka'},seal:{status:'Seal Applied',statusDate:'2026-07-21T09:00',updatedBy:'ops_manager',updatedAt:'2026-07-21 09:30:00',area:'Kanyaka'},escort:{status:'Escort Arranged',statusDate:'2026-07-22T08:00',updatedBy:'ops_manager',updatedAt:'2026-07-22 08:30:00',area:'Kanyaka'},dispatch:{status:'Dispatched',statusDate:'2026-07-22T10:00',updatedBy:'ops_manager',updatedAt:'2026-07-22 10:30:00',area:'Kanyaka'},kanyaka:{status:'Gov List Uploaded',statusDate:'2026-07-23T14:00',updatedBy:'ops_manager',updatedAt:'2026-07-23 14:30:00',area:'Kanyaka'},border:{status:'Border Exit',statusDate:'2026-07-25T09:00',updatedBy:'border_moderator',updatedAt:'2026-07-25 09:30:00',area:'Kasumbalesa'}}},
+    'SB-2024-018': { tripNumber:'SB-2024-018',truck:'DEF321DRC',driver:'Linda Phiri',direction:'SB',area:'Kanyaka',owner:'Transport Co B',loadingPoint:'Kanyaka Mine',exitBorder:'Kasumbalesa',status:'Exit to Zambia — Complete',daysInDRC:7,kpi:'green',workflow:{loadingProcess:'completed',documents:'completed',seal:'completed',escort:'completed',dispatch:'completed',kanyaka:'completed',border:'current'},workflowDates:{loadingProcess:'2026-07-19T16:00',documents:'2026-07-20T10:00',seal:'2026-07-21T09:00',escort:'2026-07-22T08:00',dispatch:'2026-07-22T10:00',kanyaka:'2026-07-23T14:00',border:'2026-07-25T10:30'},areaStatusDates:{'Arrived at Exit Border':'2026-07-24T07:30','Gov List Uploaded':'2026-07-24T09:30','Customs Declaration Submitted':'2026-07-24T14:30','Seal Verification':'2026-07-25T08:45','Exit to Zambia — Complete':'2026-07-25T10:30'},workflowStatusLog:{loadingProcess:{status:'Loading Complete',statusDate:'2026-07-19T16:00',updatedBy:'ops_manager',updatedAt:'2026-07-19 16:30:00',area:'Kanyaka'},documents:{status:'Documents Collected',statusDate:'2026-07-20T10:00',updatedBy:'ops_manager',updatedAt:'2026-07-20 10:30:00',area:'Kanyaka'},seal:{status:'Seal Applied',statusDate:'2026-07-21T09:00',updatedBy:'ops_manager',updatedAt:'2026-07-21 09:30:00',area:'Kanyaka'},escort:{status:'Escort Arranged',statusDate:'2026-07-22T08:00',updatedBy:'ops_manager',updatedAt:'2026-07-22 08:30:00',area:'Kanyaka'},dispatch:{status:'Dispatched',statusDate:'2026-07-22T10:00',updatedBy:'ops_manager',updatedAt:'2026-07-22 10:30:00',area:'Kanyaka'},kanyaka:{status:'Gov List Uploaded',statusDate:'2026-07-23T14:00',updatedBy:'ops_manager',updatedAt:'2026-07-23 14:30:00',area:'Kanyaka'},border:{status:'Exit to Zambia — Complete',statusDate:'2026-07-25T10:30',updatedBy:'border_moderator',updatedAt:'2026-07-25 11:00:00',area:'Kasumbalesa'}}},
     'SB-2024-019': { tripNumber:'SB-2024-019',truck:'GHI654DRC',driver:'Oscar Mwale',direction:'SB',area:'Kolwezi',owner:'Transport Co A',loadingPoint:'Kolwezi Mine',exitBorder:'Sakania',status:'Document Collection',daysInDRC:2,kpi:'orange',addedToday:true,workflow:{loadingProcess:'completed',documents:'current',seal:'pending',escort:'pending',dispatch:'pending',kanyaka:'pending',border:'pending'}},
     'SB-2024-020': { tripNumber:'SB-2024-020',truck:'JKL987DRC',driver:'Nancy Banda',direction:'SB',area:'Kanyaka',owner:'Transport Co D',loadingPoint:'Kanyaka',exitBorder:'Mokambo',status:'Dispatch',daysInDRC:6,kpi:'orange',workflow:{loadingProcess:'completed',documents:'completed',seal:'completed',escort:'completed',dispatch:'current',kanyaka:'pending',border:'pending'}},
     'NB-2024-046': { tripNumber:'NB-2024-046',truck:'MNO741DRC',driver:'Victor Lungu',direction:'NB',area:'Kasumbalesa',owner:'Transport Co D',entryBorder:'Kasumbalesa',offloadingPoint:'KCC Mine',status:'Whisky Process',daysInDRC:3,kpi:'orange',borderProcess:'Whisky',addedToday:true,workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}},
@@ -3874,14 +3873,12 @@ function renderBorderTableRows(rows) {
 }
 
 function filterBorderClearanceTrucks() {
-    const direction = document.getElementById('borderDirectionFilter')?.value || 'all';
     const border = document.getElementById('borderNameFilter')?.value || 'all';
     const process = document.getElementById('borderProcessFilter')?.value || 'all';
     const kpi = document.getElementById('borderKPIFilter')?.value || 'all';
     const search = (document.getElementById('borderSearchInput')?.value || '').toLowerCase();
 
     let rows = [...borderClearanceTrucks];
-    if (direction !== 'all') rows = rows.filter(t => t.direction === direction);
     if (border !== 'all') rows = rows.filter(t => t.border === border);
     if (process !== 'all') rows = rows.filter(t => normalizeKasumbalesaProcess(t.process) === process);
     if (kpi !== 'all') rows = rows.filter(t => t.kpi === kpi);
@@ -3904,29 +3901,54 @@ function filterBorderClearanceTrucks() {
 
 function renderBorderTableRowsFiltered() {
     const rows = filterBorderClearanceTrucks();
-    const countEl = document.getElementById('borderTableCount');
-    if (countEl) countEl.textContent = `${rows.length} truck${rows.length !== 1 ? 's' : ''}`;
-    updateListSelectionUI('border');
     return renderBorderTableRows(rows);
 }
 
 function refreshBorderTable() {
+    const result = renderBorderTableRowsFiltered();
+    const isSplit = result && typeof result === 'object' && result.nb !== undefined;
+
+    if (isSplit) {
+        const nbHead = document.getElementById('borderNbTableHead');
+        const nbBody = document.getElementById('borderNbTableBody');
+        const sbHead = document.getElementById('borderSbTableHead');
+        const sbBody = document.getElementById('borderSbTableBody');
+        if (nbHead && typeof getBorderDirectionTableHeaderHtml === 'function') {
+            nbHead.innerHTML = `<tr>${getBorderDirectionTableHeaderHtml('NB')}</tr>`;
+        }
+        if (sbHead && typeof getBorderDirectionTableHeaderHtml === 'function') {
+            sbHead.innerHTML = `<tr>${getBorderDirectionTableHeaderHtml('SB')}</tr>`;
+        }
+        if (nbBody) nbBody.innerHTML = result.nb;
+        if (sbBody) sbBody.innerHTML = result.sb;
+        const nbCountEl = document.getElementById('borderNbTableCount');
+        const sbCountEl = document.getElementById('borderSbTableCount');
+        if (nbCountEl) nbCountEl.textContent = `${result.nbCount} truck${result.nbCount !== 1 ? 's' : ''}`;
+        if (sbCountEl) sbCountEl.textContent = `${result.sbCount} truck${result.sbCount !== 1 ? 's' : ''}`;
+        updateListSelectionUI('borderNb');
+        updateListSelectionUI('borderSb');
+        return;
+    }
+
     const head = document.getElementById('borderTableHead');
     const body = document.getElementById('borderTableBody');
     if (head && typeof getBorderOperationsTableHeaderHtml === 'function') {
         head.innerHTML = `<tr>${getBorderOperationsTableHeaderHtml()}</tr>`;
     }
-    if (body) body.innerHTML = renderBorderTableRowsFiltered();
+    if (body) body.innerHTML = typeof result === 'string' ? result : '';
+    const countEl = document.getElementById('borderTableCount');
+    if (countEl && typeof result === 'string') {
+        const match = result.match(/colspan="/);
+        countEl.textContent = match ? '0 trucks' : `${filterBorderClearanceTrucks().length} trucks`;
+    }
     if (typeof applyLiveTableLayout === 'function') applyLiveTableLayout('borderOperationsTable', 'BORDER');
 }
 
 function clearBorderFilters() {
-    const direction = document.getElementById('borderDirectionFilter');
     const border = document.getElementById('borderNameFilter');
     const process = document.getElementById('borderProcessFilter');
     const kpi = document.getElementById('borderKPIFilter');
     const search = document.getElementById('borderSearchInput');
-    if (direction) direction.value = 'all';
     if (border) border.value = 'all';
     if (process) process.value = 'all';
     if (kpi) kpi.value = 'all';
@@ -3935,7 +3957,19 @@ function clearBorderFilters() {
 }
 
 function renderBorderClearanceOverview(container) {
-    const total = borderClearanceTrucks.length;
+    const allRows = filterBorderClearanceTrucks();
+    const borderTables = renderBorderTableRows(allRows);
+    const nbCount = borderTables.nbCount ?? allRows.filter(t => t.direction === 'NB').length;
+    const sbCount = borderTables.sbCount ?? allRows.filter(t => t.direction === 'SB').length;
+    const nbBodyHtml = borderTables.nb || '';
+    const sbBodyHtml = borderTables.sb || '';
+    const nbHeadHtml = typeof getBorderDirectionTableHeaderHtml === 'function'
+        ? getBorderDirectionTableHeaderHtml('NB')
+        : '<th>Trip #</th><th>Truck</th><th>Driver</th><th>Border</th><th>Process</th><th>KPI</th><th>Actions</th>';
+    const sbHeadHtml = typeof getBorderDirectionTableHeaderHtml === 'function'
+        ? getBorderDirectionTableHeaderHtml('SB')
+        : '<th>Trip #</th><th>Truck</th><th>Driver</th><th>Border</th><th>Process</th><th>KPI</th><th>Actions</th>';
+
     container.innerHTML = `
         <div class="page-header">
             <h1>🛂 Border Clearance Operations</h1>
@@ -3963,7 +3997,6 @@ function renderBorderClearanceOverview(container) {
         </div>
 
         <div class="filters-bar">
-            <div class="filter-group"><label>Direction:</label><select id="borderDirectionFilter" onchange="refreshBorderTable()"><option value="all">All</option><option value="NB">NB</option><option value="SB">SB</option></select></div>
             <div class="filter-group"><label>Border:</label><select id="borderNameFilter" onchange="refreshBorderTable()"><option value="all">All</option><option>Kasumbalesa</option><option>Sakania</option><option>Mokambo</option></select></div>
             <div class="filter-group"><label>Kasumbalesa Process:</label><select id="borderProcessFilter" onchange="refreshBorderTable()"><option value="all">All</option>${KASUMBALESA_NB_PROCESSES.map(p => `<option value="${p}">${p}</option>`).join('')}</select></div>
             <div class="filter-group"><label>KPI:</label><select id="borderKPIFilter" onchange="refreshBorderTable()"><option value="all">All</option><option value="green">🟢 On Track</option><option value="orange">🟠 Priority</option><option value="red">🔴 Overdue</option></select></div>
@@ -3972,27 +4005,36 @@ function renderBorderClearanceOverview(container) {
             ${canEditInModule('border-clearance') ? `<button class="btn btn-primary btn-sm" onclick="openDriverRegistrationModal()">📱 Register NB Driver</button>` : ''}
         </div>
 
-        <div class="table-container">
+        <div class="table-container border-clearance-table-section">
             <div class="table-header">
-                <h3>All Border Trucks</h3>
+                <h3><i class="fas fa-arrow-up" style="color:var(--green);"></i> NB Border Trucks</h3>
                 <div class="table-header-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-                    ${typeof renderLiveColumnToolbar === 'function' ? renderLiveColumnToolbar('BORDER', 'borderOperationsTable', 'border') : ''}
-                    <span id="borderTableCount" style="color:var(--text-secondary);">${total} trucks</span>
+                    <span id="borderNbTableCount" style="color:var(--text-secondary);">${nbCount} truck${nbCount !== 1 ? 's' : ''}</span>
                     ${renderExportToolbar('border')}
                 </div>
             </div>
             <div style="overflow-x:auto;">
-            <table class="live-page-table operations-live-table" id="borderOperationsTable"><thead id="borderTableHead"><tr>
-                ${typeof getBorderOperationsTableHeaderHtml === 'function' ? getBorderOperationsTableHeaderHtml() : '<th>Trip #</th><th>Truck</th><th>Driver</th><th>Direction</th><th>Border</th><th>Process</th><th>Status</th><th>Days</th><th>KPI</th><th>Actions</th>'}
-            </tr></thead>
-            <tbody id="borderTableBody">${renderBorderTableRowsFiltered()}</tbody></table>
+            <table class="live-page-table border-direction-table" id="borderNbTable"><thead id="borderNbTableHead"><tr>${nbHeadHtml}</tr></thead>
+            <tbody id="borderNbTableBody">${nbBodyHtml}</tbody></table>
+            </div>
+        </div>
+
+        <div class="table-container border-clearance-table-section">
+            <div class="table-header">
+                <h3><i class="fas fa-arrow-down" style="color:var(--orange);"></i> SB Border Trucks</h3>
+                <div class="table-header-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <span id="borderSbTableCount" style="color:var(--text-secondary);">${sbCount} truck${sbCount !== 1 ? 's' : ''}</span>
+                </div>
+            </div>
+            <div style="overflow-x:auto;">
+            <table class="live-page-table border-direction-table" id="borderSbTable"><thead id="borderSbTableHead"><tr>${sbHeadHtml}</tr></thead>
+            <tbody id="borderSbTableBody">${sbBodyHtml}</tbody></table>
             </div>
         </div>
 
         <div style="background:#e8f0fe;padding:15px;border-radius:8px;margin-top:20px;border-left:4px solid var(--primary-light);font-size:13px;">
             <strong>📋 NB BN Process (Sakania & Mokambo):</strong> Same sequential steps as Kasumbalesa KBP — Arrival → Brigade → Scanning → Green Stamp → Red Stamp → Cross-check → Driver Details → Final Approval
         </div>`;
-    setTimeout(() => { if (typeof applyLiveTableLayout === 'function') applyLiveTableLayout('borderOperationsTable', 'BORDER'); }, 0);
 }
 
 // ============================================

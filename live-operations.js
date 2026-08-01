@@ -454,9 +454,8 @@
         if (!table) return;
         const headRow = table.querySelector('thead tr');
         if (context === 'BORDER') {
-            if (headRow) headRow.innerHTML = getBorderOperationsTableHeaderHtml();
-            const body = document.getElementById('borderTableBody');
-            if (body && typeof renderBorderTableRowsFiltered === 'function') body.innerHTML = renderBorderTableRowsFiltered();
+            if (typeof refreshBorderTable === 'function') refreshBorderTable();
+            return;
         } else if (context === 'POSITION' || context.startsWith('POSITION_')) {
             if (typeof refreshPositionLiveTable === 'function') refreshPositionLiveTable();
         } else if (context === 'NB') {
@@ -940,30 +939,144 @@
         }).join('');
     };
 
-    window.renderBorderOperationsTableRows = function (rows) {
-        const context = 'BORDER';
-        const cols = getEffectiveOperationsColumns(context);
-        const colSpan = cols.length + 2;
-        if (!rows.length) {
-            return `<tr><td colspan="${colSpan}" style="text-align:center;padding:24px;color:var(--text-secondary);">No trucks match your search</td></tr>`;
+    window.getBorderNbStatusList = function () {
+        const ordered = [];
+        const seen = new Set();
+        const add = (s) => {
+            if (!s || seen.has(s) || /border exit/i.test(s)) return;
+            seen.add(s);
+            ordered.push(s);
+        };
+        [
+            'Entry on DRC', 'Arrived at Border', 'KBP Parking', 'KBP Scan Bay', 'BAE Submitted',
+            'BN Process', 'Parking', 'Whisky Process', 'Customs Clearance', 'Cross-checking',
+            'Red Stamping', 'Driver Contact Recorded', 'Border Clearance Complete', 'Clearance Complete',
+            'Direct Clearance', 'TR8 Issued', 'Document Submission'
+        ].forEach(add);
+        (window.areaStatusesDB || []).forEach(rec => {
+            if (rec.isBorder || rec.borderForNB !== false) {
+                (rec.statusesBorderNB || []).forEach(add);
+                (rec.statusesNB || []).forEach(add);
+            }
+        });
+        return ordered;
+    };
+
+    window.getBorderSbStatusList = function () {
+        const ordered = [];
+        const seen = new Set();
+        const add = (s) => {
+            if (!s || seen.has(s) || /border exit/i.test(s)) return;
+            seen.add(s);
+            ordered.push(s);
+        };
+        (window.SB_CLEARANCE_STEPS || []).forEach(add);
+        (window.areaStatusesDB || []).forEach(rec => {
+            if (rec.isBorder) (rec.statusesBorderSB || []).forEach(add);
+            (rec.statusesSB || []).filter(s => /exit|gov|customs|seal|declaration|verification|processing/i.test(s)).forEach(add);
+        });
+        return ordered;
+    };
+
+    window.getBorderStatusEntry = function (trip, statusTitle) {
+        const tripNumber = trip.tripNumber || trip.trip;
+        const history = (typeof getTripAreaHistory === 'function' ? getTripAreaHistory(tripNumber) : [])
+            .filter(h => h.status === statusTitle);
+        if (history.length) return history[0];
+        const date = trip.areaStatusDates?.[statusTitle];
+        if (date) {
+            return {
+                status: statusTitle,
+                statusDate: date,
+                updatedBy: trip.lastUpdatedBy,
+                updatedAt: trip.lastUpdatedAt,
+                timestamp: trip.lastUpdatedAt
+            };
         }
-        return rows.map((borderRow, i) => {
+        return null;
+    };
+
+    window.renderBorderStatusColumnCell = function (trip, statusTitle) {
+        const tripNumber = trip.tripNumber || trip.trip;
+        const history = (typeof getTripAreaHistory === 'function' ? getTripAreaHistory(tripNumber) : [])
+            .filter(h => h.status === statusTitle);
+        const entry = history[0] || getBorderStatusEntry(trip, statusTitle);
+        if (!entry) return '—';
+        const dateStr = entry.statusDate ? formatLiveDate(entry.statusDate) : '';
+        const logAt = entry.updatedAt || entry.timestamp;
+        const logStr = entry.updatedBy
+            ? `👤 ${escapeLiveHtml(entry.updatedBy)}${logAt ? ' · ' + formatLiveDate(logAt) : ''}`
+            : '';
+        const latestHtml = `<div class="live-border-status-inline">
+            ${dateStr ? `<span class="live-status-date-value">${dateStr}</span>` : ''}
+            ${logStr ? `<span class="live-status-log">${logStr}</span>` : ''}
+        </div>`;
+        const earlier = history.slice(1);
+        if (!earlier.length) return latestHtml;
+        const historyHtml = earlier.map(h => `<div class="live-border-status-inline">
+            ${h.statusDate ? `<span class="live-status-date-value">${formatLiveDate(h.statusDate)}</span>` : ''}
+            <span class="live-status-log">👤 ${escapeLiveHtml(h.updatedBy || '—')} · ${h.timestamp ? formatLiveDate(h.timestamp) : '—'}</span>
+        </div>`).join('');
+        const panelId = `border-st-${String(tripNumber).replace(/[^a-zA-Z0-9_-]/g, '_')}-${String(statusTitle).replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+        return renderExpandableLiveCell(panelId, latestHtml, historyHtml, earlier.length);
+    };
+
+    window.getBorderDirectionTableHeaderHtml = function (direction) {
+        const statuses = direction === 'SB' ? getBorderSbStatusList() : getBorderNbStatusList();
+        const listKey = direction === 'SB' ? 'borderSb' : 'borderNb';
+        const checkbox = `<th style="width:36px;text-align:center;" class="live-col-checkbox"><input type="checkbox" aria-label="Select all ${direction} border trucks" onchange="toggleAllListRows('${listKey}', this.checked)"></th>`;
+        const statusHeaders = statuses.map(s =>
+            `<th class="live-border-status-col" title="${escapeLiveHtml(s)}">${escapeLiveHtml(s)}</th>`
+        ).join('');
+        return `${checkbox}
+            <th>Trip #</th><th>Truck</th><th>Driver</th><th>Border</th><th>Process</th><th>KPI</th>
+            ${statusHeaders}
+            <th class="live-actions-col">Actions</th>`;
+    };
+
+    window.renderBorderDirectionTableRows = function (rows, direction) {
+        const statuses = direction === 'SB' ? getBorderSbStatusList() : getBorderNbStatusList();
+        const listKey = direction === 'SB' ? 'borderSb' : 'borderNb';
+        const colSpan = 7 + statuses.length + 1;
+        if (!rows.length) {
+            return `<tr><td colspan="${colSpan}" style="text-align:center;padding:24px;color:var(--text-secondary);">No ${direction} trucks match your search</td></tr>`;
+        }
+        return rows.map(borderRow => {
             const trip = mergeBorderRowWithTrip(borderRow);
             ensureTripLiveFields(trip);
             const canEdit = typeof canEditInModule === 'function' ? canEditInModule('border-clearance', borderRow.border) : true;
-            const statusCtx = borderRow.direction === 'SB' ? 'sb' : 'border';
-            const cells = cols.map(col => renderLiveColumnBodyCell(col, context, renderOperationsCellHtml(trip, col, i))).join('');
+            const statusCtx = direction === 'SB' ? 'sb' : 'border';
+            const statusCells = statuses.map(s =>
+                `<td class="live-border-status-col">${renderBorderStatusColumnCell(trip, s)}</td>`
+            ).join('');
             const kpi = normalizeKpi(trip.kpi);
             const commentBtn = canEdit
                 ? `<button class="btn btn-sm kpi-comment-btn kpi-${kpi}" onclick="openCommentModal('${borderRow.trip}', '${statusCtx}')">💬</button>`
                 : '';
             const viewBtn = `<button class="btn btn-outline btn-sm" onclick="navigateToTripView('${borderRow.trip}')">👁️</button>`;
             return `<tr class="${getKpiRowClass(trip)}">
-                <td style="width:36px;text-align:center;" class="live-col-checkbox">${typeof renderListRowCheckbox === 'function' ? renderListRowCheckbox('border', borderRow.trip) : ''}</td>
-                ${cells}
+                <td style="width:36px;text-align:center;" class="live-col-checkbox">${typeof renderListRowCheckbox === 'function' ? renderListRowCheckbox(listKey, borderRow.trip) : ''}</td>
+                <td><strong>${borderRow.trip}</strong></td>
+                <td>${renderKpiTruckCell(trip)}</td>
+                <td>${typeof renderDriverLink === 'function' ? renderDriverLink(trip.driver, borderRow.trip) : trip.driver}</td>
+                <td>${borderRow.border}</td>
+                <td>${borderRow.processHtml || borderRow.process || '—'}</td>
+                <td>${renderKpiPill(trip, borderRow)}</td>
+                ${statusCells}
                 <td class="live-actions-col">${commentBtn}${viewBtn}</td>
             </tr>`;
         }).join('');
+    };
+
+    window.renderBorderOperationsTableRows = function (rows) {
+        const nbRows = rows.filter(r => r.direction === 'NB');
+        const sbRows = rows.filter(r => r.direction === 'SB');
+        return {
+            nb: renderBorderDirectionTableRows(nbRows, 'NB'),
+            sb: renderBorderDirectionTableRows(sbRows, 'SB'),
+            nbCount: nbRows.length,
+            sbCount: sbRows.length
+        };
     };
 
     window.getTemplateExportConfig = function (type) {

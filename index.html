@@ -948,6 +948,13 @@
         .live-status-title { display: block; font-size: 11px; font-weight: 700; color: var(--primary); line-height: 1.3; }
         .live-status-date-value { display: block; font-size: 11px; font-weight: 600; color: #2d3748; }
         .live-status-log { display: block; font-size: 10px; color: var(--text-secondary); line-height: 1.35; margin-top: 2px; }
+        .live-border-status-inline { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; line-height: 1.35; }
+        .live-border-status-inline .live-status-date-value { display: inline; white-space: nowrap; }
+        .live-border-status-inline .live-status-log { display: inline; margin-top: 0; white-space: nowrap; }
+        .live-border-status-col { min-width: 110px; max-width: 170px; vertical-align: top; }
+        .border-clearance-table-section { margin-bottom: 24px; }
+        .border-direction-table { min-width: 2400px; font-size: 12px; }
+        .border-direction-table th.live-border-status-col { font-size: 10px; max-width: 120px; white-space: normal; line-height: 1.25; vertical-align: bottom; }
         .live-expandable-panel { position: relative; }
         .live-expandable-panel.has-more { cursor: pointer; }
         .live-expandable-panel.has-more:hover .live-expandable-latest { background: #f7fafc; border-radius: 6px; }
