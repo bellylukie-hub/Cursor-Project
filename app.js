@@ -733,28 +733,104 @@ function getBorderRowForTrip(tripNumber) {
 }
 
 function resolveCommentContextKpi(tripNumber, statusContext) {
-    const borderRow = getBorderRowForTrip(tripNumber);
-    if ((statusContext === 'border' || borderRow) && borderRow?.kpi) {
-        return typeof normalizeKpi === 'function' ? normalizeKpi(borderRow.kpi) : borderRow.kpi;
-    }
-    if (statusContext === 'pod' && typeof podDB !== 'undefined') {
-        const pod = podDB.find(p => p.trip === tripNumber);
-        if (pod?.kpi) return typeof normalizeKpi === 'function' ? normalizeKpi(pod.kpi) : pod.kpi;
-    }
-    const trip = tripsDB[tripNumber];
-    if (trip?.kpi) return typeof normalizeKpi === 'function' ? normalizeKpi(trip.kpi) : trip.kpi;
-    return 'green';
+    return buildCommentModalKpiSnapshot(tripNumber, statusContext, tripsDB[tripNumber]).effective;
 }
 
-function kpiRequiresStructuredComment(kpi) {
-    const k = typeof normalizeKpi === 'function' ? normalizeKpi(kpi) : kpi;
-    return k === 'orange' || k === 'red';
+function buildCommentModalKpiSnapshot(tripNumber, statusContext, trip) {
+    const sources = [];
+    const norm = (k) => (typeof normalizeKpi === 'function' ? normalizeKpi(k) : k) || 'green';
+
+    if (trip) {
+        const pageLabel = trip.direction === 'SB' ? 'SB Operations' : 'NB Operations';
+        const opsCtx = statusContext === 'nb' || statusContext === 'sb' ||
+            statusContext === 'border' || statusContext === 'pod' ||
+            ['nb-operations', 'sb-operations', 'position-live', 'border-clearance', 'pod-management'].includes(currentPage);
+        sources.push({
+            id: 'trip',
+            label: pageLabel,
+            kpi: norm(trip.kpi),
+            detail: [
+                trip.daysInDRC != null ? `${trip.daysInDRC}d in DRC` : null,
+                trip.status || null
+            ].filter(Boolean).join(' · ') || 'Live operations',
+            active: statusContext === 'nb' || statusContext === 'sb' ||
+                (opsCtx && !['border', 'pod'].includes(statusContext))
+        });
+    }
+
+    const borderRow = getBorderRowForTrip(tripNumber);
+    if (borderRow) {
+        sources.push({
+            id: 'border',
+            label: `Border — ${borderRow.border}`,
+            kpi: norm(borderRow.kpi),
+            detail: [
+                borderRow.hours != null ? `${borderRow.hours}h / ${borderRow.target || '48h'}` : null,
+                borderRow.process || null,
+                borderRow.status || null
+            ].filter(Boolean).join(' · ') || 'Border clearance',
+            active: statusContext === 'border'
+        });
+    }
+
+    if (typeof podDB !== 'undefined') {
+        const pod = podDB.find(p => p.trip === tripNumber);
+        if (pod) {
+            let stage = 'Pending collection';
+            if (pod.sentToInvoicing) stage = 'Sent to invoicing';
+            else if (pod.uploaded) stage = 'Uploaded';
+            else if (pod.scanned) stage = 'Scanned';
+            else if (pod.collected) stage = pod.collectedOnTime ? 'Collected on-time' : 'Collected late';
+            else if (pod.overdue) stage = 'Overdue';
+            sources.push({
+                id: 'pod',
+                label: 'POD',
+                kpi: norm(pod.kpi),
+                detail: `${stage}${pod.area ? ` · ${pod.area}` : ''}`,
+                active: statusContext === 'pod'
+            });
+        }
+    }
+
+    const rank = { green: 1, orange: 2, red: 3 };
+    const effective = sources.reduce((worst, s) =>
+        (rank[s.kpi] || 0) > (rank[worst] || 0) ? s.kpi : worst, 'green');
+
+    return { sources, effective, context: statusContext };
 }
 
 function renderModalKpiBadge(kpi) {
     const k = typeof normalizeKpi === 'function' ? normalizeKpi(kpi) : kpi;
     const label = typeof getKpiLabel === 'function' ? getKpiLabel(k) : getKPILabel(k);
     return `<span class="status-badge ${k}"><span class="dot"></span> ${label}</span>`;
+}
+
+function renderCommentModalKpiPanel(snapshot) {
+    if (!snapshot?.sources?.length) {
+        return `<div class="modal-kpi-panel">${renderModalKpiBadge('green')}</div>`;
+    }
+    const effectiveBadge = renderModalKpiBadge(snapshot.effective);
+    const chips = snapshot.sources.map(s => `
+        <div class="modal-kpi-chip${s.active ? ' modal-kpi-chip-active' : ''}" title="${s.detail}">
+            <span class="modal-kpi-chip-label">${s.label}${s.active ? ' <em>(this page)</em>' : ''}</span>
+            ${renderModalKpiBadge(s.kpi)}
+            <small class="modal-kpi-chip-detail">${s.detail}</small>
+        </div>
+    `).join('');
+    return `
+        <div class="modal-kpi-panel">
+            <div class="modal-kpi-effective">
+                <span class="modal-kpi-effective-label">Effective KPI</span>
+                ${effectiveBadge}
+                <small class="modal-kpi-effective-hint">Worst status across sources — drives comment type</small>
+            </div>
+            <div class="modal-kpi-sources">${chips}</div>
+        </div>`;
+}
+
+function kpiRequiresStructuredComment(kpi) {
+    const k = typeof normalizeKpi === 'function' ? normalizeKpi(kpi) : kpi;
+    return k === 'orange' || k === 'red';
 }
 
 function applyCommentModalKpiStyling(kpi) {
@@ -8058,8 +8134,9 @@ function openCommentModal(tripNumber, statusContext, podStage) {
     document.getElementById('modalTruckDisplay').textContent = trip.truck;
     document.getElementById('modalDriverDisplay').textContent = trip.driver;
 
-    currentCommentKpi = resolveCommentContextKpi(tripNumber, ctx);
-    document.getElementById('modalKPIDisplay').innerHTML = renderModalKpiBadge(currentCommentKpi);
+    const kpiSnapshot = buildCommentModalKpiSnapshot(tripNumber, ctx, trip);
+    currentCommentKpi = kpiSnapshot.effective;
+    document.getElementById('modalKPIDisplay').innerHTML = renderCommentModalKpiPanel(kpiSnapshot);
 
     selectedCommentType = kpiRequiresStructuredComment(currentCommentKpi) ? 'structured' : 'normal';
     document.getElementById('normalCommentText').value = '';
