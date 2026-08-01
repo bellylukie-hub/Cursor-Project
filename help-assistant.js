@@ -112,8 +112,8 @@
                 },
                 {
                     id: 'reports', icon: '📈', label: 'Reports', moduleId: 'reports',
-                    keywords: ['reports', 'report', 'export', 'analytics', 'summary'],
-                    description: 'Operational reports — NB/SB performance, border clearance, POD, and area summaries. Pick a report type and date range, then view or export.'
+                    keywords: ['reports', 'report', 'export', 'analytics', 'summary', 'customize', 'columns', 'csv'],
+                    description: 'Customizable reports for every sidebar menu — Dashboard, Operations, Areas, Communication, Management, and Admin. Pick columns, filter KPIs, save layouts, and export CSV.'
                 },
                 {
                     id: 'turnarounds', icon: '🔄', label: 'Turnarounds', moduleId: 'turnarounds',

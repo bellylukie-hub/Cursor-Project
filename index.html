@@ -1293,6 +1293,17 @@
         .report-kpi-section h2 { font-size: 16px; margin-bottom: 16px; }
         .report-table { font-size: 13px; }
         .report-status-select { display: inline-block; margin-bottom: 4px; }
+        .report-section { margin-bottom: 32px; }
+        .report-section-title { font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .report-builder-panel { background: white; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+        .report-builder-row { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 14px; align-items: flex-end; }
+        .report-builder-row:last-child { margin-bottom: 0; }
+        .report-column-picker label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 8px; color: var(--text-secondary); }
+        .report-column-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+        .report-column-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; background: var(--bg-main); border: 1px solid var(--border); border-radius: 20px; padding: 4px 10px; cursor: pointer; }
+        .report-column-chip input { margin: 0; }
+        .report-builder-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+        .report-empty { padding: 32px 20px; text-align: center; color: var(--text-secondary); }
         .sb-kanyaka-required { background: #fffaf0; border: 1px solid #fbd38d; border-radius: 8px; padding: 14px; margin-bottom: 16px; }
         .sb-kanyaka-required h4 { margin-bottom: 10px; color: #c05621; }
 
@@ -2288,6 +2299,7 @@
     <script src="admin-persistence.js"></script>
     <script src="live-operations.js"></script>
     <script src="app.js"></script>
+    <script src="custom-reports.js"></script>
     <script src="process-guide.js"></script>
     <script src="help-assistant.js"></script>
 </body>

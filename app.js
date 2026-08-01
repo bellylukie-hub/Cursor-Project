@@ -1135,7 +1135,6 @@ if (typeof window !== 'undefined') window.tripAreaUpdatesDB = tripAreaUpdatesDB;
 let nextAreaStatusId = 8;
 let editingAreaStatusId = null;
 if (typeof window !== 'undefined') window.nextAreaStatusId = nextAreaStatusId;
-let currentReportType = 'operations-overview';
 let areaAssignmentFilter = '';
 
 function getStatusesForArea(areaName) {
@@ -3736,8 +3735,13 @@ function renderDashboard(container) {
 
     container.innerHTML = `
         <div class="page-header">
-            <h1>📊 Operations Dashboard</h1>
-            <div class="breadcrumb">Home / Dashboard / Overview</div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+                <div>
+                    <h1>📊 Operations Dashboard</h1>
+                    <div class="breadcrumb">Home / Dashboard / Overview</div>
+                </div>
+                ${typeof renderModuleReportButton === 'function' ? renderModuleReportButton('dashboard') : ''}
+            </div>
         </div>
 
         <div class="page-content">
@@ -3927,7 +3931,7 @@ function refreshDashboard() {}
 function renderNBOperations(container) {
     const trips = filterTrips('NB', '');
     container.innerHTML = `
-        <div class="page-header"><h1>🚛 North Bound Operations</h1><div class="breadcrumb">Operations / NB Operations</div><p class="page-subtitle" style="margin-top:8px;font-size:13px;color:var(--text-secondary);">Each workflow column shows the latest area status with title, date, and user log — click to view earlier updates. Applies across Kasumbalesa, Kanyaka, Kolwezi, Lubumbashi, and all NB areas.</p></div>
+        <div class="page-header"><div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;"><div><h1>🚛 North Bound Operations</h1><div class="breadcrumb">Operations / NB Operations</div><p class="page-subtitle" style="margin-top:8px;font-size:13px;color:var(--text-secondary);">Each workflow column shows the latest area status with title, date, and user log — click to view earlier updates. Applies across Kasumbalesa, Kanyaka, Kolwezi, Lubumbashi, and all NB areas.</p></div>${typeof renderModuleReportButton === 'function' ? renderModuleReportButton('nb-operations') : ''}</div></div>
         ${getAreaFilterBanner()}
         ${renderKpiTargetsBanner('nb')}
         <div class="kpi-grid">
@@ -7095,160 +7099,7 @@ function renderInternalCommunication(container) {
     updateSidebarBadges();
 }
 
-function renderReports(container) {
-    const reports = [
-        { id: 'operations-overview', icon: '📊', title: 'Operations Overview', desc: 'Full dashboard KPIs + all trucks' },
-        { id: 'nb-report', icon: '🚛', title: 'NB Operations Report', desc: 'Northbound trucks by border, area, status' },
-        { id: 'sb-report', icon: '🚛', title: 'SB Operations Report', desc: 'Southbound loading, dispatch, Kanyaka, exit' },
-        { id: 'border-report', icon: '🛂', title: 'Border Clearance Report', desc: 'NB entry & SB exit border performance' },
-        { id: 'pod-report', icon: '📋', title: 'POD Collection Report', desc: 'POD pipeline by area and timeliness' },
-        { id: 'area-report', icon: '🗺️', title: 'Area Performance Report', desc: 'Trucks per area with user status updates' },
-        { id: 'kpi-alerts-report', icon: '⚠️', title: 'KPI & Alerts Report', desc: 'Orange/red priority trucks' },
-        { id: 'turnaround-report', icon: '🔄', title: 'Turnaround Report', desc: 'Days in DRC and cycle completion' }
-    ];
-    container.innerHTML = `
-        <div class="page-header"><h1>📈 Reports</h1><p class="page-subtitle">Each report shows dashboard summary at top, then full truck list with area status updates.</p></div>
-        ${getAreaFilterBanner()}
-        <div class="report-grid">
-            ${reports.map(r => `
-                <div class="report-card" onclick="openReport('${r.id}')">
-                    <div class="report-card-icon">${r.icon}</div>
-                    <h3>${r.title}</h3>
-                    <p>${r.desc}</p>
-                    <span class="card-action">View Report →</span>
-                </div>`).join('')}
-        </div>`;
-}
-
-function openReport(reportId) {
-    currentReportType = reportId;
-    navigateTo('report-detail');
-}
-
-function getReportConfig(reportId) {
-    const configs = {
-        'operations-overview': { title: 'Operations Overview Report', direction: null, filter: null },
-        'nb-report': { title: 'NB Operations Report', direction: 'NB', filter: null },
-        'sb-report': { title: 'SB Operations Report', direction: 'SB', filter: null },
-        'border-report': { title: 'Border Clearance Report', direction: null, filter: 'border' },
-        'pod-report': { title: 'POD Collection Report', direction: 'NB', filter: 'pod' },
-        'area-report': { title: 'Area Performance Report', direction: null, filter: 'area' },
-        'kpi-alerts-report': { title: 'KPI & Alerts Report', direction: null, filter: 'alerts' },
-        'turnaround-report': { title: 'Turnaround Report', direction: null, filter: 'turnaround' }
-    };
-    return configs[reportId] || configs['operations-overview'];
-}
-
-function getReportTrips(config) {
-    let trips = filterTrips(config.direction, '');
-    if (config.filter === 'border') trips = trips.filter(t => (t.workflow?.border === 'current' || t.workflow?.border === 'completed') || t.status.toLowerCase().includes('border') || t.status.toLowerCase().includes('kbp') || t.status.toLowerCase().includes('whisky'));
-    if (config.filter === 'pod') trips = trips.filter(t => t.direction === 'NB' && (t.workflow?.pod === 'current' || t.workflow?.offloading === 'completed' || t.status.toLowerCase().includes('pod')));
-    if (config.filter === 'alerts') trips = trips.filter(t => t.kpi === 'orange' || t.kpi === 'red');
-    if (config.filter === 'turnaround') trips = [...trips].sort((a, b) => b.daysInDRC - a.daysInDRC);
-    return trips;
-}
-
-function renderReportKpiSection(trips, config) {
-    const stats = getDashboardStats();
-    const podStats = getPODStats();
-    const nb = trips.filter(t => t.direction === 'NB');
-    const sb = trips.filter(t => t.direction === 'SB');
-    return `
-        <div class="report-kpi-section">
-            <h2>📊 Report Summary</h2>
-            <div class="dashboard-grid">
-                <div class="stat-card"><div class="stat-label">Trucks in Report</div><div class="stat-value">${trips.length}</div></div>
-                <div class="stat-card"><div class="stat-label">NB</div><div class="stat-value">${nb.length}</div></div>
-                <div class="stat-card"><div class="stat-label">SB</div><div class="stat-value">${sb.length}</div></div>
-                <div class="stat-card"><div class="stat-label">🟢 On Track</div><div class="stat-value" style="color:var(--green);">${trips.filter(t=>t.kpi==='green').length}</div></div>
-                <div class="stat-card"><div class="stat-label">🟠 Priority</div><div class="stat-value" style="color:var(--orange);">${trips.filter(t=>t.kpi==='orange').length}</div></div>
-                <div class="stat-card"><div class="stat-label">🔴 Overdue</div><div class="stat-value" style="color:var(--red);">${trips.filter(t=>t.kpi==='red').length}</div></div>
-            </div>
-            ${config.filter === 'pod' ? `<div class="kpi-row"><div class="kpi-mini"><div class="kpi-value">${podStats.pending}</div><div class="kpi-label">POD Pending</div></div><div class="kpi-mini"><div class="kpi-value red">${podStats.overdue}</div><div class="kpi-label">Overdue</div></div></div>` : ''}
-            ${config.filter === 'turnaround' ? `<div class="kpi-row"><div class="kpi-mini"><div class="kpi-value">${stats.avgTurnaround}d</div><div class="kpi-label">Avg Turnaround</div></div></div>` : ''}
-        </div>`;
-}
-
-function renderReportTruckTable(trips) {
-    if (!trips.length) return '<p style="padding:24px;text-align:center;color:var(--text-secondary);">No trucks match this report for your assigned area.</p>';
-    return `
-        <div class="table-container">
-            <div class="table-header"><h3>Truck List — ${trips.length} records</h3>
-                <button class="btn btn-outline btn-sm" onclick="exportReportCsv()">📥 Export CSV</button>
-            </div>
-            <table class="data-table report-table">
-                <thead><tr>
-                    <th>Trip #</th><th>Truck</th><th>Dir</th><th>Driver</th><th>Owner</th><th>Area</th><th>Process Status</th><th>Area Status</th><th>Workflow</th><th>Days</th><th>KPI</th><th>Last Update</th><th>Update</th>
-                </tr></thead>
-                <tbody>
-                    ${trips.map(t => {
-                        const reportCtx = t.direction === 'SB' ? 'sb' : 'nb';
-                        const statuses = typeof getStatusesForUpdateDropdown === 'function'
-                            ? getStatusesForUpdateDropdown(reportCtx, t)
-                            : getStatusesForArea(t.area || 'Kanyaka');
-                        const wf = t.workflow ? Object.entries(t.workflow).filter(([,v])=>v==='current').map(([k])=>k).join(', ') || '—' : '—';
-                        const history = getTripAreaHistory(t.tripNumber);
-                        return `<tr>
-                            <td><strong>${t.tripNumber}</strong></td>
-                            <td>${t.truck}</td>
-                            <td><span class="status-badge blue">${t.direction}</span></td>
-                            <td>${t.driver}</td>
-                            <td>${t.owner}</td>
-                            <td>${t.area || '—'}</td>
-                            <td>${t.status}</td>
-                            <td>${t.areaStatus || '—'}${history.length ? `<br><small style="color:var(--text-secondary);">by ${history[0].updatedBy}</small>` : ''}</td>
-                            <td><small>${wf}</small></td>
-                            <td>${t.daysInDRC}d</td>
-                            <td><span class="status-badge ${t.kpi}">${getKPILabel(t.kpi)}</span></td>
-                            <td><small>${t.lastUpdatedAt || '—'}</small></td>
-                            <td>
-                                <select class="form-control report-status-select" id="rpt-status-${t.tripNumber}" style="width:130px;font-size:12px;">
-                                    <option value="">— Set status —</option>
-                                    ${statuses.map(s => `<option value="${s}" ${t.areaStatus===s?'selected':''}>${s}</option>`).join('')}
-                                </select>
-                                <button class="btn btn-primary btn-sm" onclick="saveReportAreaStatus('${t.tripNumber}','${t.area||'Kanyaka'}')">Save</button>
-                            </td>
-                        </tr>`;
-                    }).join('')}
-                </tbody>
-            </table>
-        </div>`;
-}
-
-function renderReportDetail(container) {
-    const config = getReportConfig(currentReportType);
-    const trips = getReportTrips(config);
-    container.innerHTML = `
-        <div class="page-header admin-page-header">
-            <div><h1>${config.title}</h1><p class="page-subtitle">Generated ${new Date().toLocaleString()} — area users update status as trucks move between processes.</p></div>
-            <button class="btn btn-outline" onclick="navigateTo('reports')">← All Reports</button>
-        </div>
-        ${getAreaFilterBanner()}
-        ${renderReportKpiSection(trips, config)}
-        ${renderReportTruckTable(trips)}`;
-}
-
-function saveReportAreaStatus(tripNumber, area) {
-    const sel = document.getElementById('rpt-status-' + tripNumber);
-    if (!sel || !sel.value) { showToast('Select an area status first', 'warning'); return; }
-    recordTripAreaUpdate(tripNumber, area, sel.value);
-    showToast(`Status updated: ${sel.value}`, 'success');
-    renderReportDetail(document.getElementById('contentArea'));
-}
-
-function exportReportCsv() {
-    const config = getReportConfig(currentReportType);
-    const trips = getReportTrips(config);
-    const headers = ['Trip','Truck','Direction','Driver','Owner','Area','Process Status','Area Status','Days','KPI','Last Update'];
-    const rows = trips.map(t => [t.tripNumber,t.truck,t.direction,t.driver,t.owner,t.area,t.status,t.areaStatus||'',t.daysInDRC,getKPILabel(t.kpi),t.lastUpdatedAt||''].join(','));
-    const csv = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `report-${currentReportType}-${Date.now()}.csv`;
-    a.click();
-    showToast('Report exported', 'success');
-}
+// Reports — see custom-reports.js (renderReports, renderReportDetail, openModuleReport)
 
 // ============================================
 // TURNAROUNDS — NB → POD → SB lifecycle (API-linked)
