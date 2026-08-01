@@ -110,6 +110,7 @@ const WORKFLOW_CONFIG = {
 };
 
 if (typeof window !== 'undefined') window.WORKFLOW_CONFIG = WORKFLOW_CONFIG;
+if (typeof window !== 'undefined') window.BORDER_PROCESS_DEFS = BORDER_PROCESS_DEFS;
 
 // ============================================
 // KPI SETTINGS — admin-configurable per process / page / workflow
@@ -343,6 +344,7 @@ function buildBorderStepKpiSettings() {
 function getBorderProcessDef(processId) {
     return BORDER_PROCESS_DEFS.find(p => p.id === processId);
 }
+if (typeof window !== 'undefined') window.getBorderProcessDef = getBorderProcessDef;
 
 function getBorderStepKpiSetting(processId, stepKey) {
     return getKpiSetting(`border-${processId}-step-${stepKey}`);
@@ -1635,6 +1637,8 @@ const OPERATIONAL_MODULES = [
     { id: 'turnarounds', label: 'Turnarounds', icon: '🔄', global: true },
     { id: 'position-live', label: 'Position Live', icon: '📍', global: true }
 ];
+
+if (typeof window !== 'undefined') window.OPERATIONAL_MODULES = OPERATIONAL_MODULES;
 
 const PAGE_MODULE_MAP = {
     dashboard: 'dashboard',
@@ -8330,6 +8334,10 @@ function openCommentModal(tripNumber, statusContext, podStage) {
 
     const workflowEl = document.getElementById('workflowStatus');
     if (workflowEl) workflowEl.innerHTML = renderWorkflowStatus(trip);
+
+    if (typeof refreshCommentModalProcessGuide === 'function') {
+        refreshCommentModalProcessGuide(trip, ctx);
+    }
 
     applyCommentModalKpiStyling(currentCommentKpi);
     showKasumbalesaProcessInModal(trip, ctx);
