@@ -448,4 +448,41 @@ async function saveUploadTemplatesApi(templates) {
   return data.templates;
 }
 
+// Fleet orders & registry API
+async function fetchFleetOrderBundle() {
+  return apiRequest('/fleet-orders/bundle');
+}
+
+async function saveClientApi(payload) {
+  const data = await apiRequest('/clients', { method: 'POST', body: JSON.stringify(payload) });
+  return data.client;
+}
+
+async function saveFleetDriverApi(payload) {
+  const data = await apiRequest('/fleet-drivers', { method: 'POST', body: JSON.stringify(payload) });
+  return data.driver;
+}
+
+async function saveFleetUnitApi(payload) {
+  const data = await apiRequest('/fleet-units', { method: 'POST', body: JSON.stringify(payload) });
+  return data.unit;
+}
+
+async function saveClientOrderApi(payload) {
+  const data = await apiRequest('/client-orders', { method: 'POST', body: JSON.stringify(payload) });
+  return data.order;
+}
+
+async function saveOrderAllocationApi(payload) {
+  const data = await apiRequest('/order-allocations', { method: 'POST', body: JSON.stringify(payload) });
+  return data.allocation;
+}
+
+async function updateFleetUnitGpsApi(unitId, payload) {
+  const data = await apiRequest(`/fleet-units/${encodeURIComponent(unitId)}/gps`, {
+    method: 'PATCH', body: JSON.stringify(payload)
+  });
+  return data.unit;
+}
+
 loadStoredAuth();

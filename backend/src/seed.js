@@ -86,6 +86,13 @@ function seed() {
 
   console.log('Seed complete.');
   seedUsers();
+  try {
+    const { seedFleetOrderData } = require('./services/fleetOrderService');
+    const fo = seedFleetOrderData();
+    if (fo.seeded) console.log('  Fleet orders & registry demo data seeded');
+  } catch (e) {
+    console.log(`  Fleet orders seed: ${e.message}`);
+  }
 }
 
 seed();

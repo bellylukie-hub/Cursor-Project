@@ -47,6 +47,8 @@
             section: 'Management',
             items: [
                 { id: 'assets', icon: '🚗', title: 'Assets & Equipment', desc: 'Fleet assets, documents, and expiry status' },
+                { id: 'client-orders', icon: '📦', title: 'Client Orders', desc: 'Client orders, truck scheduling, and fleet allocation' },
+                { id: 'fleet-registry', icon: '🚛', title: 'Fleet Registry', desc: 'Truck, trailer, driver registration and GPS' },
                 { id: 'runner-fees', icon: '💰', title: 'Runner Fees', desc: 'Border and Kanyaka runner fee calculations' },
                 { id: 'turnarounds', icon: '🔄', title: 'Turnarounds', desc: 'NB → POD → SB lifecycle per truck' },
                 { id: 'position-live', icon: '📍', title: 'Position Live', desc: 'Live operations position and workflow status' }

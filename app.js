@@ -122,8 +122,9 @@ const KPI_CATEGORIES = [
     { id: 'pod', label: 'POD Management', icon: '📋', banner: 'nb' },
     { id: 'areas', label: 'Area Operations', icon: '🗺️', banner: null },
     { id: 'modules', label: 'Module / Page', icon: '📊', banner: null },
-    { id: 'assets', label: 'Assets & Documents', icon: '🚗', banner: 'equipment' },
-    { id: 'turnarounds', label: 'Turnarounds', icon: '🔄', banner: null }
+    { id: 'assets', label: 'Assets & Equipment', icon: '🚗', banner: 'equipment' },
+    { id: 'turnarounds', label: 'Turnarounds', icon: '🔄', banner: null },
+    { id: 'orders-fleet', label: 'Orders & Fleet', icon: '📦', banner: 'equipment' }
 ];
 
 /** KPI measurement type per border step */
@@ -620,7 +621,20 @@ function buildDefaultKpiSettings() {
         enabled: true,
         notes: 'Maximum days between NB POD complete and SB trip creation'
     }];
-    return [...nbWf, ...sbWf, ...borders, ...pod, ...areas, ...modules, ...assets, ...turnarounds];
+    const ordersFleet = [
+        { id: 'order-allocation-sla', process: 'Order → Fleet Allocation', pageId: 'client-orders', pageLabel: 'Client Orders', targetValue: 48, unit: 'hours', notes: 'Hours from order confirmed to truck allocated' },
+        { id: 'order-dispatch-sla', process: 'Allocation → Dispatch', pageId: 'client-orders', pageLabel: 'Client Orders', targetValue: 24, unit: 'hours', notes: 'Hours from allocation to dispatch' },
+        { id: 'fleet-gps-update', process: 'GPS Position Update', pageId: 'position-live', pageLabel: 'Position Live', targetValue: 4, unit: 'hours', notes: 'Expected GPS update interval for allocated trucks' },
+        { id: 'fleet-available-idle', process: 'Fleet Unit Idle', pageId: 'fleet-registry', pageLabel: 'Fleet Registry', targetValue: 3, unit: 'days', notes: 'Flag available fleet units idle longer than N days' }
+    ].map(o => ({
+        ...o,
+        category: 'orders-fleet',
+        workflowStep: '',
+        direction: 'Both',
+        warningPct: 75,
+        enabled: true
+    }));
+    return [...nbWf, ...sbWf, ...borders, ...pod, ...areas, ...modules, ...assets, ...turnarounds, ...ordersFleet];
 }
 
 let kpiSettingsDB = buildDefaultKpiSettings();
@@ -1560,6 +1574,9 @@ async function bootApplication() {
     if (typeof syncDriverContactsFromApi === 'function' && isApiAvailable()) {
         await syncDriverContactsFromApi();
     }
+    if (typeof syncFleetOrdersFromApi === 'function' && isApiAvailable()) {
+        await syncFleetOrdersFromApi();
+    }
     navigateTo('dashboard');
     updateSidebarBadges();
     updateAdminNavVisibility();
@@ -1634,6 +1651,8 @@ const OPERATIONAL_MODULES = [
     { id: 'driver-registry', label: 'Driver Registry', icon: '📱', global: true },
     { id: 'internal-communication', label: 'Internal Communication', icon: '✉️', global: true },
     { id: 'assets', label: 'Assets & Equipment', icon: '🚗', global: true },
+    { id: 'client-orders', label: 'Client Orders', icon: '📦', global: true },
+    { id: 'fleet-registry', label: 'Fleet Registry', icon: '🚛', global: true },
     { id: 'runner-fees', label: 'Runner Fees', icon: '💰', global: true },
     { id: 'reports', label: 'Reports', icon: '📈', global: true },
     { id: 'turnarounds', label: 'Turnarounds', icon: '🔄', global: true },
@@ -1653,6 +1672,8 @@ const PAGE_MODULE_MAP = {
     'driver-registry': 'driver-registry',
     'internal-communication': 'internal-communication',
     assets: 'assets',
+    'client-orders': 'client-orders',
+    'fleet-registry': 'fleet-registry',
     'runner-fees': 'runner-fees',
     reports: 'reports',
     'report-detail': 'reports',
@@ -2203,6 +2224,8 @@ function navigateTo(page) {
         case 'driver-registry': renderDriverRegistry(ca); break;
         case 'internal-communication': renderInternalCommunication(ca); break;
         case 'assets': renderAssets(ca); break;
+        case 'client-orders': if (typeof renderClientOrders === 'function') renderClientOrders(ca); else renderDashboard(ca); break;
+        case 'fleet-registry': if (typeof renderFleetRegistry === 'function') renderFleetRegistry(ca); else renderDashboard(ca); break;
         case 'runner-fees': renderRunnerFees(ca); break;
         case 'reports': renderReports(ca); break;
         case 'admin-users': renderAdminUsers(ca); break;
@@ -3319,6 +3342,14 @@ function updateSidebarBadges() {
         warning: stats.internalUnread > 0
     });
 
+    if (typeof getFleetOrderDashboardStats === 'function') {
+        const fo = getFleetOrderDashboardStats();
+        setNavBadge(document.getElementById('navClientOrdersBadge'), fo.pending, {
+            title: `${fo.pending} order(s) awaiting truck allocation`,
+            warning: fo.pending > 0
+        });
+    }
+
     updateAlertPanel(alertPanelMenuFilter);
 }
 
@@ -3771,6 +3802,22 @@ function renderDashboard(container) {
                         <span class="stat-change red" onclick="event.stopPropagation();navigateToPOD('overdue')"><i class="fas fa-clock"></i> ${podStats.overdue} overdue</span>
                         <i class="fas fa-file-alt stat-icon"></i>
                     </div>
+                    ${typeof getFleetOrderDashboardStats === 'function' ? (() => {
+                        const fo = getFleetOrderDashboardStats();
+                        return `
+                    <div class="stat-card stat-card-clickable" onclick="navigateTo('client-orders')" title="View client orders">
+                        <div class="stat-label">Client Orders</div>
+                        <div class="stat-value">${fo.totalOrders}</div>
+                        <span class="stat-change orange" onclick="event.stopPropagation();navigateTo('client-orders')"><i class="fas fa-truck"></i> ${fo.pending} awaiting allocation</span>
+                        <i class="fas fa-box stat-icon"></i>
+                    </div>
+                    <div class="stat-card stat-card-clickable" onclick="navigateTo('fleet-registry')" title="View fleet registry">
+                        <div class="stat-label">Fleet Available</div>
+                        <div class="stat-value">${fo.availableUnits}</div>
+                        <span class="stat-change green">${fo.scheduled} scheduled</span>
+                        <i class="fas fa-shipping-fast stat-icon"></i>
+                    </div>`;
+                    })() : ''}
                     <div class="stat-card stat-card-clickable" onclick="navigateToTripList('orange')" title="View priority alerts">
                         <div class="stat-label">Orange Alerts</div>
                         <div class="stat-value" style="color:var(--orange);">${stats.orange}</div>

@@ -938,6 +938,8 @@
         a.driver-link.pending { color: #c05621; border-bottom-color: #ed8936; }
         a.driver-link.registered { color: #276749; border-bottom-color: #48bb78; }
         .driver-link-badge { font-size: 11px; line-height: 1; }
+        a.position-map-link { color: var(--primary-light); font-weight: 600; text-decoration: none; border-bottom: 1px dashed var(--primary-light); cursor: pointer; }
+        a.position-map-link:hover { color: var(--primary); border-bottom-style: solid; }
         .driver-link-badge.pending { opacity: 0.9; }
         .driver-link-badge.registered { color: #276749; font-weight: 700; }
 
@@ -1863,6 +1865,12 @@
                     <a class="nav-item" onclick="navigateTo('assets')" data-page="assets">
                         <span class="icon">🚗</span> Assets & Equipment
                     </a>
+                    <a class="nav-item" onclick="navigateTo('client-orders')" data-page="client-orders">
+                        <span class="icon">📦</span> Client Orders <span class="badge nav-badge-clickable" id="navClientOrdersBadge" style="display:none;" onclick="event.preventDefault();event.stopPropagation();navigateTo('client-orders')" title="Orders awaiting allocation"></span>
+                    </a>
+                    <a class="nav-item" onclick="navigateTo('fleet-registry')" data-page="fleet-registry">
+                        <span class="icon">🚛</span> Fleet Registry
+                    </a>
                     <a class="nav-item" onclick="navigateTo('runner-fees')" data-page="runner-fees">
                         <span class="icon">💰</span> Runner Fees
                     </a>
@@ -2326,9 +2334,129 @@
         </div>
     </div>
 
+    <!-- Fleet GPS Map -->
+    <div class="modal" id="fleetGpsMapModal" style="display:none;">
+        <div class="modal-content" style="max-width:900px;width:95%;">
+            <div class="modal-header">
+                <h3 id="fleetGpsMapTitle">📍 Truck Position</h3>
+                <button class="btn btn-outline" onclick="closeModal('fleetGpsMapModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="fleetGpsMapMeta" style="font-size:13px;margin-bottom:12px;color:var(--text-secondary);"></div>
+                <iframe id="fleetGpsMapFrame" title="Truck GPS map" style="width:100%;height:420px;border:1px solid var(--border);border-radius:8px;"></iframe>
+            </div>
+            <div class="modal-footer">
+                <a id="fleetGpsMapExternal" class="btn btn-outline" href="#" target="_blank" rel="noopener">Open in OpenStreetMap ↗</a>
+                <button class="btn btn-primary" onclick="closeModal('fleetGpsMapModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client modal -->
+    <div class="modal" id="clientModal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header"><h3 id="clientModalTitle">Add Client</h3><button class="btn btn-outline" onclick="closeModal('clientModal')">✕</button></div>
+            <div class="modal-body">
+                <input type="hidden" id="clientFormId">
+                <div class="form-group"><label>Name *</label><input class="form-control" id="clientFormName"></div>
+                <div class="form-group"><label>Contact Person</label><input class="form-control" id="clientFormContact"></div>
+                <div class="form-group"><label>Phone</label><input class="form-control" id="clientFormPhone"></div>
+                <div class="form-group"><label>WhatsApp</label><input class="form-control" id="clientFormWhatsapp" placeholder="+243..."></div>
+                <div class="form-group"><label>Email</label><input class="form-control" id="clientFormEmail" type="email"></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('clientModal')">Cancel</button><button class="btn btn-primary" onclick="submitClientForm()">Save Client</button></div>
+        </div>
+    </div>
+
+    <!-- Fleet driver modal -->
+    <div class="modal" id="fleetDriverModal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header"><h3 id="fleetDriverModalTitle">Register Driver</h3><button class="btn btn-outline" onclick="closeModal('fleetDriverModal')">✕</button></div>
+            <div class="modal-body">
+                <input type="hidden" id="fleetDriverFormId">
+                <div class="form-group"><label>Driver Name *</label><input class="form-control" id="fleetDriverFormName"></div>
+                <div class="form-group"><label>DRC Mobile</label><input class="form-control" id="fleetDriverFormDrc"></div>
+                <div class="form-group"><label>WhatsApp *</label><input class="form-control" id="fleetDriverFormWhatsapp" placeholder="+243..."></div>
+                <div class="form-group"><label>License Number</label><input class="form-control" id="fleetDriverFormLicense"></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('fleetDriverModal')">Cancel</button><button class="btn btn-primary" onclick="submitFleetDriverForm()">Save Driver</button></div>
+        </div>
+    </div>
+
+    <!-- Fleet unit modal -->
+    <div class="modal" id="fleetUnitModal" style="display:none;">
+        <div class="modal-content" style="max-width:560px;">
+            <div class="modal-header"><h3 id="fleetUnitModalTitle">Register Fleet Set</h3><button class="btn btn-outline" onclick="closeModal('fleetUnitModal')">✕</button></div>
+            <div class="modal-body">
+                <input type="hidden" id="fleetUnitFormId">
+                <div class="form-group"><label>Truck Plate *</label><input class="form-control" id="fleetUnitFormTruck" placeholder="ABC123DRC"></div>
+                <div class="form-group"><label>Trailer Plate</label><input class="form-control" id="fleetUnitFormTrailer"></div>
+                <div class="form-group"><label>Vehicle Type</label>
+                    <select class="form-control" id="fleetUnitFormType"><option>Truck</option><option>Trailer</option><option>Horse</option><option>Light Vehicle</option></select>
+                </div>
+                <div class="form-group"><label>Assigned Driver</label><select class="form-control" id="fleetUnitFormDriver"></select></div>
+                <hr style="margin:16px 0;border:none;border-top:1px solid var(--border);">
+                <p style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;"><strong>GPS tracking</strong> — enables map on Position Live when clicking position</p>
+                <div class="form-group"><label>GPS Device ID</label><input class="form-control" id="fleetUnitFormGpsId" placeholder="GPS-001"></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div class="form-group"><label>Latitude</label><input class="form-control" id="fleetUnitFormGpsLat" type="number" step="any" placeholder="-10.7167"></div>
+                    <div class="form-group"><label>Longitude</label><input class="form-control" id="fleetUnitFormGpsLng" type="number" step="any" placeholder="25.4667"></div>
+                </div>
+                <div class="form-group"><label>Location Label</label><input class="form-control" id="fleetUnitFormGpsLabel" placeholder="Kasumbalesa"></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('fleetUnitModal')">Cancel</button><button class="btn btn-primary" onclick="submitFleetUnitForm()">Save Fleet Set</button></div>
+        </div>
+    </div>
+
+    <!-- Client order modal -->
+    <div class="modal" id="clientOrderModal" style="display:none;">
+        <div class="modal-content" style="max-width:560px;">
+            <div class="modal-header"><h3 id="clientOrderModalTitle">Create Client Order</h3><button class="btn btn-outline" onclick="closeModal('clientOrderModal')">✕</button></div>
+            <div class="modal-body">
+                <input type="hidden" id="clientOrderFormId">
+                <div class="form-group"><label>Client *</label><select class="form-control" id="clientOrderFormClient"></select></div>
+                <div class="form-group"><label>Order Number</label><input class="form-control" id="clientOrderFormNumber" placeholder="Auto-generated if empty"></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div class="form-group"><label>Origin</label><input class="form-control" id="clientOrderFormOrigin"></div>
+                    <div class="form-group"><label>Destination</label><input class="form-control" id="clientOrderFormDestination"></div>
+                </div>
+                <div class="form-group"><label>Commodity</label><input class="form-control" id="clientOrderFormCommodity"></div>
+                <div class="form-group"><label>Cargo Type</label>
+                    <select class="form-control" id="clientOrderFormCargo"><option>Bulk</option><option>Liquid</option><option>Container</option><option>General</option></select>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div class="form-group"><label>Required Date</label><input class="form-control" id="clientOrderFormRequired" type="date"></div>
+                    <div class="form-group"><label>Priority</label>
+                        <select class="form-control" id="clientOrderFormPriority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select>
+                    </div>
+                </div>
+                <div class="form-group"><label>Status</label>
+                    <select class="form-control" id="clientOrderFormStatus"><option value="draft">Draft</option><option value="confirmed">Confirmed</option><option value="allocated">Allocated</option><option value="in_transit">In Transit</option><option value="completed">Completed</option></select>
+                </div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('clientOrderModal')">Cancel</button><button class="btn btn-primary" onclick="submitClientOrderForm()">Save Order</button></div>
+        </div>
+    </div>
+
+    <!-- Allocate fleet to order -->
+    <div class="modal" id="allocateFleetModal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header"><h3>🚛 Schedule Truck to Order</h3><button class="btn btn-outline" onclick="closeModal('allocateFleetModal')">✕</button></div>
+            <div class="modal-body">
+                <input type="hidden" id="allocateOrderId">
+                <p id="allocateOrderLabel" style="font-weight:600;margin-bottom:16px;"></p>
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Select a registered <strong>truck + trailer + driver</strong> fleet set to allocate to this client order.</p>
+                <div class="form-group"><label>Fleet Set (Truck / Trailer / Driver)</label><select class="form-control" id="allocateFleetUnit"></select></div>
+                <div class="form-group"><label>Scheduled Date</label><input class="form-control" id="allocateScheduledDate" type="date"></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('allocateFleetModal')">Cancel</button><button class="btn btn-primary" onclick="submitAllocateFleetForm()">Allocate & Schedule</button></div>
+        </div>
+    </div>
+
     <script src="api.js"></script>
     <script src="admin-persistence.js"></script>
     <script src="live-operations.js"></script>
+    <script src="fleet-orders.js"></script>
     <script src="app.js"></script>
     <script src="custom-reports.js"></script>
     <script src="process-guide.js"></script>

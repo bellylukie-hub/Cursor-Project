@@ -106,6 +106,16 @@
                     description: 'Fleet assets and equipment register — vehicles, phones, radios. Track documents, expiry dates, operational status, and handover records.'
                 },
                 {
+                    id: 'client-orders', icon: '📦', label: 'Client Orders', moduleId: 'client-orders',
+                    keywords: ['client orders', 'orders', 'schedule truck', 'allocate', 'customer order'],
+                    description: 'Create client orders, schedule trucks, and allocate registered truck-trailer-driver fleet sets. KPI cards show pending allocation and overdue orders.'
+                },
+                {
+                    id: 'fleet-registry', icon: '🚛', label: 'Fleet Registry', moduleId: 'fleet-registry',
+                    keywords: ['fleet registry', 'register truck', 'trailer', 'driver', 'gps', 'fleet set'],
+                    description: 'Register trucks, trailers, and drivers; link them as a fleet set with optional GPS device. WhatsApp links open driver chat. GPS enables map view on Position Live.'
+                },
+                {
                     id: 'runner-fees', icon: '💰', label: 'Runner Fees', moduleId: 'runner-fees',
                     keywords: ['runner fees', 'runner', 'fees', 'transporter fees', 'border fees'],
                     description: 'Calculate runner/transporter fees from border dwell time and Kanyaka transit. Filter by transporter and date range; supports border and Kanyaka NB/SB fee tiers.'

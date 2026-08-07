@@ -222,6 +222,85 @@ function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_border_trip ON border_clearance_steps(trip_id);
     CREATE INDEX IF NOT EXISTS idx_driver_contacts_trip ON driver_contacts(trip_number);
     CREATE INDEX IF NOT EXISTS idx_driver_contacts_name ON driver_contacts(driver_name);
+
+    CREATE TABLE IF NOT EXISTS clients (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      contact_person TEXT,
+      email TEXT,
+      phone TEXT,
+      whatsapp TEXT,
+      address TEXT,
+      status TEXT DEFAULT 'active',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS fleet_drivers (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      drc_number TEXT,
+      whatsapp TEXT,
+      license_number TEXT,
+      status TEXT DEFAULT 'active',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS fleet_units (
+      id TEXT PRIMARY KEY,
+      truck_plate TEXT NOT NULL UNIQUE,
+      trailer_plate TEXT,
+      horse_plate TEXT,
+      vehicle_type TEXT DEFAULT 'Truck',
+      driver_id TEXT REFERENCES fleet_drivers(id),
+      gps_device_id TEXT,
+      gps_lat REAL,
+      gps_lng REAL,
+      gps_label TEXT,
+      gps_updated_at TEXT,
+      owner_id TEXT REFERENCES fleet_owners(id),
+      status TEXT DEFAULT 'available',
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS client_orders (
+      id TEXT PRIMARY KEY,
+      order_number TEXT NOT NULL UNIQUE,
+      client_id TEXT NOT NULL REFERENCES clients(id),
+      origin TEXT,
+      destination TEXT,
+      loading_point TEXT,
+      offloading_point TEXT,
+      commodity TEXT,
+      cargo_type TEXT,
+      customer_ref TEXT,
+      required_date TEXT,
+      priority TEXT DEFAULT 'normal',
+      status TEXT DEFAULT 'draft',
+      kpi TEXT DEFAULT 'green',
+      notes TEXT,
+      created_by TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS order_allocations (
+      id TEXT PRIMARY KEY,
+      order_id TEXT NOT NULL REFERENCES client_orders(id),
+      fleet_unit_id TEXT NOT NULL REFERENCES fleet_units(id),
+      scheduled_date TEXT,
+      status TEXT DEFAULT 'scheduled',
+      allocated_by TEXT,
+      allocated_at TEXT DEFAULT (datetime('now')),
+      notes TEXT,
+      UNIQUE(order_id, fleet_unit_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_client_orders_client ON client_orders(client_id);
+    CREATE INDEX IF NOT EXISTS idx_client_orders_status ON client_orders(status);
+    CREATE INDEX IF NOT EXISTS idx_order_alloc_order ON order_allocations(order_id);
+    CREATE INDEX IF NOT EXISTS idx_fleet_units_driver ON fleet_units(driver_id);
+    CREATE INDEX IF NOT EXISTS idx_fleet_units_status ON fleet_units(status);
   `);
 }
 

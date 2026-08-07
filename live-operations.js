@@ -852,7 +852,16 @@
             return trip.direction === 'SB' ? (trip.exitBorder || trip.border || '—') : (trip.entryBorder || trip.border || '—');
         }
         if (col.computed === 'latestComment') return renderLatestAreaCommentHtml(tripNumber);
-        if (col.computed === 'position' && col.slot) return getTripPositionText(trip, col.slot);
+        if (col.computed === 'position' && col.slot) {
+            const text = getTripPositionText(trip, col.slot);
+            if (text === '—') return text;
+            const unit = typeof findFleetUnitByTruckPlate === 'function' ? findFleetUnitByTruckPlate(trip.truck) : null;
+            const truckEsc = String(trip.truck || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            if (unit && unit.gpsLat != null && unit.gpsLng != null) {
+                return `<a href="#" class="position-map-link" onclick="event.preventDefault();event.stopPropagation();openFleetGpsMap({truckPlate:'${truckEsc}'});" title="View truck GPS on map">${text} 📍</a>`;
+            }
+            return text;
+        }
         if (col.field === 'truck') return renderKpiTruckCell(trip);
         if (col.isDriverLink) {
             const driverName = trip.driver || trip._borderRow?.driver || '';

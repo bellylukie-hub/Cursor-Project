@@ -497,4 +497,98 @@ router.post('/position-uploads', (req, res) => {
   res.json({ ok: true, upload: payload });
 });
 
+// Fleet registry, client orders & allocations
+const fleetOrderSvc = () => require('../services/fleetOrderService');
+
+router.get('/fleet-orders/bundle', (_req, res) => {
+  try {
+    res.json(fleetOrderSvc().getFullFleetOrderBundle());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/fleet-orders/stats', (_req, res) => {
+  try {
+    res.json({ stats: fleetOrderSvc().getFleetOrderStats() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/clients', (_req, res) => {
+  try { res.json({ clients: fleetOrderSvc().listClients() }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/clients', (req, res) => {
+  try {
+    const client = fleetOrderSvc().upsertClient(req.body);
+    res.status(201).json({ client });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.get('/fleet-drivers', (_req, res) => {
+  try { res.json({ drivers: fleetOrderSvc().listFleetDrivers() }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/fleet-drivers', (req, res) => {
+  try {
+    const driver = fleetOrderSvc().upsertFleetDriver(req.body);
+    res.status(201).json({ driver });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.get('/fleet-units', (_req, res) => {
+  try { res.json({ units: fleetOrderSvc().listFleetUnits() }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/fleet-units', (req, res) => {
+  try {
+    const unit = fleetOrderSvc().upsertFleetUnit(req.body);
+    res.status(201).json({ unit });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.patch('/fleet-units/:unitId/gps', (req, res) => {
+  try {
+    const existing = fleetOrderSvc().getUnitById(req.params.unitId);
+    if (!existing) return res.status(404).json({ error: 'Fleet unit not found' });
+    const unit = fleetOrderSvc().upsertFleetUnit({
+      ...existing,
+      ...req.body,
+      id: existing.id,
+      gpsUpdatedAt: new Date().toISOString()
+    });
+    res.json({ unit });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.get('/client-orders', (_req, res) => {
+  try { res.json({ orders: fleetOrderSvc().listClientOrders() }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/client-orders', (req, res) => {
+  try {
+    const order = fleetOrderSvc().upsertClientOrder(req.body, getUser(req));
+    res.status(201).json({ order });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.get('/order-allocations', (req, res) => {
+  try {
+    res.json({ allocations: fleetOrderSvc().listOrderAllocations(req.query.orderId) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/order-allocations', (req, res) => {
+  try {
+    const allocation = fleetOrderSvc().createOrderAllocation(req.body, getUser(req));
+    res.status(201).json({ allocation });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
 module.exports = router;
