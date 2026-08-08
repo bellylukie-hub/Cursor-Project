@@ -1,9 +1,8 @@
 ================================================================================
-  TruckControl — PRODUCTION PACKAGE  (v1.2.0-production)
+  TruckControl — PRODUCTION PACKAGE  (v1.3.0-production)
 ================================================================================
 
-This ZIP is the full production web application with login, database, reports,
-themes, position sync, turnarounds, and complete documentation.
+This ZIP is the FULL production web application — ready to deploy.
 
 QUICK START (Docker — recommended on Windows, Linux, macOS)
 ------------------------------------------------------------
@@ -40,16 +39,19 @@ INSTALL OPTIONS
   PM2 (24/7)      — pm2 start ecosystem.config.cjs  (see PRODUCTION.md)
   XAMPP / LAMP    — reverse proxy to port 3001 only (see docs/INSTALLATION.md)
 
-WHAT IS INCLUDED
-----------------
+WHAT IS INCLUDED (FULL WEB APP)
+--------------------------------
   - JWT login and RBAC (users, roles, module permissions)
   - NB / SB / Border / POD / Position Live operations tables
+  - Client Orders — create orders, schedule & allocate trucks
+  - Fleet Registry — register truck + trailer + driver + GPS
   - Position upload sync to NB/SB (matched by trip + truck)
+  - GPS map on Position Live (click position with GPS icon)
   - Customizable per-menu and cross-menu reports
   - Turnarounds list with filters and KPI summary
   - Sidebar live badges and notification bell
   - Themes, process guide, help assistant
-  - Driver registry, communication matrix, runner fees
+  - Driver registry (WhatsApp links), communication matrix, runner fees
   - Admin: users, roles, KPI settings, audit logs, upload templates
   - Docker + PM2 deployment files
   - Sample CSV templates in samples/
@@ -70,6 +72,6 @@ TEST UPLOAD
 REBUILD ZIP FROM SOURCE
 -----------------------
   chmod +x scripts/build-production-zip.sh
-  ./scripts/build-production-zip.sh v1.2.0-production
+  ./scripts/build-production-zip.sh v1.3.0-production
 
 ================================================================================
