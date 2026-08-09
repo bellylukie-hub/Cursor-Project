@@ -1787,9 +1787,17 @@ function buildDefaultModulePermissions(user) {
 
 function ensureUserModulePermissions(user) {
     if (!user) return {};
+    const defaults = buildDefaultModulePermissions(user);
     if (!user.modulePermissions || !Object.keys(user.modulePermissions).length) {
-        user.modulePermissions = buildDefaultModulePermissions(user);
+        user.modulePermissions = defaults;
+        return user.modulePermissions;
     }
+    // Merge any newly added modules (e.g. client-orders) into existing saved permissions
+    OPERATIONAL_MODULES.forEach(mod => {
+        if (!user.modulePermissions[mod.id]) {
+            user.modulePermissions[mod.id] = defaults[mod.id] || (mod.global ? { _global: emptyModulePerm() } : {});
+        }
+    });
     return user.modulePermissions;
 }
 

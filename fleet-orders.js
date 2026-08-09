@@ -79,7 +79,8 @@
         const fromStations = stationsForCountry(f.fromCountry);
         const toStations = stationsForCountry(f.toCountry);
         const commodities = uniqueOrderValues('commodity');
-        const shippers = uniqueOrderValues('shipper');
+        const shipperSet = new Set([...uniqueOrderValues('shipper'), ...clientsDB.map(c => c.name)]);
+        const shippers = Array.from(shipperSet).filter(Boolean).sort();
         const consignees = uniqueOrderValues('consignee');
         const invoiceParties = uniqueOrderValues('invoiceParty');
         const loadPoints = loadingPointsList(f.fromCountry, f.fromStation);
@@ -93,7 +94,7 @@
                         <div class="co-filter-field"><label>Order Ref.</label><input class="form-control" id="coFiltOrderRef" value="${f.orderRef}" placeholder="GG-15776"></div>
                         <div class="co-filter-field"><label>Imp/Exp No.</label><input class="form-control" id="coFiltImpExpNo" value="${f.impExpNo}" placeholder="IMP / EXP / DOM"></div>
                         <div class="co-filter-field"><label>Customer Ref</label><input class="form-control" id="coFiltCustomerRef" value="${f.customerRef}"></div>
-                        <div class="co-filter-field"><label>Shipper/Customer</label><select class="form-control" id="coFiltShipper">${filterOpt('all', 'ALL', f.shipper)}${shippers.map(s => filterOpt(s, s, f.shipper)).join('')}${clientsDB.map(c => filterOpt(c.name, c.name, f.shipper)).join('')}</select></div>
+                        <div class="co-filter-field"><label>Shipper/Customer</label><select class="form-control" id="coFiltShipper">${filterOpt('all', 'ALL', f.shipper)}${shippers.map(s => filterOpt(s, s, f.shipper)).join('')}</select></div>
                         <div class="co-filter-field"><label>Consignee</label><select class="form-control" id="coFiltConsignee">${filterOpt('all', 'ALL', f.consignee)}${consignees.map(s => filterOpt(s, s, f.consignee)).join('')}</select></div>
                         <div class="co-filter-field"><label>Invoice Party</label><select class="form-control" id="coFiltInvoiceParty">${filterOpt('all', 'ALL', f.invoiceParty)}${invoiceParties.map(s => filterOpt(s, s, f.invoiceParty)).join('')}</select></div>
                     </div>
@@ -795,6 +796,7 @@
         try {
             const bundle = await fetchFleetOrderBundle();
             applyBundle(bundle);
+            if (!clientOrdersDB.length && !clientsDB.length) seedDemoIfEmpty();
             return true;
         } catch (e) {
             console.warn('Fleet orders sync failed:', e.message);
@@ -925,9 +927,10 @@
     }
 
     window.renderClientOrders = function (container) {
-        const stats = getFleetOrderStats();
-        const orders = filteredOrders();
-        const canEdit = canEditFleet();
+        try {
+            const stats = getFleetOrderStats();
+            const orders = filteredOrders();
+            const canEdit = canEditFleet();
 
         container.innerHTML = `
             <div class="page-header">
@@ -988,6 +991,14 @@
                     </tbody>
                 </table>
             </div>`;
+        } catch (e) {
+            console.error('Client Orders render error:', e);
+            container.innerHTML = `<div class="page-header"><h1>📦 Client Orders</h1></div>
+                <div class="rbac-info-banner" style="margin:20px 0;">
+                    <strong>Could not load Client Orders.</strong> ${e.message || 'Unknown error'}
+                    <div style="margin-top:10px;"><button class="btn btn-primary" onclick="navigateTo('client-orders')">Retry</button></div>
+                </div>`;
+        }
     };
 
     window.fleetOrderSetFilter = function (key, val) {

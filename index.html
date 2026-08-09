@@ -2451,8 +2451,8 @@
     </div>
 
     <!-- Fleet GPS Map -->
-    <div class="modal" id="fleetGpsMapModal" style="display:none;">
-        <div class="modal-content" style="max-width:900px;width:95%;">
+    <div class="modal-overlay" id="fleetGpsMapModal">
+        <div class="modal" style="max-width:900px;width:95%;">
             <div class="modal-header">
                 <h3 id="fleetGpsMapTitle">📍 Truck Position</h3>
                 <button class="btn btn-outline" onclick="closeModal('fleetGpsMapModal')">✕</button>
@@ -2469,8 +2469,8 @@
     </div>
 
     <!-- Client modal -->
-    <div class="modal" id="clientModal" style="display:none;">
-        <div class="modal-content">
+    <div class="modal-overlay" id="clientModal">
+        <div class="modal">
             <div class="modal-header"><h3 id="clientModalTitle">Add Client</h3><button class="btn btn-outline" onclick="closeModal('clientModal')">✕</button></div>
             <div class="modal-body">
                 <input type="hidden" id="clientFormId">
@@ -2485,8 +2485,8 @@
     </div>
 
     <!-- Fleet driver modal -->
-    <div class="modal" id="fleetDriverModal" style="display:none;">
-        <div class="modal-content">
+    <div class="modal-overlay" id="fleetDriverModal">
+        <div class="modal">
             <div class="modal-header"><h3 id="fleetDriverModalTitle">Register Driver</h3><button class="btn btn-outline" onclick="closeModal('fleetDriverModal')">✕</button></div>
             <div class="modal-body">
                 <input type="hidden" id="fleetDriverFormId">
@@ -2500,8 +2500,8 @@
     </div>
 
     <!-- Fleet unit modal -->
-    <div class="modal" id="fleetUnitModal" style="display:none;">
-        <div class="modal-content" style="max-width:560px;">
+    <div class="modal-overlay" id="fleetUnitModal">
+        <div class="modal" style="max-width:560px;">
             <div class="modal-header"><h3 id="fleetUnitModalTitle">Register Fleet Set</h3><button class="btn btn-outline" onclick="closeModal('fleetUnitModal')">✕</button></div>
             <div class="modal-body">
                 <input type="hidden" id="fleetUnitFormId">
@@ -2525,8 +2525,8 @@
     </div>
 
     <!-- Client order modal (FMS-style tabbed form) -->
-    <div class="modal" id="clientOrderModal" style="display:none;">
-        <div class="modal-content client-order-modal">
+    <div class="modal-overlay" id="clientOrderModal">
+        <div class="modal client-order-modal">
             <div class="modal-header"><h3 id="clientOrderModalTitle">Create Client Order</h3><button class="btn btn-outline" onclick="closeModal('clientOrderModal')">✕</button></div>
             <div class="modal-body" id="clientOrderFormBody"></div>
             <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('clientOrderModal')">Cancel</button><button class="btn btn-primary" onclick="submitClientOrderForm()">Save Order</button></div>
@@ -2534,8 +2534,8 @@
     </div>
 
     <!-- Allocate fleet to order -->
-    <div class="modal" id="allocateFleetModal" style="display:none;">
-        <div class="modal-content">
+    <div class="modal-overlay" id="allocateFleetModal">
+        <div class="modal">
             <div class="modal-header"><h3>🚛 Schedule Truck to Order</h3><button class="btn btn-outline" onclick="closeModal('allocateFleetModal')">✕</button></div>
             <div class="modal-body">
                 <input type="hidden" id="allocateOrderId">
