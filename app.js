@@ -9258,8 +9258,30 @@ function toggleAlerts(menuFilter) {
         alertPanelMenuFilter = null;
     }
 }
-function openModal(modalId){ document.getElementById(modalId).classList.add('show'); }
-function closeModal(modalId){ document.getElementById(modalId).classList.remove('show'); }
+function openModal(modalId) {
+    const el = document.getElementById(modalId);
+    if (!el) return;
+    if (el.classList.contains('modal-overlay')) {
+        el.classList.add('show');
+        return;
+    }
+    el.style.display = 'flex';
+    el.style.position = 'fixed';
+    el.style.inset = '0';
+    el.style.background = 'rgba(0,0,0,0.5)';
+    el.style.alignItems = 'center';
+    el.style.justifyContent = 'center';
+    el.style.zIndex = '2000';
+    el.classList.add('show');
+}
+function closeModal(modalId) {
+    const el = document.getElementById(modalId);
+    if (!el) return;
+    el.classList.remove('show');
+    if (!el.classList.contains('modal-overlay')) {
+        el.style.display = 'none';
+    }
+}
 function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('mobile-open'); }
 function showToast(message,type='success'){ const toast=document.getElementById('toast'); toast.textContent=message; toast.className=`toast ${type} show`; setTimeout(()=>toast.classList.remove('show'),3000); }
 

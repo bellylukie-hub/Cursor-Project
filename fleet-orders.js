@@ -20,6 +20,17 @@
         'Kasumbalesa Agents Ltd', 'Sakania Clearance Co', 'Whisky Process Agents'
     ];
 
+    const CARGO_TYPES = ['OOG', 'Container', 'Bulk Loose', 'Break Bulk', 'Bulk Liquid'];
+    const OOG_TYPES = [
+        { value: 'Open top/flat rack (containerized)', hint: 'OOG cargo loaded on truck together with flat rack/open top container.' },
+        { value: 'Breakbulk (Container Unpacked)', hint: 'Cargo arrives in open top/flat rack but unpacked in port — only cargo on truck.' },
+        { value: 'Breakbulk (not containerized)', hint: 'Cargo loaded/offloaded without container (e.g. Ro-Ro vehicles).' }
+    ];
+
+    function uid(prefix) {
+        return `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    }
+
     const ROUTE_STATIONS = [
         { id: 'durban', name: 'Durban', country: 'ZA', countryName: 'South Africa', loadingPoints: ['Durban Port', 'Clayville'] },
         { id: 'johannesburg', name: 'Johannesburg', country: 'ZA', countryName: 'South Africa', loadingPoints: ['City Deep', 'Johannesburg Depot'] },
@@ -93,7 +104,68 @@
 
     function loadTypeLabel(o) {
         const ld = o.loadDetails || {};
-        return [o.cargoType, ld.orderLoadType].filter(Boolean).join(' / ') || '—';
+        const parts = [o.cargoType];
+        if (o.cargoType === 'OOG' && ld.oogType) parts.push(ld.oogType.split('(')[0].trim());
+        else if (ld.orderLoadType) parts.push(ld.orderLoadType);
+        return parts.filter(Boolean).join(' / ') || '—';
+    }
+
+    window.onClientOrderCargoTypeChange = function () {
+        const cargoType = document.getElementById('coFormCargoType')?.value || '';
+        const oogRow = document.getElementById('coOogTypeRow');
+        const containerSec = document.getElementById('coContainerSection');
+        const bulkSec = document.getElementById('coBulkSection');
+        const oogDetailsSec = document.getElementById('coOogDetailsSection');
+        if (oogRow) oogRow.style.display = cargoType === 'OOG' ? 'block' : 'none';
+        if (containerSec) containerSec.style.display = (cargoType === 'Container' || cargoType === 'OOG') ? 'block' : 'none';
+        if (bulkSec) bulkSec.style.display = (cargoType === 'Bulk Loose' || cargoType === 'Break Bulk' || cargoType === 'Bulk Liquid') ? 'block' : 'none';
+        if (oogDetailsSec) oogDetailsSec.style.display = cargoType === 'OOG' ? 'block' : 'none';
+    };
+
+    window.onClientOrderOogTypeChange = function () {
+        const sel = document.getElementById('coFormOogType');
+        const hint = document.getElementById('coOogTypeHint');
+        if (!sel || !hint) return;
+        const match = OOG_TYPES.find(t => t.value === sel.value);
+        hint.textContent = match?.hint || '';
+    };
+
+    window.addContainerLine = function () {
+        const tbody = document.getElementById('coContainerLinesBody');
+        if (!tbody) return;
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><input class="form-control" placeholder="CONT-123" data-field="containerNo"></td>
+            <td><input class="form-control" placeholder="40HC" data-field="containerType"></td>
+            <td><input class="form-control" type="number" step="0.01" data-field="nettWt"></td>
+            <td><input class="form-control" type="number" step="0.01" data-field="grossWt"></td>
+            <td><label><input type="checkbox" data-field="oog"> OOG</label></td>
+            <td><button type="button" class="btn btn-sm btn-outline" onclick="this.closest('tr').remove()">✕</button></td>`;
+        tbody.appendChild(row);
+    };
+
+    function collectContainerLines() {
+        const rows = document.querySelectorAll('#coContainerLinesBody tr');
+        return Array.from(rows).map((row, i) => ({
+            slNo: i + 1,
+            containerNo: row.querySelector('[data-field="containerNo"]')?.value.trim() || '',
+            containerType: row.querySelector('[data-field="containerType"]')?.value.trim() || '',
+            nettWt: row.querySelector('[data-field="nettWt"]')?.value || '',
+            grossWt: row.querySelector('[data-field="grossWt"]')?.value || '',
+            oog: row.querySelector('[data-field="oog"]')?.checked || false
+        })).filter(r => r.containerNo || r.containerType);
+    }
+
+    function renderContainerLines(lines) {
+        return (lines || []).map((c, i) => `
+            <tr>
+                <td><input class="form-control" value="${c.containerNo || ''}" data-field="containerNo"></td>
+                <td><input class="form-control" value="${c.containerType || ''}" data-field="containerType"></td>
+                <td><input class="form-control" type="number" step="0.01" value="${c.nettWt || ''}" data-field="nettWt"></td>
+                <td><input class="form-control" type="number" step="0.01" value="${c.grossWt || ''}" data-field="grossWt"></td>
+                <td><label><input type="checkbox" data-field="oog"${c.oog ? ' checked' : ''}> OOG</label></td>
+                <td><button type="button" class="btn btn-sm btn-outline" onclick="this.closest('tr').remove()">✕</button></td>
+            </tr>`).join('');
     }
 
     window.onClientOrderRouteChange = function () {
@@ -136,11 +208,15 @@
     function renderClientOrderFormBody(o) {
         o = o || {};
         const ld = o.loadDetails || {};
+        const cargoType = o.cargoType || 'Bulk Loose';
         const originStation = ROUTE_STATIONS.find(s => s.name === o.origin)?.id || '';
         const destStation = ROUTE_STATIONS.find(s => s.name === o.destination)?.id || '';
         const route = resolveOrderRoute(originStation, destStation);
         const showBorders = o.routeType === 'international' || route.showBorders;
         const agentOpts = (sel) => CLEARING_AGENTS.map(a => `<option value="${a}"${a === sel ? ' selected' : ''}>${a}</option>`).join('');
+        const oogOpts = (sel) => OOG_TYPES.map(t => `<option value="${t.value}"${t.value === (ld.oogType || '') ? ' selected' : ''}>${t.value}</option>`).join('');
+        const selectedOogHint = OOG_TYPES.find(t => t.value === (ld.oogType || ''))?.hint || OOG_TYPES[0].hint;
+        const containerLines = ld.containerLines || [];
 
         return `
             <div class="co-form-tabs">
@@ -213,31 +289,63 @@
             <div class="co-form-panel" data-panel="load" style="display:none;">
                 <div class="form-grid-2">
                     <div class="form-group"><label>Commodity *</label><input class="form-control" id="coFormCommodity" value="${o.commodity || ''}"></div>
-                    <div class="form-group"><label>Cargo Type *</label><select class="form-control" id="coFormCargoType">
-                        ${['Bulk Loose', 'Break Bulk', 'Liquid', 'Container', 'General', 'Tank'].map(t => `<option${(o.cargoType || '') === t ? ' selected' : ''}>${t}</option>`).join('')}
+                    <div class="form-group"><label>Cargo Type *</label><select class="form-control" id="coFormCargoType" onchange="onClientOrderCargoTypeChange()">
+                        ${CARGO_TYPES.map(t => `<option value="${t}"${cargoType === t ? ' selected' : ''}>${t}</option>`).join('')}
                     </select></div>
+                </div>
+                <div class="form-group" id="coOogTypeRow" style="display:${cargoType === 'OOG' ? 'block' : 'none'};">
+                    <label>OOG Type *</label>
+                    <select class="form-control" id="coFormOogType" onchange="onClientOrderOogTypeChange()">
+                        <option value="">— Select OOG type —</option>
+                        ${oogOpts(ld.oogType)}
+                    </select>
+                    <p id="coOogTypeHint" class="field-hint" style="margin-top:6px;font-size:12px;color:var(--text-secondary);">${selectedOogHint}</p>
                 </div>
                 <div class="form-group"><label>Description of Goods</label><textarea class="form-control" id="coFormDescGoods" rows="2">${ld.descriptionOfGoods || ''}</textarea></div>
                 <div class="form-grid-3">
                     <div class="form-group"><label>Order Load Type</label>
                         <div class="radio-row">${['Normal', 'Pre-load', 'Ex-W Ho'].map(t => `<label><input type="radio" name="coLoadType" value="${t}"${(ld.orderLoadType || 'Normal') === t ? ' checked' : ''}> ${t}</label>`).join('')}</div>
                     </div>
-                    <div class="form-group"><label>OOG Type</label><input class="form-control" id="coFormOogType" value="${ld.oogType || ''}"></div>
                     <div class="form-group"><label>Commodity Rate Type</label>
                         <div class="radio-row">${['Standard', 'Single Line Entry', 'Consolidation'].map(t => `<label><input type="radio" name="coRateType" value="${t}"${(ld.commodityRateType || 'Standard') === t ? ' checked' : ''}> ${t}</label>`).join('')}</div>
                     </div>
                 </div>
-                <div class="form-grid-4">
-                    <div class="form-group"><label>Qty 20'</label><input type="number" class="form-control" id="coFormQty20" value="${ld.qty20 || ''}"></div>
-                    <div class="form-group"><label>Qty 40'</label><input type="number" class="form-control" id="coFormQty40" value="${ld.qty40 || ''}"></div>
-                    <div class="form-group"><label>Packing</label><input class="form-control" id="coFormPacking" value="${ld.packing || ''}"></div>
-                    <div class="form-group"><label>Wt (Kg)</label><input type="number" class="form-control" id="coFormWeightKg" value="${ld.weightKg || ''}"></div>
+                <div id="coContainerSection" style="display:${cargoType === 'Container' || cargoType === 'OOG' ? 'block' : 'none'};margin:12px 0;padding:12px;background:#f7fafc;border-radius:8px;border:1px solid var(--border);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                        <h4 style="margin:0;">Container Details</h4>
+                        <button type="button" class="btn btn-sm btn-outline" onclick="addContainerLine()">+ Add Container</button>
+                    </div>
+                    <div class="form-grid-2" style="margin-bottom:12px;">
+                        <div class="form-group"><label>Qty 20'</label><input type="number" class="form-control" id="coFormQty20" value="${ld.qty20 || ''}"></div>
+                        <div class="form-group"><label>Qty 40'</label><input type="number" class="form-control" id="coFormQty40" value="${ld.qty40 || ''}"></div>
+                    </div>
+                    <div class="table-container" style="box-shadow:none;">
+                        <table class="client-orders-grid" style="min-width:0;">
+                            <thead><tr><th>Container No</th><th>Type</th><th>Nett Wt</th><th>Gross Wt</th><th>OOG</th><th></th></tr></thead>
+                            <tbody id="coContainerLinesBody">${renderContainerLines(containerLines)}</tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="form-grid-4">
-                    <div class="form-group"><label>Quantity</label><input type="number" class="form-control" id="coFormQuantity" value="${ld.quantity || ''}"></div>
-                    <div class="form-group"><label>Qty / Truck</label><input type="number" class="form-control" id="coFormQtyPerTruck" value="${ld.qtyPerTruck || ''}"></div>
-                    <div class="form-group"><label>Tonnage</label><input type="number" class="form-control" id="coFormTonnage" value="${ld.tonnage || ''}"></div>
-                    <div class="form-group"><label>No of Loads</label><input type="number" class="form-control" id="coFormNoOfLoads" value="${ld.noOfLoads || ''}"></div>
+                <div id="coOogDetailsSection" style="display:${cargoType === 'OOG' ? 'block' : 'none'};margin:12px 0;padding:12px;background:#fffaf0;border-radius:8px;border:1px solid #fbd38d;">
+                    <h4 style="margin:0 0 10px;">OOG Loading Details</h4>
+                    <div class="form-grid-3">
+                        <div class="form-group"><label>Container Tare</label><input class="form-control" id="coFormContTare" value="${ld.containerTare || ''}"></div>
+                        <div class="form-group"><label>Seal No</label><input class="form-control" id="coFormSealNo" value="${ld.sealNo || ''}"></div>
+                        <div class="form-group"><label>Load Type</label><input class="form-control" id="coFormOogLoadType" value="${ld.oogLoadType || ''}" placeholder="Flat rack / Open top"></div>
+                    </div>
+                    <div class="form-group"><label>Instructions to OPS</label><textarea class="form-control" id="coFormOogInstr" rows="2">${ld.oogInstructions || ''}</textarea></div>
+                </div>
+                <div id="coBulkSection" style="display:${['Bulk Loose', 'Break Bulk', 'Bulk Liquid'].includes(cargoType) ? 'block' : 'none'};">
+                    <div class="form-grid-4">
+                        <div class="form-group"><label>Packing</label><input class="form-control" id="coFormPacking" value="${ld.packing || ''}"></div>
+                        <div class="form-group"><label>Wt (Kg)</label><input type="number" class="form-control" id="coFormWeightKg" value="${ld.weightKg || ''}"></div>
+                        <div class="form-group"><label>Quantity</label><input type="number" class="form-control" id="coFormQuantity" value="${ld.quantity || ''}"></div>
+                        <div class="form-group"><label>Qty / Truck</label><input type="number" class="form-control" id="coFormQtyPerTruck" value="${ld.qtyPerTruck || ''}"></div>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group"><label>Tonnage</label><input type="number" class="form-control" id="coFormTonnage" value="${ld.tonnage || ''}"></div>
+                        <div class="form-group"><label>No of Loads</label><input type="number" class="form-control" id="coFormNoOfLoads" value="${ld.noOfLoads || ''}"></div>
+                    </div>
                 </div>
                 <div class="form-grid-2" style="margin-top:8px;">
                     <div class="form-group"><label>Hazardous</label>
@@ -314,7 +422,7 @@
             loadDetails: {
                 descriptionOfGoods: document.getElementById('coFormDescGoods')?.value.trim(),
                 orderLoadType: loadType,
-                oogType: document.getElementById('coFormOogType')?.value.trim(),
+                oogType: document.getElementById('coFormOogType')?.value || '',
                 commodityRateType: rateType,
                 qty20: document.getElementById('coFormQty20')?.value,
                 qty40: document.getElementById('coFormQty40')?.value,
@@ -324,6 +432,11 @@
                 qtyPerTruck: document.getElementById('coFormQtyPerTruck')?.value,
                 tonnage: document.getElementById('coFormTonnage')?.value,
                 noOfLoads: document.getElementById('coFormNoOfLoads')?.value,
+                containerLines: collectContainerLines(),
+                containerTare: document.getElementById('coFormContTare')?.value.trim(),
+                sealNo: document.getElementById('coFormSealNo')?.value.trim(),
+                oogLoadType: document.getElementById('coFormOogLoadType')?.value.trim(),
+                oogInstructions: document.getElementById('coFormOogInstr')?.value.trim(),
                 isHaz,
                 unNumber: document.getElementById('coFormUnNumber')?.value.trim(),
                 imoClass: document.getElementById('coFormImoClass')?.value.trim(),
@@ -885,13 +998,17 @@
         if (body) body.innerHTML = renderClientOrderFormBody(o);
         openModal('clientOrderModal');
         setClientOrderFormTab('header');
+        onClientOrderCargoTypeChange();
         if (document.getElementById('coFormOriginStation')) onClientOrderRouteChange();
     };
 
     window.submitClientOrderForm = async function () {
         const payload = collectClientOrderPayload();
-        if (!payload.clientId) { showToast('Select a client', 'warning'); return; }
+        if (!payload.clientId) { showToast('Select a client', 'warning'); setClientOrderFormTab('header'); return; }
         if (!payload.commodity) { showToast('Commodity is required', 'warning'); setClientOrderFormTab('load'); return; }
+        if (payload.cargoType === 'OOG' && !payload.loadDetails.oogType) {
+            showToast('Select an OOG type', 'warning'); setClientOrderFormTab('load'); return;
+        }
         if (!payload.origin || !payload.destination) { showToast('Select origin and destination stations', 'warning'); setClientOrderFormTab('route'); return; }
         try {
             const saved = await persistToApi(saveClientOrderApi, payload);
