@@ -36,21 +36,33 @@
         return Array.from(vals).sort();
     }
 
+    function getStations() {
+        if (typeof getRouteCatalogStations === 'function') return getRouteCatalogStations();
+        return ROUTE_STATIONS.map(s => ({ ...s, countryCode: s.country, loadingPoints: s.loadingPoints || [], offloadingPoints: s.offloadingPoints || [] }));
+    }
+
     function routeCountries() {
+        if (typeof getRouteCatalogCountries === 'function') {
+            const c = getRouteCatalogCountries();
+            if (c.length) return c;
+        }
         const map = new Map();
-        ROUTE_STATIONS.forEach(s => map.set(s.country, s.countryName));
+        getStations().forEach(s => map.set(s.countryCode || s.country, s.countryName));
         return Array.from(map.entries()).map(([code, name]) => ({ code, name }));
     }
 
     function stationsForCountry(countryCode) {
-        if (!countryCode || countryCode === 'all') return ROUTE_STATIONS;
-        return ROUTE_STATIONS.filter(s => s.country === countryCode);
+        if (typeof stationsForRouteCountry === 'function') return stationsForRouteCountry(countryCode);
+        const stations = getStations();
+        if (!countryCode || countryCode === 'all') return stations;
+        return stations.filter(s => (s.countryCode || s.country) === countryCode);
     }
 
     function loadingPointsList(countryCode, stationName) {
         const points = new Set();
-        ROUTE_STATIONS.forEach(s => {
-            if (countryCode !== 'all' && s.country !== countryCode) return;
+        getStations().forEach(s => {
+            const cc = s.countryCode || s.country;
+            if (countryCode !== 'all' && cc !== countryCode) return;
             if (stationName !== 'all' && s.name !== stationName) return;
             (s.loadingPoints || []).forEach(p => points.add(p));
         });
@@ -60,8 +72,9 @@
 
     function offloadingPointsList(countryCode, stationName) {
         const points = new Set();
-        ROUTE_STATIONS.forEach(s => {
-            if (countryCode !== 'all' && s.country !== countryCode) return;
+        getStations().forEach(s => {
+            const cc = s.countryCode || s.country;
+            if (countryCode !== 'all' && cc !== countryCode) return;
             if (stationName !== 'all' && s.name !== stationName) return;
             (s.offloadingPoints || []).forEach(p => points.add(p));
         });
@@ -235,7 +248,8 @@
         { id: 'kolwezi', name: 'Kolwezi', country: 'CD', countryName: 'DRC', loadingPoints: ['Kolwezi Hub'], offloadingPoints: ['Kolwezi Mine', 'Mutanda'] },
         { id: 'likasi', name: 'Likasi', country: 'CD', countryName: 'DRC', offloadingPoints: ['Likasi Depot', 'Likasi Plant'] },
         { id: 'dar', name: 'Dar es Salaam', country: 'TZ', countryName: 'Tanzania', loadingPoints: ['Dar Port', 'Dar Depot'] },
-        { id: 'kanyaka', name: 'Kanyaka', country: 'CD', countryName: 'DRC', loadingPoints: ['Kanyaka Mine'], offloadingPoints: ['Kanyaka Depot'] }
+        { id: 'kanyaka', name: 'Kanyaka', country: 'CD', countryName: 'DRC', loadingPoints: ['Kanyaka Mine'], offloadingPoints: ['Kanyaka Depot'] },
+        { id: 'beira', name: 'Beira', country: 'MZ', countryName: 'Mozambique', loadingPoints: ['Beira Access World', 'Beira Port'] }
     ];
 
     const INTERNATIONAL_ROUTES = {
@@ -244,47 +258,55 @@
         'ZM-CD': { entryBorder: 'Kasumbalesa', viaBorder1: '', viaBorder2: '', portOfEntry: '', exitBorder: '' },
         'CD-ZA': { entryBorder: '', viaBorder1: '', viaBorder2: '', portOfEntry: '', exitBorder: 'Kasumbalesa' },
         'CD-ZM': { entryBorder: '', viaBorder1: '', viaBorder2: '', portOfEntry: '', exitBorder: 'Kasumbalesa' },
-        'CD-TZ': { entryBorder: '', viaBorder1: 'Sakania', viaBorder2: '', portOfEntry: '', exitBorder: 'Kasumbalesa' }
+        'CD-TZ': { entryBorder: '', viaBorder1: 'Sakania', viaBorder2: '', portOfEntry: '', exitBorder: 'Kasumbalesa' },
+        'MZ-CD': { entryBorder: 'Kasumbalesa', viaBorder1: 'Forbes/Machipanda', viaBorder2: 'Chirundu', portOfEntry: '', exitBorder: 'Forbes/Machipanda' }
     };
 
-    function stationOptions(selectedId) {
+    function stationOptions(selectedId, countryCode) {
+        const stations = countryCode ? stationsForCountry(countryCode) : getStations();
         const empty = `<option value=""${!selectedId ? ' selected' : ''}>— Select station —</option>`;
-        return empty + ROUTE_STATIONS.map(s =>
-            `<option value="${s.id}"${s.id === selectedId ? ' selected' : ''}>${s.name} (${s.countryName})</option>`
+        return empty + stations.map(s =>
+            `<option value="${s.id}"${s.id === selectedId ? ' selected' : ''}>${s.name} (${s.countryName || s.countryCode || s.country})</option>`
         ).join('');
     }
 
+    function pointOptions(points, selected) {
+        const empty = `<option value=""${!selected ? ' selected' : ''}>— Select point —</option>`;
+        return empty + (points || []).map(p => `<option value="${p}"${p === selected ? ' selected' : ''}>${p}</option>`).join('');
+    }
+
     function getStationById(id) {
-        return ROUTE_STATIONS.find(s => s.id === id) || null;
+        if (typeof getRouteCatalogStationById === 'function') {
+            const s = getRouteCatalogStationById(id);
+            if (s) return s;
+        }
+        return getStations().find(s => s.id === id) || null;
     }
 
     function resolveOrderRoute(originId, destId) {
+        if (typeof resolveRouteFromCatalog === 'function') {
+            const r = resolveRouteFromCatalog(originId, destId);
+            if (r.origin) return r;
+        }
         const origin = getStationById(originId);
         const dest = getStationById(destId);
         if (!origin || !dest) {
-            return { routeType: 'domestic', showBorders: false, originCountry: '', destinationCountry: '' };
+            return { routeType: 'domestic', showBorders: false, originCountry: '', destinationCountry: '', loadingPoints: [], offloadingPoints: [] };
         }
+        const oc = origin.countryCode || origin.country;
+        const dc = dest.countryCode || dest.country;
         const base = {
-            origin: origin.name,
-            destination: dest.name,
-            originCountry: origin.country,
-            destinationCountry: dest.country,
+            origin: origin.name, destination: dest.name,
+            originCountry: oc, destinationCountry: dc,
+            loadingPoints: origin.loadingPoints || [], offloadingPoints: dest.offloadingPoints || [],
             loadingPoint: (origin.loadingPoints || [])[0] || origin.name,
             offloadingPoint: (dest.offloadingPoints || [])[0] || dest.name
         };
-        if (origin.country === dest.country) {
-            return {
-                ...base,
-                routeType: 'domestic',
-                showBorders: false,
-                entryBorder: '', viaBorder1: '', viaBorder2: '', portOfEntry: '', exitBorder: ''
-            };
+        if (oc === dc) {
+            return { ...base, routeType: 'domestic', showBorders: false, entryBorder: '', viaBorder1: '', viaBorder2: '', portOfEntry: '', exitBorder: '' };
         }
-        const routeKey = `${origin.country}-${dest.country}`;
-        const intl = INTERNATIONAL_ROUTES[routeKey] || {
-            entryBorder: 'Kasumbalesa', viaBorder1: '', viaBorder2: '',
-            portOfEntry: (origin.loadingPoints || [])[0] || '', exitBorder: 'Kasumbalesa'
-        };
+        const routeKey = `${oc}-${dc}`;
+        const intl = INTERNATIONAL_ROUTES[routeKey] || { entryBorder: 'Kasumbalesa', viaBorder1: '', viaBorder2: '', portOfEntry: (origin.loadingPoints || [])[0] || '', exitBorder: 'Kasumbalesa' };
         return { ...base, ...intl, routeType: 'international', showBorders: true };
     }
 
@@ -346,11 +368,73 @@
         row.innerHTML = `
             <td><input class="form-control" placeholder="CONT-123" data-field="containerNo"></td>
             <td><input class="form-control" placeholder="40HC" data-field="containerType"></td>
+            <td><input class="form-control" type="number" step="0.001" data-field="contTare" placeholder="0.000"></td>
             <td><input class="form-control" type="number" step="0.01" data-field="nettWt"></td>
             <td><input class="form-control" type="number" step="0.01" data-field="grossWt"></td>
-            <td><label><input type="checkbox" data-field="oog"> OOG</label></td>
+            <td><input class="form-control" data-field="sealNo"></td>
+            <td><label><input type="checkbox" data-field="oog"> OOG</label> <label><input type="checkbox" data-field="genset"> Genset</label></td>
             <td><button type="button" class="btn btn-sm btn-outline" onclick="this.closest('tr').remove()">✕</button></td>`;
         tbody.appendChild(row);
+    };
+
+    window.openContainerDetailsModal = function () {
+        const lines = collectContainerLines();
+        const ld = {};
+        const body = document.getElementById('containerDetailsModalBody');
+        if (!body) return;
+        body.innerHTML = `
+            <div class="form-grid-3">
+                <div class="form-group"><label>Container Type</label><select class="form-control" id="cdContainerType"><option>20GP</option><option>40HC</option><option>40FR</option><option>20OT</option><option>40OT</option></select></div>
+                <div class="form-group"><label>Cont Tare</label><input class="form-control" id="cdContTare" type="number" step="0.001" value="0.000"></div>
+                <div class="form-group"><label>Qty</label><input class="form-control" id="cdQty" type="number" value="1"></div>
+            </div>
+            <div class="form-grid-3">
+                <div class="form-group"><label>Nett Wt</label><input class="form-control" id="cdNettWt" type="number" step="0.001" value="0.000"></div>
+                <div class="form-group"><label>Gross Wt</label><input class="form-control" id="cdGrossWt" type="number" step="0.001" value="0.000"></div>
+                <div class="form-group"><label>Load Type</label><input class="form-control" id="cdLoadType" placeholder="FCL / LCL"></div>
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group"><label>Container No</label><input class="form-control" id="cdContainerNo"></div>
+                <div class="form-group"><label>Seal No</label><input class="form-control" id="cdSealNo"></div>
+            </div>
+            <div class="form-group"><label>Instructions To OPS</label><textarea class="form-control" id="cdInstrOps" rows="2"></textarea></div>
+            <div class="form-grid-3" style="margin:12px 0;">
+                <label><input type="checkbox" id="cdGenset"> Genset Required</label>
+                <label><input type="checkbox" id="cdFuel"> Fuel to be supplied</label>
+                <label><input type="checkbox" id="cdSoc"> Shipper Owned Container</label>
+                <label><input type="checkbox" id="cdOog" checked> OOG</label>
+                <label><input type="checkbox" id="cdUnpacked"> Unpacked in port</label>
+                <label><input type="checkbox" id="cdExport"> Export/Empties</label>
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group"><label>Empty Container Drop Off</label><input class="form-control" id="cdDropOff"></div>
+                <div class="form-group"><label>Empty Container Depot</label><input class="form-control" id="cdDepot"></div>
+            </div>
+            <p style="font-size:12px;color:var(--text-secondary);">Existing lines: ${lines.length}. Click Apply to add this container to the order lines table.</p>`;
+        openModal('containerDetailsModal');
+    };
+
+    window.applyContainerDetailsModal = function () {
+        const tbody = document.getElementById('coContainerLinesBody');
+        if (!tbody) { closeModal('containerDetailsModal'); return; }
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><input class="form-control" value="${document.getElementById('cdContainerNo')?.value || ''}" data-field="containerNo"></td>
+            <td><input class="form-control" value="${document.getElementById('cdContainerType')?.value || ''}" data-field="containerType"></td>
+            <td><input class="form-control" type="number" step="0.001" value="${document.getElementById('cdContTare')?.value || ''}" data-field="contTare"></td>
+            <td><input class="form-control" type="number" step="0.01" value="${document.getElementById('cdNettWt')?.value || ''}" data-field="nettWt"></td>
+            <td><input class="form-control" type="number" step="0.01" value="${document.getElementById('cdGrossWt')?.value || ''}" data-field="grossWt"></td>
+            <td><input class="form-control" value="${document.getElementById('cdSealNo')?.value || ''}" data-field="sealNo"></td>
+            <td><label><input type="checkbox" data-field="oog"${document.getElementById('cdOog')?.checked ? ' checked' : ''}> OOG</label> <label><input type="checkbox" data-field="genset"${document.getElementById('cdGenset')?.checked ? ' checked' : ''}> Genset</label></td>
+            <td><button type="button" class="btn btn-sm btn-outline" onclick="this.closest('tr').remove()">✕</button></td>`;
+        tbody.appendChild(row);
+        const instr = document.getElementById('cdInstrOps')?.value;
+        if (instr) {
+            const el = document.getElementById('coFormOogInstr');
+            if (el) el.value = instr;
+        }
+        closeModal('containerDetailsModal');
+        if (typeof showToast === 'function') showToast('Container line added', 'success');
     };
 
     function collectContainerLines() {
@@ -359,9 +443,12 @@
             slNo: i + 1,
             containerNo: row.querySelector('[data-field="containerNo"]')?.value.trim() || '',
             containerType: row.querySelector('[data-field="containerType"]')?.value.trim() || '',
+            contTare: row.querySelector('[data-field="contTare"]')?.value || '',
             nettWt: row.querySelector('[data-field="nettWt"]')?.value || '',
             grossWt: row.querySelector('[data-field="grossWt"]')?.value || '',
-            oog: row.querySelector('[data-field="oog"]')?.checked || false
+            sealNo: row.querySelector('[data-field="sealNo"]')?.value.trim() || '',
+            oog: row.querySelector('[data-field="oog"]')?.checked || false,
+            genset: row.querySelector('[data-field="genset"]')?.checked || false
         })).filter(r => r.containerNo || r.containerType);
     }
 
@@ -370,12 +457,53 @@
             <tr>
                 <td><input class="form-control" value="${c.containerNo || ''}" data-field="containerNo"></td>
                 <td><input class="form-control" value="${c.containerType || ''}" data-field="containerType"></td>
+                <td><input class="form-control" type="number" step="0.001" value="${c.contTare || ''}" data-field="contTare"></td>
                 <td><input class="form-control" type="number" step="0.01" value="${c.nettWt || ''}" data-field="nettWt"></td>
                 <td><input class="form-control" type="number" step="0.01" value="${c.grossWt || ''}" data-field="grossWt"></td>
-                <td><label><input type="checkbox" data-field="oog"${c.oog ? ' checked' : ''}> OOG</label></td>
+                <td><input class="form-control" value="${c.sealNo || ''}" data-field="sealNo"></td>
+                <td><label><input type="checkbox" data-field="oog"${c.oog ? ' checked' : ''}> OOG</label> <label><input type="checkbox" data-field="genset"${c.genset ? ' checked' : ''}> Genset</label></td>
                 <td><button type="button" class="btn btn-sm btn-outline" onclick="this.closest('tr').remove()">✕</button></td>
             </tr>`).join('');
     }
+
+    window.onClientOrderRouteTemplateChange = function () {
+        const tplId = document.getElementById('coFormRouteTemplate')?.value;
+        if (!tplId) return;
+        const templates = typeof getRouteCatalogTemplates === 'function' ? getRouteCatalogTemplates() : [];
+        const tpl = templates.find(t => t.id === tplId);
+        if (!tpl) return;
+        const origin = getStationById(tpl.originStationId);
+        const dest = getStationById(tpl.destinationStationId);
+        if (origin) {
+            document.getElementById('coFormOriginCountry').value = origin.countryCode || origin.country || '';
+            document.getElementById('coFormOriginStation').innerHTML = stationOptions(tpl.originStationId, origin.countryCode || origin.country);
+            document.getElementById('coFormOriginStation').value = tpl.originStationId;
+        }
+        if (dest) {
+            document.getElementById('coFormDestCountry').value = dest.countryCode || dest.country || '';
+            document.getElementById('coFormDestStation').innerHTML = stationOptions(tpl.destinationStationId, dest.countryCode || dest.country);
+            document.getElementById('coFormDestStation').value = tpl.destinationStationId;
+        }
+        onClientOrderRouteChange();
+    };
+
+    window.onClientOrderOriginCountryChange = function () {
+        const cc = document.getElementById('coFormOriginCountry')?.value;
+        const sel = document.getElementById('coFormOriginStation');
+        if (sel) { sel.innerHTML = stationOptions('', cc); sel.value = ''; }
+        const lp = document.getElementById('coFormLoadingPoint');
+        if (lp && lp.tagName === 'SELECT') lp.innerHTML = pointOptions([], '');
+        onClientOrderRouteChange();
+    };
+
+    window.onClientOrderDestCountryChange = function () {
+        const cc = document.getElementById('coFormDestCountry')?.value;
+        const sel = document.getElementById('coFormDestStation');
+        if (sel) { sel.innerHTML = stationOptions('', cc); sel.value = ''; }
+        const op = document.getElementById('coFormOffloadingPoint');
+        if (op && op.tagName === 'SELECT') op.innerHTML = pointOptions([], '');
+        onClientOrderRouteChange();
+    };
 
     window.onClientOrderRouteChange = function () {
         const originId = document.getElementById('coFormOriginStation')?.value;
@@ -383,11 +511,23 @@
         const route = resolveOrderRoute(originId, destId);
         const borderSec = document.getElementById('coBorderSection');
         const domesticNote = document.getElementById('coDomesticRouteNote');
+        const routeTypeLabel = document.getElementById('coRouteTypeLabel');
         if (document.getElementById('coFormOrigin')) document.getElementById('coFormOrigin').value = route.origin || '';
         if (document.getElementById('coFormDestination')) document.getElementById('coFormDestination').value = route.destination || '';
-        if (document.getElementById('coFormLoadingPoint')) document.getElementById('coFormLoadingPoint').value = route.loadingPoint || '';
-        if (document.getElementById('coFormOffloadingPoint')) document.getElementById('coFormOffloadingPoint').value = route.offloadingPoint || '';
+        const loadEl = document.getElementById('coFormLoadingPoint');
+        const offEl = document.getElementById('coFormOffloadingPoint');
+        if (loadEl?.tagName === 'SELECT') {
+            loadEl.innerHTML = pointOptions(route.loadingPoints, route.loadingPoint);
+            loadEl.value = route.loadingPoint || '';
+        } else if (loadEl) loadEl.value = route.loadingPoint || '';
+        if (offEl?.tagName === 'SELECT') {
+            offEl.innerHTML = pointOptions(route.offloadingPoints, route.offloadingPoint);
+            offEl.value = route.offloadingPoint || '';
+        } else if (offEl) offEl.value = route.offloadingPoint || '';
         if (document.getElementById('coFormRouteType')) document.getElementById('coFormRouteType').value = route.routeType;
+        if (routeTypeLabel) routeTypeLabel.innerHTML = route.routeType === 'international'
+            ? `<span class="status-badge orange">International</span> ${route.originCountryName || route.originCountry} → ${route.destinationCountryName || route.destinationCountry}`
+            : `<span class="status-badge green">Domestic</span> Same country (${route.originCountryName || route.originCountry || '—'})`;
         if (borderSec) borderSec.style.display = route.showBorders ? 'block' : 'none';
         if (domesticNote) domesticNote.style.display = route.showBorders ? 'none' : 'block';
         if (route.showBorders) {
@@ -418,14 +558,23 @@
         o = o || {};
         const ld = o.loadDetails || {};
         const cargoType = o.cargoType || 'Bulk Loose';
-        const originStation = ROUTE_STATIONS.find(s => s.name === o.origin)?.id || '';
-        const destStation = ROUTE_STATIONS.find(s => s.name === o.destination)?.id || '';
+        const stations = getStations();
+        const originStation = ld.originStationId || stations.find(s => s.name === o.origin)?.id || '';
+        const destStation = ld.destStationId || stations.find(s => s.name === o.destination)?.id || '';
+        const originSt = getStationById(originStation);
+        const destSt = getStationById(destStation);
+        const originCountry = originSt?.countryCode || originSt?.country || o.originCountry || '';
+        const destCountry = destSt?.countryCode || destSt?.country || o.destinationCountry || '';
         const route = resolveOrderRoute(originStation, destStation);
         const showBorders = o.routeType === 'international' || route.showBorders;
+        const countries = routeCountries();
+        const templates = typeof getRouteCatalogTemplates === 'function' ? getRouteCatalogTemplates() : [];
+        const clientOpts = (sel) => clientsDB.map(c => `<option value="${c.name}"${c.name === sel ? ' selected' : ''}>${c.name}</option>`).join('');
         const agentOpts = (sel) => CLEARING_AGENTS.map(a => `<option value="${a}"${a === sel ? ' selected' : ''}>${a}</option>`).join('');
         const oogOpts = (sel) => OOG_TYPES.map(t => `<option value="${t.value}"${t.value === (ld.oogType || '') ? ' selected' : ''}>${t.value}</option>`).join('');
         const selectedOogHint = OOG_TYPES.find(t => t.value === (ld.oogType || ''))?.hint || OOG_TYPES[0].hint;
         const containerLines = ld.containerLines || [];
+        const selectedRouteTpl = ld.routeTemplateId || route.routeTemplateId || '';
 
         return `
             <div class="co-form-tabs">
@@ -456,14 +605,26 @@
             </div>
 
             <div class="co-form-panel" data-panel="route" style="display:none;">
-                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Select <strong>origin</strong> and <strong>destination</strong> stations. Borders are filled automatically for international routes; same-country trips need no border.</p>
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Select a <strong>pre-defined route</strong> from the catalog, or pick origin/destination by country. Loading points link to origin; offloading points link to destination. Same country = domestic; different countries = international.</p>
+                <div class="form-group">
+                    <label>Pre-defined Route</label>
+                    <select class="form-control" id="coFormRouteTemplate" onchange="onClientOrderRouteTemplateChange()">
+                        <option value="">— Manual selection —</option>
+                        ${templates.map(t => `<option value="${t.id}"${t.id === selectedRouteTpl ? ' selected' : ''}>${t.name} (${t.routeType})</option>`).join('')}
+                    </select>
+                </div>
+                <div id="coRouteTypeLabel" style="margin-bottom:12px;">${route.routeType === 'international' ? `<span class="status-badge orange">International</span>` : `<span class="status-badge green">Domestic</span>`}</div>
                 <div class="form-grid-2">
-                    <div class="form-group"><label>Origin Station *</label><select class="form-control" id="coFormOriginStation" onchange="onClientOrderRouteChange()">${stationOptions(originStation)}</select></div>
-                    <div class="form-group"><label>Destination Station *</label><select class="form-control" id="coFormDestStation" onchange="onClientOrderRouteChange()">${stationOptions(destStation)}</select></div>
+                    <div class="form-group"><label>Origin Country *</label><select class="form-control" id="coFormOriginCountry" onchange="onClientOrderOriginCountryChange()">${countries.map(c => `<option value="${c.code}"${c.code === originCountry ? ' selected' : ''}>${c.name}</option>`).join('')}</select></div>
+                    <div class="form-group"><label>Destination Country *</label><select class="form-control" id="coFormDestCountry" onchange="onClientOrderDestCountryChange()">${countries.map(c => `<option value="${c.code}"${c.code === destCountry ? ' selected' : ''}>${c.name}</option>`).join('')}</select></div>
                 </div>
                 <div class="form-grid-2">
-                    <div class="form-group"><label>Loading Point</label><input class="form-control" id="coFormLoadingPoint" value="${o.loadingPoint || route.loadingPoint || ''}"></div>
-                    <div class="form-group"><label>Offloading Point</label><input class="form-control" id="coFormOffloadingPoint" value="${o.offloadingPoint || route.offloadingPoint || ''}"></div>
+                    <div class="form-group"><label>Origin Station *</label><select class="form-control" id="coFormOriginStation" onchange="onClientOrderRouteChange()">${stationOptions(originStation, originCountry)}</select></div>
+                    <div class="form-group"><label>Destination Station *</label><select class="form-control" id="coFormDestStation" onchange="onClientOrderRouteChange()">${stationOptions(destStation, destCountry)}</select></div>
+                </div>
+                <div class="form-grid-2">
+                    <div class="form-group"><label>Loading Point *</label><select class="form-control" id="coFormLoadingPoint">${pointOptions(route.loadingPoints, o.loadingPoint || route.loadingPoint)}</select></div>
+                    <div class="form-group"><label>Offloading Point *</label><select class="form-control" id="coFormOffloadingPoint">${pointOptions(route.offloadingPoints, o.offloadingPoint || route.offloadingPoint)}</select></div>
                 </div>
                 <input type="hidden" id="coFormOrigin" value="${o.origin || route.origin || ''}">
                 <input type="hidden" id="coFormDestination" value="${o.destination || route.destination || ''}">
@@ -522,7 +683,10 @@
                 <div id="coContainerSection" style="display:${cargoType === 'Container' || cargoType === 'OOG' ? 'block' : 'none'};margin:12px 0;padding:12px;background:#f7fafc;border-radius:8px;border:1px solid var(--border);">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
                         <h4 style="margin:0;">Container Details</h4>
-                        <button type="button" class="btn btn-sm btn-outline" onclick="addContainerLine()">+ Add Container</button>
+                        <div style="display:flex;gap:8px;">
+                            <button type="button" class="btn btn-sm btn-outline" onclick="openContainerDetailsModal()">📦 Container / OOG Details</button>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="addContainerLine()">+ Add Container</button>
+                        </div>
                     </div>
                     <div class="form-grid-2" style="margin-bottom:12px;">
                         <div class="form-group"><label>Qty 20'</label><input type="number" class="form-control" id="coFormQty20" value="${ld.qty20 || ''}"></div>
@@ -530,7 +694,7 @@
                     </div>
                     <div class="table-container" style="box-shadow:none;">
                         <table class="client-orders-grid" style="min-width:0;">
-                            <thead><tr><th>Container No</th><th>Type</th><th>Nett Wt</th><th>Gross Wt</th><th>OOG</th><th></th></tr></thead>
+                            <thead><tr><th>Container No</th><th>Type</th><th>Tare</th><th>Nett Wt</th><th>Gross Wt</th><th>Seal</th><th>Flags</th><th></th></tr></thead>
                             <tbody id="coContainerLinesBody">${renderContainerLines(containerLines)}</tbody>
                         </table>
                     </div>
@@ -588,10 +752,20 @@
 
             <div class="co-form-panel" data-panel="parties" style="display:none;">
                 <div class="form-grid-2">
-                    <div class="form-group"><label>Shipper / Customer</label><input class="form-control" id="coFormShipper" value="${o.shipper || ''}"></div>
-                    <div class="form-group"><label>Consignee</label><input class="form-control" id="coFormConsignee" value="${o.consignee || ''}"></div>
+                    <div class="form-group"><label>Shipper / Customer *</label>
+                        <select class="form-control" id="coFormShipper">${clientOpts(o.shipper || '')}<option value="__custom__">— Type custom —</option></select>
+                        <input class="form-control" id="coFormShipperCustom" style="margin-top:6px;display:none;" placeholder="Custom shipper name">
+                    </div>
+                    <div class="form-group"><label>Consignee *</label>
+                        <input class="form-control" id="coFormConsignee" value="${o.consignee || ''}" list="coConsigneeList">
+                        <datalist id="coConsigneeList">${clientsDB.map(c => `<option value="${c.name}">`).join('')}</datalist>
+                    </div>
                 </div>
-                <div class="form-group"><label>Invoice Party</label><input class="form-control" id="coFormInvoiceParty" value="${o.invoiceParty || ''}"></div>
+                <div class="form-grid-2">
+                    <div class="form-group"><label>Invoice Party *</label><input class="form-control" id="coFormInvoiceParty" value="${o.invoiceParty || ''}"></div>
+                    <div class="form-group"><label>Customer Consignor</label><input class="form-control" id="coFormCustomerConsignor" value="${ld.customerConsignor || ''}"></div>
+                </div>
+                <div class="form-group"><label>Customer Consignee</label><input class="form-control" id="coFormCustomerConsignee" value="${ld.customerConsignee || ''}"></div>
                 <div class="form-group"><label>Driver Instructions</label><textarea class="form-control" id="coFormDriverInstr" rows="2">${ld.driverInstructions || ''}</textarea></div>
                 <div class="form-group"><label>Special Instructions (Ops)</label><textarea class="form-control" id="coFormSpecialInstr" rows="2">${ld.specialInstructions || o.notes || ''}</textarea></div>
             </div>`;
@@ -619,6 +793,12 @@
             portEntryAgent: document.getElementById('coFormPortAgent')?.value || '',
             exitBorderAgent: document.getElementById('coFormExitAgent')?.value || ''
         };
+        const loadEl = document.getElementById('coFormLoadingPoint');
+        const offEl = document.getElementById('coFormOffloadingPoint');
+        const shipperSel = document.getElementById('coFormShipper');
+        let shipper = shipperSel?.value === '__custom__'
+            ? document.getElementById('coFormShipperCustom')?.value.trim()
+            : shipperSel?.value?.trim();
         return {
             id: document.getElementById('coFormId')?.value || undefined,
             orderNumber: document.getElementById('coFormNumber')?.value.trim(),
@@ -633,20 +813,24 @@
             status: document.getElementById('coFormStatus')?.value,
             origin: document.getElementById('coFormOrigin')?.value || route.origin,
             destination: document.getElementById('coFormDestination')?.value || route.destination,
-            loadingPoint: document.getElementById('coFormLoadingPoint')?.value.trim(),
-            offloadingPoint: document.getElementById('coFormOffloadingPoint')?.value.trim(),
+            loadingPoint: loadEl?.value?.trim() || '',
+            offloadingPoint: offEl?.value?.trim() || '',
             originCountry: route.originCountry,
             destinationCountry: route.destinationCountry,
             routeType: route.routeType,
             ...borderFields,
             commodity: document.getElementById('coFormCommodity')?.value.trim(),
             cargoType: document.getElementById('coFormCargoType')?.value,
-            shipper: document.getElementById('coFormShipper')?.value.trim(),
+            shipper: shipper || '',
             consignee: document.getElementById('coFormConsignee')?.value.trim(),
             invoiceParty: document.getElementById('coFormInvoiceParty')?.value.trim(),
             notes: document.getElementById('coFormSpecialInstr')?.value.trim(),
             kpi: 'green',
             loadDetails: {
+                originStationId: originId, destStationId: destId,
+                routeTemplateId: document.getElementById('coFormRouteTemplate')?.value || route.routeTemplateId || '',
+                customerConsignor: document.getElementById('coFormCustomerConsignor')?.value.trim(),
+                customerConsignee: document.getElementById('coFormCustomerConsignee')?.value.trim(),
                 descriptionOfGoods: document.getElementById('coFormDescGoods')?.value.trim(),
                 orderLoadType: loadType,
                 oogType: document.getElementById('coFormOogType')?.value || '',
@@ -789,6 +973,7 @@
     }
 
     async function syncFleetOrdersFromApi() {
+        if (typeof syncRouteCatalogFromApi === 'function') await syncRouteCatalogFromApi();
         if (typeof isApiAvailable !== 'function' || !isApiAvailable()) {
             if (!loadLocal()) seedDemoIfEmpty();
             return false;
@@ -1346,6 +1531,8 @@
         if (!ca) return;
         if (currentPage === 'client-orders') renderClientOrders(ca);
         else if (currentPage === 'fleet-registry') renderFleetRegistry(ca);
+        else if (currentPage === 'route-catalog' && typeof renderRouteCatalog === 'function') renderRouteCatalog(ca);
+        else if (currentPage === 'trip-scheduler' && typeof renderTripScheduler === 'function') renderTripScheduler(ca);
         else if (currentPage === 'dashboard' && typeof renderDashboard === 'function') renderDashboard(ca);
         if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
     }

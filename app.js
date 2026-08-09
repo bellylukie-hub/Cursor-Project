@@ -1659,6 +1659,8 @@ const OPERATIONAL_MODULES = [
     { id: 'internal-communication', label: 'Internal Communication', icon: '✉️', global: true },
     { id: 'assets', label: 'Assets & Equipment', icon: '🚗', global: true },
     { id: 'client-orders', label: 'Client Orders', icon: '📦', global: true },
+    { id: 'route-catalog', label: 'Route Catalog', icon: '🗺️', global: true },
+    { id: 'trip-scheduler', label: 'Trip Scheduler', icon: '📅', global: true },
     { id: 'fleet-registry', label: 'Fleet Registry', icon: '🚛', global: true },
     { id: 'runner-fees', label: 'Runner Fees', icon: '💰', global: true },
     { id: 'reports', label: 'Reports', icon: '📈', global: true },
@@ -1680,6 +1682,8 @@ const PAGE_MODULE_MAP = {
     'internal-communication': 'internal-communication',
     assets: 'assets',
     'client-orders': 'client-orders',
+    'route-catalog': 'route-catalog',
+    'trip-scheduler': 'trip-scheduler',
     'fleet-registry': 'fleet-registry',
     'runner-fees': 'runner-fees',
     reports: 'reports',
@@ -2240,6 +2244,8 @@ function navigateTo(page) {
         case 'internal-communication': renderInternalCommunication(ca); break;
         case 'assets': renderAssets(ca); break;
         case 'client-orders': if (typeof renderClientOrders === 'function') renderClientOrders(ca); else renderDashboard(ca); break;
+        case 'route-catalog': if (typeof renderRouteCatalog === 'function') renderRouteCatalog(ca); else renderDashboard(ca); break;
+        case 'trip-scheduler': if (typeof renderTripScheduler === 'function') renderTripScheduler(ca); else renderDashboard(ca); break;
         case 'fleet-registry': if (typeof renderFleetRegistry === 'function') renderFleetRegistry(ca); else renderDashboard(ca); break;
         case 'runner-fees': renderRunnerFees(ca); break;
         case 'reports': renderReports(ca); break;

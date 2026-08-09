@@ -1984,6 +1984,12 @@
                     <a class="nav-item" onclick="navigateTo('client-orders')" data-page="client-orders">
                         <span class="icon">📦</span> Client Orders <span class="badge nav-badge-clickable" id="navClientOrdersBadge" style="display:none;" onclick="event.preventDefault();event.stopPropagation();navigateTo('client-orders')" title="Orders awaiting allocation"></span>
                     </a>
+                    <a class="nav-item" onclick="navigateTo('route-catalog')" data-page="route-catalog">
+                        <span class="icon">🗺️</span> Route Catalog
+                    </a>
+                    <a class="nav-item" onclick="navigateTo('trip-scheduler')" data-page="trip-scheduler">
+                        <span class="icon">📅</span> Trip Scheduler
+                    </a>
                     <a class="nav-item" onclick="navigateTo('fleet-registry')" data-page="fleet-registry">
                         <span class="icon">🚛</span> Fleet Registry
                     </a>
@@ -2548,10 +2554,66 @@
         </div>
     </div>
 
+    <!-- Container / OOG details modal -->
+    <div class="modal-overlay" id="containerDetailsModal">
+        <div class="modal modal-lg">
+            <div class="modal-header"><h3>📦 Container / OOG Details</h3><button class="btn btn-outline" onclick="closeModal('containerDetailsModal')">✕</button></div>
+            <div class="modal-body" id="containerDetailsModalBody"></div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('containerDetailsModal')">Cancel</button><button class="btn btn-primary" onclick="applyContainerDetailsModal()">+ Add to Order</button></div>
+        </div>
+    </div>
+
+    <!-- Route catalog: station modal -->
+    <div class="modal-overlay" id="stationModal">
+        <div class="modal">
+            <div class="modal-header"><h3 id="stationModalTitle">Add Station</h3><button class="btn btn-outline" onclick="closeModal('stationModal')">✕</button></div>
+            <div class="modal-body">
+                <input type="hidden" id="rcStationId">
+                <div class="form-group"><label>Station Name *</label><input class="form-control" id="rcStationName"></div>
+                <div class="form-group"><label>Country *</label><select class="form-control" id="rcStationCountry"></select></div>
+                <div class="form-group"><label>Loading Points (one per line)</label><textarea class="form-control" id="rcLoadingPoints" rows="3" placeholder="Durban Port&#10;Clayville"></textarea></div>
+                <div class="form-group"><label>Offloading Points (one per line)</label><textarea class="form-control" id="rcOffloadingPoints" rows="3" placeholder="Kolwezi Mine"></textarea></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('stationModal')">Cancel</button><button class="btn btn-primary" onclick="submitStationForm()">Save Station</button></div>
+        </div>
+    </div>
+
+    <!-- Route catalog: route template modal -->
+    <div class="modal-overlay" id="routeTemplateModal">
+        <div class="modal modal-lg">
+            <div class="modal-header"><h3 id="routeTemplateModalTitle">Create Route</h3><button class="btn btn-outline" onclick="closeModal('routeTemplateModal')">✕</button></div>
+            <div class="modal-body">
+                <input type="hidden" id="rcRouteId">
+                <div class="form-group"><label>Route Name</label><input class="form-control" id="rcRouteName" placeholder="Beira → Kolwezi (MZ→CD)"></div>
+                <div class="form-grid-2">
+                    <div class="form-group"><label>Origin Station *</label><select class="form-control" id="rcRouteOrigin"></select></div>
+                    <div class="form-group"><label>Destination Station *</label><select class="form-control" id="rcRouteDest"></select></div>
+                </div>
+                <h4 style="margin:16px 0 8px;">International borders (auto-filled for cross-country)</h4>
+                <div class="form-grid-2">
+                    <div class="form-group"><label>Entry Border</label><input class="form-control" id="rcRouteEntryBorder"></div>
+                    <div class="form-group"><label>Via Border 1</label><input class="form-control" id="rcRouteVia1"></div>
+                </div>
+                <div class="form-grid-2">
+                    <div class="form-group"><label>Via Border 2</label><input class="form-control" id="rcRouteVia2"></div>
+                    <div class="form-group"><label>Port of Entry</label><input class="form-control" id="rcRoutePort"></div>
+                </div>
+                <div class="form-grid-2">
+                    <div class="form-group"><label>Exit Border</label><input class="form-control" id="rcRouteExitBorder"></div>
+                    <div class="form-group"><label>Default Loading Point</label><input class="form-control" id="rcRouteLoadPoint"></div>
+                </div>
+                <div class="form-group"><label>Default Offloading Point</label><input class="form-control" id="rcRouteOffloadPoint"></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('routeTemplateModal')">Cancel</button><button class="btn btn-primary" onclick="submitRouteTemplateForm()">Save Route</button></div>
+        </div>
+    </div>
+
     <script src="api.js"></script>
     <script src="admin-persistence.js"></script>
     <script src="live-operations.js"></script>
+    <script src="route-catalog.js"></script>
     <script src="fleet-orders.js"></script>
+    <script src="trip-scheduler.js"></script>
     <script src="app.js"></script>
     <script src="custom-reports.js"></script>
     <script src="process-guide.js"></script>

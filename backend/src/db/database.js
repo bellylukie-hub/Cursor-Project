@@ -303,6 +303,82 @@ function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_fleet_units_status ON fleet_units(status);
   `);
   migrateClientOrdersSchema();
+  migrateRouteCatalogSchema();
+}
+
+function migrateRouteCatalogSchema() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS route_countries (
+      code TEXT PRIMARY KEY,
+      name TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS route_stations (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      country_code TEXT NOT NULL REFERENCES route_countries(code),
+      status TEXT DEFAULT 'active'
+    );
+
+    CREATE TABLE IF NOT EXISTS route_loading_points (
+      id TEXT PRIMARY KEY,
+      station_id TEXT NOT NULL REFERENCES route_stations(id) ON DELETE CASCADE,
+      name TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS route_offloading_points (
+      id TEXT PRIMARY KEY,
+      station_id TEXT NOT NULL REFERENCES route_stations(id) ON DELETE CASCADE,
+      name TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS route_templates (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      origin_station_id TEXT NOT NULL REFERENCES route_stations(id),
+      destination_station_id TEXT NOT NULL REFERENCES route_stations(id),
+      origin_country TEXT NOT NULL,
+      destination_country TEXT NOT NULL,
+      route_type TEXT NOT NULL DEFAULT 'domestic',
+      entry_border TEXT,
+      via_border_1 TEXT,
+      via_border_2 TEXT,
+      port_of_entry TEXT,
+      exit_border TEXT,
+      default_loading_point TEXT,
+      default_offloading_point TEXT,
+      status TEXT DEFAULT 'active'
+    );
+
+    CREATE TABLE IF NOT EXISTS fleet_trips (
+      id TEXT PRIMARY KEY,
+      trip_reference TEXT NOT NULL,
+      scheduled_loading_date TEXT,
+      scheduled_time TEXT DEFAULT '07:00',
+      transporter TEXT,
+      fleet_unit_id TEXT REFERENCES fleet_units(id),
+      truck_plate TEXT,
+      trailer_plate TEXT,
+      second_trailer_plate TEXT,
+      driver_id TEXT REFERENCES fleet_drivers(id),
+      co_driver TEXT,
+      current_truck_position TEXT,
+      bivac_no TEXT,
+      client_invoice_no TEXT,
+      po_client_order_no TEXT,
+      status TEXT DEFAULT 'draft',
+      notes TEXT,
+      trip_orders_json TEXT DEFAULT '[]',
+      created_by TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_route_stations_country ON route_stations(country_code);
+    CREATE INDEX IF NOT EXISTS idx_route_templates_origin ON route_templates(origin_station_id);
+    CREATE INDEX IF NOT EXISTS idx_route_templates_dest ON route_templates(destination_station_id);
+    CREATE INDEX IF NOT EXISTS idx_fleet_trips_status ON fleet_trips(status);
+  `);
 }
 
 function migrateClientOrdersSchema() {

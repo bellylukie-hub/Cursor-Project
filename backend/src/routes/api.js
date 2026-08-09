@@ -591,4 +591,60 @@ router.post('/order-allocations', (req, res) => {
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
+// Route catalog (stations, loading/offloading points, pre-defined routes)
+const routeCatalogSvc = () => require('../services/routeCatalogService');
+
+router.get('/route-catalog', (_req, res) => {
+  try { res.json(routeCatalogSvc().getFullCatalog()); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/route-catalog/resolve', (req, res) => {
+  try {
+    const route = routeCatalogSvc().resolveRoute(req.query.originStationId, req.query.destStationId);
+    res.json({ route });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.post('/route-catalog/stations', (req, res) => {
+  try {
+    const station = routeCatalogSvc().upsertStation(req.body);
+    res.status(201).json({ station });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.post('/route-catalog/routes', (req, res) => {
+  try {
+    const route = routeCatalogSvc().upsertRouteTemplate(req.body);
+    res.status(201).json({ route });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+// Trip scheduler (multi-order truck scheduling)
+const tripSchedulerSvc = () => require('../services/tripSchedulerService');
+
+router.get('/trip-scheduler/bundle', (_req, res) => {
+  try { res.json(tripSchedulerSvc().getSchedulerBundle()); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/trip-scheduler/trips', (_req, res) => {
+  try { res.json({ trips: tripSchedulerSvc().listTrips() }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/trip-scheduler/trips', (req, res) => {
+  try {
+    const trip = tripSchedulerSvc().upsertTrip(req.body, getUser(req));
+    res.status(201).json({ trip });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.post('/trip-scheduler/trips/:tripId/orders', (req, res) => {
+  try {
+    const trip = tripSchedulerSvc().addOrderToTrip(req.params.tripId, req.body, getUser(req));
+    res.json({ trip });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
 module.exports = router;

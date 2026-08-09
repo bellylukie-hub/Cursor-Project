@@ -485,4 +485,39 @@ async function updateFleetUnitGpsApi(unitId, payload) {
   return data.unit;
 }
 
+// Route catalog API
+async function fetchRouteCatalog() {
+  return apiRequest('/route-catalog');
+}
+
+async function saveRouteStationApi(payload) {
+  const data = await apiRequest('/route-catalog/stations', { method: 'POST', body: JSON.stringify(payload) });
+  return data.station;
+}
+
+async function saveRouteTemplateApi(payload) {
+  const data = await apiRequest('/route-catalog/routes', { method: 'POST', body: JSON.stringify(payload) });
+  return data.route;
+}
+
+async function resolveRouteApi(originStationId, destStationId) {
+  const data = await apiRequest(`/route-catalog/resolve?originStationId=${encodeURIComponent(originStationId)}&destStationId=${encodeURIComponent(destStationId)}`);
+  return data.route;
+}
+
+// Trip scheduler API
+async function fetchTripSchedulerBundle() {
+  return apiRequest('/trip-scheduler/bundle');
+}
+
+async function saveTripApi(payload) {
+  const data = await apiRequest('/trip-scheduler/trips', { method: 'POST', body: JSON.stringify(payload) });
+  return data.trip;
+}
+
+async function addOrderToTripApi(tripId, payload) {
+  const data = await apiRequest(`/trip-scheduler/trips/${encodeURIComponent(tripId)}/orders`, { method: 'POST', body: JSON.stringify(payload) });
+  return data.trip;
+}
+
 loadStoredAuth();
