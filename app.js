@@ -1639,6 +1639,7 @@ function canAccessAdminPage(page) {
         case 'admin-area-assignments': return canUser('manage_users');
         case 'admin-module-permissions': return canUser('manage_users');
         case 'admin-fleet-settings': return canUser('manage_settings') || canUser('manage_users');
+        case 'admin-freight-settings': return canUser('manage_settings') || canUser('manage_users');
         case 'admin-upload-templates': return getCurrentRole()?.name === 'Super Admin';
         default: return false;
     }
@@ -2262,6 +2263,7 @@ function navigateTo(page) {
         case 'admin-area-assignments': renderAdminAreaAssignments(ca); break;
         case 'admin-module-permissions': renderAdminModulePermissions(ca); break;
         case 'admin-fleet-settings': renderAdminFleetSettings(ca); break;
+        case 'admin-freight-settings': renderAdminFreightSettings(ca); break;
         case 'admin-upload-templates': renderAdminUploadTemplates(ca); break;
         case 'position-live': renderPositionLive(ca); break;
         case 'turnarounds': renderTurnarounds(ca); break;

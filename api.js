@@ -360,6 +360,16 @@ async function patchSystemSettings(patch) {
   return data.settings;
 }
 
+async function fetchFreightSettings() {
+  const data = await apiRequest('/freight-settings');
+  return data.settings;
+}
+
+async function saveFreightSettingsApi(patch) {
+  const data = await apiRequest('/freight-settings', { method: 'PATCH', body: JSON.stringify(patch) });
+  return data.settings;
+}
+
 async function fetchAuditLogs() {
   const data = await apiRequest('/audit-logs?limit=300');
   return data.logs || [];

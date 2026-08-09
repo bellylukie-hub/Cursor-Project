@@ -85,6 +85,23 @@ router.patch('/settings', (req, res) => {
   }
 });
 
+router.get('/freight-settings', (_req, res) => {
+  try {
+    res.json({ settings: adminSvc().getFreightSettings() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.patch('/freight-settings', (req, res) => {
+  try {
+    const settings = adminSvc().updateFreightSettings(req.body, getUser(req));
+    res.json({ settings });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 router.get('/audit-logs', (req, res) => {
   try {
     const limit = parseInt(req.query.limit, 10) || 200;

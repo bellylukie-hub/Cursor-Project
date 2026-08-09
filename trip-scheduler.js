@@ -164,6 +164,10 @@
         return typeof canEditInModule === 'function' ? canEditInModule('trip-scheduler') : true;
     }
 
+    function getFs() {
+        return typeof getFreightSettings === 'function' ? getFreightSettings() : {};
+    }
+
     function tripStatusBadge(s) {
         const map = { draft: 'gray', scheduled: 'blue', in_transit: 'orange', completed: 'green', cancelled: 'red' };
         return `<span class="status-badge ${map[s] || 'gray'}">${s || 'draft'}</span>`;
@@ -197,6 +201,10 @@
         const orders = trip.tripOrders || draftTripOrders || [];
         const availableOrders = getAvailableOrdersForTrip();
 
+        const fs = getFs();
+        const defaultTime = trip.scheduledTime || fs.defaultLoadingTime || '07:00';
+        const defaultTransporter = trip.transporter || fs.defaultTransporter || 'Greendoor Group';
+
         const unitOpts = schedulerUnits.map(u => {
             const d = schedulerDrivers.find(dr => dr.id === u.driverId);
             return `<option value="${u.id}"${u.id === trip.fleetUnitId ? ' selected' : ''}>${u.truckPlate}${u.trailerPlate ? ' + ' + u.trailerPlate : ''} — ${d?.name || 'No driver'}</option>`;
@@ -220,10 +228,10 @@
                 <div class="form-grid-3">
                     <div class="form-group"><label>Trip Reference</label><input class="form-control" id="tsTripRef" value="${trip.tripReference || 'New Trip Ref'}" placeholder="TR-2026-001"></div>
                     <div class="form-group"><label>Sch. Loading Date</label><input type="date" class="form-control" id="tsLoadDate" value="${trip.scheduledLoadingDate || new Date().toISOString().slice(0, 10)}"></div>
-                    <div class="form-group"><label>Scheduled Time</label><input type="time" class="form-control" id="tsLoadTime" value="${trip.scheduledTime || '07:00'}"></div>
+                    <div class="form-group"><label>Scheduled Time</label><input type="time" class="form-control" id="tsLoadTime" value="${defaultTime}"></div>
                 </div>
                 <div class="form-grid-3">
-                    <div class="form-group"><label>Transporter</label><input class="form-control" id="tsTransporter" value="${trip.transporter || 'Greendoor Group'}"></div>
+                    <div class="form-group"><label>Transporter</label><input class="form-control" id="tsTransporter" value="${defaultTransporter}"></div>
                     <div class="form-group"><label>Truck / Fleet Set</label><select class="form-control" id="tsFleetUnit" onchange="onTripFleetUnitChange()">${unitOpts}</select></div>
                     <div class="form-group"><label>Driver</label><select class="form-control" id="tsDriver">${driverOpts}</select></div>
                 </div>
@@ -357,6 +365,14 @@
         if (draftTripOrders.some(to => to.orderId === orderId)) {
             showToast('Order already on this trip', 'warning'); return;
         }
+        const fs = getFs();
+        if (fs.allowMultiOrderTrips === false && draftTripOrders.length >= 1) {
+            showToast('Only one client order per trip is allowed (see Admin → Freight & FMS Settings)', 'warning'); return;
+        }
+        const maxOrders = fs.maxOrdersPerTrip || 10;
+        if (draftTripOrders.length >= maxOrders) {
+            showToast(`Maximum ${maxOrders} orders per trip`, 'warning'); return;
+        }
         const trailerPos = document.querySelector('input[name="tsTrailerPos"]:checked')?.value || 'First';
         const line = buildTripOrderLineFromClientOrder(order, {
             entryBorder: document.getElementById('tsAddEntryBorder')?.value || order.entryBorder || '',
@@ -426,7 +442,9 @@
                 const idx = tripsDB.findIndex(t => t.id === payload.id);
                 if (idx >= 0) tripsDB[idx] = payload; else tripsDB.unshift(payload);
             }
-            if (typeof scheduleFleetOrdersForTrip === 'function') scheduleFleetOrdersForTrip(payload);
+            if (typeof scheduleFleetOrdersForTrip === 'function' && getFs().autoAllocateOrdersOnTripSave !== false) {
+                scheduleFleetOrdersForTrip(payload);
+            }
             saveLocal();
             currentTripId = null;
             draftTripOrders = [];

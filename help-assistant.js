@@ -107,13 +107,28 @@
                 },
                 {
                     id: 'client-orders', icon: '📦', label: 'Client Orders', moduleId: 'client-orders',
-                    keywords: ['client orders', 'orders', 'schedule truck', 'allocate', 'customer order'],
-                    description: 'Create client orders, schedule trucks, and allocate registered truck-trailer-driver fleet sets. KPI cards show pending allocation and overdue orders.'
+                    keywords: ['client orders', 'orders', 'custom order', 'customer order', 'schedule truck', 'allocate', 'fms order', 'commodity', 'container'],
+                    description: 'Full FMS client order form: client, route (from Route Catalog), loading/offloading points, borders, commodity, cargo type (Bulk, Container, OOG), container lines, parties, and hazmat. Filter the grid and allocate trucks or schedule via Trip Scheduler.'
+                },
+                {
+                    id: 'clients', icon: '👥', label: 'Clients', moduleId: 'clients',
+                    keywords: ['clients', 'client register', 'customer', 'shipper', 'crm', 'client management'],
+                    description: 'Dedicated client register — name, contact person, phone, WhatsApp, email, address, and status. Clients are linked to Client Orders and appear in Trip Scheduler order dropdowns.'
+                },
+                {
+                    id: 'route-catalog', icon: '🗺️', label: 'Route Catalog', moduleId: 'route-catalog',
+                    keywords: ['route catalog', 'routes', 'stations', 'loading point', 'offloading point', 'domestic', 'international', 'route template'],
+                    description: 'Pre-create routes before use: countries, stations, loading/offloading points, and route templates. Same country = domestic; different countries = international with border fields. Client Orders pull stations and points from here.'
+                },
+                {
+                    id: 'trip-scheduler', icon: '📅', label: 'Trip Scheduler', moduleId: 'trip-scheduler',
+                    keywords: ['trip scheduler', 'schedule trip', 'trip', 'allocate orders', 'fleet set', 'loading date', 'multi order trip'],
+                    description: 'Assign a truck/trailer/driver fleet set to one or more **Client Orders**. Select an order from the dropdown — route, cargo, borders, commodity, loading points, and container details auto-fill. Save links orders to the trip and marks them allocated.'
                 },
                 {
                     id: 'fleet-registry', icon: '🚛', label: 'Fleet Registry', moduleId: 'fleet-registry',
-                    keywords: ['fleet registry', 'register truck', 'trailer', 'driver', 'gps', 'fleet set'],
-                    description: 'Register trucks, trailers, and drivers; link them as a fleet set with optional GPS device. WhatsApp links open driver chat. GPS enables map view on Position Live.'
+                    keywords: ['fleet registry', 'register truck', 'trailer', 'driver', 'gps', 'fleet set', 'superlink', 'fms register', 'vehicle spec'],
+                    description: 'Register trucks, trailers, and drivers with full FMS vehicle fields (~87 columns in Full Register). Link truck + trailer + driver as a fleet set; pair superlink front/rear trailers. GPS links enable Position Live map view.'
                 },
                 {
                     id: 'runner-fees', icon: '💰', label: 'Runner Fees', moduleId: 'runner-fees',
@@ -189,6 +204,11 @@
                     id: 'admin-fleet-settings', icon: '🚛', label: 'Fleet — Same Truck for SB', adminPage: 'admin-fleet-settings',
                     keywords: ['fleet', 'same truck', 'sb fleet', 'turnaround truck'],
                     description: 'Policy for whether the same physical truck must continue on the SB leg after NB turnaround. Affects turnarounds and trip linking.'
+                },
+                {
+                    id: 'admin-freight-settings', icon: '📦', label: 'Freight & FMS Settings', adminPage: 'admin-freight-settings',
+                    keywords: ['freight settings', 'fms settings', 'trip scheduler settings', 'route catalog settings', 'client order settings', 'fleet registry settings', 'order prefix', 'max orders per trip'],
+                    description: 'Configure Trip Scheduler defaults (transporter, loading time, max orders per trip), Client Order rules (order number prefix, default status), Route Catalog enforcement, and Fleet Registry policies (superlink, FMS register tab, asset locking).'
                 },
                 {
                     id: 'admin-upload-templates', icon: '📤', label: 'Upload Templates', adminPage: 'admin-upload-templates',
@@ -294,6 +314,19 @@
         return `To update a truck status:\n1. Find the truck on NB/SB Operations, Border Clearance, or an Area page.\n2. Click **💬 Comment**.\n3. Choose **Normal Comment** (routine update) or **Problem Report** (priority/overdue issues).\n4. Optionally pick a new status from the dropdown and set the **status date**.\n5. Submit.\n\nThe **process sequence panel** below the workflow bar shows what step comes next in the driver's current area.`;
     }
 
+    const FREIGHT_KEYWORDS = /client order|trip scheduler|route catalog|fleet registry|superlink|fms|freight|allocate order|loading point|offloading|container|oog|custom order/i;
+
+    function freightWorkflowHelp(topic) {
+        const guides = {
+            orders: `**Client Orders workflow:**\n1. Register clients under **Management → Clients**\n2. Create a route in **Route Catalog** (or pick origin/destination manually)\n3. **Management → Client Orders** → Create Order — fill header, route & borders, load/commodity, parties\n4. Allocate a fleet set directly, or schedule via **Trip Scheduler**\n\nCargo types: Bulk Loose, Break Bulk, Bulk Liquid, Container, OOG. Container/OOG orders support multiple container lines and seal numbers.`,
+            scheduler: `**Trip Scheduler workflow:**\n1. Open **Management → Trip Scheduler**\n2. Set trip reference, loading date/time, and select a **Truck / Fleet Set**\n3. Under **Add Client Order to Trip**, pick an order from the dropdown — fields auto-fill from the order\n4. Click **Add to Trip** (repeat for multiple orders if allowed)\n5. **Save Trip** — orders are linked, marked allocated, and assigned to the fleet unit\n\nAdmins configure defaults under **Admin → Freight & FMS Settings**.`,
+            routes: `**Route Catalog:**\n• Add **countries** and **stations** (e.g. Durban, Kolwezi, Kasumbalesa)\n• Link **loading points** to origin stations and **offloading points** to destinations\n• Create **route templates** with domestic/international type and default borders\n• Client Orders use catalog stations/points in cascading dropdowns\n\nAdmin can require catalog routes only: **Admin → Freight & FMS Settings → Route Catalog**.`,
+            fleet: `**Fleet Registry:**\n• **Trucks** and **Trailers** — full FMS specs (owner, fleet no, engine, GPS, tanks, etc.)\n• **Superlink Pair** — link front + rear trailers with combined capacity\n• **Fleet Set** — assign truck + trailer + driver; linked assets cannot join other sets (if locking enabled)\n• **Full Register** tab shows all ~87 FMS columns in one grid\n\nConfigure superlink, FMS register visibility, and asset locking in **Admin → Freight & FMS Settings**.`,
+            clients: `**Clients register:**\nAdd customers under **Management → Clients** with contact details and WhatsApp. These clients appear in Client Order forms and Trip Scheduler order labels (order no | client | route | cargo).`
+        };
+        return guides[topic] || guides.orders;
+    }
+
     function matchQuery(q, patterns) {
         return patterns.some(p => (p instanceof RegExp ? p.test(q) : q.includes(p)));
     }
@@ -304,7 +337,7 @@
 
         if (matchQuery(q, ['hello', 'hi', 'hey', 'help'])) {
             const pageTip = pageHelp(ctx);
-            return `Hello **${ctx.user?.username || 'there'}**! I'm your Truck Control assistant.\n\n${pageTip ? `You're on **${ctx.page}**: ${pageTip}\n\n` : ''}Ask about any **sidebar menu** item, workflows, borders, POD, or permissions.\n• Type **"menu"** for the full navigation guide\n• Type **"my access"** to see what you can open`;
+            return `Hello **${ctx.user?.username || 'there'}**! I'm your Truck Control assistant.\n\n${pageTip ? `You're on **${ctx.page}**: ${pageTip}\n\n` : ''}Ask about any **sidebar menu** item, workflows, borders, POD, **Client Orders**, **Trip Scheduler**, **Route Catalog**, or permissions.\n• Type **"menu"** for the full navigation guide\n• Type **"trip scheduler"** or **"client orders"** for FMS workflows\n• Type **"my access"** to see what you can open`;
         }
 
         if (matchQuery(q, ['menu', 'sidebar', 'navigation', 'all menus', 'all pages', 'menu guide', 'what is in the menu', 'list menus'])) {
@@ -352,6 +385,53 @@
             return '**POD workflow:** Collected → Scanned → Uploaded → Sent to Invoicing.\n\nUse the POD Management page. Each row has action buttons for the next stage, or use 💬 to add a comment with a status change.';
         }
 
+        if (matchQuery(q, ['trip scheduler', 'schedule trip', 'trip schedule', 'allocate to trip', 'link order to trip'])) {
+            if (!ctx.modules.some(m => m.id === 'trip-scheduler') && !ctx.isSuperAdmin) {
+                return adminAccessDenied(ctx, 'Trip Scheduler');
+            }
+            return freightWorkflowHelp('scheduler');
+        }
+
+        if (matchQuery(q, ['client order', 'custom order', 'create order', 'fms order', 'order form'])) {
+            if (!ctx.modules.some(m => m.id === 'client-orders') && !ctx.isSuperAdmin) {
+                return adminAccessDenied(ctx, 'Client Orders');
+            }
+            return freightWorkflowHelp('orders');
+        }
+
+        if (matchQuery(q, ['route catalog', 'loading point', 'offloading point', 'route template', 'pre-defined route'])) {
+            if (!ctx.modules.some(m => m.id === 'route-catalog') && !ctx.isSuperAdmin) {
+                return adminAccessDenied(ctx, 'Route Catalog');
+            }
+            return freightWorkflowHelp('routes');
+        }
+
+        if (matchQuery(q, ['fleet registry', 'superlink', 'fleet set', 'fms register', 'register truck', 'vehicle spec'])) {
+            if (!ctx.modules.some(m => m.id === 'fleet-registry') && !ctx.isSuperAdmin) {
+                return adminAccessDenied(ctx, 'Fleet Registry');
+            }
+            return freightWorkflowHelp('fleet');
+        }
+
+        if (matchQuery(q, ['clients menu', 'client register', 'add client', 'customer register'])) {
+            if (!ctx.modules.some(m => m.id === 'clients') && !ctx.isSuperAdmin) {
+                return adminAccessDenied(ctx, 'Clients');
+            }
+            return freightWorkflowHelp('clients');
+        }
+
+        if (matchQuery(q, ['freight settings', 'fms settings', 'freight admin', 'configure trip', 'order prefix'])) {
+            if (requiresAdmin(ctx)) return adminAccessDenied(ctx, 'Freight & FMS Settings');
+            return pageHelp({ ...ctx, page: 'admin-freight-settings' }) || freightWorkflowHelp('scheduler');
+        }
+
+        if (FREIGHT_KEYWORDS.test(q) && !ADMIN_KEYWORDS.test(q)) {
+            const hits = findMenuItems(q).filter(i => ['client-orders', 'clients', 'route-catalog', 'trip-scheduler', 'fleet-registry'].includes(i.id));
+            if (hits.length === 1) {
+                return `**${hits[0].section} → ${hits[0].icon} ${hits[0].label}**\n\n${formatMenuItemLine(hits[0], ctx)}`;
+            }
+        }
+
         if (matchQuery(q, ['sequence', 'next step', 'what comes after', 'process order', 'current area'])) {
             return "Open a trip's **💬 Comment** modal. Under **Workflow Progress** you'll see the overall journey. Below that, the **process sequence panel** lists every step for the driver's **current area** in order, highlights the current step, and shows **what comes next**.";
         }
@@ -385,10 +465,13 @@
             if (q.includes('role')) {
                 return pageHelp({ ...ctx, page: 'admin-roles' });
             }
+            if (q.includes('freight') || q.includes('fms') || q.includes('trip scheduler') || q.includes('client order')) {
+                return pageHelp({ ...ctx, page: 'admin-freight-settings' });
+            }
             if (q.includes('module') && q.includes('permission')) {
                 return pageHelp({ ...ctx, page: 'admin-module-permissions' });
             }
-            return 'As an administrator you can manage users, roles, module permissions, area statuses, and KPI targets from the **Admin** section in the sidebar.';
+            return 'As an administrator you can manage users, roles, module permissions, area statuses, KPI targets, **Freight & FMS Settings**, and fleet turnaround rules from the **Admin** section in the sidebar.';
         }
 
         if (matchQuery(q, ['this page', 'current page', 'where am i'])) {
@@ -397,7 +480,7 @@
             return `You are on page **${ctx.page || 'unknown'}**. Type **"menu"** for the full sidebar guide.`;
         }
 
-        return `I didn't find a specific answer for that. Try:\n• **Menu** — full sidebar guide (Dashboard, Operations, Admin, etc.)\n• **NB workflow** or **SB workflow**\n• **Border KBP / Whisky / Direct**\n• **How to update status**\n• **POD process**\n• **My access** (what you can open)\n• Name any menu item, e.g. *Runner Fees*, *Themes*, *Position Live*\n\n${!ctx.isSuperAdmin ? 'For admin-only pages, please **check with your Admin**.' : ''}`;
+        return `I didn't find a specific answer for that. Try:\n• **Menu** — full sidebar guide\n• **Client orders** or **Trip scheduler** — FMS freight workflows\n• **Route catalog** or **Fleet registry**\n• **NB workflow** / **SB workflow** / **Border** / **POD**\n• **Freight settings** (admins) — configure Trip Scheduler, orders, routes, fleet\n• **My access** — what you can open\n• Name any menu item, e.g. *Clients*, *Themes*, *Position Live*\n\n${!ctx.isSuperAdmin ? 'For admin-only pages, please **check with your Admin**.' : ''}`;
     };
 
     function renderHelpMessages(messages) {
@@ -465,11 +548,14 @@
                     <button type="button" onclick="sendHelpAssistantMessage('NB workflow')">NB workflow</button>
                     <button type="button" onclick="sendHelpAssistantMessage('SB workflow')">SB workflow</button>
                     <button type="button" onclick="sendHelpAssistantMessage('Border clearance')">Border</button>
+                    <button type="button" onclick="sendHelpAssistantMessage('Client orders')">Client orders</button>
+                    <button type="button" onclick="sendHelpAssistantMessage('Trip scheduler')">Trip scheduler</button>
+                    <button type="button" onclick="sendHelpAssistantMessage('Route catalog')">Route catalog</button>
                     <button type="button" onclick="sendHelpAssistantMessage('How do I update status?')">Update status</button>
                     <button type="button" onclick="sendHelpAssistantMessage('Help on this page')">This page</button>
                 </div>
                 <div class="help-assistant-input-row">
-                    <input type="text" id="helpAssistantInput" class="form-control" placeholder="Ask about workflows, borders, POD, permissions…" onkeydown="if(event.key==='Enter')sendHelpAssistantMessage()">
+                    <input type="text" id="helpAssistantInput" class="form-control" placeholder="Ask about workflows, client orders, trip scheduler, borders…" onkeydown="if(event.key==='Enter')sendHelpAssistantMessage()">
                     <button type="button" class="btn btn-primary btn-sm" onclick="sendHelpAssistantMessage()">Send</button>
                 </div>
             </div>

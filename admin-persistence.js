@@ -10,6 +10,7 @@
         areaStatuses: 'truckcontrol_area_statuses',
         globalStatusLists: 'truckcontrol_global_status_lists',
         uploadTemplates: 'truckcontrol_upload_templates',
+        freight: 'truckcontrol_freight_settings',
         meta: 'truckcontrol_admin_meta'
     };
 
@@ -48,6 +49,10 @@
         const storedSettings = readJson(STORAGE_KEYS.settings, null);
         if (storedSettings && window.systemSettingsDB) {
             Object.assign(window.systemSettingsDB, storedSettings);
+        }
+        const storedFreight = readJson(STORAGE_KEYS.freight, null);
+        if (storedFreight && window.freightSettingsDB) {
+            Object.assign(window.freightSettingsDB, storedFreight);
         }
         const storedAudit = readJson(STORAGE_KEYS.audit, null);
         if (storedAudit?.length && window.auditLogsDB) {
@@ -93,6 +98,10 @@
         writeJson(STORAGE_KEYS.settings, window.systemSettingsDB);
     };
 
+    window.persistFreightSettingsStorage = function () {
+        if (window.freightSettingsDB) writeJson(STORAGE_KEYS.freight, window.freightSettingsDB);
+    };
+
     window.persistAuditLogs = function () {
         writeJson(STORAGE_KEYS.audit, window.auditLogsDB);
         saveMeta({ nextAuditLogId: window.nextAuditLogId });
@@ -115,6 +124,7 @@
         persistAdminUsers();
         persistAdminRoles();
         persistSystemSettings();
+        persistFreightSettingsStorage();
         persistAuditLogs();
         persistAreaStatuses();
         persistGlobalStatusLists();
@@ -181,6 +191,13 @@
                     Object.assign(window.systemSettingsDB, settings);
                     persistSystemSettings();
                     if (typeof applySystemSettingsToUi === 'function') applySystemSettingsToUi();
+                }
+            }
+            if (typeof fetchFreightSettings === 'function') {
+                const freight = await fetchFreightSettings();
+                if (freight && window.freightSettingsDB) {
+                    Object.assign(window.freightSettingsDB, freight);
+                    persistFreightSettingsStorage();
                 }
             }
             if (typeof fetchAuditLogs === 'function') {

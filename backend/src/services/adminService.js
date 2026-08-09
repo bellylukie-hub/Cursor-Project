@@ -296,6 +296,36 @@ function saveUploadTemplates(templates, actor) {
   return templates;
 }
 
+const DEFAULT_FREIGHT_SETTINGS = {
+  defaultTransporter: 'Greendoor Group',
+  defaultLoadingTime: '07:00',
+  maxOrdersPerTrip: 10,
+  allowMultiOrderTrips: true,
+  autoAllocateOrdersOnTripSave: true,
+  linkTripOrdersToClientOrders: true,
+  requireCatalogRoutesForOrders: false,
+  allowManualRouteSelection: true,
+  defaultNewOrderStatus: 'draft',
+  autoGenerateOrderNumber: true,
+  orderNumberPrefix: 'GG-',
+  defaultClientStatus: 'active',
+  requireDriverOnFleetSet: true,
+  allowSuperlinkPairing: true,
+  showFullFmsRegisterTab: true,
+  lockLinkedFleetAssets: true
+};
+
+function getFreightSettings() {
+  return { ...DEFAULT_FREIGHT_SETTINGS, ...getJsonSetting('freight_settings', {}) };
+}
+
+function updateFreightSettings(patch, user) {
+  const next = { ...getFreightSettings(), ...patch };
+  setJsonSetting('freight_settings', next);
+  logAuditEntry('Updated Freight & FMS Settings', 'freight_settings', 'settings', JSON.stringify(patch), user);
+  return next;
+}
+
 module.exports = {
   getSystemSettings,
   updateSystemSettings,
@@ -317,5 +347,7 @@ module.exports = {
   saveAreaAssignment,
   saveModulePermissions,
   getUploadTemplates,
-  saveUploadTemplates
+  saveUploadTemplates,
+  getFreightSettings,
+  updateFreightSettings
 };

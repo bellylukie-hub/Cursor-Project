@@ -1260,10 +1260,17 @@
     };
 
     // ─── Fleet Registry Page ─────────────────────────────────────────
+    function getFreightCfg() {
+        return typeof getFreightSettings === 'function' ? getFreightSettings() : {};
+    }
+
     window.renderFleetRegistry = function (container) {
         const stats = getFleetOrderStats();
         const canEdit = canEditFleet();
         const q = (fleetFilter.search || '').toLowerCase();
+        const fs = getFreightCfg();
+        const showRegister = fs.showFullFmsRegisterTab !== false;
+        if (!showRegister && fleetRegistryTab === 'register') fleetRegistryTab = 'sets';
 
         const units = fleetUnitsDB.filter(u => {
             if (fleetFilter.status !== 'all' && u.status !== fleetFilter.status) return false;
@@ -1288,7 +1295,7 @@
                     <div style="display:flex;gap:8px;flex-wrap:wrap;">
                         ${canEdit ? `<button class="btn btn-outline" onclick="openFleetTruckModal()">+ Truck</button>` : ''}
                         ${canEdit ? `<button class="btn btn-outline" onclick="openFleetTrailerModal()">+ Trailer</button>` : ''}
-                        ${canEdit ? `<button class="btn btn-outline" onclick="openSuperlinkPairModal()">🔗 Superlink Pair</button>` : ''}
+                        ${canEdit && fs.allowSuperlinkPairing !== false ? `<button class="btn btn-outline" onclick="openSuperlinkPairModal()">🔗 Superlink Pair</button>` : ''}
                         ${canEdit ? `<button class="btn btn-outline" onclick="openFleetDriverModal()">+ Driver</button>` : ''}
                         ${canEdit ? `<button class="btn btn-primary" onclick="openFleetUnitModal()">+ Fleet Set</button>` : ''}
                     </div>
@@ -1301,7 +1308,7 @@
                 <div class="kpi-card orange"><div class="kpi-card-value">${stats.totalClients}</div><div class="kpi-card-label">Clients</div></div>
             </div>
             <div class="filters-bar">
-                <button class="btn ${fleetRegistryTab === 'register' ? 'btn-primary' : 'btn-outline'}" onclick="setFleetRegistryTab('register')">Full Register</button>
+                ${showRegister ? `<button class="btn ${fleetRegistryTab === 'register' ? 'btn-primary' : 'btn-outline'}" onclick="setFleetRegistryTab('register')">Full Register</button>` : ''}
                 <button class="btn ${fleetRegistryTab === 'sets' ? 'btn-primary' : 'btn-outline'}" onclick="setFleetRegistryTab('sets')">Fleet Sets</button>
                 <button class="btn ${fleetRegistryTab === 'trucks' ? 'btn-primary' : 'btn-outline'}" onclick="setFleetRegistryTab('trucks')">Trucks</button>
                 <button class="btn ${fleetRegistryTab === 'trailers' ? 'btn-primary' : 'btn-outline'}" onclick="setFleetRegistryTab('trailers')">Trailers</button>
@@ -1751,7 +1758,7 @@
 
     window.openClientOrderModal = async function (orderId) {
         if (typeof syncRouteCatalogFromApi === 'function') await syncRouteCatalogFromApi();
-        const o = orderId ? getOrderById(orderId) : {};
+        const o = orderId ? getOrderById(orderId) : { status: getFreightCfg().defaultNewOrderStatus || 'draft' };
         clientOrderFormTab = 'header';
         document.getElementById('clientOrderModalTitle').textContent = orderId ? 'Edit Order' : 'Create Client Order';
         const body = document.getElementById('clientOrderFormBody');
@@ -1770,6 +1777,11 @@
             showToast('Select an OOG type', 'warning'); setClientOrderFormTab('load'); return;
         }
         if (!payload.origin || !payload.destination) { showToast('Select origin and destination stations', 'warning'); setClientOrderFormTab('route'); return; }
+        const fs = getFreightCfg();
+        if (fs.requireCatalogRoutesForOrders && !payload.loadDetails?.routeTemplateId) {
+            showToast('Select a pre-defined route from the catalog (Admin → Freight & FMS Settings)', 'warning');
+            setClientOrderFormTab('route'); return;
+        }
         try {
             const saved = await persistToApi(saveClientOrderApi, payload);
             if (saved) {
@@ -1777,7 +1789,13 @@
                 if (idx >= 0) clientOrdersDB[idx] = saved; else clientOrdersDB.push(saved);
             } else {
                 payload.id = payload.id || uid('ORD');
-                payload.orderNumber = payload.orderNumber || `CO-${Date.now().toString().slice(-6)}`;
+                if (!payload.orderNumber && fs.autoGenerateOrderNumber !== false) {
+                    const prefix = fs.orderNumberPrefix || 'GG-';
+                    payload.orderNumber = `${prefix}${Date.now().toString().slice(-6)}`;
+                } else if (!payload.orderNumber) {
+                    payload.orderNumber = `CO-${Date.now().toString().slice(-6)}`;
+                }
+                if (!payload.id) payload.status = payload.status || fs.defaultNewOrderStatus || 'draft';
                 const idx = clientOrdersDB.findIndex(x => x.id === payload.id);
                 if (idx >= 0) clientOrdersDB[idx] = { ...clientOrdersDB[idx], ...payload };
                 else clientOrdersDB.push(payload);
