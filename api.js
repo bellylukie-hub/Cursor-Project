@@ -520,4 +520,18 @@ async function addOrderToTripApi(tripId, payload) {
   return data.trip;
 }
 
+async function saveFleetTruckApi(payload) {
+  const data = await apiRequest('/fleet-trucks', { method: 'POST', body: JSON.stringify(payload) });
+  return data.truck;
+}
+
+async function saveFleetTrailerApi(payload) {
+  const data = await apiRequest('/fleet-trailers', { method: 'POST', body: JSON.stringify(payload) });
+  return data.trailer;
+}
+
+async function linkSuperlinkApi(frontId, rearId) {
+  return apiRequest('/fleet-trailers/link-superlink', { method: 'POST', body: JSON.stringify({ frontId, rearId }) });
+}
+
 loadStoredAuth();

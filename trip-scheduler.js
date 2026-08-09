@@ -37,7 +37,6 @@
 
     async function syncSchedulerData() {
         if (typeof syncFleetOrdersFromApi === 'function') await syncFleetOrdersFromApi();
-        if (typeof syncRouteCatalogFromApi === 'function') await syncRouteCatalogFromApi();
 
         if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof fetchTripSchedulerBundle === 'function') {
             try {
@@ -48,23 +47,15 @@
                 schedulerDrivers = bundle.drivers || [];
                 saveLocal();
                 return;
-            } catch (e) { console.warn('Trip scheduler sync failed:', e.message); }
+            } catch (e) { console.warn('Trip scheduler API sync failed:', e.message); }
         }
 
-        if (typeof window !== 'undefined') {
-            schedulerOrders = (typeof clientOrdersDB !== 'undefined' ? [] : []);
-        }
         loadLocal();
-        if (typeof syncFleetOrdersFromApi === 'function') {
-            try {
-                const fo = await fetchFleetOrderBundle?.();
-                if (fo) {
-                    schedulerOrders = (fo.orders || []).filter(o => ['draft', 'confirmed', 'allocated'].includes(o.status));
-                    schedulerUnits = fo.units || [];
-                    schedulerDrivers = fo.drivers || [];
-                }
-            } catch (_) {}
+        if (typeof getFleetOrders === 'function') {
+            schedulerOrders = getFleetOrders().filter(o => ['draft', 'confirmed', 'allocated'].includes(o.status));
         }
+        if (typeof getFleetUnits === 'function') schedulerUnits = getFleetUnits();
+        if (typeof getFleetDrivers === 'function') schedulerDrivers = getFleetDrivers();
     }
 
     function canEdit() {

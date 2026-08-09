@@ -378,6 +378,34 @@ function migrateRouteCatalogSchema() {
     CREATE INDEX IF NOT EXISTS idx_route_templates_origin ON route_templates(origin_station_id);
     CREATE INDEX IF NOT EXISTS idx_route_templates_dest ON route_templates(destination_station_id);
     CREATE INDEX IF NOT EXISTS idx_fleet_trips_status ON fleet_trips(status);
+
+    CREATE TABLE IF NOT EXISTS fleet_trucks (
+      id TEXT PRIMARY KEY,
+      plate TEXT NOT NULL UNIQUE,
+      make TEXT,
+      model TEXT,
+      capacity_mt REAL,
+      status TEXT DEFAULT 'available',
+      fleet_set_id TEXT,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS fleet_trailers (
+      id TEXT PRIMARY KEY,
+      plate TEXT NOT NULL UNIQUE,
+      trailer_type TEXT DEFAULT 'standard',
+      capacity_mt REAL,
+      side_height_mt REAL,
+      status TEXT DEFAULT 'available',
+      fleet_set_id TEXT,
+      paired_trailer_id TEXT,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_fleet_trucks_set ON fleet_trucks(fleet_set_id);
+    CREATE INDEX IF NOT EXISTS idx_fleet_trailers_set ON fleet_trailers(fleet_set_id);
   `);
 }
 
@@ -407,6 +435,17 @@ function migrateClientOrdersSchema() {
   add('consignee', 'TEXT');
   add('invoice_party', 'TEXT');
   add('imp_exp', 'TEXT');
+  migrateFleetUnitsSchema();
+}
+
+function migrateFleetUnitsSchema() {
+  const cols = db.prepare('PRAGMA table_info(fleet_units)').all().map(c => c.name);
+  const add = (name, def) => {
+    if (!cols.includes(name)) db.exec(`ALTER TABLE fleet_units ADD COLUMN ${name} ${def}`);
+  };
+  add('truck_id', 'TEXT');
+  add('trailer_id', 'TEXT');
+  add('second_trailer_id', 'TEXT');
 }
 
 initSchema();

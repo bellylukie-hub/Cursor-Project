@@ -7,6 +7,8 @@
     let clientsDB = [];
     let fleetDriversDB = [];
     let fleetUnitsDB = [];
+    let trucksDB = [];
+    let trailersDB = [];
     let clientOrdersDB = [];
     let orderAllocationsDB = [];
 
@@ -215,7 +217,7 @@
     let orderFilterApplied = false;
     let orderShowTonnageDetails = false;
     let fleetFilter = { search: '', status: 'all' };
-    let fleetRegistryTab = 'units';
+    let fleetRegistryTab = 'sets';
     let clientOrderFormTab = 'header';
 
     const CLEARING_AGENTS = [
@@ -563,8 +565,8 @@
         const destStation = ld.destStationId || stations.find(s => s.name === o.destination)?.id || '';
         const originSt = getStationById(originStation);
         const destSt = getStationById(destStation);
-        const originCountry = originSt?.countryCode || originSt?.country || o.originCountry || '';
-        const destCountry = destSt?.countryCode || destSt?.country || o.destinationCountry || '';
+        const originCountry = originSt?.countryCode || originSt?.country || o.originCountry || countries[0]?.code || '';
+        const destCountry = destSt?.countryCode || destSt?.country || o.destinationCountry || countries[1]?.code || countries[0]?.code || '';
         const route = resolveOrderRoute(originStation, destStation);
         const showBorders = o.routeType === 'international' || route.showBorders;
         const countries = routeCountries();
@@ -867,6 +869,7 @@
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify({
                 clients: clientsDB, drivers: fleetDriversDB, units: fleetUnitsDB,
+                trucks: trucksDB, trailers: trailersDB,
                 orders: clientOrdersDB, allocations: orderAllocationsDB
             }));
         } catch (e) { /* ignore */ }
@@ -880,6 +883,8 @@
             clientsDB = data.clients || [];
             fleetDriversDB = data.drivers || [];
             fleetUnitsDB = data.units || [];
+            trucksDB = data.trucks || [];
+            trailersDB = data.trailers || [];
             clientOrdersDB = data.orders || [];
             orderAllocationsDB = data.allocations || [];
             return true;
@@ -897,8 +902,17 @@
             { id: 'DRV-002', name: 'Alice Bwalya', drcNumber: '+243 813 456 789', whatsapp: '+243813456789', licenseNumber: 'DRC-LIC-8832', status: 'active' }
         ];
         fleetUnitsDB = [
-            { id: 'FU-001', truckPlate: 'ABC123DRC', trailerPlate: 'TRL-456', vehicleType: 'Truck', driverId: 'DRV-001', gpsDeviceId: 'GPS-001', gpsLat: -10.7167, gpsLng: 25.4667, gpsLabel: 'Kasumbalesa', status: 'allocated' },
-            { id: 'FU-002', truckPlate: 'XYZ789DRC', trailerPlate: 'TRL-890', vehicleType: 'Truck', driverId: 'DRV-002', gpsDeviceId: 'GPS-002', gpsLat: -11.66, gpsLng: 27.4794, gpsLabel: 'Kolwezi', status: 'available' }
+            { id: 'FU-001', truckPlate: 'ABC123DRC', trailerPlate: 'TRL-456', vehicleType: 'Truck', driverId: 'DRV-001', truckId: 'TRK-001', trailerId: 'TRL-001', gpsDeviceId: 'GPS-001', gpsLat: -10.7167, gpsLng: 25.4667, gpsLabel: 'Kasumbalesa', status: 'allocated' },
+            { id: 'FU-002', truckPlate: 'XYZ789DRC', trailerPlate: 'TRL-890', vehicleType: 'Truck', driverId: 'DRV-002', truckId: 'TRK-002', trailerId: 'TRL-002', gpsDeviceId: 'GPS-002', gpsLat: -11.66, gpsLng: 27.4794, gpsLabel: 'Kolwezi', status: 'available' }
+        ];
+        trucksDB = [
+            { id: 'TRK-001', plate: 'ABC123DRC', make: 'Volvo', model: 'FH16', capacityMt: 26, status: 'assigned', fleetSetId: 'FU-001' },
+            { id: 'TRK-002', plate: 'XYZ789DRC', make: 'Scania', model: 'R500', capacityMt: 26, status: 'assigned', fleetSetId: 'FU-002' }
+        ];
+        trailersDB = [
+            { id: 'TRL-001', plate: 'TRL-456', trailerType: 'standard', capacityMt: 34, sideHeightMt: 2.7, status: 'assigned', fleetSetId: 'FU-001' },
+            { id: 'TRL-002', plate: 'TRL-890', trailerType: 'superlink-front', capacityMt: 18, sideHeightMt: 1.5, status: 'assigned', fleetSetId: 'FU-002', pairedTrailerId: 'TRL-003' },
+            { id: 'TRL-003', plate: 'TRL-891', trailerType: 'superlink-rear', capacityMt: 20, sideHeightMt: 1.5, status: 'assigned', fleetSetId: 'FU-002', pairedTrailerId: 'TRL-002' }
         ];
         clientOrdersDB = [
             {
@@ -952,6 +966,8 @@
         clientsDB = mergeById(clientsDB, bundle.clients);
         fleetDriversDB = mergeById(fleetDriversDB, bundle.drivers);
         fleetUnitsDB = mergeById(fleetUnitsDB, bundle.units);
+        trucksDB = mergeById(trucksDB, bundle.trucks);
+        trailersDB = mergeById(trailersDB, bundle.trailers);
         clientOrdersDB = mergeById(clientOrdersDB, bundle.orders);
         orderAllocationsDB = mergeById(orderAllocationsDB, bundle.allocations);
         saveLocal();
@@ -1111,8 +1127,9 @@
         return clientOrdersDB.filter(o => orderMatchesFilter(o, f));
     }
 
-    window.renderClientOrders = function (container) {
+    window.renderClientOrders = async function (container) {
         try {
+            if (typeof syncRouteCatalogFromApi === 'function') await syncRouteCatalogFromApi();
             const stats = getFleetOrderStats();
             const orders = filteredOrders();
             const canEdit = canEditFleet();
@@ -1193,6 +1210,37 @@
         if (currentPage === 'client-orders' && ca) renderClientOrders(ca);
     };
 
+    // ─── Clients Management Page ───────────────────────────────────
+    window.renderClientsManagement = function (container) {
+        const canEdit = canEditFleet();
+        const q = (fleetFilter.search || '').toLowerCase();
+        const clients = clientsDB.filter(c => {
+            if (!q) return true;
+            return [c.name, c.contactPerson, c.phone, c.email, c.whatsapp].join(' ').toLowerCase().includes(q);
+        });
+
+        container.innerHTML = `
+            <div class="page-header">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+                    <div>
+                        <h1>👥 Clients</h1>
+                        <div class="breadcrumb">Management / Maintain client records used in client orders (shipper, consignee, invoice party)</div>
+                    </div>
+                    ${canEdit ? `<button class="btn btn-primary" onclick="openClientModal()">+ Add Client</button>` : ''}
+                </div>
+            </div>
+            <div class="kpi-grid" style="margin-bottom:20px;">
+                <div class="kpi-card blue"><div class="kpi-card-value">${clientsDB.length}</div><div class="kpi-card-label">Total Clients</div></div>
+                <div class="kpi-card green"><div class="kpi-card-value">${clientOrdersDB.length}</div><div class="kpi-card-label">Orders</div></div>
+            </div>
+            <div class="filters-bar">
+                <div class="search-filter" style="flex:1;"><span>🔍</span>
+                    <input type="text" placeholder="Search clients..." value="${fleetFilter.search}" oninput="fleetRegistrySetSearch(this.value)">
+                </div>
+            </div>
+            ${renderClientsTable(clients, canEdit)}`;
+    };
+
     // ─── Fleet Registry Page ─────────────────────────────────────────
     window.renderFleetRegistry = function (container) {
         const stats = getFleetOrderStats();
@@ -1220,8 +1268,11 @@
                         <div class="breadcrumb">Management / Register trucks, trailers, drivers — link them as a fleet set</div>
                     </div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        ${canEdit ? `<button class="btn btn-outline" onclick="openFleetTruckModal()">+ Truck</button>` : ''}
+                        ${canEdit ? `<button class="btn btn-outline" onclick="openFleetTrailerModal()">+ Trailer</button>` : ''}
+                        ${canEdit ? `<button class="btn btn-outline" onclick="openSuperlinkPairModal()">🔗 Superlink Pair</button>` : ''}
                         ${canEdit ? `<button class="btn btn-outline" onclick="openFleetDriverModal()">+ Driver</button>` : ''}
-                        ${canEdit ? `<button class="btn btn-primary" onclick="openFleetUnitModal()">+ Truck / Fleet Set</button>` : ''}
+                        ${canEdit ? `<button class="btn btn-primary" onclick="openFleetUnitModal()">+ Fleet Set</button>` : ''}
                     </div>
                 </div>
             </div>
@@ -1232,17 +1283,57 @@
                 <div class="kpi-card orange"><div class="kpi-card-value">${stats.totalClients}</div><div class="kpi-card-label">Clients</div></div>
             </div>
             <div class="filters-bar">
-                <button class="btn ${fleetRegistryTab === 'units' ? 'btn-primary' : 'btn-outline'}" onclick="setFleetRegistryTab('units')">Trucks & Trailers</button>
+                <button class="btn ${fleetRegistryTab === 'sets' ? 'btn-primary' : 'btn-outline'}" onclick="setFleetRegistryTab('sets')">Fleet Sets</button>
+                <button class="btn ${fleetRegistryTab === 'trucks' ? 'btn-primary' : 'btn-outline'}" onclick="setFleetRegistryTab('trucks')">Trucks</button>
+                <button class="btn ${fleetRegistryTab === 'trailers' ? 'btn-primary' : 'btn-outline'}" onclick="setFleetRegistryTab('trailers')">Trailers</button>
                 <button class="btn ${fleetRegistryTab === 'drivers' ? 'btn-primary' : 'btn-outline'}" onclick="setFleetRegistryTab('drivers')">Drivers</button>
-                <button class="btn ${fleetRegistryTab === 'clients' ? 'btn-primary' : 'btn-outline'}" onclick="setFleetRegistryTab('clients')">Clients</button>
                 <div class="search-filter" style="flex:1;margin-left:12px;"><span>🔍</span>
                     <input type="text" placeholder="Search..." value="${fleetFilter.search}" oninput="fleetRegistrySetSearch(this.value)">
                 </div>
             </div>
-            ${fleetRegistryTab === 'units' ? renderUnitsTable(units, canEdit) : ''}
-            ${fleetRegistryTab === 'drivers' ? renderDriversTable(drivers, canEdit) : ''}
-            ${fleetRegistryTab === 'clients' ? renderClientsTable(clientsDB, canEdit) : ''}`;
+            ${fleetRegistryTab === 'sets' ? renderUnitsTable(units, canEdit) : ''}
+            ${fleetRegistryTab === 'trucks' ? renderTrucksTable(trucksDB, canEdit) : ''}
+            ${fleetRegistryTab === 'trailers' ? renderTrailersTable(trailersDB, canEdit) : ''}
+            ${fleetRegistryTab === 'drivers' ? renderDriversTable(drivers, canEdit) : ''}`;
     };
+
+    function renderTrucksTable(trucks, canEdit) {
+        const q = (fleetFilter.search || '').toLowerCase();
+        const rows = trucks.filter(t => !q || [t.plate, t.make, t.model].join(' ').toLowerCase().includes(q));
+        return `<div class="table-container"><div class="table-header"><h3>Trucks</h3></div>
+            <table><thead><tr><th>Plate</th><th>Make / Model</th><th>Capacity (MT)</th><th>Fleet Set</th><th>Status</th><th></th></tr></thead><tbody>
+            ${rows.map(t => `<tr>
+                <td><strong>${t.plate}</strong></td>
+                <td>${t.make || '—'} ${t.model || ''}</td>
+                <td>${t.capacityMt || '—'}</td>
+                <td>${t.fleetSetId ? `<span class="status-badge blue">Linked</span>` : '—'}</td>
+                <td>${orderStatusBadge(t.status === 'assigned' ? 'allocated' : t.status === 'available' ? 'confirmed' : 'draft')}</td>
+                <td>${canEdit && !t.fleetSetId ? `<button class="btn btn-sm btn-outline" onclick="openFleetTruckModal('${t.id}')">✏️</button>` : (canEdit ? '<span style="font-size:11px;color:var(--text-secondary);">In set</span>' : '')}</td>
+            </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;padding:20px;">No trucks registered.</td></tr>'}
+            </tbody></table></div>`;
+    }
+
+    function renderTrailersTable(trailers, canEdit) {
+        const q = (fleetFilter.search || '').toLowerCase();
+        const rows = trailers.filter(t => !q || [t.plate, t.trailerType].join(' ').toLowerCase().includes(q));
+        const typeLabel = { standard: 'Standard', 'superlink-front': 'Superlink Front', 'superlink-rear': 'Superlink Rear' };
+        return `<div class="table-container"><div class="table-header"><h3>Trailers</h3></div>
+            <table><thead><tr><th>Plate</th><th>Type</th><th>Capacity (MT)</th><th>Side Height</th><th>Paired With</th><th>Fleet Set</th><th>Status</th><th></th></tr></thead><tbody>
+            ${rows.map(t => {
+                const paired = t.pairedTrailerId ? trailersDB.find(x => x.id === t.pairedTrailerId) : null;
+                return `<tr>
+                    <td><strong>${t.plate}</strong></td>
+                    <td>${typeLabel[t.trailerType] || t.trailerType}</td>
+                    <td>${t.capacityMt || '—'}</td>
+                    <td>${t.sideHeightMt ? t.sideHeightMt + ' m' : '—'}</td>
+                    <td>${paired ? paired.plate : '—'}</td>
+                    <td>${t.fleetSetId ? '<span class="status-badge blue">Linked</span>' : '—'}</td>
+                    <td>${orderStatusBadge(t.status === 'assigned' ? 'allocated' : t.status === 'paired' ? 'confirmed' : 'draft')}</td>
+                    <td>${canEdit && !t.fleetSetId ? `<button class="btn btn-sm btn-outline" onclick="openFleetTrailerModal('${t.id}')">✏️</button>` : ''}</td>
+                </tr>`;
+            }).join('') || '<tr><td colspan="8" style="text-align:center;padding:20px;">No trailers registered.</td></tr>'}
+            </tbody></table></div>`;
+    }
 
     function renderUnitsTable(units, canEdit) {
         return `<div class="table-container"><div class="table-header"><h3>Fleet Sets — Truck + Trailer + Driver + GPS</h3></div>
@@ -1395,56 +1486,191 @@
 
     window.openFleetUnitModal = function (unitId) {
         const u = unitId ? getUnitById(unitId) : {};
-        document.getElementById('fleetUnitModalTitle').textContent = unitId ? 'Edit Fleet Set' : 'Register Truck + Trailer + Driver';
+        const availTrucks = trucksDB.filter(t => !t.fleetSetId || t.fleetSetId === u.id);
+        const availTrailers = trailersDB.filter(t => !t.fleetSetId || t.fleetSetId === u.id);
+        document.getElementById('fleetUnitModalTitle').textContent = unitId ? 'Edit Fleet Set' : 'Create Fleet Set (Truck + Trailer + Driver)';
         document.getElementById('fleetUnitFormId').value = u.id || '';
-        document.getElementById('fleetUnitFormTruck').value = u.truckPlate || '';
-        document.getElementById('fleetUnitFormTrailer').value = u.trailerPlate || '';
+        document.getElementById('fleetUnitFormTruckId').innerHTML = `<option value="">— Select truck —</option>${availTrucks.map(t =>
+            `<option value="${t.id}"${t.id === u.truckId ? ' selected' : ''}>${t.plate} (${t.capacityMt || '?'} MT)</option>`
+        ).join('')}`;
+        document.getElementById('fleetUnitFormTrailerId').innerHTML = `<option value="">— Select trailer —</option>${availTrailers.filter(t => t.trailerType !== 'superlink-rear').map(t =>
+            `<option value="${t.id}"${t.id === u.trailerId ? ' selected' : ''}>${t.plate} — ${t.trailerType}${t.pairedTrailerId ? ' (+ rear)' : ''}</option>`
+        ).join('')}`;
         document.getElementById('fleetUnitFormType').value = u.vehicleType || 'Truck';
+        document.getElementById('fleetUnitFormDriver').innerHTML = '<option value="">— Select driver —</option>' +
+            fleetDriversDB.map(d => `<option value="${d.id}"${d.id === u.driverId ? ' selected' : ''}>${d.name}</option>`).join('');
         document.getElementById('fleetUnitFormGpsId').value = u.gpsDeviceId || '';
         document.getElementById('fleetUnitFormGpsLat').value = u.gpsLat != null ? u.gpsLat : '';
         document.getElementById('fleetUnitFormGpsLng').value = u.gpsLng != null ? u.gpsLng : '';
         document.getElementById('fleetUnitFormGpsLabel').value = u.gpsLabel || '';
-        const driverSel = document.getElementById('fleetUnitFormDriver');
-        driverSel.innerHTML = '<option value="">— Select driver —</option>' +
-            fleetDriversDB.map(d => `<option value="${d.id}"${d.id === u.driverId ? ' selected' : ''}>${d.name} (${d.whatsapp || 'no WhatsApp'})</option>`).join('');
         openModal('fleetUnitModal');
     };
 
+    function releaseFleetSetAssets(setId) {
+        trucksDB.forEach(t => { if (t.fleetSetId === setId) { t.fleetSetId = null; t.status = 'available'; } });
+        trailersDB.forEach(t => { if (t.fleetSetId === setId) { t.fleetSetId = null; t.status = t.pairedTrailerId ? 'paired' : 'available'; } });
+    }
+
+    function linkAssetsToFleetSet(setId, truckId, trailerId) {
+        releaseFleetSetAssets(setId);
+        const truck = trucksDB.find(t => t.id === truckId);
+        const trailer = trailersDB.find(t => t.id === trailerId);
+        if (truck) { truck.fleetSetId = setId; truck.status = 'assigned'; }
+        if (trailer) {
+            trailer.fleetSetId = setId; trailer.status = 'assigned';
+            if (trailer.pairedTrailerId) {
+                const rear = trailersDB.find(t => t.id === trailer.pairedTrailerId);
+                if (rear) { rear.fleetSetId = setId; rear.status = 'assigned'; }
+            }
+        }
+    }
+
     window.submitFleetUnitForm = async function () {
+        const truckId = document.getElementById('fleetUnitFormTruckId').value;
+        const trailerId = document.getElementById('fleetUnitFormTrailerId').value;
+        const truck = trucksDB.find(t => t.id === truckId);
+        const trailer = trailersDB.find(t => t.id === trailerId);
+        const rear = trailer?.pairedTrailerId ? trailersDB.find(t => t.id === trailer.pairedTrailerId) : null;
         const lat = parseFloat(document.getElementById('fleetUnitFormGpsLat').value);
         const lng = parseFloat(document.getElementById('fleetUnitFormGpsLng').value);
+        const setId = document.getElementById('fleetUnitFormId').value || uid('FU');
         const payload = {
-            id: document.getElementById('fleetUnitFormId').value || undefined,
-            truckPlate: document.getElementById('fleetUnitFormTruck').value.trim(),
-            trailerPlate: document.getElementById('fleetUnitFormTrailer').value.trim(),
+            id: setId, truckId, trailerId, secondTrailerId: rear?.id || null,
+            truckPlate: truck?.plate || '', trailerPlate: trailer ? `${trailer.plate}${rear ? ' + ' + rear.plate : ''}` : '',
             vehicleType: document.getElementById('fleetUnitFormType').value,
             driverId: document.getElementById('fleetUnitFormDriver').value || null,
             gpsDeviceId: document.getElementById('fleetUnitFormGpsId').value.trim(),
-            gpsLat: isNaN(lat) ? null : lat,
-            gpsLng: isNaN(lng) ? null : lng,
-            gpsLabel: document.getElementById('fleetUnitFormGpsLabel').value.trim(),
-            status: 'available'
+            gpsLat: isNaN(lat) ? null : lat, gpsLng: isNaN(lng) ? null : lng,
+            gpsLabel: document.getElementById('fleetUnitFormGpsLabel').value.trim(), status: 'available'
         };
-        if (!payload.truckPlate) { showToast('Truck plate is required', 'warning'); return; }
+        if (!truckId) { showToast('Select a truck for this fleet set', 'warning'); return; }
+        if (truck?.fleetSetId && truck.fleetSetId !== setId) { showToast(`Truck ${truck.plate} is already in another set`, 'warning'); return; }
+        if (trailer?.fleetSetId && trailer.fleetSetId !== setId) { showToast(`Trailer ${trailer.plate} is already in another set`, 'warning'); return; }
         try {
+            linkAssetsToFleetSet(setId, truckId, trailerId);
             const saved = await persistToApi(saveFleetUnitApi, payload);
             if (saved) {
                 const idx = fleetUnitsDB.findIndex(x => x.id === saved.id);
                 if (idx >= 0) fleetUnitsDB[idx] = saved; else fleetUnitsDB.push(saved);
             } else {
-                payload.id = payload.id || uid('FU');
-                const idx = fleetUnitsDB.findIndex(x => x.id === payload.id);
+                const idx = fleetUnitsDB.findIndex(x => x.id === setId);
                 if (idx >= 0) fleetUnitsDB[idx] = { ...fleetUnitsDB[idx], ...payload };
                 else fleetUnitsDB.push(payload);
             }
             saveLocal();
             closeModal('fleetUnitModal');
-            showToast('Fleet unit saved', 'success');
+            showToast('Fleet set saved', 'success');
             refreshFleetPages();
         } catch (e) { showToast(e.message, 'error'); }
     };
 
-    window.openClientOrderModal = function (orderId) {
+    window.openFleetTruckModal = function (truckId) {
+        const t = truckId ? trucksDB.find(x => x.id === truckId) : {};
+        document.getElementById('fleetTruckModalTitle').textContent = truckId ? 'Edit Truck' : 'Register Truck';
+        document.getElementById('fleetTruckFormId').value = t.id || '';
+        document.getElementById('fleetTruckFormPlate').value = t.plate || '';
+        document.getElementById('fleetTruckFormMake').value = t.make || '';
+        document.getElementById('fleetTruckFormModel').value = t.model || '';
+        document.getElementById('fleetTruckFormCapacity').value = t.capacityMt || '';
+        openModal('fleetTruckModal');
+    };
+
+    window.submitFleetTruckForm = async function () {
+        const payload = {
+            id: document.getElementById('fleetTruckFormId').value || undefined,
+            plate: document.getElementById('fleetTruckFormPlate').value.trim(),
+            make: document.getElementById('fleetTruckFormMake').value.trim(),
+            model: document.getElementById('fleetTruckFormModel').value.trim(),
+            capacityMt: parseFloat(document.getElementById('fleetTruckFormCapacity').value) || null,
+            status: 'available'
+        };
+        if (!payload.plate) { showToast('Truck plate is required', 'warning'); return; }
+        try {
+            let saved = null;
+            if (typeof saveFleetTruckApi === 'function' && typeof isApiAvailable === 'function' && isApiAvailable()) {
+                saved = await saveFleetTruckApi(payload);
+            }
+            payload.id = saved?.id || payload.id || uid('TRK');
+            const idx = trucksDB.findIndex(x => x.id === payload.id);
+            const row = saved || { ...payload };
+            if (idx >= 0) trucksDB[idx] = row; else trucksDB.push(row);
+            saveLocal();
+            closeModal('fleetTruckModal');
+            showToast('Truck registered', 'success');
+            refreshFleetPages();
+        } catch (e) { showToast(e.message, 'error'); }
+    };
+
+    window.openFleetTrailerModal = function (trailerId) {
+        const t = trailerId ? trailersDB.find(x => x.id === trailerId) : {};
+        document.getElementById('fleetTrailerModalTitle').textContent = trailerId ? 'Edit Trailer' : 'Register Trailer';
+        document.getElementById('fleetTrailerFormId').value = t.id || '';
+        document.getElementById('fleetTrailerFormPlate').value = t.plate || '';
+        document.getElementById('fleetTrailerFormType').value = t.trailerType || 'standard';
+        document.getElementById('fleetTrailerFormCapacity').value = t.capacityMt || '';
+        document.getElementById('fleetTrailerFormSideHeight').value = t.sideHeightMt || '';
+        openModal('fleetTrailerModal');
+    };
+
+    window.submitFleetTrailerForm = async function () {
+        const payload = {
+            id: document.getElementById('fleetTrailerFormId').value || undefined,
+            plate: document.getElementById('fleetTrailerFormPlate').value.trim(),
+            trailerType: document.getElementById('fleetTrailerFormType').value,
+            capacityMt: parseFloat(document.getElementById('fleetTrailerFormCapacity').value) || null,
+            sideHeightMt: parseFloat(document.getElementById('fleetTrailerFormSideHeight').value) || null,
+            status: 'available'
+        };
+        if (!payload.plate) { showToast('Trailer plate is required', 'warning'); return; }
+        try {
+            let saved = null;
+            if (typeof saveFleetTrailerApi === 'function' && typeof isApiAvailable === 'function' && isApiAvailable()) {
+                saved = await saveFleetTrailerApi(payload);
+            }
+            payload.id = saved?.id || payload.id || uid('TRL');
+            const idx = trailersDB.findIndex(x => x.id === payload.id);
+            const row = saved || { ...payload };
+            if (idx >= 0) trailersDB[idx] = row; else trailersDB.push(row);
+            saveLocal();
+            closeModal('fleetTrailerModal');
+            showToast('Trailer registered', 'success');
+            refreshFleetPages();
+        } catch (e) { showToast(e.message, 'error'); }
+    };
+
+    window.openSuperlinkPairModal = function () {
+        const fronts = trailersDB.filter(t => t.trailerType === 'superlink-front' && !t.pairedTrailerId && !t.fleetSetId);
+        const rears = trailersDB.filter(t => t.trailerType === 'superlink-rear' && !t.pairedTrailerId && !t.fleetSetId);
+        document.getElementById('superlinkFrontSel').innerHTML = fronts.map(t =>
+            `<option value="${t.id}">${t.plate} (${t.capacityMt || '?'} MT)</option>`
+        ).join('') || '<option value="">Register superlink front first</option>';
+        document.getElementById('superlinkRearSel').innerHTML = rears.map(t =>
+            `<option value="${t.id}">${t.plate} (${t.capacityMt || '?'} MT)</option>`
+        ).join('') || '<option value="">Register superlink rear first</option>';
+        openModal('superlinkPairModal');
+    };
+
+    window.submitSuperlinkPairForm = async function () {
+        const frontId = document.getElementById('superlinkFrontSel').value;
+        const rearId = document.getElementById('superlinkRearSel').value;
+        if (!frontId || !rearId) { showToast('Select front and rear superlink trailers', 'warning'); return; }
+        try {
+            if (typeof linkSuperlinkApi === 'function' && typeof isApiAvailable === 'function' && isApiAvailable()) {
+                await linkSuperlinkApi(frontId, rearId);
+            }
+            const front = trailersDB.find(t => t.id === frontId);
+            const rear = trailersDB.find(t => t.id === rearId);
+            if (front) { front.pairedTrailerId = rearId; front.status = 'paired'; }
+            if (rear) { rear.pairedTrailerId = frontId; rear.status = 'paired'; }
+            saveLocal();
+            closeModal('superlinkPairModal');
+            showToast('Superlink pair linked', 'success');
+            refreshFleetPages();
+        } catch (e) { showToast(e.message, 'error'); }
+    };
+
+    window.openClientOrderModal = async function (orderId) {
+        if (typeof syncRouteCatalogFromApi === 'function') await syncRouteCatalogFromApi();
         const o = orderId ? getOrderById(orderId) : {};
         clientOrderFormTab = 'header';
         document.getElementById('clientOrderModalTitle').textContent = orderId ? 'Edit Order' : 'Create Client Order';
@@ -1453,7 +1679,7 @@
         openModal('clientOrderModal');
         setClientOrderFormTab('header');
         onClientOrderCargoTypeChange();
-        if (document.getElementById('coFormOriginStation')) onClientOrderRouteChange();
+        try { if (document.getElementById('coFormOriginStation')) onClientOrderRouteChange(); } catch (_) {}
     };
 
     window.submitClientOrderForm = async function () {
@@ -1530,6 +1756,7 @@
         const ca = document.getElementById('contentArea');
         if (!ca) return;
         if (currentPage === 'client-orders') renderClientOrders(ca);
+        else if (currentPage === 'clients') renderClientsManagement(ca);
         else if (currentPage === 'fleet-registry') renderFleetRegistry(ca);
         else if (currentPage === 'route-catalog' && typeof renderRouteCatalog === 'function') renderRouteCatalog(ca);
         else if (currentPage === 'trip-scheduler' && typeof renderTripScheduler === 'function') renderTripScheduler(ca);
@@ -1540,6 +1767,12 @@
     window.getFleetOrderDashboardStats = getFleetOrderStats;
     window.findFleetUnitByTruckPlate = findUnitByTruckPlate;
     window.syncFleetOrdersFromApi = syncFleetOrdersFromApi;
+    window.getFleetClients = () => clientsDB.slice();
+    window.getFleetOrders = () => clientOrdersDB.slice();
+    window.getFleetUnits = () => fleetUnitsDB.slice();
+    window.getFleetDrivers = () => fleetDriversDB.slice();
+    window.getFleetTrucks = () => trucksDB.slice();
+    window.getFleetTrailers = () => trailersDB.slice();
 
     if (!loadLocal()) seedDemoIfEmpty();
 })();

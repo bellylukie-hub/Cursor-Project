@@ -647,4 +647,38 @@ router.post('/trip-scheduler/trips/:tripId/orders', (req, res) => {
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
+// Fleet trucks & trailers (assets for fleet sets)
+const fleetAssetSvc = () => require('../services/fleetAssetService');
+
+router.get('/fleet-trucks', (_req, res) => {
+  try { res.json({ trucks: fleetAssetSvc().listTrucks() }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/fleet-trucks', (req, res) => {
+  try {
+    const truck = fleetAssetSvc().upsertTruck(req.body);
+    res.status(201).json({ truck });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.get('/fleet-trailers', (_req, res) => {
+  try { res.json({ trailers: fleetAssetSvc().listTrailers() }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/fleet-trailers', (req, res) => {
+  try {
+    const trailer = fleetAssetSvc().upsertTrailer(req.body);
+    res.status(201).json({ trailer });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.post('/fleet-trailers/link-superlink', (req, res) => {
+  try {
+    const pair = fleetAssetSvc().linkSuperlinkPair(req.body.frontId, req.body.rearId);
+    res.json(pair);
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
 module.exports = router;

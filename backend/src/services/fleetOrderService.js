@@ -330,10 +330,13 @@ function seedFleetOrderData() {
 
 function getFullFleetOrderBundle() {
   seedFleetOrderData();
+  const fleetAsset = require('./fleetAssetService');
   return {
     clients: listClients(),
     drivers: listFleetDrivers(),
     units: listFleetUnits(),
+    trucks: fleetAsset.listTrucks(),
+    trailers: fleetAsset.listTrailers(),
     orders: listClientOrders(),
     allocations: listOrderAllocations(),
     stats: getFleetOrderStats()

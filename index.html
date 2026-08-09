@@ -1984,6 +1984,9 @@
                     <a class="nav-item" onclick="navigateTo('client-orders')" data-page="client-orders">
                         <span class="icon">📦</span> Client Orders <span class="badge nav-badge-clickable" id="navClientOrdersBadge" style="display:none;" onclick="event.preventDefault();event.stopPropagation();navigateTo('client-orders')" title="Orders awaiting allocation"></span>
                     </a>
+                    <a class="nav-item" onclick="navigateTo('clients')" data-page="clients">
+                        <span class="icon">👥</span> Clients
+                    </a>
                     <a class="nav-item" onclick="navigateTo('route-catalog')" data-page="route-catalog">
                         <span class="icon">🗺️</span> Route Catalog
                     </a>
@@ -2508,25 +2511,79 @@
     <!-- Fleet unit modal -->
     <div class="modal-overlay" id="fleetUnitModal">
         <div class="modal" style="max-width:560px;">
-            <div class="modal-header"><h3 id="fleetUnitModalTitle">Register Fleet Set</h3><button class="btn btn-outline" onclick="closeModal('fleetUnitModal')">✕</button></div>
+            <div class="modal-header"><h3 id="fleetUnitModalTitle">Create Fleet Set</h3><button class="btn btn-outline" onclick="closeModal('fleetUnitModal')">✕</button></div>
             <div class="modal-body">
                 <input type="hidden" id="fleetUnitFormId">
-                <div class="form-group"><label>Truck Plate *</label><input class="form-control" id="fleetUnitFormTruck" placeholder="ABC123DRC"></div>
-                <div class="form-group"><label>Trailer Plate</label><input class="form-control" id="fleetUnitFormTrailer"></div>
-                <div class="form-group"><label>Vehicle Type</label>
-                    <select class="form-control" id="fleetUnitFormType"><option>Truck</option><option>Trailer</option><option>Horse</option><option>Light Vehicle</option></select>
-                </div>
+                <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Link a <strong>truck</strong>, <strong>trailer</strong> (superlink pairs auto-include rear), and <strong>driver</strong>. Assets already in another set cannot be selected.</p>
+                <div class="form-group"><label>Truck *</label><select class="form-control" id="fleetUnitFormTruckId"></select></div>
+                <div class="form-group"><label>Trailer</label><select class="form-control" id="fleetUnitFormTrailerId"></select></div>
                 <div class="form-group"><label>Assigned Driver</label><select class="form-control" id="fleetUnitFormDriver"></select></div>
+                <div class="form-group"><label>Vehicle Type</label>
+                    <select class="form-control" id="fleetUnitFormType"><option>Truck</option><option>Superlink</option><option>Horse</option><option>Light Vehicle</option></select>
+                </div>
                 <hr style="margin:16px 0;border:none;border-top:1px solid var(--border);">
-                <p style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;"><strong>GPS tracking</strong> — enables map on Position Live when clicking position</p>
+                <p style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;"><strong>GPS tracking</strong></p>
                 <div class="form-group"><label>GPS Device ID</label><input class="form-control" id="fleetUnitFormGpsId" placeholder="GPS-001"></div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                    <div class="form-group"><label>Latitude</label><input class="form-control" id="fleetUnitFormGpsLat" type="number" step="any" placeholder="-10.7167"></div>
-                    <div class="form-group"><label>Longitude</label><input class="form-control" id="fleetUnitFormGpsLng" type="number" step="any" placeholder="25.4667"></div>
+                    <div class="form-group"><label>Latitude</label><input class="form-control" id="fleetUnitFormGpsLat" type="number" step="any"></div>
+                    <div class="form-group"><label>Longitude</label><input class="form-control" id="fleetUnitFormGpsLng" type="number" step="any"></div>
                 </div>
                 <div class="form-group"><label>Location Label</label><input class="form-control" id="fleetUnitFormGpsLabel" placeholder="Kasumbalesa"></div>
             </div>
             <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('fleetUnitModal')">Cancel</button><button class="btn btn-primary" onclick="submitFleetUnitForm()">Save Fleet Set</button></div>
+        </div>
+    </div>
+
+    <!-- Fleet truck modal -->
+    <div class="modal-overlay" id="fleetTruckModal">
+        <div class="modal">
+            <div class="modal-header"><h3 id="fleetTruckModalTitle">Register Truck</h3><button class="btn btn-outline" onclick="closeModal('fleetTruckModal')">✕</button></div>
+            <div class="modal-body">
+                <input type="hidden" id="fleetTruckFormId">
+                <div class="form-group"><label>Plate Number *</label><input class="form-control" id="fleetTruckFormPlate" placeholder="ABC123DRC"></div>
+                <div class="form-grid-2">
+                    <div class="form-group"><label>Make</label><input class="form-control" id="fleetTruckFormMake" placeholder="Volvo"></div>
+                    <div class="form-group"><label>Model</label><input class="form-control" id="fleetTruckFormModel" placeholder="FH16"></div>
+                </div>
+                <div class="form-group"><label>Capacity (MT)</label><input class="form-control" id="fleetTruckFormCapacity" type="number" step="0.1" placeholder="26"></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('fleetTruckModal')">Cancel</button><button class="btn btn-primary" onclick="submitFleetTruckForm()">Save Truck</button></div>
+        </div>
+    </div>
+
+    <!-- Fleet trailer modal -->
+    <div class="modal-overlay" id="fleetTrailerModal">
+        <div class="modal">
+            <div class="modal-header"><h3 id="fleetTrailerModalTitle">Register Trailer</h3><button class="btn btn-outline" onclick="closeModal('fleetTrailerModal')">✕</button></div>
+            <div class="modal-body">
+                <input type="hidden" id="fleetTrailerFormId">
+                <div class="form-group"><label>Plate Number *</label><input class="form-control" id="fleetTrailerFormPlate" placeholder="TRL-456"></div>
+                <div class="form-group"><label>Trailer Type *</label>
+                    <select class="form-control" id="fleetTrailerFormType">
+                        <option value="standard">Standard Trailer</option>
+                        <option value="superlink-front">Superlink — Front (with capacity)</option>
+                        <option value="superlink-rear">Superlink — Rear (with capacity)</option>
+                    </select>
+                </div>
+                <div class="form-grid-2">
+                    <div class="form-group"><label>Capacity (MT)</label><input class="form-control" id="fleetTrailerFormCapacity" type="number" step="0.1"></div>
+                    <div class="form-group"><label>Side Height (m)</label><input class="form-control" id="fleetTrailerFormSideHeight" type="number" step="0.01"></div>
+                </div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('fleetTrailerModal')">Cancel</button><button class="btn btn-primary" onclick="submitFleetTrailerForm()">Save Trailer</button></div>
+        </div>
+    </div>
+
+    <!-- Superlink pair modal -->
+    <div class="modal-overlay" id="superlinkPairModal">
+        <div class="modal">
+            <div class="modal-header"><h3>🔗 Link Superlink Pair</h3><button class="btn btn-outline" onclick="closeModal('superlinkPairModal')">✕</button></div>
+            <div class="modal-body">
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Pair a superlink <strong>front</strong> and <strong>rear</strong> trailer. Once linked, they move together as one unit in fleet sets.</p>
+                <div class="form-group"><label>Superlink Front</label><select class="form-control" id="superlinkFrontSel"></select></div>
+                <div class="form-group"><label>Superlink Rear</label><select class="form-control" id="superlinkRearSel"></select></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('superlinkPairModal')">Cancel</button><button class="btn btn-primary" onclick="submitSuperlinkPairForm()">Link Pair</button></div>
         </div>
     </div>
 
