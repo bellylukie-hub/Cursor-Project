@@ -1274,6 +1274,13 @@ function recordTripAreaUpdate(tripNumber, area, status, notes, statusDate, workf
     if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof postTripAreaStatus === 'function') {
         postTripAreaStatus(tripNumber, area, status, notes).catch(e => console.warn('Area status API sync failed:', e.message));
     }
+    if (wKey && typeof isApiAvailable === 'function' && isApiAvailable() && typeof advanceWorkflowStep === 'function') {
+        advanceWorkflowStep(tripNumber, wKey)
+            .then(updated => {
+                if (updated && typeof mergeTripIntoLocalDb === 'function') mergeTripIntoLocalDb(updated);
+            })
+            .catch(e => console.warn('Workflow API sync failed:', e.message));
+    }
 }
 
 function getTripAreaHistory(tripNumber) {
@@ -8955,6 +8962,17 @@ function applyTripStatusUpdate(trip, statusUpdate, commentText, statusDate) {
             }
             trip.status = statusUpdate;
             logAuditEvent(`POD status: ${statusUpdate}`, currentCommentTrip, 'trip', commentText);
+            if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof advancePodStage === 'function') {
+                const stage = /invoicing/i.test(statusUpdate) ? 'sent_to_invoicing'
+                    : /uploaded/i.test(statusUpdate) ? 'uploaded'
+                    : /scanned/i.test(statusUpdate) ? 'scanned'
+                    : /collected/i.test(statusUpdate) ? 'collected' : null;
+                if (stage) {
+                    advancePodStage(currentCommentTrip, stage)
+                        .then(updated => { if (updated && typeof mergeTripIntoLocalDb === 'function') mergeTripIntoLocalDb(updated); })
+                        .catch(e => console.warn('POD API sync failed:', e.message));
+                }
+            }
         } else if (ctx === 'nb' || ctx === 'sb' || ctx === 'border') {
             const wKey = resolveWorkflowKeyForTripStatus(trip, statusUpdate, ctx);
             recordTripAreaUpdate(currentCommentTrip, trip.area, statusUpdate, commentText, statusDate, wKey);
@@ -8970,6 +8988,9 @@ function applyTripStatusUpdate(trip, statusUpdate, commentText, statusDate) {
 }
 
 function refreshPageAfterComment() {
+    if (typeof syncTripsFromApi === 'function' && typeof isApiAvailable === 'function' && isApiAvailable()) {
+        syncTripsFromApi(false).catch(() => {});
+    }
     if (currentPage === 'assets') refreshAssetsTable();
     else if (currentPage === 'pod-management') refreshPODTable();
     else if (currentPage === 'nb-operations') refreshNBTable();

@@ -65,12 +65,35 @@
 
     function applyBundle(bundle) {
         if (!bundle) return;
-        clientsDB = bundle.clients || clientsDB;
-        fleetDriversDB = bundle.drivers || fleetDriversDB;
-        fleetUnitsDB = bundle.units || fleetUnitsDB;
-        clientOrdersDB = bundle.orders || clientOrdersDB;
-        orderAllocationsDB = bundle.allocations || orderAllocationsDB;
+        // Merge server data with any local-only records (e.g. if API was briefly unavailable)
+        const mergeById = (local, remote, idKey = 'id') => {
+            const map = new Map((remote || []).map(r => [r[idKey], r]));
+            (local || []).forEach(item => {
+                if (item && item[idKey] && !map.has(item[idKey])) map.set(item[idKey], item);
+            });
+            return Array.from(map.values());
+        };
+        clientsDB = mergeById(clientsDB, bundle.clients);
+        fleetDriversDB = mergeById(fleetDriversDB, bundle.drivers);
+        fleetUnitsDB = mergeById(fleetUnitsDB, bundle.units);
+        clientOrdersDB = mergeById(clientOrdersDB, bundle.orders);
+        orderAllocationsDB = mergeById(orderAllocationsDB, bundle.allocations);
         saveLocal();
+    }
+
+    async function persistToApi(saveFn, payload, mergeFn) {
+        if (typeof saveFn !== 'function' || typeof isApiAvailable !== 'function' || !isApiAvailable()) {
+            return null;
+        }
+        try {
+            return await saveFn(payload);
+        } catch (e) {
+            if (typeof showToast === 'function') {
+                showToast(`Saved locally only — server sync failed: ${e.message}. Stay logged in and check Docker is running.`, 'warning');
+            }
+            console.warn('Fleet API save failed:', e.message);
+            return null;
+        }
     }
 
     async function syncFleetOrdersFromApi() {
@@ -405,8 +428,8 @@
         };
         if (!payload.name) { showToast('Client name is required', 'warning'); return; }
         try {
-            if (typeof saveClientApi === 'function' && isApiAvailable()) {
-                const saved = await saveClientApi(payload);
+            const saved = await persistToApi(saveClientApi, payload);
+            if (saved) {
                 const idx = clientsDB.findIndex(x => x.id === saved.id);
                 if (idx >= 0) clientsDB[idx] = saved; else clientsDB.push(saved);
             } else {
@@ -444,8 +467,8 @@
         };
         if (!payload.name) { showToast('Driver name is required', 'warning'); return; }
         try {
-            if (typeof saveFleetDriverApi === 'function' && isApiAvailable()) {
-                const saved = await saveFleetDriverApi(payload);
+            const saved = await persistToApi(saveFleetDriverApi, payload);
+            if (saved) {
                 const idx = fleetDriversDB.findIndex(x => x.id === saved.id);
                 if (idx >= 0) fleetDriversDB[idx] = saved; else fleetDriversDB.push(saved);
             } else {
@@ -495,8 +518,8 @@
         };
         if (!payload.truckPlate) { showToast('Truck plate is required', 'warning'); return; }
         try {
-            if (typeof saveFleetUnitApi === 'function' && isApiAvailable()) {
-                const saved = await saveFleetUnitApi(payload);
+            const saved = await persistToApi(saveFleetUnitApi, payload);
+            if (saved) {
                 const idx = fleetUnitsDB.findIndex(x => x.id === saved.id);
                 if (idx >= 0) fleetUnitsDB[idx] = saved; else fleetUnitsDB.push(saved);
             } else {
@@ -546,8 +569,8 @@
         };
         if (!payload.clientId) { showToast('Select a client', 'warning'); return; }
         try {
-            if (typeof saveClientOrderApi === 'function' && isApiAvailable()) {
-                const saved = await saveClientOrderApi(payload);
+            const saved = await persistToApi(saveClientOrderApi, payload);
+            if (saved) {
                 const idx = clientOrdersDB.findIndex(x => x.id === saved.id);
                 if (idx >= 0) clientOrdersDB[idx] = saved; else clientOrdersDB.push(saved);
             } else {
@@ -588,22 +611,18 @@
         };
         if (!payload.fleetUnitId) { showToast('Select a fleet unit', 'warning'); return; }
         try {
-            if (typeof saveOrderAllocationApi === 'function' && isApiAvailable()) {
-                const saved = await saveOrderAllocationApi(payload);
+            const saved = await persistToApi(saveOrderAllocationApi, payload);
+            if (saved) {
                 orderAllocationsDB.push(saved);
-                const oidx = clientOrdersDB.findIndex(o => o.id === payload.orderId);
-                if (oidx >= 0) clientOrdersDB[oidx].status = 'allocated';
-                const uidx = fleetUnitsDB.findIndex(u => u.id === payload.fleetUnitId);
-                if (uidx >= 0) fleetUnitsDB[uidx].status = 'allocated';
             } else {
                 payload.id = uid('ALL');
                 payload.allocatedBy = typeof getCurrentUser === 'function' ? getCurrentUser()?.username : 'user';
                 orderAllocationsDB.push(payload);
-                const oidx = clientOrdersDB.findIndex(o => o.id === payload.orderId);
-                if (oidx >= 0) clientOrdersDB[oidx].status = 'allocated';
-                const uidx = fleetUnitsDB.findIndex(u => u.id === payload.fleetUnitId);
-                if (uidx >= 0) fleetUnitsDB[uidx].status = 'allocated';
             }
+            const oidx = clientOrdersDB.findIndex(o => o.id === payload.orderId);
+            if (oidx >= 0) clientOrdersDB[oidx].status = 'allocated';
+            const uidx = fleetUnitsDB.findIndex(u => u.id === payload.fleetUnitId);
+            if (uidx >= 0) fleetUnitsDB[uidx].status = 'allocated';
             saveLocal();
             closeModal('allocateFleetModal');
             showToast('Truck scheduled and allocated to order', 'success');

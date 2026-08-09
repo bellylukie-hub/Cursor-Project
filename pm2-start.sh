@@ -18,10 +18,19 @@ export DATA_DIR="${DATA_DIR:-$ROOT/backend/data}"
 export UPLOADS_DIR="${UPLOADS_DIR:-$ROOT/backend/uploads}"
 
 if [ "${RUN_SEED:-false}" = "true" ]; then
-  echo "RUN_SEED=true — loading demo trips and users..."
-  node src/seed.js
+  node -e "
+    const db = require('./src/db/database');
+    const tripCount = db.prepare('SELECT COUNT(*) AS c FROM trips').get().c;
+    if (tripCount === 0) {
+      console.log('Empty database — loading demo data...');
+      require('child_process').execSync('node src/seed.js', { stdio: 'inherit' });
+    } else {
+      console.log('Database has trips — keeping production data.');
+      require('./src/seedUsers').seedUsers();
+    }
+  "
 else
-  echo "RUN_SEED=false — ensuring roles/users only (no demo trip reload)..."
+  echo "RUN_SEED=false — ensuring roles/users only (production mode)..."
   npm run seed:users
 fi
 
