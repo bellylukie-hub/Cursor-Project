@@ -21,6 +21,10 @@
     ];
 
     const CARGO_TYPES = ['OOG', 'Container', 'Bulk Loose', 'Break Bulk', 'Bulk Liquid'];
+    const BULK_CARGO_TYPES = ['Bulk Loose', 'Break Bulk', 'Bulk Liquid'];
+    const BREAKBULK_PACKING_UNITS = [
+        '0.0721 KG CARTONS', '0.17 KG BAGS', '0.5KG PLASTIC ITEM', '1 KG EMPTY', 'BAGS', 'CARTONS', 'PALLETS'
+    ];
     const OOG_TYPES = [
         { value: 'Open top/flat rack (containerized)', hint: 'OOG cargo loaded on truck together with flat rack/open top container.' },
         { value: 'Breakbulk (Container Unpacked)', hint: 'Cargo arrives in open top/flat rack but unpacked in port — only cargo on truck.' },
@@ -106,6 +110,8 @@
         const ld = o.loadDetails || {};
         const parts = [o.cargoType];
         if (o.cargoType === 'OOG' && ld.oogType) parts.push(ld.oogType.split('(')[0].trim());
+        else if (o.cargoType === 'Bulk Liquid' && ld.litre) parts.push(`${ld.litre}L`);
+        else if (o.cargoType === 'Break Bulk' && ld.packingUnit) parts.push(ld.packingUnit.split(' ').slice(-1)[0]);
         else if (ld.orderLoadType) parts.push(ld.orderLoadType);
         return parts.filter(Boolean).join(' / ') || '—';
     }
@@ -116,10 +122,23 @@
         const containerSec = document.getElementById('coContainerSection');
         const bulkSec = document.getElementById('coBulkSection');
         const oogDetailsSec = document.getElementById('coOogDetailsSection');
+        const litreRow = document.getElementById('coBulkLiquidRow');
+        const breakBulkRow = document.getElementById('coBreakBulkRow');
+        const bulkTitle = document.getElementById('coBulkSectionTitle');
         if (oogRow) oogRow.style.display = cargoType === 'OOG' ? 'block' : 'none';
         if (containerSec) containerSec.style.display = (cargoType === 'Container' || cargoType === 'OOG') ? 'block' : 'none';
-        if (bulkSec) bulkSec.style.display = (cargoType === 'Bulk Loose' || cargoType === 'Break Bulk' || cargoType === 'Bulk Liquid') ? 'block' : 'none';
+        if (bulkSec) bulkSec.style.display = BULK_CARGO_TYPES.includes(cargoType) ? 'block' : 'none';
         if (oogDetailsSec) oogDetailsSec.style.display = cargoType === 'OOG' ? 'block' : 'none';
+        if (litreRow) litreRow.style.display = cargoType === 'Bulk Liquid' ? 'block' : 'none';
+        if (breakBulkRow) breakBulkRow.style.display = cargoType === 'Break Bulk' ? 'block' : 'none';
+        if (bulkTitle) {
+            const titles = {
+                'Bulk Loose': 'Bulk Loose — weight & tonnage',
+                'Break Bulk': 'Break Bulk — packing units & quantities',
+                'Bulk Liquid': 'Bulk Liquid — litres, weight & tank loads'
+            };
+            bulkTitle.textContent = titles[cargoType] || 'Load quantities';
+        }
     };
 
     window.onClientOrderOogTypeChange = function () {
@@ -335,12 +354,30 @@
                     </div>
                     <div class="form-group"><label>Instructions to OPS</label><textarea class="form-control" id="coFormOogInstr" rows="2">${ld.oogInstructions || ''}</textarea></div>
                 </div>
-                <div id="coBulkSection" style="display:${['Bulk Loose', 'Break Bulk', 'Bulk Liquid'].includes(cargoType) ? 'block' : 'none'};">
+                <div id="coBulkSection" style="display:${BULK_CARGO_TYPES.includes(cargoType) ? 'block' : 'none'};margin-top:8px;padding:12px;background:#f7fafc;border-radius:8px;border:1px solid var(--border);">
+                    <h4 id="coBulkSectionTitle" style="margin:0 0 12px;">${cargoType === 'Break Bulk' ? 'Break Bulk — packing units & quantities' : cargoType === 'Bulk Liquid' ? 'Bulk Liquid — litres, weight & tank loads' : 'Bulk Loose — weight & tonnage'}</h4>
+                    <div id="coBreakBulkRow" style="display:${cargoType === 'Break Bulk' ? 'block' : 'none'};margin-bottom:12px;">
+                        <div class="form-grid-2">
+                            <div class="form-group"><label>Packing Unit</label>
+                                <select class="form-control" id="coFormPackingUnit">
+                                    <option value="">— Select unit —</option>
+                                    ${BREAKBULK_PACKING_UNITS.map(u => `<option value="${u}"${(ld.packingUnit || '') === u ? ' selected' : ''}>${u}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="form-group"><label>Unit Weight</label><input type="number" step="0.01" class="form-control" id="coFormUnitWeight" value="${ld.unitWeight || ''}" placeholder="e.g. 0.07"></div>
+                        </div>
+                    </div>
                     <div class="form-grid-4">
-                        <div class="form-group"><label>Packing</label><input class="form-control" id="coFormPacking" value="${ld.packing || ''}"></div>
+                        <div class="form-group"><label>Packing</label><input class="form-control" id="coFormPacking" value="${ld.packing || ''}" placeholder="${cargoType === 'Bulk Liquid' ? 'Tank' : 'Bags / Cartons'}"></div>
                         <div class="form-group"><label>Wt (Kg)</label><input type="number" class="form-control" id="coFormWeightKg" value="${ld.weightKg || ''}"></div>
                         <div class="form-group"><label>Quantity</label><input type="number" class="form-control" id="coFormQuantity" value="${ld.quantity || ''}"></div>
                         <div class="form-group"><label>Qty / Truck</label><input type="number" class="form-control" id="coFormQtyPerTruck" value="${ld.qtyPerTruck || ''}"></div>
+                    </div>
+                    <div id="coBulkLiquidRow" style="display:${cargoType === 'Bulk Liquid' ? 'block' : 'none'};">
+                        <div class="form-grid-2">
+                            <div class="form-group"><label>Litre</label><input type="number" step="0.01" class="form-control" id="coFormLitre" value="${ld.litre || ''}"></div>
+                            <div class="form-group"><label>Tank / Liquid Type</label><input class="form-control" id="coFormLiquidType" value="${ld.liquidType || ''}" placeholder="Sulphuric acid, fuel, etc."></div>
+                        </div>
                     </div>
                     <div class="form-grid-2">
                         <div class="form-group"><label>Tonnage</label><input type="number" class="form-control" id="coFormTonnage" value="${ld.tonnage || ''}"></div>
@@ -427,6 +464,10 @@
                 qty20: document.getElementById('coFormQty20')?.value,
                 qty40: document.getElementById('coFormQty40')?.value,
                 packing: document.getElementById('coFormPacking')?.value.trim(),
+                packingUnit: document.getElementById('coFormPackingUnit')?.value || '',
+                unitWeight: document.getElementById('coFormUnitWeight')?.value,
+                litre: document.getElementById('coFormLitre')?.value,
+                liquidType: document.getElementById('coFormLiquidType')?.value.trim(),
                 weightKg: document.getElementById('coFormWeightKg')?.value,
                 quantity: document.getElementById('coFormQuantity')?.value,
                 qtyPerTruck: document.getElementById('coFormQtyPerTruck')?.value,
@@ -502,10 +543,20 @@
                 orderDate: '2026-08-05', readyToLoadOn: '2026-08-12', completeLoadsBy: '2026-08-20',
                 origin: 'Lubumbashi', destination: 'Kolwezi', originCountry: 'CD', destinationCountry: 'CD',
                 loadingPoint: 'Lubumbashi Depot', offloadingPoint: 'Kolwezi Mine', routeType: 'domestic',
-                commodity: 'Sulphuric Acid', cargoType: 'Liquid', customerRef: 'REF-9921',
+                commodity: 'Sulphuric Acid', cargoType: 'Bulk Liquid', customerRef: 'REF-9921',
                 shipper: 'Copper Logistics SA', consignee: 'Likasi Plant', impExp: 'DOM',
                 requiredDate: '2026-08-20', status: 'draft', priority: 'normal', kpi: 'orange',
-                loadDetails: { orderLoadType: 'Pre-load', packing: 'Tank', tonnage: 800, noOfLoads: 20, isHaz: true, unNumber: 'UN1830' }
+                loadDetails: { orderLoadType: 'Pre-load', packing: 'Tank', litre: 40000, liquidType: 'Sulphuric acid', tonnage: 800, noOfLoads: 20, isHaz: true, unNumber: 'UN1830' }
+            },
+            {
+                id: 'ORD-003', orderNumber: 'GG-15782', clientId: 'CLI-001',
+                orderDate: '2026-08-07', readyToLoadOn: '2026-08-14', completeLoadsBy: '2026-08-22',
+                origin: 'Durban', destination: 'Lusaka', originCountry: 'ZA', destinationCountry: 'ZM',
+                loadingPoint: 'Durban Port', offloadingPoint: 'Lusaka Depot', routeType: 'international',
+                entryBorder: 'Kasumbalesa', commodity: 'Bottles', cargoType: 'Break Bulk', customerRef: 'REF-4412',
+                shipper: 'Mining Corp DRC', consignee: 'Lusaka Depot', impExp: 'IMP',
+                requiredDate: '2026-08-22', status: 'confirmed', priority: 'normal', kpi: 'green',
+                loadDetails: { orderLoadType: 'Normal', packingUnit: '0.0721 KG CARTONS', unitWeight: 0.07, packing: 'Cartons', quantity: 50000, qtyPerTruck: 428571, tonnage: 360, noOfLoads: 12, isHaz: false }
             }
         ];
         orderAllocationsDB = [

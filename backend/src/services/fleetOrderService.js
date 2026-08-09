@@ -297,13 +297,27 @@ function seedFleetOrderData() {
       orderDate: '2026-08-05', readyToLoadOn: '2026-08-12', completeLoadsBy: '2026-08-20',
       origin: 'Lubumbashi', destination: 'Kolwezi', originCountry: 'CD', destinationCountry: 'CD',
       loadingPoint: 'Lubumbashi Depot', offloadingPoint: 'Kolwezi Mine', routeType: 'domestic',
-      commodity: 'Sulphuric Acid', cargoType: 'Liquid', customerRef: 'REF-9921',
+      commodity: 'Sulphuric Acid', cargoType: 'Bulk Liquid', customerRef: 'REF-9921',
       shipper: 'Copper Logistics SA', consignee: 'Likasi Plant', impExp: 'DOM',
       requiredDate: '2026-08-20', status: 'draft', priority: 'normal',
       loadDetails: {
         descriptionOfGoods: 'Sulphuric acid tankers', orderLoadType: 'Pre-load',
-        packing: 'Tank', quantity: 40, tonnage: 800, noOfLoads: 20, isHaz: true,
+        packing: 'Tank', litre: 40000, liquidType: 'Sulphuric acid', tonnage: 800, noOfLoads: 20, isHaz: true,
         unNumber: 'UN1830', imoClass: '8', imoDescription: 'Sulphuric acid'
+      }
+    },
+    {
+      id: 'ORD-003', orderNumber: 'GG-15782', clientId: 'CLI-001',
+      orderDate: '2026-08-07', readyToLoadOn: '2026-08-14', completeLoadsBy: '2026-08-22',
+      origin: 'Durban', destination: 'Lusaka', originCountry: 'ZA', destinationCountry: 'ZM',
+      loadingPoint: 'Durban Port', offloadingPoint: 'Lusaka Depot', routeType: 'international',
+      entryBorder: 'Kasumbalesa', commodity: 'Bottles', cargoType: 'Break Bulk', customerRef: 'REF-4412',
+      shipper: 'Mining Corp DRC', consignee: 'Lusaka Depot', impExp: 'IMP',
+      requiredDate: '2026-08-22', status: 'confirmed', priority: 'normal',
+      loadDetails: {
+        descriptionOfGoods: 'Glass bottles — break bulk cartons',
+        orderLoadType: 'Normal', packingUnit: '0.0721 KG CARTONS', unitWeight: 0.07,
+        packing: 'Cartons', quantity: 50000, qtyPerTruck: 428571, tonnage: 360, noOfLoads: 12, isHaz: false
       }
     }
   ];
