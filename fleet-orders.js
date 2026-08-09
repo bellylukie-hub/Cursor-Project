@@ -1844,9 +1844,52 @@
         if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
     }
 
+    function buildClientOrderSchedulerLabel(o) {
+        if (!o) return '';
+        const client = getClientById(o.clientId);
+        const clientName = client?.name || 'Unknown client';
+        const route = `${o.origin || '?'} → ${o.destination || '?'}`;
+        const cargo = o.cargoType || '—';
+        const commodity = o.commodity ? ` · ${o.commodity}` : '';
+        return `${o.orderNumber} | ${clientName} | ${route} | ${cargo}${commodity} | ${o.status || 'draft'}`;
+    }
+
+    window.scheduleFleetOrdersForTrip = function (tripPayload) {
+        if (!tripPayload?.tripOrders?.length) return;
+        const fleetUnitId = tripPayload.fleetUnitId;
+        const scheduledDate = tripPayload.scheduledLoadingDate || '';
+        const username = typeof getCurrentUser === 'function' ? getCurrentUser()?.username : 'user';
+        tripPayload.tripOrders.forEach(to => {
+            const oidx = clientOrdersDB.findIndex(o => o.id === to.orderId);
+            if (oidx >= 0 && clientOrdersDB[oidx].status !== 'in_transit' && clientOrdersDB[oidx].status !== 'completed') {
+                clientOrdersDB[oidx].status = 'allocated';
+            }
+            if (!fleetUnitId || !to.orderId) return;
+            const exists = orderAllocationsDB.some(a => a.orderId === to.orderId && a.fleetUnitId === fleetUnitId);
+            if (!exists) {
+                orderAllocationsDB.push({
+                    id: uid('ALL'),
+                    orderId: to.orderId,
+                    fleetUnitId,
+                    scheduledDate,
+                    status: 'scheduled',
+                    allocatedBy: username,
+                    notes: `Trip ${tripPayload.tripReference || ''}`.trim()
+                });
+            }
+        });
+        if (fleetUnitId) {
+            const uidx = fleetUnitsDB.findIndex(u => u.id === fleetUnitId);
+            if (uidx >= 0) fleetUnitsDB[uidx].status = 'allocated';
+        }
+        saveLocal();
+    };
+
     window.getFleetOrderDashboardStats = getFleetOrderStats;
     window.findFleetUnitByTruckPlate = findUnitByTruckPlate;
     window.syncFleetOrdersFromApi = syncFleetOrdersFromApi;
+    window.buildClientOrderSchedulerLabel = buildClientOrderSchedulerLabel;
+    window.getFleetClientById = getClientById;
     window.getFleetClients = () => clientsDB.slice();
     window.getFleetOrders = () => clientOrdersDB.slice();
     window.getFleetUnits = () => fleetUnitsDB.slice();

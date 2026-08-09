@@ -83,17 +83,33 @@ function addOrderToTrip(tripId, orderPayload, user) {
     orderPayload.destStationId || ''
   );
 
+  const ld = order.loadDetails || {};
+  const containerLines = ld.containerLines || [];
+  const firstContainer = containerLines[0] || {};
   const line = {
     slNo: (trip.tripOrders || []).length + 1,
     orderId: order.id, orderNumber: order.orderNumber,
+    clientId: order.clientId,
+    clientName: order.client?.name || '',
+    customerRef: order.customerRef || '',
     fromStation: order.origin, toStation: order.destination,
+    loadingPoint: order.loadingPoint || '',
+    offloadingPoint: order.offloadingPoint || '',
+    routeType: order.routeType || '',
     cargoType: order.cargoType, commodity: order.commodity,
-    containerNo: orderPayload.containerNo || '',
+    orderLoadType: ld.orderLoadType || '',
+    containerNo: orderPayload.containerNo || firstContainer.containerNo || '',
+    containerType: firstContainer.type || firstContainer.containerType || '',
+    containerLines,
+    shipper: order.shipper || '', consignee: order.consignee || '',
+    readyToLoadOn: order.readyToLoadOn || '',
     trailerPosition: orderPayload.trailerPosition || 'First',
     entryBorder: orderPayload.entryBorder || order.entryBorder || route.entryBorder || '',
     viaBorder1: orderPayload.viaBorder1 || order.viaBorder1 || route.viaBorder1 || '',
     viaBorder2: orderPayload.viaBorder2 || order.viaBorder2 || route.viaBorder2 || '',
-    seal: orderPayload.seal || '', remarks: orderPayload.remarks || ''
+    exitBorder: order.exitBorder || '', portOfEntry: order.portOfEntry || '',
+    seal: orderPayload.seal || ld.sealNo || firstContainer.seal || '',
+    remarks: orderPayload.remarks || ld.driverInstructions || ld.specialInstructions || order.notes || ''
   };
 
   const tripOrders = [...(trip.tripOrders || []), line];
@@ -130,7 +146,7 @@ function getSchedulerBundle() {
   return {
     trips: listTrips(),
     catalog: routeCatalog.getFullCatalog(),
-    orders: fleetOrder.listClientOrders().filter(o => ['draft', 'confirmed'].includes(o.status)),
+    orders: fleetOrder.listClientOrders().filter(o => ['draft', 'confirmed', 'allocated'].includes(o.status)),
     units: fleetOrder.listFleetUnits(),
     drivers: fleetOrder.listFleetDrivers()
   };
