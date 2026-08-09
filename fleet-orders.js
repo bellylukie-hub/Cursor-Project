@@ -907,17 +907,30 @@
         ];
         trucksDB = [
             { id: 'TRK-001', plate: 'ABC123DRC', make: 'Volvo', model: 'FH16', capacityMt: 26, status: 'assigned', fleetSetId: 'FU-001',
-              owner: 'Greendoor Group', fleetNo: 'FLT-001', details: { registrationNo: 'ABC123DRC', vehicleMake: 'Volvo', vehicleModel: 'FH16', active: true, gpsId: 'GPS-001', loadingCapacity: 26 } },
+              owner: 'Greendoor Group', fleetNo: 'FLT-001', details: {
+                owner: 'Greendoor Group', fleetNo: 'FLT-001', registrationNo: 'ABC123DRC', vehicleMake: 'Volvo', vehicleModel: 'FH16',
+                vehicleType: 'Horse', typeOfBody: 'Truck Tractor', tareWeight: 8500, loadingCapacity: 26, colour: 'White',
+                active: true, available: false, onTheRoad: true, noOfTrips: 142,
+                chassisNo: 'CH-4421', engineNo: 'EN-8832', engineMake: 'Volvo', horsePower: '550',
+                gpsId: 'GPS-001', gprsId: 'GPRS-001', defaultDriver: 'DRV-001', driverName: 'DRV-001', defaultTrailer: 'TRL-001'
+              } },
             { id: 'TRK-002', plate: 'XYZ789DRC', make: 'Scania', model: 'R500', capacityMt: 26, status: 'assigned', fleetSetId: 'FU-002',
-              owner: 'Greendoor Group', fleetNo: 'FLT-002', details: { registrationNo: 'XYZ789DRC', vehicleMake: 'Scania', vehicleModel: 'R500', active: true, gpsId: 'GPS-002' } }
+              owner: 'Greendoor Group', fleetNo: 'FLT-002', details: {
+                owner: 'Greendoor Group', fleetNo: 'FLT-002', registrationNo: 'XYZ789DRC', vehicleMake: 'Scania', vehicleModel: 'R500',
+                vehicleType: 'Horse', active: true, available: false, gpsId: 'GPS-002',
+                defaultDriver: 'DRV-002', driverName: 'DRV-002', defaultTrailer: 'TRL-002', defaultSecondTrailer: 'TRL-003', trailerPosition: 'Both'
+              } }
         ];
         trailersDB = [
-            { id: 'TRL-001', plate: 'TRL-456', trailerType: 'standard', capacityMt: 34, sideHeightMt: 2.7, status: 'assigned', fleetSetId: 'FU-001',
-              owner: 'Greendoor Group', details: { registrationNo: 'TRL-456', typeOfBody: 'Flatdeck', tareWeight: 8.5, loadingCapacity: 34, heightCm: 270, active: true } },
-            { id: 'TRL-002', plate: 'TRL-890', trailerType: 'superlink-front', capacityMt: 18, sideHeightMt: 1.5, status: 'assigned', fleetSetId: 'FU-002', pairedTrailerId: 'TRL-003',
-              owner: 'Greendoor Group', details: { registrationNo: 'TRL-890', loadingCapacity: 18, heightCm: 150, twistlocks: 'Yes', active: true } },
-            { id: 'TRL-003', plate: 'TRL-891', trailerType: 'superlink-rear', capacityMt: 20, sideHeightMt: 1.5, status: 'assigned', fleetSetId: 'FU-002', pairedTrailerId: 'TRL-002',
-              owner: 'Greendoor Group', details: { registrationNo: 'TRL-891', loadingCapacity: 20, heightCm: 150, active: true } }
+            { id: 'TRL-001', plate: 'TRL-456', trailerType: 'standard', capacityMt: 34, sideHeightMt: 270, status: 'assigned', fleetSetId: 'FU-001',
+              owner: 'Greendoor Group', details: {
+                registrationNo: 'TRL-456', typeOfBody: 'Flatdeck', tareWeight: 6200, loadingCapacity: 34,
+                heightCm: 270, trailerLengthM: 12.5, twistlocks: 'Yes', suspensionType: 'Air Ride', uprightPockets: '4', active: true
+              } },
+            { id: 'TRL-002', plate: 'TRL-890', trailerType: 'superlink-front', capacityMt: 18, sideHeightMt: 150, status: 'assigned', fleetSetId: 'FU-002', pairedTrailerId: 'TRL-003',
+              owner: 'Greendoor Group', details: { registrationNo: 'TRL-890', typeOfBody: 'Superlink Front', loadingCapacity: 18, heightCm: 150, trailerLengthM: 9, twistlocks: 'Yes', active: true } },
+            { id: 'TRL-003', plate: 'TRL-891', trailerType: 'superlink-rear', capacityMt: 20, sideHeightMt: 150, status: 'assigned', fleetSetId: 'FU-002', pairedTrailerId: 'TRL-002',
+              owner: 'Greendoor Group', details: { registrationNo: 'TRL-891', typeOfBody: 'Superlink Rear', loadingCapacity: 20, heightCm: 150, trailerLengthM: 9, trailerBellyTank: 'Yes', bellyTankCapacity: 400, active: true } }
         ];
         clientOrdersDB = [
             {
@@ -1288,6 +1301,7 @@
                 <div class="kpi-card orange"><div class="kpi-card-value">${stats.totalClients}</div><div class="kpi-card-label">Clients</div></div>
             </div>
             <div class="filters-bar">
+                <button class="btn ${fleetRegistryTab === 'register' ? 'btn-primary' : 'btn-outline'}" onclick="setFleetRegistryTab('register')">Full Register</button>
                 <button class="btn ${fleetRegistryTab === 'sets' ? 'btn-primary' : 'btn-outline'}" onclick="setFleetRegistryTab('sets')">Fleet Sets</button>
                 <button class="btn ${fleetRegistryTab === 'trucks' ? 'btn-primary' : 'btn-outline'}" onclick="setFleetRegistryTab('trucks')">Trucks</button>
                 <button class="btn ${fleetRegistryTab === 'trailers' ? 'btn-primary' : 'btn-outline'}" onclick="setFleetRegistryTab('trailers')">Trailers</button>
@@ -1296,10 +1310,27 @@
                     <input type="text" placeholder="Search..." value="${fleetFilter.search}" oninput="fleetRegistrySetSearch(this.value)">
                 </div>
             </div>
+            ${fleetRegistryTab === 'register' ? renderFullRegisterTab() : ''}
             ${fleetRegistryTab === 'sets' ? renderUnitsTable(units, canEdit) : ''}
             ${fleetRegistryTab === 'trucks' ? renderTrucksTable(trucksDB, canEdit) : ''}
             ${fleetRegistryTab === 'trailers' ? renderTrailersTable(trailersDB, canEdit) : ''}
             ${fleetRegistryTab === 'drivers' ? renderDriversTable(drivers, canEdit) : ''}`;
+    };
+
+    function renderFullRegisterTab() {
+        const vehicles = [
+            ...trucksDB.map(t => ({ ...t, _assetType: 'truck' })),
+            ...trailersDB.map(t => ({ ...t, _assetType: 'trailer' }))
+        ];
+        if (typeof renderFleetFullRegisterTable === 'function') {
+            return renderFleetFullRegisterTable(vehicles, { trailers: trailersDB, drivers: fleetDriversDB });
+        }
+        return '<p>Full register unavailable.</p>';
+    }
+
+    window.openFleetVehicleByType = function (assetType, id) {
+        if (assetType === 'truck') openFleetTruckModal(id);
+        else openFleetTrailerModal(id);
     };
 
     function renderTrucksTable(trucks, canEdit) {
