@@ -4,13 +4,21 @@
 
 TruckControl runs as a single Node.js service that serves the web UI and REST API on one port. SQLite stores operational data; JWT secures all `/api/*` routes except `/api/health` and `/api/auth/login`.
 
-### Included in this production release
+### Included in this production release (v2.0.0)
 
+**Operations**
 - Full live operations column template (NB, SB, Border, Position Live)
 - Column show/hide and freeze (per-page preferences in the browser)
 - Unified KPI colors: On Track (green), Priority (orange), Overdue (red)
 - Border driver registration and Driver Registry (Communication menu)
 - JWT login, RBAC, Docker, and PM2 deployment
+
+**Freight Management (FMS)**
+- Client Orders with full FMS form (route, borders, cargo, container/OOG)
+- Clients register, Route Catalog, Trip Scheduler (linked to client orders)
+- Fleet Registry with superlink pairing and full FMS vehicle register
+- Admin → Freight & FMS Settings for configuration
+- Help assistant covers all FMS workflows
 
 ## Quick start (Docker)
 

@@ -76,14 +76,26 @@ Password: `ChangeMe123!` (or `DEFAULT_ADMIN_PASSWORD` in `.env`)
 
 ## Key features
 
+### Operations
 - **NB workflow:** Border → Kanyaka → Offloading → POD
 - **SB workflow:** Loading → Documents → Seal → Escort → Dispatch → Kanyaka → Border exit
 - **Live operations tables:** Full column template on NB, SB, Border, and Position Live pages
 - **Column manager:** Show/hide columns and freeze pinned columns when scrolling (saved per page)
 - **KPI color coordination:** On Track (green), Priority (orange), and Overdue (red) aligned across truck, status, KPI, and rows
 - **Border driver registry:** Register NB drivers (WhatsApp + DRC number) from Communication or border tables
-- **Admin:** Users, roles, KPI settings (per step + transitions), module permissions, audit logs
-- **Operations:** Dashboard, border clearance, POD, assets, communications, runner fees, reports
+- **Turnarounds, runner fees, customizable reports**
+
+### Freight Management (FMS)
+- **Client Orders** — full FMS order form with route, borders, commodity, cargo types (Bulk, Container, OOG)
+- **Clients** — dedicated client register linked to orders
+- **Route Catalog** — pre-defined routes, stations, loading/offloading points, domestic/international
+- **Trip Scheduler** — assign truck/trailer/driver to client orders with auto-fill from order dropdown
+- **Fleet Registry** — trucks, trailers, drivers, fleet sets, superlink pairing, full FMS register (~87 columns)
+
+### Admin
+- **Users, roles, KPI settings, module permissions, audit logs, themes**
+- **Freight & FMS Settings** — trip scheduler defaults, order rules, route catalog, fleet policies
+- **Upload templates** for NB/SB/Position live files
 
 ## Windows setup (manual / PM2)
 
@@ -105,6 +117,12 @@ Open **http://localhost:3001**. For 24/7 hosting on Windows, use PM2 after `npm 
 ├── app.js                  # Pages, demo data, admin
 ├── api.js                  # API client + JWT auth
 ├── live-operations.js      # Live ops tables
+├── fleet-orders.js         # Client orders, clients, fleet registry
+├── route-catalog.js        # Route catalog admin
+├── trip-scheduler.js       # Trip scheduler
+├── fleet-vehicle-spec.js   # FMS vehicle field definitions
+├── freight-admin-settings.js  # Admin FMS configuration
+├── help-assistant.js       # In-app help chatbot
 ├── backend/
 │   ├── src/index.js        # Express server (serves UI + API)
 │   ├── src/routes/         # auth.js, api.js

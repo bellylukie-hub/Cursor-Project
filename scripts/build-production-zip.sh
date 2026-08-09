@@ -2,7 +2,7 @@
 # Build TruckControl production ZIP (full app + documentation)
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${1:-v1.2.0-production}"
+VERSION="${1:-v2.0.0-production}"
 OUT_DIR="$ROOT/dist"
 FOLDER="TruckControl-Production-${VERSION}"
 ZIP_NAME="${FOLDER}.zip"
@@ -18,10 +18,11 @@ copy_item() {
 }
 
 copy_item \
-  index.html app.js api.js live-operations.js admin-persistence.js fleet-orders.js \
+  index.html app.js api.js live-operations.js admin-persistence.js \
+  fleet-orders.js fleet-vehicle-spec.js route-catalog.js trip-scheduler.js freight-admin-settings.js \
   custom-reports.js themes.js process-guide.js help-assistant.js \
   Dockerfile docker-compose.yml .dockerignore .env.example \
-  README.md PRODUCTION.md DEPLOY.md INSTALL-SERVER.md INSTALL-WAMP-DOCKER.md START-HERE.txt \
+  README.md PRODUCTION.md DEPLOY.md DOWNLOAD.md INSTALL-SERVER.md INSTALL-WAMP-DOCKER.md START-HERE.txt \
   ecosystem.config.cjs pm2-start.sh install-docker.sh install-linux.sh \
   docs samples scripts backend
 
@@ -45,3 +46,4 @@ echo "Created: $OUT_DIR/$ZIP_NAME ($(du -h "$OUT_DIR/$ZIP_NAME" | cut -f1), ${BY
 echo "Folder:  $STAGE"
 echo "Extract: unzip $ZIP_NAME && cd $FOLDER"
 echo "Docs:    docs/README.md  docs/USER-GUIDE.md  docs/INSTALLATION.md"
+echo "Download guide: DOWNLOAD.md"

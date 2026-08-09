@@ -1,8 +1,8 @@
 ================================================================================
-  TruckControl — PRODUCTION PACKAGE  (v1.3.0-production)
+  TruckControl — FULL PRODUCTION PACKAGE  (v2.0.0-production)
 ================================================================================
 
-This ZIP is the FULL production web application — ready to deploy.
+This ZIP is the COMPLETE production web application — all FMS features included.
 
 QUICK START (Docker — recommended on Windows, Linux, macOS)
 ------------------------------------------------------------
@@ -39,22 +39,31 @@ INSTALL OPTIONS
   PM2 (24/7)      — pm2 start ecosystem.config.cjs  (see PRODUCTION.md)
   XAMPP / LAMP    — reverse proxy to port 3001 only (see docs/INSTALLATION.md)
 
-WHAT IS INCLUDED (FULL WEB APP)
---------------------------------
-  - JWT login and RBAC (users, roles, module permissions)
+WHAT IS INCLUDED (FULL WEB APP — v2.0.0)
+-----------------------------------------
+  OPERATIONS
+  - JWT login and RBAC (users, roles, module permissions, area assignments)
   - NB / SB / Border / POD / Position Live operations tables
-  - Client Orders — create orders, schedule & allocate trucks
-  - Fleet Registry — register truck + trailer + driver + GPS
-  - Position upload sync to NB/SB (matched by trip + truck)
-  - GPS map on Position Live (click position with GPS icon)
-  - Customizable per-menu and cross-menu reports
-  - Turnarounds list with filters and KPI summary
-  - Sidebar live badges and notification bell
-  - Themes, process guide, help assistant
-  - Driver registry (WhatsApp links), communication matrix, runner fees
-  - Admin: users, roles, KPI settings, audit logs, upload templates
-  - Docker + PM2 deployment files
-  - Sample CSV templates in samples/
+  - Live column manager, KPI colours, upload templates
+  - Turnarounds, runner fees, customizable reports
+
+  FREIGHT MANAGEMENT (FMS)
+  - Client Orders — full FMS order form (route, borders, cargo, container/OOG)
+  - Clients — dedicated client register (CRM)
+  - Route Catalog — countries, stations, loading/offloading points, route templates
+  - Trip Scheduler — assign fleet sets to client orders with auto-fill dropdown
+  - Fleet Registry — trucks, trailers, drivers, fleet sets, superlink pairing
+  - Full FMS vehicle register (~87 columns)
+
+  ADMIN
+  - Users, roles, KPI settings, audit logs, themes, upload templates
+  - Freight & FMS Settings — configure trip scheduler, orders, routes, fleet policies
+  - Fleet — Same Truck for SB turnaround policy
+
+  SUPPORT
+  - Help assistant (chatbot) with guides for all menus and FMS workflows
+  - Process guide in comment modal, driver registry, communication matrix
+  - Docker + PM2 deployment files, sample CSV templates in samples/
 
 DEFAULT USERS (after seed)
 --------------------------
@@ -72,6 +81,12 @@ TEST UPLOAD
 REBUILD ZIP FROM SOURCE
 -----------------------
   chmod +x scripts/build-production-zip.sh
-  ./scripts/build-production-zip.sh v1.3.0-production
+  ./scripts/build-production-zip.sh v2.0.0-production
+
+GITHUB (clone latest)
+---------------------
+  git clone https://github.com/bellylukie-hub/Cursor-Project.git
+  cd Cursor-Project
+  git checkout v2.0.0-production
 
 ================================================================================
