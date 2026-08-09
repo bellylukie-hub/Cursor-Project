@@ -1,19 +1,27 @@
 const db = require('../db/database');
 
+function parseDetails(r) {
+  try { return r.details_json ? JSON.parse(r.details_json) : {}; } catch (_) { return {}; }
+}
+
 function rowToTruck(r) {
+  const details = parseDetails(r);
   return {
     id: r.id, plate: r.plate, make: r.make || '', model: r.model || '',
     capacityMt: r.capacity_mt, status: r.status, fleetSetId: r.fleet_set_id,
-    notes: r.notes || ''
+    owner: r.owner || details.owner || '', fleetNo: r.fleet_no || details.fleetNo || '',
+    notes: r.notes || details.remarks || '', details
   };
 }
 
 function rowToTrailer(r) {
+  const details = parseDetails(r);
   return {
     id: r.id, plate: r.plate, trailerType: r.trailer_type || 'standard',
     capacityMt: r.capacity_mt, sideHeightMt: r.side_height_mt,
     status: r.status, fleetSetId: r.fleet_set_id, pairedTrailerId: r.paired_trailer_id,
-    notes: r.notes || ''
+    owner: r.owner || details.owner || '', fleetNo: r.fleet_no || details.fleetNo || '',
+    notes: r.notes || details.remarks || '', details
   };
 }
 
@@ -37,47 +45,74 @@ function getTrailerById(id) {
 
 function upsertTruck(body) {
   const id = body.id || `TRK-${Date.now()}`;
-  const plate = (body.plate || '').trim().toUpperCase();
-  if (!plate) throw new Error('Truck plate is required');
+  const plate = (body.plate || body.details?.registrationNo || '').trim().toUpperCase();
+  if (!plate) throw new Error('Registration No / plate is required');
 
   const existing = db.prepare('SELECT * FROM fleet_trucks WHERE plate = ? AND id != ?').get(plate, id);
   if (existing) throw new Error(`Truck plate ${plate} already registered`);
 
+  const details = body.details || {};
+  const owner = body.owner || details.owner || '';
+  const fleetNo = body.fleetNo || details.fleetNo || '';
+
   db.prepare(`
-    INSERT INTO fleet_trucks (id, plate, make, model, capacity_mt, status, fleet_set_id, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO fleet_trucks (id, plate, make, model, capacity_mt, status, fleet_set_id, notes, owner, fleet_no, details_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       plate = excluded.plate, make = excluded.make, model = excluded.model,
       capacity_mt = excluded.capacity_mt, status = excluded.status,
-      fleet_set_id = excluded.fleet_set_id, notes = excluded.notes
-  `).run(id, plate, body.make || '', body.model || '', body.capacityMt || null,
-    body.status || 'available', body.fleetSetId || null, body.notes || '');
+      fleet_set_id = excluded.fleet_set_id, notes = excluded.notes,
+      owner = excluded.owner, fleet_no = excluded.fleet_no, details_json = excluded.details_json
+  `).run(
+    id, plate,
+    body.make || details.vehicleMake || '',
+    body.model || details.vehicleModel || '',
+    body.capacityMt || details.loadingCapacity || null,
+    body.status || (details.active === false ? 'inactive' : 'available'),
+    body.fleetSetId || null,
+    details.remarks || body.notes || '',
+    owner, fleetNo,
+    JSON.stringify(details)
+  );
   return getTruckById(id);
 }
 
 function upsertTrailer(body) {
   const id = body.id || `TRL-${Date.now()}`;
-  const plate = (body.plate || '').trim().toUpperCase();
-  if (!plate) throw new Error('Trailer plate is required');
+  const plate = (body.plate || body.details?.registrationNo || '').trim().toUpperCase();
+  if (!plate) throw new Error('Registration No / plate is required');
 
   const existing = db.prepare('SELECT * FROM fleet_trailers WHERE plate = ? AND id != ?').get(plate, id);
   if (existing) throw new Error(`Trailer plate ${plate} already registered`);
 
-  const trailerType = body.trailerType || 'standard';
+  const trailerType = body.trailerType || body.details?.trailerType || 'standard';
   if (!['standard', 'superlink-front', 'superlink-rear'].includes(trailerType)) {
     throw new Error('Invalid trailer type');
   }
 
+  const details = body.details || {};
+  const owner = body.owner || details.owner || '';
+  const fleetNo = body.fleetNo || details.fleetNo || '';
+
   db.prepare(`
-    INSERT INTO fleet_trailers (id, plate, trailer_type, capacity_mt, side_height_mt, status, fleet_set_id, paired_trailer_id, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO fleet_trailers (id, plate, trailer_type, capacity_mt, side_height_mt, status, fleet_set_id, paired_trailer_id, notes, owner, fleet_no, details_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       plate = excluded.plate, trailer_type = excluded.trailer_type,
       capacity_mt = excluded.capacity_mt, side_height_mt = excluded.side_height_mt,
       status = excluded.status, fleet_set_id = excluded.fleet_set_id,
-      paired_trailer_id = excluded.paired_trailer_id, notes = excluded.notes
-  `).run(id, plate, trailerType, body.capacityMt || null, body.sideHeightMt || null,
-    body.status || 'available', body.fleetSetId || null, body.pairedTrailerId || null, body.notes || '');
+      paired_trailer_id = excluded.paired_trailer_id, notes = excluded.notes,
+      owner = excluded.owner, fleet_no = excluded.fleet_no, details_json = excluded.details_json
+  `).run(
+    id, plate, trailerType,
+    body.capacityMt || details.loadingCapacity || null,
+    body.sideHeightMt || details.heightCm || null,
+    body.status || (details.active === false ? 'inactive' : 'available'),
+    body.fleetSetId || null, body.pairedTrailerId || null,
+    details.remarks || body.notes || '',
+    owner, fleetNo,
+    JSON.stringify(details)
+  );
 
   if (body.pairedTrailerId) {
     db.prepare('UPDATE fleet_trailers SET paired_trailer_id = ? WHERE id = ?').run(id, body.pairedTrailerId);

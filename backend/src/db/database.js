@@ -407,6 +407,18 @@ function migrateRouteCatalogSchema() {
     CREATE INDEX IF NOT EXISTS idx_fleet_trucks_set ON fleet_trucks(fleet_set_id);
     CREATE INDEX IF NOT EXISTS idx_fleet_trailers_set ON fleet_trailers(fleet_set_id);
   `);
+  migrateFleetAssetSchema();
+}
+
+function migrateFleetAssetSchema() {
+  const truckCols = db.prepare('PRAGMA table_info(fleet_trucks)').all().map(c => c.name);
+  const trailerCols = db.prepare('PRAGMA table_info(fleet_trailers)').all().map(c => c.name);
+  if (!truckCols.includes('details_json')) db.exec(`ALTER TABLE fleet_trucks ADD COLUMN details_json TEXT DEFAULT '{}'`);
+  if (!truckCols.includes('owner')) db.exec(`ALTER TABLE fleet_trucks ADD COLUMN owner TEXT`);
+  if (!truckCols.includes('fleet_no')) db.exec(`ALTER TABLE fleet_trucks ADD COLUMN fleet_no TEXT`);
+  if (!trailerCols.includes('details_json')) db.exec(`ALTER TABLE fleet_trailers ADD COLUMN details_json TEXT DEFAULT '{}'`);
+  if (!trailerCols.includes('owner')) db.exec(`ALTER TABLE fleet_trailers ADD COLUMN owner TEXT`);
+  if (!trailerCols.includes('fleet_no')) db.exec(`ALTER TABLE fleet_trailers ADD COLUMN fleet_no TEXT`);
 }
 
 function migrateClientOrdersSchema() {
