@@ -2,6 +2,17 @@
 
 This is the **complete** Truck Turnaround & Operations Control System with all FMS features.
 
+### Docker deploy (important)
+
+After updating the ZIP or pulling from GitHub, **rebuild** the Docker image so all Management modules are included:
+
+```bash
+docker compose down
+docker compose up -d --build
+```
+
+If Management menu pages (Client Orders, Route Catalog, Trip Scheduler, etc.) do nothing or show the dashboard, the Docker image was built from an old Dockerfile that omitted frontend scripts. Rebuild with v2.0.1 or later.
+
 ## Option 1 — Download ZIP (fastest)
 
 1. Go to GitHub Releases:  

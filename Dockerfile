@@ -10,7 +10,12 @@ COPY backend/package.json backend/package-lock.json* ./backend/
 RUN cd backend && npm ci --omit=dev
 
 COPY backend/ ./backend/
-COPY index.html app.js api.js live-operations.js ./
+
+# Full frontend — all JS modules required for Management menu (Client Orders, Route Catalog, etc.)
+COPY index.html ./
+COPY *.js ./
+COPY docs/ ./docs/
+COPY samples/ ./samples/
 
 ENV NODE_ENV=production
 ENV PORT=3001

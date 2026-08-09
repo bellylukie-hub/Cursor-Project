@@ -1,5 +1,5 @@
 ================================================================================
-  TruckControl — FULL PRODUCTION PACKAGE  (v2.0.0-production)
+  TruckControl — FULL PRODUCTION PACKAGE  (v2.0.1-production)
 ================================================================================
 
 This ZIP is the COMPLETE production web application — all FMS features included.
@@ -81,12 +81,12 @@ TEST UPLOAD
 REBUILD ZIP FROM SOURCE
 -----------------------
   chmod +x scripts/build-production-zip.sh
-  ./scripts/build-production-zip.sh v2.0.0-production
+  ./scripts/build-production-zip.sh v2.0.1-production
 
 GITHUB (clone latest)
 ---------------------
   git clone https://github.com/bellylukie-hub/Cursor-Project.git
   cd Cursor-Project
-  git checkout v2.0.0-production
+  git checkout v2.0.1-production
 
 ================================================================================

@@ -565,11 +565,11 @@
         const destStation = ld.destStationId || stations.find(s => s.name === o.destination)?.id || '';
         const originSt = getStationById(originStation);
         const destSt = getStationById(destStation);
+        const countries = routeCountries();
         const originCountry = originSt?.countryCode || originSt?.country || o.originCountry || countries[0]?.code || '';
         const destCountry = destSt?.countryCode || destSt?.country || o.destinationCountry || countries[1]?.code || countries[0]?.code || '';
         const route = resolveOrderRoute(originStation, destStation);
         const showBorders = o.routeType === 'international' || route.showBorders;
-        const countries = routeCountries();
         const templates = typeof getRouteCatalogTemplates === 'function' ? getRouteCatalogTemplates() : [];
         const clientOpts = (sel) => clientsDB.map(c => `<option value="${c.name}"${c.name === sel ? ' selected' : ''}>${c.name}</option>`).join('');
         const agentOpts = (sel) => CLEARING_AGENTS.map(a => `<option value="${a}"${a === sel ? ' selected' : ''}>${a}</option>`).join('');

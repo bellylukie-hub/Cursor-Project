@@ -1565,7 +1565,38 @@ function handleLogout() {
     showToast('Signed out', 'success');
 }
 
+function verifyManagementModulesLoaded() {
+    const checks = [
+        { page: 'client-orders', fn: 'renderClientOrders', file: 'fleet-orders.js' },
+        { page: 'clients', fn: 'renderClientsManagement', file: 'fleet-orders.js' },
+        { page: 'route-catalog', fn: 'renderRouteCatalog', file: 'route-catalog.js' },
+        { page: 'trip-scheduler', fn: 'renderTripScheduler', file: 'trip-scheduler.js' },
+        { page: 'fleet-registry', fn: 'renderFleetRegistry', file: 'fleet-orders.js' }
+    ];
+    const missing = checks.filter(c => typeof window[c.fn] !== 'function');
+    if (missing.length) {
+        console.error('Management modules missing:', missing.map(m => `${m.page} (${m.file})`).join(', '));
+        window.__missingManagementModules = missing;
+    }
+}
+
+function renderMissingModulePage(container, page) {
+    const info = (window.__missingManagementModules || []).find(m => m.page === page);
+    const file = info?.file || 'module script';
+    container.innerHTML = `
+        <div class="access-denied" style="padding:32px;">
+            <h2>Module failed to load</h2>
+            <p>The <strong>${page}</strong> page could not start because <code>${file}</code> did not load.</p>
+            <p style="margin-top:12px;font-size:14px;color:var(--text-secondary);">
+                If you deployed with <strong>Docker</strong>, rebuild the image so all frontend files are included:<br>
+                <code>docker compose down && docker compose up -d --build</code>
+            </p>
+            <p style="margin-top:8px;font-size:14px;">Check the browser console (F12) for 404 errors on .js files.</p>
+        </div>`;
+}
+
 async function bootApplication() {
+    verifyManagementModulesLoaded();
     if (typeof migrateAreaStatusesDB === 'function') migrateAreaStatusesDB();
     if (typeof backfillTripAreaWorkflowKeys === 'function') backfillTripAreaWorkflowKeys();
     if (typeof syncAdminFromApi === 'function' && isApiAvailable()) {
@@ -1799,10 +1830,20 @@ function ensureUserModulePermissions(user) {
         user.modulePermissions = defaults;
         return user.modulePermissions;
     }
-    // Merge any newly added modules (e.g. client-orders) into existing saved permissions
+    // Merge any newly added modules (e.g. clients, route-catalog) into existing saved permissions
     OPERATIONAL_MODULES.forEach(mod => {
         if (!user.modulePermissions[mod.id]) {
             user.modulePermissions[mod.id] = defaults[mod.id] || (mod.global ? { _global: emptyModulePerm() } : {});
+            return;
+        }
+        if (mod.global && defaults[mod.id]?._global) {
+            const cur = user.modulePermissions[mod.id]._global || emptyModulePerm();
+            const def = defaults[mod.id]._global;
+            user.modulePermissions[mod.id]._global = {
+                view: cur.view || def.view,
+                edit: cur.edit || def.edit,
+                delete: cur.delete || def.delete
+            };
         }
     });
     return user.modulePermissions;
@@ -2246,11 +2287,26 @@ function navigateTo(page) {
         case 'driver-registry': renderDriverRegistry(ca); break;
         case 'internal-communication': renderInternalCommunication(ca); break;
         case 'assets': renderAssets(ca); break;
-        case 'client-orders': if (typeof renderClientOrders === 'function') renderClientOrders(ca); else renderDashboard(ca); break;
-        case 'clients': if (typeof renderClientsManagement === 'function') renderClientsManagement(ca); else renderDashboard(ca); break;
-        case 'route-catalog': if (typeof renderRouteCatalog === 'function') renderRouteCatalog(ca); else renderDashboard(ca); break;
-        case 'trip-scheduler': if (typeof renderTripScheduler === 'function') renderTripScheduler(ca); else renderDashboard(ca); break;
-        case 'fleet-registry': if (typeof renderFleetRegistry === 'function') renderFleetRegistry(ca); else renderDashboard(ca); break;
+        case 'client-orders':
+            if (typeof renderClientOrders === 'function') renderClientOrders(ca);
+            else renderMissingModulePage(ca, 'client-orders');
+            break;
+        case 'clients':
+            if (typeof renderClientsManagement === 'function') renderClientsManagement(ca);
+            else renderMissingModulePage(ca, 'clients');
+            break;
+        case 'route-catalog':
+            if (typeof renderRouteCatalog === 'function') renderRouteCatalog(ca);
+            else renderMissingModulePage(ca, 'route-catalog');
+            break;
+        case 'trip-scheduler':
+            if (typeof renderTripScheduler === 'function') renderTripScheduler(ca);
+            else renderMissingModulePage(ca, 'trip-scheduler');
+            break;
+        case 'fleet-registry':
+            if (typeof renderFleetRegistry === 'function') renderFleetRegistry(ca);
+            else renderMissingModulePage(ca, 'fleet-registry');
+            break;
         case 'runner-fees': renderRunnerFees(ca); break;
         case 'reports': renderReports(ca); break;
         case 'admin-users': renderAdminUsers(ca); break;
