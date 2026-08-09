@@ -13,8 +13,327 @@
     let orderFilter = { search: '', status: 'all', clientId: 'all' };
     let fleetFilter = { search: '', status: 'all' };
     let fleetRegistryTab = 'units';
+    let clientOrderFormTab = 'header';
 
-    function uid(prefix) { return `${prefix}-${Date.now()}`; }
+    const CLEARING_AGENTS = [
+        'Jean Kalenga Clearing', 'Mukendi Logistics', 'Border Express DRC',
+        'Kasumbalesa Agents Ltd', 'Sakania Clearance Co', 'Whisky Process Agents'
+    ];
+
+    const ROUTE_STATIONS = [
+        { id: 'durban', name: 'Durban', country: 'ZA', countryName: 'South Africa', loadingPoints: ['Durban Port', 'Clayville'] },
+        { id: 'johannesburg', name: 'Johannesburg', country: 'ZA', countryName: 'South Africa', loadingPoints: ['City Deep', 'Johannesburg Depot'] },
+        { id: 'ndola', name: 'Ndola', country: 'ZM', countryName: 'Zambia', loadingPoints: ['Ndola Depot'], offloadingPoints: ['Ndola Mine'] },
+        { id: 'lusaka', name: 'Lusaka', country: 'ZM', countryName: 'Zambia', loadingPoints: ['Lusaka Hub'], offloadingPoints: ['Lusaka Depot'] },
+        { id: 'kasumbalesa', name: 'Kasumbalesa', country: 'CD', countryName: 'DRC', loadingPoints: ['Kasumbalesa Border'], offloadingPoints: ['Kasumbalesa Yard'] },
+        { id: 'lubumbashi', name: 'Lubumbashi', country: 'CD', countryName: 'DRC', loadingPoints: ['Lubumbashi Depot', 'Kamoto'], offloadingPoints: ['Lubumbashi Mine'] },
+        { id: 'kolwezi', name: 'Kolwezi', country: 'CD', countryName: 'DRC', loadingPoints: ['Kolwezi Hub'], offloadingPoints: ['Kolwezi Mine', 'Mutanda'] },
+        { id: 'likasi', name: 'Likasi', country: 'CD', countryName: 'DRC', offloadingPoints: ['Likasi Depot', 'Likasi Plant'] },
+        { id: 'dar', name: 'Dar es Salaam', country: 'TZ', countryName: 'Tanzania', loadingPoints: ['Dar Port', 'Dar Depot'] },
+        { id: 'kanyaka', name: 'Kanyaka', country: 'CD', countryName: 'DRC', loadingPoints: ['Kanyaka Mine'], offloadingPoints: ['Kanyaka Depot'] }
+    ];
+
+    const INTERNATIONAL_ROUTES = {
+        'ZA-CD': { entryBorder: 'Kasumbalesa', viaBorder1: '', viaBorder2: '', portOfEntry: 'Durban Port', exitBorder: '' },
+        'TZ-CD': { entryBorder: 'Kasumbalesa', viaBorder1: 'Sakania', viaBorder2: '', portOfEntry: 'Dar Port', exitBorder: '' },
+        'ZM-CD': { entryBorder: 'Kasumbalesa', viaBorder1: '', viaBorder2: '', portOfEntry: '', exitBorder: '' },
+        'CD-ZA': { entryBorder: '', viaBorder1: '', viaBorder2: '', portOfEntry: '', exitBorder: 'Kasumbalesa' },
+        'CD-ZM': { entryBorder: '', viaBorder1: '', viaBorder2: '', portOfEntry: '', exitBorder: 'Kasumbalesa' },
+        'CD-TZ': { entryBorder: '', viaBorder1: 'Sakania', viaBorder2: '', portOfEntry: '', exitBorder: 'Kasumbalesa' }
+    };
+
+    function stationOptions(selectedId) {
+        const empty = `<option value=""${!selectedId ? ' selected' : ''}>— Select station —</option>`;
+        return empty + ROUTE_STATIONS.map(s =>
+            `<option value="${s.id}"${s.id === selectedId ? ' selected' : ''}>${s.name} (${s.countryName})</option>`
+        ).join('');
+    }
+
+    function getStationById(id) {
+        return ROUTE_STATIONS.find(s => s.id === id) || null;
+    }
+
+    function resolveOrderRoute(originId, destId) {
+        const origin = getStationById(originId);
+        const dest = getStationById(destId);
+        if (!origin || !dest) {
+            return { routeType: 'domestic', showBorders: false, originCountry: '', destinationCountry: '' };
+        }
+        const base = {
+            origin: origin.name,
+            destination: dest.name,
+            originCountry: origin.country,
+            destinationCountry: dest.country,
+            loadingPoint: (origin.loadingPoints || [])[0] || origin.name,
+            offloadingPoint: (dest.offloadingPoints || [])[0] || dest.name
+        };
+        if (origin.country === dest.country) {
+            return {
+                ...base,
+                routeType: 'domestic',
+                showBorders: false,
+                entryBorder: '', viaBorder1: '', viaBorder2: '', portOfEntry: '', exitBorder: ''
+            };
+        }
+        const routeKey = `${origin.country}-${dest.country}`;
+        const intl = INTERNATIONAL_ROUTES[routeKey] || {
+            entryBorder: 'Kasumbalesa', viaBorder1: '', viaBorder2: '',
+            portOfEntry: (origin.loadingPoints || [])[0] || '', exitBorder: 'Kasumbalesa'
+        };
+        return { ...base, ...intl, routeType: 'international', showBorders: true };
+    }
+
+    function routeSummary(o) {
+        if (o.routeType === 'domestic' || (!o.entryBorder && !o.exitBorder)) {
+            return `${o.origin || '—'} → ${o.destination || '—'} <span class="status-badge green" style="font-size:10px;">Same country</span>`;
+        }
+        const parts = [o.entryBorder, o.viaBorder1, o.viaBorder2, o.exitBorder].filter(Boolean);
+        return `${o.origin || '—'} → ${parts.join(' → ') || 'Border'} → ${o.destination || '—'}`;
+    }
+
+    function loadTypeLabel(o) {
+        const ld = o.loadDetails || {};
+        return [o.cargoType, ld.orderLoadType].filter(Boolean).join(' / ') || '—';
+    }
+
+    window.onClientOrderRouteChange = function () {
+        const originId = document.getElementById('coFormOriginStation')?.value;
+        const destId = document.getElementById('coFormDestStation')?.value;
+        const route = resolveOrderRoute(originId, destId);
+        const borderSec = document.getElementById('coBorderSection');
+        const domesticNote = document.getElementById('coDomesticRouteNote');
+        if (document.getElementById('coFormOrigin')) document.getElementById('coFormOrigin').value = route.origin || '';
+        if (document.getElementById('coFormDestination')) document.getElementById('coFormDestination').value = route.destination || '';
+        if (document.getElementById('coFormLoadingPoint')) document.getElementById('coFormLoadingPoint').value = route.loadingPoint || '';
+        if (document.getElementById('coFormOffloadingPoint')) document.getElementById('coFormOffloadingPoint').value = route.offloadingPoint || '';
+        if (document.getElementById('coFormRouteType')) document.getElementById('coFormRouteType').value = route.routeType;
+        if (borderSec) borderSec.style.display = route.showBorders ? 'block' : 'none';
+        if (domesticNote) domesticNote.style.display = route.showBorders ? 'none' : 'block';
+        if (route.showBorders) {
+            const map = { EntryBorder: 'entryBorder', ViaBorder1: 'viaBorder1', ViaBorder2: 'viaBorder2', PortOfEntry: 'portOfEntry', ExitBorder: 'exitBorder' };
+            Object.entries(map).forEach(([fid, rkey]) => {
+                const el = document.getElementById('coForm' + fid);
+                if (el && route[rkey] != null) el.value = route[rkey];
+            });
+        } else {
+            ['EntryBorder', 'ViaBorder1', 'ViaBorder2', 'PortOfEntry', 'ExitBorder'].forEach(fid => {
+                const el = document.getElementById('coForm' + fid);
+                if (el) el.value = '';
+            });
+            ['EntryAgent', 'Via1Agent', 'Via2Agent', 'PortAgent', 'ExitAgent'].forEach(fid => {
+                const el = document.getElementById('coForm' + fid);
+                if (el) el.value = '';
+            });
+        }
+    };
+
+    window.setClientOrderFormTab = function (tab) {
+        clientOrderFormTab = tab;
+        document.querySelectorAll('.co-form-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+        document.querySelectorAll('.co-form-panel').forEach(p => p.style.display = p.dataset.panel === tab ? 'block' : 'none');
+    };
+
+    function renderClientOrderFormBody(o) {
+        o = o || {};
+        const ld = o.loadDetails || {};
+        const originStation = ROUTE_STATIONS.find(s => s.name === o.origin)?.id || '';
+        const destStation = ROUTE_STATIONS.find(s => s.name === o.destination)?.id || '';
+        const route = resolveOrderRoute(originStation, destStation);
+        const showBorders = o.routeType === 'international' || route.showBorders;
+        const agentOpts = (sel) => CLEARING_AGENTS.map(a => `<option value="${a}"${a === sel ? ' selected' : ''}>${a}</option>`).join('');
+
+        return `
+            <div class="co-form-tabs">
+                <button type="button" class="co-form-tab active" data-tab="header" onclick="setClientOrderFormTab('header')">Order Header</button>
+                <button type="button" class="co-form-tab" data-tab="route" onclick="setClientOrderFormTab('route')">Route & Borders</button>
+                <button type="button" class="co-form-tab" data-tab="load" onclick="setClientOrderFormTab('load')">Load & Commodity</button>
+                <button type="button" class="co-form-tab" data-tab="parties" onclick="setClientOrderFormTab('parties')">Parties & Instructions</button>
+            </div>
+            <input type="hidden" id="coFormId" value="${o.id || ''}">
+            <input type="hidden" id="coFormRouteType" value="${o.routeType || route.routeType}">
+
+            <div class="co-form-panel" data-panel="header">
+                <div class="form-grid-3">
+                    <div class="form-group"><label>Client *</label><select class="form-control" id="coFormClient">${clientsDB.map(c => `<option value="${c.id}"${c.id === o.clientId ? ' selected' : ''}>${c.name}</option>`).join('') || '<option value="">Add client first</option>'}</select></div>
+                    <div class="form-group"><label>Order No</label><input class="form-control" id="coFormNumber" value="${o.orderNumber || ''}" placeholder="Auto"></div>
+                    <div class="form-group"><label>Customer Ref</label><input class="form-control" id="coFormCustomerRef" value="${o.customerRef || ''}"></div>
+                </div>
+                <div class="form-grid-3">
+                    <div class="form-group"><label>Order Date</label><input type="date" class="form-control" id="coFormOrderDate" value="${o.orderDate || new Date().toISOString().slice(0, 10)}"></div>
+                    <div class="form-group"><label>Ready to Load On</label><input type="date" class="form-control" id="coFormReadyToLoad" value="${o.readyToLoadOn || ''}"></div>
+                    <div class="form-group"><label>Complete load(s) by</label><input type="date" class="form-control" id="coFormCompleteBy" value="${o.completeLoadsBy || o.requiredDate || ''}"></div>
+                </div>
+                <div class="form-grid-3">
+                    <div class="form-group"><label>IMP / EXP</label><select class="form-control" id="coFormImpExp"><option value="IMP"${o.impExp === 'IMP' ? ' selected' : ''}>Import</option><option value="EXP"${o.impExp === 'EXP' ? ' selected' : ''}>Export</option><option value="DOM"${o.impExp === 'DOM' ? ' selected' : ''}>Domestic</option></select></div>
+                    <div class="form-group"><label>Priority</label><select class="form-control" id="coFormPriority"><option value="normal"${o.priority === 'normal' ? ' selected' : ''}>Normal</option><option value="high"${o.priority === 'high' ? ' selected' : ''}>High</option><option value="urgent"${o.priority === 'urgent' ? ' selected' : ''}>Urgent</option></select></div>
+                    <div class="form-group"><label>Status</label><select class="form-control" id="coFormStatus">${['draft', 'confirmed', 'allocated', 'in_transit', 'completed', 'cancelled'].map(s => `<option value="${s}"${o.status === s ? ' selected' : ''}>${s}</option>`).join('')}</select></div>
+                </div>
+            </div>
+
+            <div class="co-form-panel" data-panel="route" style="display:none;">
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Select <strong>origin</strong> and <strong>destination</strong> stations. Borders are filled automatically for international routes; same-country trips need no border.</p>
+                <div class="form-grid-2">
+                    <div class="form-group"><label>Origin Station *</label><select class="form-control" id="coFormOriginStation" onchange="onClientOrderRouteChange()">${stationOptions(originStation)}</select></div>
+                    <div class="form-group"><label>Destination Station *</label><select class="form-control" id="coFormDestStation" onchange="onClientOrderRouteChange()">${stationOptions(destStation)}</select></div>
+                </div>
+                <div class="form-grid-2">
+                    <div class="form-group"><label>Loading Point</label><input class="form-control" id="coFormLoadingPoint" value="${o.loadingPoint || route.loadingPoint || ''}"></div>
+                    <div class="form-group"><label>Offloading Point</label><input class="form-control" id="coFormOffloadingPoint" value="${o.offloadingPoint || route.offloadingPoint || ''}"></div>
+                </div>
+                <input type="hidden" id="coFormOrigin" value="${o.origin || route.origin || ''}">
+                <input type="hidden" id="coFormDestination" value="${o.destination || route.destination || ''}">
+                <div id="coDomesticRouteNote" class="rbac-info-banner" style="display:${showBorders ? 'none' : 'block'};margin:12px 0;">
+                    <strong>Domestic route</strong> — same country. No entry/exit border required.
+                </div>
+                <div id="coBorderSection" style="display:${showBorders ? 'block' : 'none'};margin-top:12px;padding:12px;background:#f7fafc;border-radius:8px;border:1px solid var(--border);">
+                    <h4 style="margin:0 0 12px;">International borders & clearing agents</h4>
+                    <div class="form-grid-2">
+                        <div class="form-group"><label>Entry Border</label><input class="form-control" id="coFormEntryBorder" value="${o.entryBorder || ''}"></div>
+                        <div class="form-group"><label>Entry Border Clearing Agent</label><select class="form-control" id="coFormEntryAgent"><option value="">—</option>${agentOpts(o.entryBorderAgent)}</select></div>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group"><label>Via Border 1</label><input class="form-control" id="coFormViaBorder1" value="${o.viaBorder1 || ''}"></div>
+                        <div class="form-group"><label>Via Border 1 Agent</label><select class="form-control" id="coFormVia1Agent"><option value="">—</option>${agentOpts(o.viaBorder1Agent)}</select></div>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group"><label>Via Border 2</label><input class="form-control" id="coFormViaBorder2" value="${o.viaBorder2 || ''}"></div>
+                        <div class="form-group"><label>Via Border 2 Agent</label><select class="form-control" id="coFormVia2Agent"><option value="">—</option>${agentOpts(o.viaBorder2Agent)}</select></div>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group"><label>Port of Entry</label><input class="form-control" id="coFormPortOfEntry" value="${o.portOfEntry || ''}"></div>
+                        <div class="form-group"><label>Port Agent</label><select class="form-control" id="coFormPortAgent"><option value="">—</option>${agentOpts(o.portEntryAgent)}</select></div>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group"><label>Exit Border</label><input class="form-control" id="coFormExitBorder" value="${o.exitBorder || ''}"></div>
+                        <div class="form-group"><label>Exit Border Agent</label><select class="form-control" id="coFormExitAgent"><option value="">—</option>${agentOpts(o.exitBorderAgent)}</select></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="co-form-panel" data-panel="load" style="display:none;">
+                <div class="form-grid-2">
+                    <div class="form-group"><label>Commodity *</label><input class="form-control" id="coFormCommodity" value="${o.commodity || ''}"></div>
+                    <div class="form-group"><label>Cargo Type *</label><select class="form-control" id="coFormCargoType">
+                        ${['Bulk Loose', 'Break Bulk', 'Liquid', 'Container', 'General', 'Tank'].map(t => `<option${(o.cargoType || '') === t ? ' selected' : ''}>${t}</option>`).join('')}
+                    </select></div>
+                </div>
+                <div class="form-group"><label>Description of Goods</label><textarea class="form-control" id="coFormDescGoods" rows="2">${ld.descriptionOfGoods || ''}</textarea></div>
+                <div class="form-grid-3">
+                    <div class="form-group"><label>Order Load Type</label>
+                        <div class="radio-row">${['Normal', 'Pre-load', 'Ex-W Ho'].map(t => `<label><input type="radio" name="coLoadType" value="${t}"${(ld.orderLoadType || 'Normal') === t ? ' checked' : ''}> ${t}</label>`).join('')}</div>
+                    </div>
+                    <div class="form-group"><label>OOG Type</label><input class="form-control" id="coFormOogType" value="${ld.oogType || ''}"></div>
+                    <div class="form-group"><label>Commodity Rate Type</label>
+                        <div class="radio-row">${['Standard', 'Single Line Entry', 'Consolidation'].map(t => `<label><input type="radio" name="coRateType" value="${t}"${(ld.commodityRateType || 'Standard') === t ? ' checked' : ''}> ${t}</label>`).join('')}</div>
+                    </div>
+                </div>
+                <div class="form-grid-4">
+                    <div class="form-group"><label>Qty 20'</label><input type="number" class="form-control" id="coFormQty20" value="${ld.qty20 || ''}"></div>
+                    <div class="form-group"><label>Qty 40'</label><input type="number" class="form-control" id="coFormQty40" value="${ld.qty40 || ''}"></div>
+                    <div class="form-group"><label>Packing</label><input class="form-control" id="coFormPacking" value="${ld.packing || ''}"></div>
+                    <div class="form-group"><label>Wt (Kg)</label><input type="number" class="form-control" id="coFormWeightKg" value="${ld.weightKg || ''}"></div>
+                </div>
+                <div class="form-grid-4">
+                    <div class="form-group"><label>Quantity</label><input type="number" class="form-control" id="coFormQuantity" value="${ld.quantity || ''}"></div>
+                    <div class="form-group"><label>Qty / Truck</label><input type="number" class="form-control" id="coFormQtyPerTruck" value="${ld.qtyPerTruck || ''}"></div>
+                    <div class="form-group"><label>Tonnage</label><input type="number" class="form-control" id="coFormTonnage" value="${ld.tonnage || ''}"></div>
+                    <div class="form-group"><label>No of Loads</label><input type="number" class="form-control" id="coFormNoOfLoads" value="${ld.noOfLoads || ''}"></div>
+                </div>
+                <div class="form-grid-2" style="margin-top:8px;">
+                    <div class="form-group"><label>Hazardous</label>
+                        <div class="radio-row"><label><input type="radio" name="coHaz" value="false"${!ld.isHaz ? ' checked' : ''}> Non Haz</label><label><input type="radio" name="coHaz" value="true"${ld.isHaz ? ' checked' : ''}> Haz</label></div>
+                    </div>
+                    <div class="form-group"><label>UN Number</label><input class="form-control" id="coFormUnNumber" value="${ld.unNumber || ''}"></div>
+                </div>
+                <div class="form-grid-2">
+                    <div class="form-group"><label>IMO Class</label><input class="form-control" id="coFormImoClass" value="${ld.imoClass || ''}"></div>
+                    <div class="form-group"><label>IMO Description</label><input class="form-control" id="coFormImoDesc" value="${ld.imoDescription || ''}"></div>
+                </div>
+            </div>
+
+            <div class="co-form-panel" data-panel="parties" style="display:none;">
+                <div class="form-grid-2">
+                    <div class="form-group"><label>Shipper / Customer</label><input class="form-control" id="coFormShipper" value="${o.shipper || ''}"></div>
+                    <div class="form-group"><label>Consignee</label><input class="form-control" id="coFormConsignee" value="${o.consignee || ''}"></div>
+                </div>
+                <div class="form-group"><label>Invoice Party</label><input class="form-control" id="coFormInvoiceParty" value="${o.invoiceParty || ''}"></div>
+                <div class="form-group"><label>Driver Instructions</label><textarea class="form-control" id="coFormDriverInstr" rows="2">${ld.driverInstructions || ''}</textarea></div>
+                <div class="form-group"><label>Special Instructions (Ops)</label><textarea class="form-control" id="coFormSpecialInstr" rows="2">${ld.specialInstructions || o.notes || ''}</textarea></div>
+            </div>`;
+    }
+
+    function collectClientOrderPayload() {
+        const originId = document.getElementById('coFormOriginStation')?.value;
+        const destId = document.getElementById('coFormDestStation')?.value;
+        const route = resolveOrderRoute(originId, destId);
+        const loadType = document.querySelector('input[name="coLoadType"]:checked')?.value || 'Normal';
+        const rateType = document.querySelector('input[name="coRateType"]:checked')?.value || 'Standard';
+        const isHaz = document.querySelector('input[name="coHaz"]:checked')?.value === 'true';
+        const borderFields = route.routeType === 'domestic' ? {
+            entryBorder: '', viaBorder1: '', viaBorder2: '', portOfEntry: '', exitBorder: '',
+            entryBorderAgent: '', viaBorder1Agent: '', viaBorder2Agent: '', portEntryAgent: '', exitBorderAgent: ''
+        } : {
+            entryBorder: document.getElementById('coFormEntryBorder')?.value.trim() || '',
+            viaBorder1: document.getElementById('coFormViaBorder1')?.value.trim() || '',
+            viaBorder2: document.getElementById('coFormViaBorder2')?.value.trim() || '',
+            portOfEntry: document.getElementById('coFormPortOfEntry')?.value.trim() || '',
+            exitBorder: document.getElementById('coFormExitBorder')?.value.trim() || '',
+            entryBorderAgent: document.getElementById('coFormEntryAgent')?.value || '',
+            viaBorder1Agent: document.getElementById('coFormVia1Agent')?.value || '',
+            viaBorder2Agent: document.getElementById('coFormVia2Agent')?.value || '',
+            portEntryAgent: document.getElementById('coFormPortAgent')?.value || '',
+            exitBorderAgent: document.getElementById('coFormExitAgent')?.value || ''
+        };
+        return {
+            id: document.getElementById('coFormId')?.value || undefined,
+            orderNumber: document.getElementById('coFormNumber')?.value.trim(),
+            clientId: document.getElementById('coFormClient')?.value,
+            orderDate: document.getElementById('coFormOrderDate')?.value,
+            readyToLoadOn: document.getElementById('coFormReadyToLoad')?.value,
+            completeLoadsBy: document.getElementById('coFormCompleteBy')?.value,
+            requiredDate: document.getElementById('coFormCompleteBy')?.value,
+            customerRef: document.getElementById('coFormCustomerRef')?.value.trim(),
+            impExp: document.getElementById('coFormImpExp')?.value,
+            priority: document.getElementById('coFormPriority')?.value,
+            status: document.getElementById('coFormStatus')?.value,
+            origin: document.getElementById('coFormOrigin')?.value || route.origin,
+            destination: document.getElementById('coFormDestination')?.value || route.destination,
+            loadingPoint: document.getElementById('coFormLoadingPoint')?.value.trim(),
+            offloadingPoint: document.getElementById('coFormOffloadingPoint')?.value.trim(),
+            originCountry: route.originCountry,
+            destinationCountry: route.destinationCountry,
+            routeType: route.routeType,
+            ...borderFields,
+            commodity: document.getElementById('coFormCommodity')?.value.trim(),
+            cargoType: document.getElementById('coFormCargoType')?.value,
+            shipper: document.getElementById('coFormShipper')?.value.trim(),
+            consignee: document.getElementById('coFormConsignee')?.value.trim(),
+            invoiceParty: document.getElementById('coFormInvoiceParty')?.value.trim(),
+            notes: document.getElementById('coFormSpecialInstr')?.value.trim(),
+            kpi: 'green',
+            loadDetails: {
+                descriptionOfGoods: document.getElementById('coFormDescGoods')?.value.trim(),
+                orderLoadType: loadType,
+                oogType: document.getElementById('coFormOogType')?.value.trim(),
+                commodityRateType: rateType,
+                qty20: document.getElementById('coFormQty20')?.value,
+                qty40: document.getElementById('coFormQty40')?.value,
+                packing: document.getElementById('coFormPacking')?.value.trim(),
+                weightKg: document.getElementById('coFormWeightKg')?.value,
+                quantity: document.getElementById('coFormQuantity')?.value,
+                qtyPerTruck: document.getElementById('coFormQtyPerTruck')?.value,
+                tonnage: document.getElementById('coFormTonnage')?.value,
+                noOfLoads: document.getElementById('coFormNoOfLoads')?.value,
+                isHaz,
+                unNumber: document.getElementById('coFormUnNumber')?.value.trim(),
+                imoClass: document.getElementById('coFormImoClass')?.value.trim(),
+                imoDescription: document.getElementById('coFormImoDesc')?.value.trim(),
+                driverInstructions: document.getElementById('coFormDriverInstr')?.value.trim(),
+                specialInstructions: document.getElementById('coFormSpecialInstr')?.value.trim()
+            }
+        };
+    }
+
 
     function saveLocal() {
         try {
@@ -54,8 +373,27 @@
             { id: 'FU-002', truckPlate: 'XYZ789DRC', trailerPlate: 'TRL-890', vehicleType: 'Truck', driverId: 'DRV-002', gpsDeviceId: 'GPS-002', gpsLat: -11.66, gpsLng: 27.4794, gpsLabel: 'Kolwezi', status: 'available' }
         ];
         clientOrdersDB = [
-            { id: 'ORD-001', orderNumber: 'CO-2026-1001', clientId: 'CLI-001', origin: 'Durban', destination: 'Kolwezi Mine', loadingPoint: 'Durban Port', offloadingPoint: 'Kolwezi Mine', commodity: 'Copper Cathodes', cargoType: 'Bulk', requiredDate: '2026-08-15', status: 'allocated', priority: 'high', kpi: 'green' },
-            { id: 'ORD-002', orderNumber: 'CO-2026-1002', clientId: 'CLI-002', origin: 'Dar es Salaam', destination: 'Likasi', commodity: 'Sulphuric Acid', cargoType: 'Liquid', requiredDate: '2026-08-20', status: 'draft', priority: 'normal', kpi: 'orange' }
+            {
+                id: 'ORD-001', orderNumber: 'GG-15776', clientId: 'CLI-001',
+                orderDate: '2026-08-01', readyToLoadOn: '2026-08-10', completeLoadsBy: '2026-08-15',
+                origin: 'Durban', destination: 'Kolwezi', originCountry: 'ZA', destinationCountry: 'CD',
+                loadingPoint: 'Durban Port', offloadingPoint: 'Kolwezi Mine', routeType: 'international',
+                entryBorder: 'Kasumbalesa', portOfEntry: 'Durban Port', entryBorderAgent: 'Jean Kalenga Clearing',
+                commodity: 'Copper Cathodes', cargoType: 'Bulk Loose', customerRef: 'CUST-7788',
+                shipper: 'Mining Corp DRC', consignee: 'Kolwezi Mine', invoiceParty: 'Mining Corp DRC',
+                impExp: 'IMP', requiredDate: '2026-08-15', status: 'allocated', priority: 'high', kpi: 'green',
+                loadDetails: { orderLoadType: 'Normal', packing: 'Bulk', quantity: 1200, tonnage: 1200, noOfLoads: 35, isHaz: false }
+            },
+            {
+                id: 'ORD-002', orderNumber: 'GG-15780', clientId: 'CLI-002',
+                orderDate: '2026-08-05', readyToLoadOn: '2026-08-12', completeLoadsBy: '2026-08-20',
+                origin: 'Lubumbashi', destination: 'Kolwezi', originCountry: 'CD', destinationCountry: 'CD',
+                loadingPoint: 'Lubumbashi Depot', offloadingPoint: 'Kolwezi Mine', routeType: 'domestic',
+                commodity: 'Sulphuric Acid', cargoType: 'Liquid', customerRef: 'REF-9921',
+                shipper: 'Copper Logistics SA', consignee: 'Likasi Plant', impExp: 'DOM',
+                requiredDate: '2026-08-20', status: 'draft', priority: 'normal', kpi: 'orange',
+                loadDetails: { orderLoadType: 'Pre-load', packing: 'Tank', tonnage: 800, noOfLoads: 20, isHaz: true, unNumber: 'UN1830' }
+            }
         ];
         orderAllocationsDB = [
             { id: 'ALL-001', orderId: 'ORD-001', fleetUnitId: 'FU-001', scheduledDate: '2026-08-10', status: 'scheduled', allocatedBy: 'super_admin' }
@@ -242,37 +580,41 @@
                     ${clientsDB.map(c => `<option value="${c.id}"${orderFilter.clientId === c.id ? ' selected' : ''}>${c.name}</option>`).join('')}
                 </select>
             </div>
-            <div class="table-container">
+            <div class="table-container client-orders-table-wrap">
                 <div class="table-header"><h3>Orders (${orders.length})</h3></div>
-                <table>
+                <table class="client-orders-grid">
                     <thead><tr>
-                        <th>Order #</th><th>Client</th><th>Route</th><th>Commodity</th><th>Required</th>
-                        <th>Status</th><th>KPI</th><th>Allocated Fleet</th><th>Actions</th>
+                        <th>Order No</th><th>Order Date</th><th>Ready to Load</th><th>Complete By</th>
+                        <th>Commodity</th><th>Customer Ref</th><th>Shipper</th><th>Consignee</th>
+                        <th>Origin</th><th>Destination</th><th>Cargo / Load Type</th><th>Tonnage</th>
+                        <th>Route / Borders</th><th>Status</th><th>Actions</th>
                     </tr></thead>
                     <tbody>
                         ${orders.length ? orders.map(o => {
-                            const client = getClientById(o.clientId);
+                            const ld = o.loadDetails || {};
                             const allocs = getAllocationsForOrder(o.id);
-                            const fleetLabels = allocs.map(a => {
-                                const u = getUnitById(a.fleetUnitId);
-                                return u ? `${u.truckPlate}${u.trailerPlate ? '/' + u.trailerPlate : ''}` : '—';
-                            }).join(', ') || '—';
                             return `<tr>
-                                <td><strong>${o.orderNumber}</strong></td>
-                                <td>${client?.name || '—'}</td>
-                                <td>${o.origin || '—'} → ${o.destination || '—'}</td>
+                                <td><strong>${o.orderNumber || '—'}</strong></td>
+                                <td>${o.orderDate || '—'}</td>
+                                <td>${o.readyToLoadOn || '—'}</td>
+                                <td>${o.completeLoadsBy || o.requiredDate || '—'}</td>
                                 <td>${o.commodity || '—'}</td>
-                                <td>${o.requiredDate || '—'}</td>
+                                <td>${o.customerRef || '—'}</td>
+                                <td>${o.shipper || getClientById(o.clientId)?.name || '—'}</td>
+                                <td>${o.consignee || '—'}</td>
+                                <td>${o.origin || '—'}</td>
+                                <td>${o.destination || '—'}</td>
+                                <td>${loadTypeLabel(o)}</td>
+                                <td>${ld.tonnage || '—'}</td>
+                                <td style="min-width:180px;font-size:12px;">${routeSummary(o)}</td>
                                 <td>${orderStatusBadge(o.status)}</td>
-                                <td>${kpiBadge(o.kpi)}</td>
-                                <td>${fleetLabels}</td>
                                 <td style="white-space:nowrap;">
-                                    ${canEdit ? `<button class="btn btn-sm btn-outline" onclick="openAllocateFleetModal('${o.id}')">🚛 Schedule</button>` : ''}
+                                    ${canEdit ? `<button class="btn btn-sm btn-outline" onclick="openAllocateFleetModal('${o.id}')">🚛</button>` : ''}
                                     ${canEdit ? `<button class="btn btn-sm btn-outline" onclick="openClientOrderModal('${o.id}')">✏️</button>` : ''}
-                                    ${allocs[0] ? `<button class="btn btn-sm btn-primary" onclick="openFleetGpsMap('${allocs[0].fleetUnitId}')">📍 Map</button>` : ''}
+                                    ${allocs[0] ? `<button class="btn btn-sm btn-primary" onclick="openFleetGpsMap('${allocs[0].fleetUnitId}')">📍</button>` : ''}
                                 </td>
                             </tr>`;
-                        }).join('') : '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-secondary);">No orders yet. Create a client order and schedule a truck-trailer-driver set.</td></tr>'}
+                        }).join('') : '<tr><td colspan="16" style="text-align:center;padding:24px;color:var(--text-secondary);">No orders yet. Create a client order and schedule a truck-trailer-driver set.</td></tr>'}
                     </tbody>
                 </table>
             </div>`;
@@ -537,37 +879,20 @@
 
     window.openClientOrderModal = function (orderId) {
         const o = orderId ? getOrderById(orderId) : {};
+        clientOrderFormTab = 'header';
         document.getElementById('clientOrderModalTitle').textContent = orderId ? 'Edit Order' : 'Create Client Order';
-        document.getElementById('clientOrderFormId').value = o.id || '';
-        document.getElementById('clientOrderFormNumber').value = o.orderNumber || '';
-        document.getElementById('clientOrderFormOrigin').value = o.origin || '';
-        document.getElementById('clientOrderFormDestination').value = o.destination || '';
-        document.getElementById('clientOrderFormCommodity').value = o.commodity || '';
-        document.getElementById('clientOrderFormCargo').value = o.cargoType || 'Bulk';
-        document.getElementById('clientOrderFormRequired').value = o.requiredDate || '';
-        document.getElementById('clientOrderFormPriority').value = o.priority || 'normal';
-        document.getElementById('clientOrderFormStatus').value = o.status || 'draft';
-        const clientSel = document.getElementById('clientOrderFormClient');
-        clientSel.innerHTML = clientsDB.map(c => `<option value="${c.id}"${c.id === o.clientId ? ' selected' : ''}>${c.name}</option>`).join('') ||
-            '<option value="">— Add a client first —</option>';
+        const body = document.getElementById('clientOrderFormBody');
+        if (body) body.innerHTML = renderClientOrderFormBody(o);
         openModal('clientOrderModal');
+        setClientOrderFormTab('header');
+        if (document.getElementById('coFormOriginStation')) onClientOrderRouteChange();
     };
 
     window.submitClientOrderForm = async function () {
-        const payload = {
-            id: document.getElementById('clientOrderFormId').value || undefined,
-            orderNumber: document.getElementById('clientOrderFormNumber').value.trim(),
-            clientId: document.getElementById('clientOrderFormClient').value,
-            origin: document.getElementById('clientOrderFormOrigin').value.trim(),
-            destination: document.getElementById('clientOrderFormDestination').value.trim(),
-            commodity: document.getElementById('clientOrderFormCommodity').value.trim(),
-            cargoType: document.getElementById('clientOrderFormCargo').value,
-            requiredDate: document.getElementById('clientOrderFormRequired').value,
-            priority: document.getElementById('clientOrderFormPriority').value,
-            status: document.getElementById('clientOrderFormStatus').value,
-            kpi: 'green'
-        };
+        const payload = collectClientOrderPayload();
         if (!payload.clientId) { showToast('Select a client', 'warning'); return; }
+        if (!payload.commodity) { showToast('Commodity is required', 'warning'); setClientOrderFormTab('load'); return; }
+        if (!payload.origin || !payload.destination) { showToast('Select origin and destination stations', 'warning'); setClientOrderFormTab('route'); return; }
         try {
             const saved = await persistToApi(saveClientOrderApi, payload);
             if (saved) {

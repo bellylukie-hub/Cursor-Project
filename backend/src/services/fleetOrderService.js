@@ -26,13 +26,25 @@ function rowToUnit(r, driver) {
 }
 
 function rowToOrder(r, client) {
+  let loadDetails = {};
+  try { loadDetails = r.order_details_json ? JSON.parse(r.order_details_json) : {}; } catch (_) {}
   return {
     id: r.id, orderNumber: r.order_number, clientId: r.client_id, client: client || null,
     origin: r.origin, destination: r.destination, loadingPoint: r.loading_point,
     offloadingPoint: r.offloading_point, commodity: r.commodity, cargoType: r.cargo_type,
     customerRef: r.customer_ref, requiredDate: r.required_date, priority: r.priority,
     status: r.status, kpi: r.kpi, notes: r.notes, createdBy: r.created_by,
-    createdAt: r.created_at, updatedAt: r.updated_at
+    createdAt: r.created_at, updatedAt: r.updated_at,
+    orderDate: r.order_date, readyToLoadOn: r.ready_to_load_on, completeLoadsBy: r.complete_loads_by,
+    shipper: r.shipper, consignee: r.consignee, invoiceParty: r.invoice_party, impExp: r.imp_exp,
+    originCountry: r.origin_country, destinationCountry: r.destination_country,
+    routeType: r.route_type || 'domestic',
+    entryBorder: r.entry_border, viaBorder1: r.via_border_1, viaBorder2: r.via_border_2,
+    portOfEntry: r.port_of_entry, exitBorder: r.exit_border,
+    entryBorderAgent: r.entry_border_agent, viaBorder1Agent: r.via_border_1_agent,
+    viaBorder2Agent: r.via_border_2_agent, portEntryAgent: r.port_entry_agent,
+    exitBorderAgent: r.exit_border_agent,
+    loadDetails
   };
 }
 
@@ -133,22 +145,51 @@ function listClientOrders() {
 function upsertClientOrder(body, user) {
   const id = body.id || `ORD-${Date.now()}`;
   const orderNumber = (body.orderNumber || `CO-${Date.now().toString().slice(-6)}`).trim();
+  const loadDetails = body.loadDetails || {};
   db.prepare(`
-    INSERT INTO client_orders (id, order_number, client_id, origin, destination, loading_point,
-      offloading_point, commodity, cargo_type, customer_ref, required_date, priority, status, kpi, notes, created_by, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    INSERT INTO client_orders (
+      id, order_number, client_id, origin, destination, loading_point, offloading_point,
+      commodity, cargo_type, customer_ref, required_date, priority, status, kpi, notes, created_by,
+      order_date, ready_to_load_on, complete_loads_by, shipper, consignee, invoice_party, imp_exp,
+      origin_country, destination_country, route_type,
+      entry_border, via_border_1, via_border_2, port_of_entry, exit_border,
+      entry_border_agent, via_border_1_agent, via_border_2_agent, port_entry_agent, exit_border_agent,
+      order_details_json, updated_at
+    ) VALUES (
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now')
+    )
     ON CONFLICT(id) DO UPDATE SET
-      order_number = excluded.order_number, client_id = excluded.client_id, origin = excluded.origin,
-      destination = excluded.destination, loading_point = excluded.loading_point,
-      offloading_point = excluded.offloading_point, commodity = excluded.commodity,
-      cargo_type = excluded.cargo_type, customer_ref = excluded.customer_ref,
-      required_date = excluded.required_date, priority = excluded.priority, status = excluded.status,
-      kpi = excluded.kpi, notes = excluded.notes, updated_at = datetime('now')
+      order_number = excluded.order_number, client_id = excluded.client_id,
+      origin = excluded.origin, destination = excluded.destination,
+      loading_point = excluded.loading_point, offloading_point = excluded.offloading_point,
+      commodity = excluded.commodity, cargo_type = excluded.cargo_type,
+      customer_ref = excluded.customer_ref, required_date = excluded.required_date,
+      priority = excluded.priority, status = excluded.status, kpi = excluded.kpi, notes = excluded.notes,
+      order_date = excluded.order_date, ready_to_load_on = excluded.ready_to_load_on,
+      complete_loads_by = excluded.complete_loads_by, shipper = excluded.shipper,
+      consignee = excluded.consignee, invoice_party = excluded.invoice_party, imp_exp = excluded.imp_exp,
+      origin_country = excluded.origin_country, destination_country = excluded.destination_country,
+      route_type = excluded.route_type,
+      entry_border = excluded.entry_border, via_border_1 = excluded.via_border_1,
+      via_border_2 = excluded.via_border_2, port_of_entry = excluded.port_of_entry,
+      exit_border = excluded.exit_border,
+      entry_border_agent = excluded.entry_border_agent, via_border_1_agent = excluded.via_border_1_agent,
+      via_border_2_agent = excluded.via_border_2_agent, port_entry_agent = excluded.port_entry_agent,
+      exit_border_agent = excluded.exit_border_agent,
+      order_details_json = excluded.order_details_json, updated_at = datetime('now')
   `).run(
     id, orderNumber, body.clientId, body.origin || '', body.destination || '',
     body.loadingPoint || '', body.offloadingPoint || '', body.commodity || '', body.cargoType || '',
     body.customerRef || '', body.requiredDate || '', body.priority || 'normal',
-    body.status || 'draft', body.kpi || 'green', body.notes || '', user?.username || body.createdBy || 'system'
+    body.status || 'draft', body.kpi || 'green', body.notes || '', user?.username || body.createdBy || 'system',
+    body.orderDate || '', body.readyToLoadOn || '', body.completeLoadsBy || '',
+    body.shipper || '', body.consignee || '', body.invoiceParty || '', body.impExp || '',
+    body.originCountry || '', body.destinationCountry || '', body.routeType || 'domestic',
+    body.entryBorder || '', body.viaBorder1 || '', body.viaBorder2 || '', body.portOfEntry || '', body.exitBorder || '',
+    body.entryBorderAgent || '', body.viaBorder1Agent || '', body.viaBorder2Agent || '',
+    body.portEntryAgent || '', body.exitBorderAgent || '',
+    JSON.stringify(loadDetails)
   );
   return getOrderById(id);
 }
@@ -234,8 +275,37 @@ function seedFleetOrderData() {
   units.forEach(u => upsertFleetUnit(u));
 
   const orders = [
-    { id: 'ORD-001', orderNumber: 'CO-2026-1001', clientId: 'CLI-001', origin: 'Durban', destination: 'Kolwezi Mine', loadingPoint: 'Durban Port', offloadingPoint: 'Kolwezi Mine', commodity: 'Copper Cathodes', cargoType: 'Bulk', requiredDate: '2026-08-15', status: 'confirmed', priority: 'high' },
-    { id: 'ORD-002', orderNumber: 'CO-2026-1002', clientId: 'CLI-002', origin: 'Dar es Salaam', destination: 'Likasi', loadingPoint: 'Dar Port', offloadingPoint: 'Likasi Depot', commodity: 'Sulphuric Acid', cargoType: 'Liquid', requiredDate: '2026-08-20', status: 'draft', priority: 'normal' }
+    {
+      id: 'ORD-001', orderNumber: 'GG-15776', clientId: 'CLI-001',
+      orderDate: '2026-08-01', readyToLoadOn: '2026-08-10', completeLoadsBy: '2026-08-15',
+      origin: 'Durban', destination: 'Kolwezi', originCountry: 'ZA', destinationCountry: 'CD',
+      loadingPoint: 'Durban Port', offloadingPoint: 'Kolwezi Mine', routeType: 'international',
+      entryBorder: 'Kasumbalesa', portOfEntry: 'Durban Port',
+      entryBorderAgent: 'Jean Kalenga Clearing',
+      commodity: 'Copper Cathodes', cargoType: 'Bulk Loose', customerRef: 'CUST-7788',
+      shipper: 'Mining Corp DRC', consignee: 'Kolwezi Mine', invoiceParty: 'Mining Corp DRC',
+      impExp: 'IMP', requiredDate: '2026-08-15', status: 'confirmed', priority: 'high',
+      loadDetails: {
+        descriptionOfGoods: 'Copper cathodes — bulk loose',
+        orderLoadType: 'Normal', commodityRateType: 'Standard',
+        packing: 'Bulk', quantity: 1200, qtyPerTruck: 34, tonnage: 1200, noOfLoads: 35,
+        isHaz: false
+      }
+    },
+    {
+      id: 'ORD-002', orderNumber: 'GG-15780', clientId: 'CLI-002',
+      orderDate: '2026-08-05', readyToLoadOn: '2026-08-12', completeLoadsBy: '2026-08-20',
+      origin: 'Lubumbashi', destination: 'Kolwezi', originCountry: 'CD', destinationCountry: 'CD',
+      loadingPoint: 'Lubumbashi Depot', offloadingPoint: 'Kolwezi Mine', routeType: 'domestic',
+      commodity: 'Sulphuric Acid', cargoType: 'Liquid', customerRef: 'REF-9921',
+      shipper: 'Copper Logistics SA', consignee: 'Likasi Plant', impExp: 'DOM',
+      requiredDate: '2026-08-20', status: 'draft', priority: 'normal',
+      loadDetails: {
+        descriptionOfGoods: 'Sulphuric acid tankers', orderLoadType: 'Pre-load',
+        packing: 'Tank', quantity: 40, tonnage: 800, noOfLoads: 20, isHaz: true,
+        unNumber: 'UN1830', imoClass: '8', imoDescription: 'Sulphuric acid'
+      }
+    }
   ];
   orders.forEach(o => upsertClientOrder(o, { username: 'super_admin' }));
 

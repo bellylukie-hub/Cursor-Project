@@ -1399,9 +1399,58 @@
             grid-template-columns: 1fr 1fr;
             gap: 0 16px;
         }
-        @media (max-width: 700px) {
-            .form-grid-2 { grid-template-columns: 1fr; }
+        .form-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0 16px;
         }
+        .form-grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0 16px;
+        }
+        @media (max-width: 900px) {
+            .form-grid-3, .form-grid-4 { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 700px) {
+            .form-grid-2, .form-grid-3, .form-grid-4 { grid-template-columns: 1fr; }
+        }
+        .co-form-tabs {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+        .co-form-tab {
+            padding: 8px 14px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: #f7fafc;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .co-form-tab:hover { background: #edf2f7; }
+        .co-form-tab.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .radio-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px 16px;
+            font-size: 13px;
+            padding-top: 6px;
+        }
+        .radio-row label { font-weight: normal; cursor: pointer; }
+        .client-order-modal { max-width: 920px; width: 95%; }
+        .client-order-modal .modal-body { max-height: 70vh; overflow-y: auto; }
+        .client-orders-table-wrap { overflow-x: auto; }
+        .client-orders-grid { min-width: 1400px; font-size: 12px; }
+        .client-orders-grid th, .client-orders-grid td { padding: 8px 10px; white-space: nowrap; }
         .assets-action-bar {
             display: flex;
             gap: 10px;
@@ -2408,32 +2457,11 @@
         </div>
     </div>
 
-    <!-- Client order modal -->
+    <!-- Client order modal (FMS-style tabbed form) -->
     <div class="modal" id="clientOrderModal" style="display:none;">
-        <div class="modal-content" style="max-width:560px;">
+        <div class="modal-content client-order-modal">
             <div class="modal-header"><h3 id="clientOrderModalTitle">Create Client Order</h3><button class="btn btn-outline" onclick="closeModal('clientOrderModal')">✕</button></div>
-            <div class="modal-body">
-                <input type="hidden" id="clientOrderFormId">
-                <div class="form-group"><label>Client *</label><select class="form-control" id="clientOrderFormClient"></select></div>
-                <div class="form-group"><label>Order Number</label><input class="form-control" id="clientOrderFormNumber" placeholder="Auto-generated if empty"></div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                    <div class="form-group"><label>Origin</label><input class="form-control" id="clientOrderFormOrigin"></div>
-                    <div class="form-group"><label>Destination</label><input class="form-control" id="clientOrderFormDestination"></div>
-                </div>
-                <div class="form-group"><label>Commodity</label><input class="form-control" id="clientOrderFormCommodity"></div>
-                <div class="form-group"><label>Cargo Type</label>
-                    <select class="form-control" id="clientOrderFormCargo"><option>Bulk</option><option>Liquid</option><option>Container</option><option>General</option></select>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                    <div class="form-group"><label>Required Date</label><input class="form-control" id="clientOrderFormRequired" type="date"></div>
-                    <div class="form-group"><label>Priority</label>
-                        <select class="form-control" id="clientOrderFormPriority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select>
-                    </div>
-                </div>
-                <div class="form-group"><label>Status</label>
-                    <select class="form-control" id="clientOrderFormStatus"><option value="draft">Draft</option><option value="confirmed">Confirmed</option><option value="allocated">Allocated</option><option value="in_transit">In Transit</option><option value="completed">Completed</option></select>
-                </div>
-            </div>
+            <div class="modal-body" id="clientOrderFormBody"></div>
             <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('clientOrderModal')">Cancel</button><button class="btn btn-primary" onclick="submitClientOrderForm()">Save Order</button></div>
         </div>
     </div>

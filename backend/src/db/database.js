@@ -302,6 +302,35 @@ function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_fleet_units_driver ON fleet_units(driver_id);
     CREATE INDEX IF NOT EXISTS idx_fleet_units_status ON fleet_units(status);
   `);
+  migrateClientOrdersSchema();
+}
+
+function migrateClientOrdersSchema() {
+  const cols = db.prepare('PRAGMA table_info(client_orders)').all().map(c => c.name);
+  const add = (name, def) => {
+    if (!cols.includes(name)) db.exec(`ALTER TABLE client_orders ADD COLUMN ${name} ${def}`);
+  };
+  add('order_details_json', "TEXT DEFAULT '{}'");
+  add('origin_country', 'TEXT');
+  add('destination_country', 'TEXT');
+  add('route_type', "TEXT DEFAULT 'domestic'");
+  add('entry_border', 'TEXT');
+  add('via_border_1', 'TEXT');
+  add('via_border_2', 'TEXT');
+  add('port_of_entry', 'TEXT');
+  add('exit_border', 'TEXT');
+  add('entry_border_agent', 'TEXT');
+  add('via_border_1_agent', 'TEXT');
+  add('via_border_2_agent', 'TEXT');
+  add('port_entry_agent', 'TEXT');
+  add('exit_border_agent', 'TEXT');
+  add('order_date', 'TEXT');
+  add('ready_to_load_on', 'TEXT');
+  add('complete_loads_by', 'TEXT');
+  add('shipper', 'TEXT');
+  add('consignee', 'TEXT');
+  add('invoice_party', 'TEXT');
+  add('imp_exp', 'TEXT');
 }
 
 initSchema();
