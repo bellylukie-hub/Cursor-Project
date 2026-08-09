@@ -1451,6 +1451,73 @@
         .client-orders-table-wrap { overflow-x: auto; }
         .client-orders-grid { min-width: 1400px; font-size: 12px; }
         .client-orders-grid th, .client-orders-grid td { padding: 8px 10px; white-space: nowrap; }
+        .co-filter-panel {
+            background: #eef2f7;
+            border: 1px solid #c5d0de;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            padding: 12px 14px 14px;
+            box-shadow: var(--shadow);
+        }
+        .co-filter-title {
+            text-align: center;
+            font-weight: 700;
+            font-size: 14px;
+            color: var(--primary);
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #c5d0de;
+        }
+        .co-filter-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px 14px;
+        }
+        .co-filter-col { display: flex; flex-direction: column; gap: 6px; }
+        .co-filter-field label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 2px;
+        }
+        .co-filter-field .form-control {
+            padding: 5px 8px;
+            font-size: 12px;
+            height: 30px;
+        }
+        .co-filter-field select.form-control { padding-right: 24px; }
+        .co-filter-col-actions {
+            justify-content: flex-start;
+            gap: 8px;
+            padding-top: 2px;
+        }
+        .co-filter-check {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            margin: 0;
+        }
+        .co-filter-btn-row {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .co-filter-btn-row .btn { width: 100%; justify-content: center; }
+        .co-filter-actions-stack { margin-top: 8px; }
+        @media (max-width: 1200px) {
+            .co-filter-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+        @media (max-width: 800px) {
+            .co-filter-grid { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 560px) {
+            .co-filter-grid { grid-template-columns: 1fr; }
+        }
         .assets-action-bar {
             display: flex;
             gap: 10px;

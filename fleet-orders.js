@@ -10,7 +10,196 @@
     let clientOrdersDB = [];
     let orderAllocationsDB = [];
 
-    let orderFilter = { search: '', status: 'all', clientId: 'all' };
+    function defaultOrderFilter() {
+        const today = new Date();
+        const sixMonthsAgo = new Date(today);
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+        const fmt = d => d.toISOString().slice(0, 10);
+        return {
+            orderRef: '', impExpNo: '', customerRef: '',
+            shipper: 'all', consignee: 'all', invoiceParty: 'all',
+            fromCountry: 'all', fromStation: 'all', loadingPoint: 'all',
+            toCountry: 'all', toStation: 'all', offloadingPoint: 'all',
+            containerNo: '', commodity: 'all', status: 'all',
+            orderOwner: 'all', fromDate: fmt(sixMonthsAgo), toDate: fmt(today),
+            cargoType: 'all', invCurrency: 'all',
+            urgentOnly: false, incViaStations: false
+        };
+    }
+
+    function uniqueOrderValues(key, nestedKey) {
+        const vals = new Set();
+        clientOrdersDB.forEach(o => {
+            let v = nestedKey ? (o.loadDetails || {})[nestedKey] : o[key];
+            if (v) vals.add(v);
+        });
+        return Array.from(vals).sort();
+    }
+
+    function routeCountries() {
+        const map = new Map();
+        ROUTE_STATIONS.forEach(s => map.set(s.country, s.countryName));
+        return Array.from(map.entries()).map(([code, name]) => ({ code, name }));
+    }
+
+    function stationsForCountry(countryCode) {
+        if (!countryCode || countryCode === 'all') return ROUTE_STATIONS;
+        return ROUTE_STATIONS.filter(s => s.country === countryCode);
+    }
+
+    function loadingPointsList(countryCode, stationName) {
+        const points = new Set();
+        ROUTE_STATIONS.forEach(s => {
+            if (countryCode !== 'all' && s.country !== countryCode) return;
+            if (stationName !== 'all' && s.name !== stationName) return;
+            (s.loadingPoints || []).forEach(p => points.add(p));
+        });
+        clientOrdersDB.forEach(o => { if (o.loadingPoint) points.add(o.loadingPoint); });
+        return Array.from(points).sort();
+    }
+
+    function offloadingPointsList(countryCode, stationName) {
+        const points = new Set();
+        ROUTE_STATIONS.forEach(s => {
+            if (countryCode !== 'all' && s.country !== countryCode) return;
+            if (stationName !== 'all' && s.name !== stationName) return;
+            (s.offloadingPoints || []).forEach(p => points.add(p));
+        });
+        clientOrdersDB.forEach(o => { if (o.offloadingPoint) points.add(o.offloadingPoint); });
+        return Array.from(points).sort();
+    }
+
+    function filterOpt(value, label, selected) {
+        return `<option value="${value}"${value === selected ? ' selected' : ''}>${label}</option>`;
+    }
+
+    function renderOrderFilterPanel() {
+        const f = orderFilter;
+        const countries = routeCountries();
+        const fromStations = stationsForCountry(f.fromCountry);
+        const toStations = stationsForCountry(f.toCountry);
+        const commodities = uniqueOrderValues('commodity');
+        const shippers = uniqueOrderValues('shipper');
+        const consignees = uniqueOrderValues('consignee');
+        const invoiceParties = uniqueOrderValues('invoiceParty');
+        const loadPoints = loadingPointsList(f.fromCountry, f.fromStation);
+        const offloadPoints = offloadingPointsList(f.toCountry, f.toStation);
+
+        return `
+            <div class="co-filter-panel">
+                <div class="co-filter-title">ORDER ENTRY — Search &amp; Filter</div>
+                <div class="co-filter-grid">
+                    <div class="co-filter-col">
+                        <div class="co-filter-field"><label>Order Ref.</label><input class="form-control" id="coFiltOrderRef" value="${f.orderRef}" placeholder="GG-15776"></div>
+                        <div class="co-filter-field"><label>Imp/Exp No.</label><input class="form-control" id="coFiltImpExpNo" value="${f.impExpNo}" placeholder="IMP / EXP / DOM"></div>
+                        <div class="co-filter-field"><label>Customer Ref</label><input class="form-control" id="coFiltCustomerRef" value="${f.customerRef}"></div>
+                        <div class="co-filter-field"><label>Shipper/Customer</label><select class="form-control" id="coFiltShipper">${filterOpt('all', 'ALL', f.shipper)}${shippers.map(s => filterOpt(s, s, f.shipper)).join('')}${clientsDB.map(c => filterOpt(c.name, c.name, f.shipper)).join('')}</select></div>
+                        <div class="co-filter-field"><label>Consignee</label><select class="form-control" id="coFiltConsignee">${filterOpt('all', 'ALL', f.consignee)}${consignees.map(s => filterOpt(s, s, f.consignee)).join('')}</select></div>
+                        <div class="co-filter-field"><label>Invoice Party</label><select class="form-control" id="coFiltInvoiceParty">${filterOpt('all', 'ALL', f.invoiceParty)}${invoiceParties.map(s => filterOpt(s, s, f.invoiceParty)).join('')}</select></div>
+                    </div>
+                    <div class="co-filter-col">
+                        <div class="co-filter-field"><label>From Country</label><select class="form-control" id="coFiltFromCountry" onchange="fleetOrderFilterCountryChange('from')">${filterOpt('all', '<ALL>', f.fromCountry)}${countries.map(c => filterOpt(c.code, c.name, f.fromCountry)).join('')}</select></div>
+                        <div class="co-filter-field"><label>From Station</label><select class="form-control" id="coFiltFromStation">${filterOpt('all', '<ALL>', f.fromStation)}${fromStations.map(s => filterOpt(s.name, s.name, f.fromStation)).join('')}</select></div>
+                        <div class="co-filter-field"><label>Loading Point</label><select class="form-control" id="coFiltLoadingPoint">${filterOpt('all', '<ALL>', f.loadingPoint)}${loadPoints.map(p => filterOpt(p, p, f.loadingPoint)).join('')}</select></div>
+                        <div class="co-filter-field"><label>To Country</label><select class="form-control" id="coFiltToCountry" onchange="fleetOrderFilterCountryChange('to')">${filterOpt('all', '<ALL>', f.toCountry)}${countries.map(c => filterOpt(c.code, c.name, f.toCountry)).join('')}</select></div>
+                        <div class="co-filter-field"><label>To Station</label><select class="form-control" id="coFiltToStation">${filterOpt('all', '<ALL>', f.toStation)}${toStations.map(s => filterOpt(s.name, s.name, f.toStation)).join('')}</select></div>
+                        <div class="co-filter-field"><label>Offloading Point</label><select class="form-control" id="coFiltOffloadingPoint">${filterOpt('all', '<ALL>', f.offloadingPoint)}${offloadPoints.map(p => filterOpt(p, p, f.offloadingPoint)).join('')}</select></div>
+                    </div>
+                    <div class="co-filter-col">
+                        <div class="co-filter-field"><label>Container No.</label><input class="form-control" id="coFiltContainerNo" value="${f.containerNo}"></div>
+                        <div class="co-filter-field"><label>Commodity</label><select class="form-control" id="coFiltCommodity">${filterOpt('all', '<ALL>', f.commodity)}${commodities.map(c => filterOpt(c, c, f.commodity)).join('')}</select></div>
+                        <div class="co-filter-field"><label>Status</label><select class="form-control" id="coFiltStatus">${filterOpt('all', 'ALL', f.status)}${['draft', 'confirmed', 'allocated', 'in_transit', 'completed', 'cancelled'].map(s => filterOpt(s, s, f.status)).join('')}</select></div>
+                        <div class="co-filter-field"><label>Order Owner</label><select class="form-control" id="coFiltOrderOwner">${filterOpt('all', 'ALL', f.orderOwner)}${uniqueOrderValues('createdBy').map(o => filterOpt(o, o, f.orderOwner)).join('')}<option value="Greendoor Group"${f.orderOwner === 'Greendoor Group' ? ' selected' : ''}>Greendoor Group</option></select></div>
+                        <div class="co-filter-field"><label>From Date</label><input type="date" class="form-control" id="coFiltFromDate" value="${f.fromDate}"></div>
+                        <div class="co-filter-field"><label>To Date</label><input type="date" class="form-control" id="coFiltToDate" value="${f.toDate}"></div>
+                    </div>
+                    <div class="co-filter-col">
+                        <div class="co-filter-field"><label>Cargo Type</label><select class="form-control" id="coFiltCargoType">${filterOpt('all', '<ALL>', f.cargoType)}${CARGO_TYPES.map(t => filterOpt(t, t, f.cargoType)).join('')}</select></div>
+                        <div class="co-filter-field"><label>Inv Currency</label><select class="form-control" id="coFiltInvCurrency">${filterOpt('all', '<ALL>', f.invCurrency)}${filterOpt('USD', 'United States Dollar', f.invCurrency)}${filterOpt('ZAR', 'South African Rand', f.invCurrency)}${filterOpt('CDF', 'Congolese Franc', f.invCurrency)}</select></div>
+                        <div class="co-filter-actions-stack">
+                            <button type="button" class="btn btn-outline btn-sm" onclick="fleetOrderToggleTonnage()">${orderShowTonnageDetails ? '✓ ' : ''}Show Tonnage Details</button>
+                        </div>
+                    </div>
+                    <div class="co-filter-col co-filter-col-actions">
+                        <label class="co-filter-check"><input type="checkbox" id="coFiltUrgent"${f.urgentOnly ? ' checked' : ''}> Urgent / Priority</label>
+                        <label class="co-filter-check"><input type="checkbox" id="coFiltViaStations"${f.incViaStations ? ' checked' : ''}> Inc Via Stations</label>
+                        <div class="co-filter-btn-row">
+                            <button type="button" class="btn btn-primary" onclick="fleetOrderFetch()">🔍 Fetch</button>
+                            <button type="button" class="btn btn-outline" onclick="fleetOrderClearFilters()">↺ Clear All</button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    function readOrderFilterFromForm() {
+        return {
+            orderRef: document.getElementById('coFiltOrderRef')?.value.trim() || '',
+            impExpNo: document.getElementById('coFiltImpExpNo')?.value.trim() || '',
+            customerRef: document.getElementById('coFiltCustomerRef')?.value.trim() || '',
+            shipper: document.getElementById('coFiltShipper')?.value || 'all',
+            consignee: document.getElementById('coFiltConsignee')?.value || 'all',
+            invoiceParty: document.getElementById('coFiltInvoiceParty')?.value || 'all',
+            fromCountry: document.getElementById('coFiltFromCountry')?.value || 'all',
+            fromStation: document.getElementById('coFiltFromStation')?.value || 'all',
+            loadingPoint: document.getElementById('coFiltLoadingPoint')?.value || 'all',
+            toCountry: document.getElementById('coFiltToCountry')?.value || 'all',
+            toStation: document.getElementById('coFiltToStation')?.value || 'all',
+            offloadingPoint: document.getElementById('coFiltOffloadingPoint')?.value || 'all',
+            containerNo: document.getElementById('coFiltContainerNo')?.value.trim() || '',
+            commodity: document.getElementById('coFiltCommodity')?.value || 'all',
+            status: document.getElementById('coFiltStatus')?.value || 'all',
+            orderOwner: document.getElementById('coFiltOrderOwner')?.value || 'all',
+            fromDate: document.getElementById('coFiltFromDate')?.value || '',
+            toDate: document.getElementById('coFiltToDate')?.value || '',
+            cargoType: document.getElementById('coFiltCargoType')?.value || 'all',
+            invCurrency: document.getElementById('coFiltInvCurrency')?.value || 'all',
+            urgentOnly: document.getElementById('coFiltUrgent')?.checked || false,
+            incViaStations: document.getElementById('coFiltViaStations')?.checked || false
+        };
+    }
+
+    window.fleetOrderFetch = function () {
+        orderFilter = readOrderFilterFromForm();
+        orderFilterApplied = true;
+        const ca = document.getElementById('contentArea');
+        if (currentPage === 'client-orders' && ca) renderClientOrders(ca);
+        if (typeof showToast === 'function') showToast('Filters applied', 'success');
+    };
+
+    window.fleetOrderClearFilters = function () {
+        orderFilter = defaultOrderFilter();
+        orderFilterApplied = false;
+        orderShowTonnageDetails = false;
+        const ca = document.getElementById('contentArea');
+        if (currentPage === 'client-orders' && ca) renderClientOrders(ca);
+    };
+
+    window.fleetOrderToggleTonnage = function () {
+        orderShowTonnageDetails = !orderShowTonnageDetails;
+        const ca = document.getElementById('contentArea');
+        if (currentPage === 'client-orders' && ca) renderClientOrders(ca);
+    };
+
+    window.fleetOrderFilterCountryChange = function (side) {
+        if (side === 'from') {
+            const el = document.getElementById('coFiltFromStation');
+            if (el) el.value = 'all';
+        } else {
+            const el = document.getElementById('coFiltToStation');
+            if (el) el.value = 'all';
+        }
+        orderFilter = readOrderFilterFromForm();
+        const ca = document.getElementById('contentArea');
+        if (currentPage === 'client-orders' && ca) {
+            const panel = document.querySelector('.co-filter-panel');
+            if (panel) panel.outerHTML = renderOrderFilterPanel();
+        }
+    };
+
+    let orderFilter = defaultOrderFilter();
+    let orderFilterApplied = false;
+    let orderShowTonnageDetails = false;
     let fleetFilter = { search: '', status: 'all' };
     let fleetRegistryTab = 'units';
     let clientOrderFormTab = 'header';
@@ -697,16 +886,42 @@
     };
 
     // ─── Client Orders Page ──────────────────────────────────────────
+    function orderMatchesFilter(o, f) {
+        const client = getClientById(o.clientId);
+        const ld = o.loadDetails || {};
+        const shipperName = o.shipper || client?.name || '';
+
+        if (f.orderRef && !(o.orderNumber || '').toLowerCase().includes(f.orderRef.toLowerCase())) return false;
+        if (f.impExpNo && !(o.impExp || '').toLowerCase().includes(f.impExpNo.toLowerCase())) return false;
+        if (f.customerRef && !(o.customerRef || '').toLowerCase().includes(f.customerRef.toLowerCase())) return false;
+        if (f.shipper !== 'all' && shipperName !== f.shipper) return false;
+        if (f.consignee !== 'all' && (o.consignee || '') !== f.consignee) return false;
+        if (f.invoiceParty !== 'all' && (o.invoiceParty || '') !== f.invoiceParty) return false;
+        if (f.fromCountry !== 'all' && (o.originCountry || '') !== f.fromCountry) return false;
+        if (f.fromStation !== 'all' && (o.origin || '') !== f.fromStation) return false;
+        if (f.loadingPoint !== 'all' && (o.loadingPoint || '') !== f.loadingPoint) return false;
+        if (f.toCountry !== 'all' && (o.destinationCountry || '') !== f.toCountry) return false;
+        if (f.toStation !== 'all' && (o.destination || '') !== f.toStation) return false;
+        if (f.offloadingPoint !== 'all' && (o.offloadingPoint || '') !== f.offloadingPoint) return false;
+        if (f.containerNo) {
+            const containers = (ld.containerLines || []).map(c => c.containerNo).join(' ');
+            if (!containers.toLowerCase().includes(f.containerNo.toLowerCase())) return false;
+        }
+        if (f.commodity !== 'all' && (o.commodity || '') !== f.commodity) return false;
+        if (f.status !== 'all' && o.status !== f.status) return false;
+        if (f.orderOwner !== 'all' && (o.createdBy || '') !== f.orderOwner && f.orderOwner !== 'Greendoor Group') return false;
+        if (f.cargoType !== 'all' && (o.cargoType || '') !== f.cargoType) return false;
+        if (f.urgentOnly && !['high', 'urgent'].includes(o.priority)) return false;
+        if (f.incViaStations && !(o.viaBorder1 || o.viaBorder2)) return false;
+        if (f.fromDate && o.orderDate && o.orderDate < f.fromDate) return false;
+        if (f.toDate && o.orderDate && o.orderDate > f.toDate) return false;
+        return true;
+    }
+
     function filteredOrders() {
-        const q = (orderFilter.search || '').toLowerCase();
-        return clientOrdersDB.filter(o => {
-            const client = getClientById(o.clientId);
-            if (orderFilter.status !== 'all' && o.status !== orderFilter.status) return false;
-            if (orderFilter.clientId !== 'all' && o.clientId !== orderFilter.clientId) return false;
-            if (!q) return true;
-            const hay = [o.orderNumber, o.commodity, o.origin, o.destination, client?.name].join(' ').toLowerCase();
-            return hay.includes(q);
-        });
+        const f = orderFilter;
+        if (!orderFilterApplied) return clientOrdersDB.slice();
+        return clientOrdersDB.filter(o => orderMatchesFilter(o, f));
     }
 
     window.renderClientOrders = function (container) {
@@ -730,27 +945,16 @@
                 <div class="kpi-card green"><div class="kpi-card-value">${stats.allocated}</div><div class="kpi-card-label">Allocated / In Transit</div></div>
                 <div class="kpi-card red"><div class="kpi-card-value">${stats.overdue}</div><div class="kpi-card-label">Overdue KPI</div></div>
             </div>
-            <div class="filters-bar">
-                <div class="search-filter" style="flex:1;"><span>🔍</span>
-                    <input type="text" placeholder="Search order, client, commodity..." value="${orderFilter.search}" oninput="fleetOrderSetFilter('search', this.value)">
-                </div>
-                <select class="form-control" onchange="fleetOrderSetFilter('status', this.value)">
-                    <option value="all"${orderFilter.status === 'all' ? ' selected' : ''}>All statuses</option>
-                    ${['draft', 'confirmed', 'allocated', 'in_transit', 'completed', 'cancelled'].map(s =>
-                        `<option value="${s}"${orderFilter.status === s ? ' selected' : ''}>${s}</option>`).join('')}
-                </select>
-                <select class="form-control" onchange="fleetOrderSetFilter('clientId', this.value)">
-                    <option value="all">All clients</option>
-                    ${clientsDB.map(c => `<option value="${c.id}"${orderFilter.clientId === c.id ? ' selected' : ''}>${c.name}</option>`).join('')}
-                </select>
-            </div>
+            ${renderOrderFilterPanel()}
             <div class="table-container client-orders-table-wrap">
-                <div class="table-header"><h3>Orders (${orders.length})</h3></div>
+                <div class="table-header"><h3>Orders (${orders.length}${orderFilterApplied ? ' filtered' : ''})</h3></div>
                 <table class="client-orders-grid">
                     <thead><tr>
                         <th>Order No</th><th>Order Date</th><th>Ready to Load</th><th>Complete By</th>
                         <th>Commodity</th><th>Customer Ref</th><th>Shipper</th><th>Consignee</th>
-                        <th>Origin</th><th>Destination</th><th>Cargo / Load Type</th><th>Tonnage</th>
+                        <th>Origin</th><th>Destination</th><th>Cargo / Load Type</th>
+                        ${orderShowTonnageDetails ? '<th>Qty</th><th>Qty/Truck</th><th>Litre</th>' : ''}
+                        <th>Tonnage</th><th>No of Loads</th>
                         <th>Route / Borders</th><th>Status</th><th>Actions</th>
                     </tr></thead>
                     <tbody>
@@ -769,7 +973,9 @@
                                 <td>${o.origin || '—'}</td>
                                 <td>${o.destination || '—'}</td>
                                 <td>${loadTypeLabel(o)}</td>
+                                ${orderShowTonnageDetails ? `<td>${ld.quantity || '—'}</td><td>${ld.qtyPerTruck || '—'}</td><td>${ld.litre || '—'}</td>` : ''}
                                 <td>${ld.tonnage || '—'}</td>
+                                <td>${ld.noOfLoads || '—'}</td>
                                 <td style="min-width:180px;font-size:12px;">${routeSummary(o)}</td>
                                 <td>${orderStatusBadge(o.status)}</td>
                                 <td style="white-space:nowrap;">
@@ -778,7 +984,7 @@
                                     ${allocs[0] ? `<button class="btn btn-sm btn-primary" onclick="openFleetGpsMap('${allocs[0].fleetUnitId}')">📍</button>` : ''}
                                 </td>
                             </tr>`;
-                        }).join('') : '<tr><td colspan="16" style="text-align:center;padding:24px;color:var(--text-secondary);">No orders yet. Create a client order and schedule a truck-trailer-driver set.</td></tr>'}
+                        }).join('') : `<tr><td colspan="${orderShowTonnageDetails ? 19 : 16}" style="text-align:center;padding:24px;color:var(--text-secondary);">${orderFilterApplied ? 'No orders match your filters. Click Clear All or adjust criteria.' : 'No orders yet. Create a client order and click Fetch to search.'}</td></tr>`}
                     </tbody>
                 </table>
             </div>`;
@@ -786,6 +992,7 @@
 
     window.fleetOrderSetFilter = function (key, val) {
         orderFilter[key] = val;
+        orderFilterApplied = true;
         const ca = document.getElementById('contentArea');
         if (currentPage === 'client-orders' && ca) renderClientOrders(ca);
     };
