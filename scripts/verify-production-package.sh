@@ -25,6 +25,18 @@ if [ ! -f backend/src/services/databaseExplorerService.js ]; then
   MISSING=1
 fi
 
+if [ ! -f backend/src/services/internalCommService.js ]; then
+  echo "MISSING backend: backend/src/services/internalCommService.js"
+  MISSING=1
+fi
+
+for f in docs/COMPLETE-MANUAL.md docs/USER-GUIDE.md docs/INSTALLATION.md docs/images/internal-comm-email.svg docs/images/internal-comm-chat.svg; do
+  if [ ! -f "$f" ]; then
+    echo "MISSING documentation: $f"
+    MISSING=1
+  fi
+done
+
 if [ "$MISSING" -eq 1 ]; then
   echo "Production package verification FAILED"
   exit 1

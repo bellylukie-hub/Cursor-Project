@@ -1,9 +1,16 @@
 ================================================================================
-  TruckControl — FULL PRODUCTION PACKAGE  (v2.5.1-full-production)
-  ALL DEVELOPMENT FEATURES INCLUDED
+  TruckControl — FULL PRODUCTION PACKAGE  (v2.5.5-full-production)
+  ALL DEVELOPMENT FEATURES + ILLUSTRATED USER MANUAL
 ================================================================================
 
 This ZIP contains EVERY module developed to date — merged into one deployable app.
+
+DOWNLOAD
+--------
+  Latest release ZIP:
+  https://github.com/bellylukie-hub/Cursor-Project/releases/tag/v2.5.5-full-production
+
+  File: TruckControl-Production-v2.5.5-full-production.zip
 
 QUICK START (Docker — recommended)
 ----------------------------------
@@ -29,22 +36,26 @@ Always rebuild Docker or you will NOT see new features:
    docker compose down
    docker compose up -d --build
 
-FEATURES IN THIS BUILD (v2.5.1)
+FEATURES IN THIS BUILD (v2.5.5)
 -------------------------------
   OPERATIONS
   - NB / SB / Border / POD / Position Live tables
   - Bulk actions toolbar (SMS, tags, tasks, comments, delete, etc.)
   - Soft delete + restore (Manager delete, Super Admin restore)
+  - Area assignment: NB by offloading point, SB by DRC loading point
   - Live column manager, KPI colours, upload templates
 
   FREIGHT MANAGEMENT (FMS)
   - Client Orders, Clients, Route Catalog, Trip Scheduler, Fleet Registry
 
   COMMUNICATION
-  - Driver Registry, Communication Matrix, Internal Email/Chat, Helpdesk
+  - Driver Registry, Communication Matrix
+  - Internal Email + Chat (server delivery, notifications, contact picker)
+  - Helpdesk with SLA
 
   ADMIN
   - Users, roles, KPI settings, themes, Freight & FMS Settings
+  - Login with username or email; password reset preserved on restart
   - Database Browser + Query Developer (Super Admin)
   - Development menu — custom SQL pages published from Query Developer
   - Upload Templates, Module Permissions, Area Assignments
@@ -60,12 +71,17 @@ VERIFY PACKAGE (optional)
   chmod +x scripts/verify-production-package.sh
   ./scripts/verify-production-package.sh
 
-DOCUMENTATION
--------------
-  docs/COMPLETE-MANUAL.md   Full illustrated manual
+DOCUMENTATION (USER MANUAL INCLUDED)
+------------------------------------
+  docs/COMPLETE-MANUAL.md   Full illustrated manual (17 diagrams)
   docs/USER-GUIDE.md        Daily operations guide
   docs/INSTALLATION.md      Docker, domain, HTTPS, PM2
+  docs/images/              SVG illustrations (workflows, internal comm, etc.)
   DOWNLOAD.md               Download and deploy guide
+
+  Internal Communication help: docs/COMPLETE-MANUAL.md §2.9
+  Illustrations: docs/images/internal-comm-email.svg
+                 docs/images/internal-comm-chat.svg
 
 DEPLOY ON DOMAIN
 ----------------
@@ -74,6 +90,7 @@ DEPLOY ON DOMAIN
 DEFAULT USERS
 -------------
   super_admin / ChangeMe123!  (change after first login)
+  kanyaka_dispatcher / ChangeMe123!  (Kanyaka area dispatcher)
 
   Database Browser, Query Developer, and the Development menu are visible
   only when logged in as Super Admin (super_admin).
