@@ -1924,6 +1924,10 @@
     };
 
     window.getFleetOrderDashboardStats = getFleetOrderStats;
+
+    window.getPendingClientOrdersForAlerts = function () {
+        return clientOrdersDB.filter(o => o.status === 'draft' || o.status === 'confirmed');
+    };
     window.findFleetUnitByTruckPlate = findUnitByTruckPlate;
     window.syncFleetOrdersFromApi = syncFleetOrdersFromApi;
     window.buildClientOrderSchedulerLabel = buildClientOrderSchedulerLabel;

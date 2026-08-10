@@ -517,6 +517,171 @@
     }
 
     let helpMessages = [];
+    const HELP_POS_KEY = 'truckcontrol_help_assistant_pos';
+    let helpDragState = null;
+    let helpFabDidDrag = false;
+
+    function readHelpAssistantPosition() {
+        try {
+            const raw = localStorage.getItem(HELP_POS_KEY);
+            return raw ? JSON.parse(raw) : null;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function saveHelpAssistantPosition(pos) {
+        try {
+            if (pos) localStorage.setItem(HELP_POS_KEY, JSON.stringify(pos));
+            else localStorage.removeItem(HELP_POS_KEY);
+        } catch (_) { /* ignore */ }
+    }
+
+    function clampHelpAssistantPosition(x, y, el) {
+        const width = el?.offsetWidth || 120;
+        const height = el?.offsetHeight || 48;
+        const maxX = Math.max(8, window.innerWidth - width - 8);
+        const maxY = Math.max(8, window.innerHeight - height - 8);
+        return {
+            x: Math.min(Math.max(8, x), maxX),
+            y: Math.min(Math.max(8, y), maxY)
+        };
+    }
+
+    function applyHelpAssistantFabPosition(pos) {
+        const fab = document.getElementById('helpAssistantFab');
+        if (!fab) return;
+        if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) {
+            fab.style.left = `${pos.x}px`;
+            fab.style.top = `${pos.y}px`;
+            fab.style.right = 'auto';
+            fab.style.bottom = 'auto';
+        } else {
+            fab.style.left = '';
+            fab.style.top = '';
+            fab.style.right = '24px';
+            fab.style.bottom = '24px';
+        }
+        positionHelpAssistantPanel();
+    }
+
+    function positionHelpAssistantPanel() {
+        const fab = document.getElementById('helpAssistantFab');
+        const panel = document.getElementById('helpAssistantPanel');
+        if (!fab || !panel) return;
+        const rect = fab.getBoundingClientRect();
+        const panelW = panel.offsetWidth || Math.min(400, window.innerWidth - 32);
+        const panelH = panel.offsetHeight || 420;
+        let left = rect.right - panelW;
+        let top = rect.top - panelH - 12;
+        if (top < 8) top = rect.bottom + 12;
+        if (left < 8) left = 8;
+        if (left + panelW > window.innerWidth - 8) left = window.innerWidth - panelW - 8;
+        if (top + panelH > window.innerHeight - 8) top = Math.max(8, window.innerHeight - panelH - 8);
+        panel.style.left = `${left}px`;
+        panel.style.top = `${top}px`;
+        panel.style.right = 'auto';
+        panel.style.bottom = 'auto';
+    }
+
+    function startHelpAssistantDrag(event, handleEl) {
+        if (event.button !== undefined && event.button !== 0) return;
+        if (event.target.closest('button') && !event.target.closest('.help-assistant-header')) return;
+        const fab = document.getElementById('helpAssistantFab');
+        if (!fab) return;
+        const point = event.touches ? event.touches[0] : event;
+        const rect = fab.getBoundingClientRect();
+        helpDragState = {
+            handleEl,
+            startX: point.clientX,
+            startY: point.clientY,
+            offsetX: point.clientX - rect.left,
+            offsetY: point.clientY - rect.top,
+            moved: false
+        };
+        helpFabDidDrag = false;
+        handleEl.classList.add('dragging');
+        document.addEventListener('mousemove', moveHelpAssistantDrag);
+        document.addEventListener('mouseup', endHelpAssistantDrag);
+        document.addEventListener('touchmove', moveHelpAssistantDrag, { passive: false });
+        document.addEventListener('touchend', endHelpAssistantDrag);
+    }
+
+    function moveHelpAssistantDrag(event) {
+        if (!helpDragState) return;
+        const point = event.touches ? event.touches[0] : event;
+        if (!point) return;
+        const dx = point.clientX - helpDragState.startX;
+        const dy = point.clientY - helpDragState.startY;
+        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+            helpDragState.moved = true;
+            helpFabDidDrag = true;
+        }
+        if (!helpDragState.moved) return;
+        event.preventDefault();
+        const fab = document.getElementById('helpAssistantFab');
+        if (!fab) return;
+        const next = clampHelpAssistantPosition(point.clientX - helpDragState.offsetX, point.clientY - helpDragState.offsetY, fab);
+        fab.style.left = `${next.x}px`;
+        fab.style.top = `${next.y}px`;
+        fab.style.right = 'auto';
+        fab.style.bottom = 'auto';
+        positionHelpAssistantPanel();
+    }
+
+    function endHelpAssistantDrag() {
+        if (!helpDragState) return;
+        const fab = document.getElementById('helpAssistantFab');
+        helpDragState.handleEl?.classList.remove('dragging');
+        if (helpDragState.moved && fab) {
+            const next = clampHelpAssistantPosition(parseFloat(fab.style.left) || 24, parseFloat(fab.style.top) || 24, fab);
+            saveHelpAssistantPosition(next);
+            applyHelpAssistantFabPosition(next);
+        }
+        helpDragState = null;
+        document.removeEventListener('mousemove', moveHelpAssistantDrag);
+        document.removeEventListener('mouseup', endHelpAssistantDrag);
+        document.removeEventListener('touchmove', moveHelpAssistantDrag);
+        document.removeEventListener('touchend', endHelpAssistantDrag);
+    }
+
+    function setupHelpAssistantDrag() {
+        const fab = document.getElementById('helpAssistantFab');
+        const header = document.querySelector('.help-assistant-header');
+        if (!fab) return;
+
+        fab.addEventListener('mousedown', e => startHelpAssistantDrag(e, fab));
+        fab.addEventListener('touchstart', e => startHelpAssistantDrag(e, fab), { passive: true });
+        fab.addEventListener('dblclick', e => {
+            e.preventDefault();
+            saveHelpAssistantPosition(null);
+            applyHelpAssistantFabPosition(null);
+        });
+
+        fab.addEventListener('click', e => {
+            if (helpFabDidDrag) {
+                e.preventDefault();
+                e.stopPropagation();
+                helpFabDidDrag = false;
+                return;
+            }
+            toggleHelpAssistant();
+        });
+
+        if (header) {
+            header.addEventListener('mousedown', e => {
+                if (e.target.closest('button')) return;
+                startHelpAssistantDrag(e, header);
+            });
+            header.addEventListener('touchstart', e => {
+                if (e.target.closest('button')) return;
+                startHelpAssistantDrag(e, header);
+            }, { passive: true });
+        }
+
+        window.addEventListener('resize', positionHelpAssistantPanel);
+        applyHelpAssistantFabPosition(readHelpAssistantPosition());
+    }
 
     function pushHelpMessage(role, text) {
         helpMessages.push({ role, text, at: Date.now() });
@@ -530,6 +695,9 @@
         const open = forceOpen === true ? true : forceOpen === false ? false : !panel.classList.contains('open');
         panel.classList.toggle('open', open);
         if (fab) fab.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open) {
+            requestAnimationFrame(() => positionHelpAssistantPanel());
+        }
         if (open && !helpMessages.length) {
             const ctx = buildHelpContext();
             const welcome = generateHelpResponse('hello', ctx);
@@ -555,12 +723,12 @@
         const wrap = document.createElement('div');
         wrap.id = 'helpAssistantRoot';
         wrap.innerHTML = `
-            <button type="button" id="helpAssistantFab" class="help-assistant-fab" aria-label="Open help assistant" aria-expanded="false" onclick="toggleHelpAssistant()">
+            <button type="button" id="helpAssistantFab" class="help-assistant-fab" aria-label="Open help assistant (drag to move, double-click to reset)" aria-expanded="false" title="Drag to move · Double-click to reset position">
                 <span class="help-fab-icon">🤖</span><span class="help-fab-label">Help</span>
             </button>
             <div id="helpAssistantPanel" class="help-assistant-panel" role="dialog" aria-label="Truck Control Help Assistant">
                 <div class="help-assistant-header">
-                    <div><strong>🤖 Truck Control Assistant</strong><div class="help-assistant-sub">Guides & procedures · respects your role</div></div>
+                    <div><strong>🤖 Truck Control Assistant</strong><div class="help-assistant-sub">Guides & procedures · respects your role</div><div class="help-assistant-drag-hint">Drag this bar or the Help button to reposition</div></div>
                     <button type="button" class="btn btn-outline btn-sm" onclick="toggleHelpAssistant(false)" aria-label="Close">✕</button>
                 </div>
                 <div id="helpAssistantMessages" class="help-assistant-messages"></div>
@@ -584,6 +752,7 @@
             </div>
         `;
         document.body.appendChild(wrap);
+        setupHelpAssistantDrag();
     };
 
     if (document.readyState === 'loading') {

@@ -1000,13 +1000,7 @@ function applyKpiSettingsToRuntime() {
     recalculateAllTripKpis();
 }
 
-const documentsDB = [
-    { id: 1, type: 'Insurance', entity: 'Truck ZAM-4567', trip: 'TR-1024', truck: 'ZAM-4567', expiry: '2025-04-15', issued: '2024-04-15', status: 'expiring', kpi: 'orange', label: 'Expires in 7d', fileName: 'Insurance_ZAM-4567.pdf', category: 'Vehicle Insurance', assetId: 'AST-001' },
-    { id: 2, type: 'Vignette', entity: 'Truck ZAM-4590', trip: 'TR-1028', truck: 'ZAM-4590', expiry: '2025-04-10', issued: '2024-04-10', status: 'expired', kpi: 'red', label: 'Expired', fileName: 'Vignette_ZAM-4590.pdf', category: 'Border Vignette', assetId: 'AST-002' },
-    { id: 3, type: 'TR8', entity: 'Trip TR-1024', trip: 'TR-1024', truck: 'ZAM-4567', expiry: '2025-05-01', issued: '2025-04-01', status: 'valid', kpi: 'green', label: 'Valid', fileName: 'TR8_TR-1024.pdf', category: 'Customs TR8', assetId: 'AST-001' },
-    { id: 4, type: 'Road Tax', entity: 'Truck ZAM-4612', trip: 'TR-1031', truck: 'ZAM-4612', expiry: '2025-04-20', issued: '2024-04-20', status: 'expiring', kpi: 'orange', label: 'Expires in 12d', fileName: 'RoadTax_ZAM-4612.pdf', category: 'Road Tax Certificate', assetId: 'AST-003' },
-    { id: 5, type: 'Insurance', entity: 'Truck ZAM-4789', trip: 'SB-2045', truck: 'ZAM-4789', expiry: '2025-03-01', issued: '2024-03-01', status: 'expired', kpi: 'red', label: 'Expired', fileName: 'Insurance_ZAM-4789.pdf', category: 'Vehicle Insurance', assetId: 'AST-004' }
-];
+const documentsDB = [];
 
 const assetsRegistryDB = [
     {
@@ -2344,9 +2338,93 @@ function navigateToDocument(docId) {
     navigateTo('document-detail');
 }
 
+function findAssetDocumentRecord(docId) {
+    for (const asset of assetsRegistryDB) {
+        const doc = (asset.documents || []).find(d => d.id === docId);
+        if (doc) return { asset, doc };
+    }
+    return null;
+}
+
+function getDocumentSource(docId) {
+    const global = documentsDB.find(d => d.id === docId);
+    const linked = global?.assetId
+        ? findAssetDocumentRecord(docId) || (() => {
+            const asset = getAssetById(global.assetId);
+            const doc = asset?.documents?.find(d => d.id === docId);
+            return asset && doc ? { asset, doc } : null;
+        })()
+        : findAssetDocumentRecord(docId);
+    return { global, asset: linked?.asset || null, doc: linked?.doc || null };
+}
+
+function buildDocumentPrintHtml(doc, asset, global) {
+    const fileName = doc?.fileName || global?.fileName || global?.type || 'Document';
+    const entity = global?.entity || (asset ? `${asset.assetType} ${asset.name}` : '—');
+    const expiry = doc?.expiryDate || global?.expiry || '—';
+    const acquired = doc?.acquisitionDate || global?.issued || '—';
+    const docType = doc?.type || global?.type || 'Document';
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${fileName}</title>
+<style>body{font-family:system-ui,sans-serif;padding:32px;color:#1a202c;}h1{font-size:20px;}table{border-collapse:collapse;margin-top:20px;}td,th{border:1px solid #cbd5e0;padding:8px 12px;text-align:left;}th{background:#edf2f7;}.note{margin-top:24px;padding:12px;background:#fffaf0;border-left:4px solid #ed8936;font-size:13px;}</style></head>
+<body onload="window.print()"><h1>${fileName}</h1><p><strong>${docType}</strong> · ${entity}</p>
+<table><tr><th>Acquired</th><td>${acquired}</td></tr><tr><th>Expires</th><td>${expiry}</td></tr><tr><th>Linked asset</th><td>${asset?.id || global?.assetId || '—'}</td></tr></table>
+<div class="note">Preview generated from registry metadata. Upload the file on the asset record to open the original document.</div></body></html>`;
+}
+
+function openDocumentInPrintWindow(doc, asset, global) {
+    const dataUrl = doc?.fileDataUrl;
+    const fileName = doc?.fileName || global?.fileName || 'document';
+    const popup = window.open('', '_blank', 'noopener,noreferrer,width=900,height=700');
+    if (!popup) {
+        showToast('Allow pop-ups to open and print documents', 'warning');
+        return;
+    }
+    if (dataUrl) {
+        const isPdf = /^data:application\/pdf/i.test(dataUrl) || /\.pdf$/i.test(fileName);
+        const isImage = /^data:image\//i.test(dataUrl);
+        if (isPdf) {
+            popup.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${fileName}</title><style>html,body{margin:0;height:100%;}iframe{border:0;width:100%;height:100%;}</style></head><body><iframe src="${dataUrl}"></iframe><script>window.onload=function(){setTimeout(function(){try{window.print();}catch(e){}},400);};<\/script></body></html>`);
+        } else if (isImage) {
+            popup.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${fileName}</title><style>body{margin:0;text-align:center;}img{max-width:100%;height:auto;}</style></head><body><img src="${dataUrl}" alt="${fileName}"><script>window.onload=function(){setTimeout(function(){try{window.print();}catch(e){}},300);};<\/script></body></html>`);
+        } else {
+            popup.location.href = dataUrl;
+            popup.onload = () => { try { popup.print(); } catch (_) { /* ignore */ } };
+        }
+    } else {
+        popup.document.write(buildDocumentPrintHtml(doc, asset, global));
+    }
+    popup.document.close();
+}
+
+function openDocumentFile(docId) {
+    const { global, asset, doc } = getDocumentSource(docId);
+    if (!global && !doc) {
+        showToast('Document not found', 'warning');
+        return;
+    }
+    openDocumentInPrintWindow(doc, asset, global);
+}
+
+function openAssetDocument(assetId, docId) {
+    const asset = getAssetById(assetId);
+    const doc = asset?.documents?.find(d => d.id === docId);
+    if (!doc) {
+        showToast('Document not found on this asset', 'warning');
+        return;
+    }
+    const global = documentsDB.find(d => d.id === docId);
+    openDocumentInPrintWindow(doc, asset, global);
+}
+
 function renderDocumentLink(doc, label) {
-    const text = label || doc.type;
-    return `<a href="#" class="doc-link" onclick="event.preventDefault(); navigateToDocument(${doc.id})" title="View ${doc.fileName || doc.type}">${text}</a>`;
+    const text = label || doc.fileName || doc.type;
+    const safeName = (doc.fileName || doc.type || '').replace(/'/g, "\\'");
+    return `<a href="#" class="doc-link" onclick="event.preventDefault(); openDocumentFile(${doc.id})" title="Open / print ${safeName}">📄 ${text}</a>`;
+}
+
+function renderAssetDocumentFileLink(assetId, doc) {
+    const safeName = (doc.fileName || 'Document').replace(/'/g, "\\'");
+    return `<a href="#" class="doc-link" onclick="event.preventDefault(); openAssetDocument('${assetId}', ${doc.id})" title="Open / print ${safeName}">📄 ${doc.fileName || 'Document'}</a>`;
 }
 
 function navigateToBorder(borderKey) {
@@ -3370,75 +3448,44 @@ function getCommunicationDashboardStats() {
     };
 }
 
+function getAlertCountsByMenu() {
+    const alerts = collectSystemAlerts();
+    const counts = {};
+    const variants = {};
+    alerts.forEach(a => {
+        counts[a.menuKey] = (counts[a.menuKey] || 0) + 1;
+        if (a.level === 'red') variants[a.menuKey] = 'red';
+        else if (a.level === 'orange' && variants[a.menuKey] !== 'red') variants[a.menuKey] = 'warning';
+    });
+    return { alerts, counts, variants };
+}
+
 function updateSidebarBadges() {
+    const { counts, variants } = getAlertCountsByMenu();
     const stats = getSidebarBadgeStats();
     const comm = stats.internalDetail;
-    const alerts = collectSystemAlerts();
-    const alertCountByMenu = {};
-    alerts.forEach(a => { alertCountByMenu[a.menuKey] = (alertCountByMenu[a.menuKey] || 0) + 1; });
 
-    setNavBadge(document.getElementById('navDashboardBadge'), stats.dashboard.atRisk, {
-        title: `${stats.dashboard.atRisk} priority/overdue trip(s) — open Dashboard`,
-        variant: stats.dashboard.red > 0 ? 'red' : 'warning'
-    });
-
-    setNavBadge(document.getElementById('navNbBadge'), stats.nb.total, {
-        title: `${stats.nb.total} NB truck(s)${stats.nb.atRisk ? ` · ${stats.nb.atRisk} priority/overdue` : ''}`,
-        warning: stats.nb.atRisk > 0
-    });
-
-    setNavBadge(document.getElementById('navSbBadge'), stats.sb.total, {
-        title: `${stats.sb.total} SB truck(s)${stats.sb.atRisk ? ` · ${stats.sb.atRisk} priority/overdue` : ''}`,
-        warning: stats.sb.atRisk > 0
-    });
-
-    setNavBadge(document.getElementById('navBorderBadge'), stats.border.total, {
-        title: `${stats.border.total} truck(s) in border clearance${stats.border.atRisk ? ` · ${stats.border.atRisk} need attention` : ''}`,
-        warning: stats.border.atRisk > 0
-    });
-
-    setNavBadge(document.getElementById('navPodBadge'), stats.pod.total, {
-        title: stats.pod.total
-            ? `${stats.pod.total} POD record(s) · ${stats.pod.pending} pending · ${stats.pod.overdue} overdue`
-            : 'No POD records',
-        warning: stats.pod.actionNeeded > 0
-    });
-
-    setNavBadge(document.getElementById('navAreaBadge'), stats.area, {
-        title: `${stats.area} truck(s) across selected areas`,
-        showZero: false
-    });
-
-    setNavBadge(document.getElementById('navMatrixBadge'), alertCountByMenu['communication-matrix'] || 0, {
-        title: alertCountByMenu['communication-matrix'] ? `${alertCountByMenu['communication-matrix']} matrix alert(s)` : `${stats.matrix} contact(s) in Communication Matrix`,
-        warning: (alertCountByMenu['communication-matrix'] || 0) > 0
-    });
-
-    setNavBadge(document.getElementById('navDriverRegistryBadge'), alertCountByMenu['driver-registry'] || 0, {
-        title: alertCountByMenu['driver-registry'] ? `${alertCountByMenu['driver-registry']} driver registry alert(s)` : `${stats.drivers} registered driver(s)`,
-        warning: (alertCountByMenu['driver-registry'] || 0) > 0
-    });
-
-    setNavBadge(document.getElementById('navInternalCommBadge'), stats.internalUnread, {
-        title: `${comm.unreadEmails} unread email(s), ${comm.unreadChats} unread chat(s)`,
-        warning: stats.internalUnread > 0
-    });
-
-    if (typeof getFleetOrderDashboardStats === 'function') {
-        const fo = getFleetOrderDashboardStats();
-        setNavBadge(document.getElementById('navClientOrdersBadge'), fo.pending, {
-            title: `${fo.pending} order(s) awaiting truck allocation`,
-            warning: fo.pending > 0
+    const setMenuBadge = (elId, menuKey, title) => {
+        const n = counts[menuKey] || 0;
+        setNavBadge(document.getElementById(elId), n, {
+            title: n ? title(n) : title(0).replace(/^\d+/, '0'),
+            variant: variants[menuKey] === 'red' ? 'red' : variants[menuKey] === 'warning' ? 'warning' : undefined
         });
-    }
+    };
 
-    if (typeof getHelpdeskStats === 'function') {
-        const hd = getHelpdeskStats();
-        setNavBadge(document.getElementById('navHelpdeskBadge'), hd.mineOpen, {
-            title: `${hd.mineOpen} open helpdesk issue(s)${hd.overdue ? ` · ${hd.overdue} overdue` : ''}`,
-            warning: hd.overdue > 0 || hd.mineOpen > 0
-        });
-    }
+    setMenuBadge('navDashboardBadge', 'dashboard', n => `${n} dashboard alert${n !== 1 ? 's' : ''} — open Dashboard`);
+    setMenuBadge('navNbBadge', 'nb-operations', n => `${n} NB trip alert${n !== 1 ? 's' : ''}`);
+    setMenuBadge('navSbBadge', 'sb-operations', n => `${n} SB trip alert${n !== 1 ? 's' : ''}`);
+    setMenuBadge('navBorderBadge', 'border-clearance', n => `${n} border clearance alert${n !== 1 ? 's' : ''}`);
+    setMenuBadge('navPodBadge', 'pod-management', n => `${n} POD alert${n !== 1 ? 's' : ''}`);
+    setMenuBadge('navAreaBadge', 'area-browser', n => `${n} area truck alert${n !== 1 ? 's' : ''}`);
+    setMenuBadge('navMatrixBadge', 'communication-matrix', n => `${n} communication matrix alert${n !== 1 ? 's' : ''}`);
+    setMenuBadge('navDriverRegistryBadge', 'driver-registry', n => `${n} driver registry alert${n !== 1 ? 's' : ''}`);
+    setMenuBadge('navInternalCommBadge', 'internal-communication', n =>
+        n ? `${n} communication alert${n !== 1 ? 's' : ''}` : `${comm.unreadEmails} unread email(s), ${comm.unreadChats} unread chat(s)`);
+    setMenuBadge('navHelpdeskBadge', 'helpdesk', n => `${n} helpdesk alert${n !== 1 ? 's' : ''}`);
+    setMenuBadge('navClientOrdersBadge', 'client-orders', n => `${n} client order alert${n !== 1 ? 's' : ''}`);
+    setMenuBadge('navAssetsBadge', 'assets', n => `${n} document alert${n !== 1 ? 's' : ''}`);
 
     updateAlertPanel(alertPanelMenuFilter);
 }
@@ -3454,7 +3501,8 @@ const ALERT_MENU_SECTIONS = [
     { key: 'helpdesk', label: 'Helpdesk', icon: '🎫', page: 'helpdesk' },
     { key: 'communication-matrix', label: 'Communication Matrix', icon: '📇', page: 'communication-matrix' },
     { key: 'driver-registry', label: 'Driver Registry', icon: '📱', page: 'driver-registry' },
-    { key: 'assets', label: 'Documents & Assets', icon: '📄', page: 'assets' }
+    { key: 'assets', label: 'Documents & Assets', icon: '📄', page: 'assets' },
+    { key: 'client-orders', label: 'Client Orders', icon: '📦', page: 'client-orders' }
 ];
 
 function collectSystemAlerts() {
@@ -3544,19 +3592,36 @@ function collectSystemAlerts() {
         });
     });
 
-    if (typeof getHelpdeskTicketSla === 'function' && typeof canManageHelpdesk === 'function' && canManageHelpdesk()) {
-        try {
-            const hdStats = typeof getHelpdeskStats === 'function' ? getHelpdeskStats() : null;
-            if (hdStats?.overdue > 0) {
-                alerts.push({
-                    id: 'helpdesk-overdue', menuKey: 'helpdesk', category: 'Helpdesk SLA', level: 'red', icon: '🎫',
-                    title: `${hdStats.overdue} helpdesk issue(s) past target resolve time`,
-                    subtitle: `${hdStats.open} open in team queue`,
-                    time: 'Overdue',
-                    action: { type: 'page', ref: 'helpdesk' }
-                });
-            }
-        } catch (_) { /* ignore */ }
+    if (typeof collectHelpdeskAlertItems === 'function') {
+        collectHelpdeskAlertItems().forEach(item => {
+            alerts.push({
+                id: `helpdesk-${item.id}`,
+                menuKey: 'helpdesk',
+                category: item.overdue ? 'Helpdesk SLA' : 'Helpdesk Issue',
+                level: item.level,
+                icon: item.overdue ? '🔴' : '🎫',
+                title: `${item.ticketNumber} — ${item.subject}`,
+                subtitle: item.subtitle,
+                time: item.time,
+                action: { type: 'page', ref: 'helpdesk' }
+            });
+        });
+    }
+
+    if (typeof getPendingClientOrdersForAlerts === 'function') {
+        getPendingClientOrdersForAlerts().forEach(order => {
+            alerts.push({
+                id: `order-${order.id}`,
+                menuKey: 'client-orders',
+                category: 'Client Order',
+                level: order.kpi === 'red' ? 'red' : 'orange',
+                icon: '📦',
+                title: `${order.orderNumber || order.id} — awaiting allocation`,
+                subtitle: `${order.clientName || 'Client'} · ${order.origin || '—'} → ${order.destination || '—'}`,
+                time: order.status === 'draft' ? 'Draft order' : 'Confirmed — allocate fleet',
+                action: { type: 'page', ref: 'client-orders' }
+            });
+        });
     }
 
     const dashAtRisk = getDashboardSidebarStats().atRisk;
@@ -4832,11 +4897,11 @@ function renderDocumentDetail(container) {
                 <div class="doc-preview-box">
                     <div class="doc-preview-icon">📄</div>
                     <div>
-                        <div style="font-weight:600;font-size:15px;">${doc.fileName || doc.type + '.pdf'}</div>
+                        <div style="font-weight:600;font-size:15px;">${renderDocumentLink(doc, doc.fileName || doc.type + '.pdf')}</div>
                         <div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">${doc.category || 'Document'} · Linked to ${doc.entity}</div>
                         ${trip ? `<div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">Trip status: ${trip.status} · ${trip.direction}</div>` : ''}
                     </div>
-                    <button class="btn btn-primary btn-sm" onclick="showToast('📄 Opening ${doc.fileName || doc.type}...','success')">📥 Open Document</button>
+                    <button class="btn btn-primary btn-sm" onclick="openDocumentFile(${doc.id})">📥 Open / Print</button>
                 </div>
             </div>
         </div>
@@ -5285,7 +5350,8 @@ function syncAssetDocumentToGlobalRegistry(doc, asset) {
         category: doc.type,
         assetId: asset.id,
         uploaded: !!doc.uploaded,
-        fileSize: doc.fileSize || null
+        fileSize: doc.fileSize || null,
+        fileDataUrl: doc.fileDataUrl || null
     };
     if (existing) Object.assign(existing, record);
     else documentsDB.push(record);
@@ -5458,7 +5524,8 @@ function handleAssetDocFileSelect(event) {
     assetDocUploadedFile = {
         name: file.name,
         size: (file.size / 1024).toFixed(1) + ' KB',
-        type: file.type || 'application/octet-stream'
+        type: file.type || 'application/octet-stream',
+        dataUrl: null
     };
 
     const fileNameInput = document.getElementById('assetDocFileName');
@@ -5468,10 +5535,25 @@ function handleAssetDocFileSelect(event) {
 
     const list = document.getElementById('assetDocFileList');
     const area = document.getElementById('assetDocUploadArea');
-    if (list) {
-        list.innerHTML = `<div class="file-item"><span>📄 ${assetDocUploadedFile.name} (${assetDocUploadedFile.size})</span><span class="remove-file" onclick="removeAssetDocFile()">✕</span></div>`;
-    }
-    if (area) area.classList.add('has-file');
+    const renderSelectedFile = () => {
+        if (list) {
+            list.innerHTML = `<div class="file-item"><span>📄 ${assetDocUploadedFile.name} (${assetDocUploadedFile.size})</span><span class="remove-file" onclick="removeAssetDocFile()">✕</span></div>`;
+        }
+        if (area) area.classList.add('has-file');
+    };
+
+    const reader = new FileReader();
+    reader.onload = () => {
+        if (!assetDocUploadedFile) return;
+        assetDocUploadedFile.dataUrl = reader.result;
+        renderSelectedFile();
+    };
+    reader.onerror = () => {
+        showToast('Could not read the selected file', 'warning');
+        clearAssetDocUpload();
+    };
+    reader.readAsDataURL(file);
+    renderSelectedFile();
 }
 
 function removeAssetDocFile() {
@@ -5571,6 +5653,10 @@ function submitAddAssetDocument() {
         showToast('Please upload the document file', 'warning');
         return;
     }
+    if (!assetDocUploadedFile.dataUrl) {
+        showToast('File is still loading — please wait a moment and try again', 'warning');
+        return;
+    }
     if (!fileName) {
         showToast('File name is required', 'warning');
         return;
@@ -5589,7 +5675,8 @@ function submitAddAssetDocument() {
         uploaded: true,
         uploadedAt: new Date().toISOString(),
         fileSize: assetDocUploadedFile.size,
-        fileType: assetDocUploadedFile.type
+        fileType: assetDocUploadedFile.type,
+        fileDataUrl: assetDocUploadedFile.dataUrl
     };
     if (!asset.documents) asset.documents = [];
     asset.documents.push(doc);
@@ -5657,15 +5744,11 @@ function renderAssetDetailContent(asset) {
                     ${docs.map(d => `
                         <tr>
                             <td style="padding:8px;">${d.type}</td>
-                            <td style="padding:8px;">
-                                ${d.fileName}
-                                ${d.uploaded ? '<br><small style="color:var(--green);">📎 File uploaded</small>' : ''}
-                            </td>
+                            <td style="padding:8px;">${renderAssetDocumentFileLink(asset.id, d)}${d.uploaded ? '<br><small style="color:var(--green);">📎 File uploaded</small>' : ''}</td>
                             <td style="padding:8px;">${d.acquisitionDate}</td>
                             <td style="padding:8px;">${d.expiryDate}</td>
                             <td style="padding:8px;">
                                 <span class="status-badge ${d.kpi}">${d.label}</span>
-                                ${d.uploaded ? `<br><button type="button" class="btn btn-outline btn-sm" style="margin-top:4px;" onclick="showToast('📄 Opening ${d.fileName}...','success')">📥 Open</button>` : ''}
                             </td>
                         </tr>
                     `).join('')}

@@ -216,6 +216,27 @@
         };
     };
 
+    window.collectHelpdeskAlertItems = function () {
+        const me = getCurrentUserInfo();
+        const source = canManageHelpdesk() ? teamTicketsDB : myTicketsDB;
+        return source
+            .filter(t => !['resolved', 'closed'].includes(t.status))
+            .filter(t => canManageHelpdesk() || t.reporterUserId === me.id || t.reporterUsername === me.username)
+            .map(t => {
+                const sla = getHelpdeskTicketSla(t);
+                const overdue = sla.level === 'red';
+                return {
+                    id: t.id,
+                    ticketNumber: t.ticketNumber || t.id,
+                    subject: t.subject || 'Helpdesk issue',
+                    level: overdue ? 'red' : (t.priority === 'high' ? 'orange' : 'blue'),
+                    overdue,
+                    subtitle: `${t.category || 'Issue'} · ${t.status}`,
+                    time: overdue ? (sla.label || 'Overdue') : (t.updatedAt || 'Open')
+                };
+            });
+    };
+
     function filteredTickets(list) {
         const q = (helpdeskFilter.search || '').toLowerCase();
         return list.filter(t => {
