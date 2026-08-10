@@ -12,7 +12,7 @@ for script in $(grep -oP '(?<=src=")[^"]+\.js' index.html | grep -v '^https'); d
   fi
 done
 
-REQUIRED="favicon.svg bulk-actions.js soft-delete.js database-tools.js internal-communication.js"
+REQUIRED="favicon.svg bulk-actions.js soft-delete.js database-tools.js internal-communication.js control-room-ui.js images/login-hero.jpg"
 for f in $REQUIRED; do
   if [ ! -f "$f" ]; then
     echo "MISSING required file: $f"

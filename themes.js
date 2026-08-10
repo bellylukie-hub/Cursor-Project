@@ -6,6 +6,31 @@
 
     const APP_THEMES = [
         {
+            id: 'control-room-black',
+            name: 'Control Room Black',
+            description: 'Special black operations console — dark UI with orange accents (default).',
+            icon: '🖥️',
+            preview: ['#0a0a0c', '#f97316', '#16161c'],
+            vars: {
+                '--primary': '#0a0a0c',
+                '--primary-light': '#f97316',
+                '--bg-main': '#0f1014',
+                '--bg-sidebar': '#0a0a0c',
+                '--bg-card': '#16161c',
+                '--text-primary': '#f3f4f6',
+                '--text-secondary': '#9ca3af',
+                '--border': '#2a2a32',
+                '--logo-grad-start': '#fb923c',
+                '--logo-grad-end': '#ea580c',
+                '--sidebar-accent': '#fb923c',
+                '--sidebar-nav-active': 'rgba(249, 115, 22, 0.2)',
+                '--accent-orange': '#f97316',
+                '--topbar-bg': '#121218',
+                '--input-bg': '#1c1c24',
+                '--input-border': '#33333d'
+            }
+        },
+        {
             id: 'ocean-blue',
             name: 'Ocean Blue',
             description: 'Classic professional blue — the default TruckControl look.',
@@ -195,6 +220,7 @@
         root.setAttribute('data-theme', theme.id);
         Object.entries(theme.vars).forEach(([key, val]) => root.style.setProperty(key, val));
         document.body?.classList.toggle('theme-light-sidebar', theme.id === 'arctic-light');
+        document.body?.classList.toggle('layout-control-room', theme.id === 'control-room-black');
         return theme;
     };
 
@@ -226,24 +252,24 @@
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
             const stored = raw ? JSON.parse(raw) : null;
-            const id = stored?.activeTheme || window.systemSettingsDB?.activeTheme || 'ocean-blue';
+            const id = stored?.activeTheme || window.systemSettingsDB?.activeTheme || 'control-room-black';
             applyAppTheme(id);
             if (window.systemSettingsDB && !window.systemSettingsDB.activeTheme) {
                 window.systemSettingsDB.activeTheme = id;
             }
         } catch {
-            applyAppTheme('ocean-blue');
+            applyAppTheme('control-room-black');
         }
     };
 
     window.refreshAppLogo = function () {
         const sidebar = document.getElementById('sidebarLogoWrap');
-        const login = document.getElementById('loginLogoWrap');
+        const loginHero = document.getElementById('loginHeroBrand');
         if (sidebar && typeof getAppLogoBlockHtml === 'function') {
             sidebar.innerHTML = getAppLogoBlockHtml();
         }
-        if (login && typeof getAppLogoBlockHtml === 'function') {
-            login.innerHTML = getAppLogoBlockHtml('compact', { clickable: false });
+        if (loginHero && typeof getAppLogoBlockHtml === 'function') {
+            loginHero.innerHTML = getAppLogoBlockHtml('compact', { clickable: false });
         }
         const s = window.systemSettingsDB;
         if (s?.appName) {

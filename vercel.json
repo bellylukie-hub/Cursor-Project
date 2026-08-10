@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "name": "truckcontrol",
+  "buildCommand": "chmod +x scripts/verify-production-package.sh && ./scripts/verify-production-package.sh",
+  "outputDirectory": ".",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" }
+      ]
+    }
+  ]
+}

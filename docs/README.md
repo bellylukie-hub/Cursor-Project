@@ -13,6 +13,7 @@ Welcome to the TruckControl documentation set included in the production ZIP.
 | [../START-HERE.txt](../START-HERE.txt) | Everyone | One-page quick start after extracting the ZIP |
 | **[COMPLETE-MANUAL.md](COMPLETE-MANUAL.md)** | **Everyone** | **Full book with illustrations — step-by-step app use, chatbot, bulk actions, admin** |
 | [INSTALLATION.md](INSTALLATION.md) | IT / server admins | **Master install guide** — Docker, WAMP, Linux, Windows, PM2, domain, HTTPS |
+| [VERCEL-DEPLOY.md](VERCEL-DEPLOY.md) | IT / frontend deploy | **Deploy UI on Vercel** + API on Docker/Railway |
 | [USER-GUIDE.md](USER-GUIDE.md) | Operations users | Shorter operating directive — menus, workflows, uploads |
 | [../PRODUCTION.md](../PRODUCTION.md) | DevOps | Environment variables, PM2, security checklist, API auth |
 | [../DOWNLOAD.md](../DOWNLOAD.md) | Everyone | Download, build ZIP, deploy on domain |

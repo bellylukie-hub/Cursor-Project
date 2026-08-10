@@ -2611,6 +2611,7 @@ function navigateTo(page) {
     updateSidebarBadges();
     updateTopBarUser();
     updateDocumentTitle(page);
+    if (typeof syncControlRoomModuleForPage === 'function') syncControlRoomModuleForPage(page);
 }
 
 function navigateToPOD(filter) {
