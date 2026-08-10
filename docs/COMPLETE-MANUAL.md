@@ -1,8 +1,10 @@
 # TruckControl — Complete User & Administrator Manual
 
 **Product:** Truck Turnaround & Operations Control System  
-**Manual version:** v2.2.0-production  
+**Manual version:** v2.2.1-production  
 **Audience:** Operations staff, dispatchers, border moderators, FMS users, managers, and system administrators
+
+> **Illustrations:** This manual includes diagrams in `docs/images/`. View on GitHub, VS Code, or any Markdown viewer that supports SVG images.
 
 ---
 
@@ -36,6 +38,8 @@ TruckControl is a web application for managing truck operations across borders a
 - **Tracking** — position live, fleet map with GPS pins
 - **Administration** — users, roles, KPIs, permissions, system settings
 
+![TruckControl application overview — operations, FMS, communication, and admin modules](images/app-overview.svg)
+
 ## 1.2 Sign in
 
 1. Open your browser (Chrome, Edge, or Firefox).
@@ -55,7 +59,11 @@ TruckControl is a web application for managing truck operations across borders a
 
 Default password: `ChangeMe123!` (unless changed in server `.env`).
 
+![Login screen — enter username and password, then click Sign In](images/login-screen.svg)
+
 ## 1.3 Screen layout
+
+![Application screen layout — sidebar, top bar, main content, and help assistant](images/screen-layout.svg)
 
 ```
 ┌─────────────────┬──────────────────────────────────────────┐
@@ -95,6 +103,8 @@ If a menu is missing, ask your Super Admin to check **Module Permissions** and *
 | 🟠 **Orange** | Priority — approaching deadline |
 | 🔴 **Red** | Overdue — past SLA target |
 
+![KPI colour legend — green on track, orange priority, red overdue](images/kpi-legend.svg)
+
 ---
 
 # Part II — Using the Application (Step by Step)
@@ -119,6 +129,8 @@ If a menu is missing, ask your Super Admin to check **Module Permissions** and *
 **Menu:** Operations → **NB Operations**
 
 **Workflow order:** Border → Kanyaka → Offloading → POD
+
+![NB Operations workflow diagram](images/nb-workflow.svg)
 
 ### Upload today's NB live file
 
@@ -151,6 +163,8 @@ If a menu is missing, ask your Super Admin to check **Module Permissions** and *
 **Menu:** Operations → **SB Operations**
 
 **Workflow order:** Loading → Documents → Seal → Escort → Dispatch → Kanyaka → Border Exit
+
+![SB Operations workflow diagram](images/sb-workflow.svg)
 
 **Steps:** Same pattern as NB Operations:
 1. **Upload SB Live File**
@@ -250,6 +264,8 @@ If a menu is missing, ask your Super Admin to check **Module Permissions** and *
 
 **Purpose:** Log web app issues; technical team manages SLA queue.
 
+![Helpdesk workflow — user reports issue, tech team resolves, SLA KPI tracked](images/helpdesk-workflow.svg)
+
 ### Report a new issue (any user)
 
 1. Open **Helpdesk**.
@@ -313,6 +329,8 @@ If a menu is missing, ask your Super Admin to check **Module Permissions** and *
 ## 2.13 Client Orders
 
 **Menu:** Management → **Client Orders**
+
+![FMS workflow — Clients → Route Catalog → Client Orders → Trip Scheduler → Fleet Registry](images/fms-workflow.svg)
 
 **Purpose:** Full FMS order form linked to routes and trip scheduler.
 
@@ -399,6 +417,8 @@ Use the filter bar: shipper, status, dates, container number, cargo type, etc.
 **Menu:** Management → **Fleet Map**
 
 **Purpose:** Interactive map of all trucks with GPS coordinates.
+
+![Fleet Map — click a GPS pin to view truck details and open position map](images/fleet-map.svg)
 
 **Steps:**
 1. Open **Fleet Map**.
@@ -500,6 +520,8 @@ On any trip row in operations tables:
 
 # Part III — Help Assistant (Chatbot)
 
+![Help assistant chatbot — ask questions, use quick chips, get step-by-step answers](images/help-assistant.svg)
+
 ## 3.1 Opening the help assistant
 
 1. Look for the **Help** button or chat icon (usually bottom-right of the screen).
@@ -560,6 +582,8 @@ If you ask about admin features (users, roles, KPI settings) without permission,
 ## 4.1 Recommended setup order
 
 Configure the system in this order for a new production deployment:
+
+![Recommended admin setup order — users, roles, permissions, KPI, FMS, master data](images/admin-setup-order.svg)
 
 ```
 1. Manage Users          → create real accounts, change passwords
@@ -785,6 +809,8 @@ Configure the system in this order for a new production deployment:
 
 **Purpose:** Fine-grained **View / Edit / Delete** per module and per area for each user.
 
+![Module permissions matrix — view, edit, delete per module and area](images/module-permissions.svg)
+
 **Steps:**
 1. Open **Module Permissions**.
 2. Select a user from the list.
@@ -983,7 +1009,8 @@ Expected: `"status":"ok"` and `"requireAuth":true` for production.
 | Field | Value |
 |-------|-------|
 | Manual title | TruckControl Complete User & Administrator Manual |
-| Version | v2.2.0-production |
+| Version | v2.2.1-production |
+| Illustrations | `docs/images/*.svg` (12 diagrams) |
 | Last updated | August 2026 |
 | Related | INSTALLATION.md, USER-GUIDE.md, PRODUCTION.md |
 

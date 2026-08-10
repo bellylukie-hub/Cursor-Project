@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" role="img" aria-label="Application screen layout">
+  <rect width="900" height="520" fill="#edf2f7"/>
+  <text x="450" y="34" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#1a365d">Application Screen Layout</text>
+  <rect x="30" y="55" width="840" height="430" rx="12" fill="#fff" stroke="#cbd5e0" stroke-width="2"/>
+  <rect x="30" y="55" width="200" height="430" rx="12" fill="#1e2a3a"/>
+  <rect x="30" y="55" width="200" height="56" fill="#1a365d"/>
+  <text x="130" y="88" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" fill="#fff">=› TruckControl</text>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="12">
+    <rect x="38" y="125" width="184" height="32" fill="#2b6cb0" opacity="0.35"/>
+    <text x="50" y="145" fill="#fff" font-weight="600">=Ê Dashboard</text>
+    <text x="50" y="178" fill="#b8c7d9">=› NB Operations</text>
+    <text x="50" y="202" fill="#b8c7d9">=› SB Operations</text>
+    <text x="50" y="226" fill="#b8c7d9">=Â Border Clearance</text>
+    <text x="50" y="258" fill="#5f7d9c" font-size="10" letter-spacing="1">MANAGEMENT</text>
+    <text x="50" y="280" fill="#b8c7d9">=æ Client Orders</text>
+    <text x="50" y="304" fill="#b8c7d9">=Å Trip Scheduler</text>
+    <text x="50" y="328" fill="#b8c7d9">=ú Fleet Map</text>
+    <text x="50" y="360" fill="#5f7d9c" font-size="10" letter-spacing="1">ADMIN</text>
+    <text x="50" y="382" fill="#b8c7d9">=e Manage Users</text>
+    <circle cx="200" cy="178" r="10" fill="#e53e3e"/><text x="196" y="182" fill="#fff" font-size="9" font-weight="700">3</text>
+  </g>
+  <text x="120" y="470" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#718096">` Sidebar navigation + badges</text>
+  <rect x="240" y="55" width="630" height="48" fill="#f7fafc" stroke="#e2e8f0"/>
+  <text x="260" y="84" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#1a365d">NB Operations</text>
+  <text x="780" y="84" text-anchor="end" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#4a5568">= 5  =d super_admin</text>
+  <text x="520" y="470" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#718096">a Top bar  title, alerts, user menu</text>
+  <rect x="260" y="120" width="590" height="70" rx="8" fill="#ebf8ff" stroke="#bee3f8"/>
+  <text x="280" y="148" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#2b6cb0" font-weight="700">KPI Cards</text>
+  <rect x="280" y="158" width="90" height="24" rx="4" fill="#fff"/><text x="325" y="174" text-anchor="middle" font-size="11" fill="#2d3748">42 Active</text>
+  <rect x="385" y="158" width="90" height="24" rx="4" fill="#fff"/><text x="430" y="174" text-anchor="middle" font-size="11" fill="#dd6b20">8 Priority</text>
+  <rect x="490" y="158" width="90" height="24" rx="4" fill="#fff"/><text x="535" y="174" text-anchor="middle" font-size="11" fill="#e53e3e">3 Overdue</text>
+  <rect x="260" y="205" width="590" height="36" rx="6" fill="#f7fafc" stroke="#e2e8f0"/>
+  <text x="280" y="228" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#718096">= Search · Filters · =ä Upload · Columns</text>
+  <rect x="260" y="255" width="590" height="180" rx="8" fill="#fff" stroke="#e2e8f0"/>
+  <line x1="260" y1="285" x2="850" y2="285" stroke="#e2e8f0"/>
+  <line x1="340" y1="255" x2="340" y2="435" stroke="#e2e8f0"/>
+  <line x1="460" y1="255" x2="460" y2="435" stroke="#e2e8f0"/>
+  <line x1="580" y1="255" x2="580" y2="435" stroke="#e2e8f0"/>
+  <text x="300" y="278" text-anchor="middle" font-size="11" font-weight="700" fill="#4a5568">Trip</text>
+  <text x="400" y="278" text-anchor="middle" font-size="11" font-weight="700" fill="#4a5568">Truck</text>
+  <text x="520" y="278" text-anchor="middle" font-size="11" font-weight="700" fill="#4a5568">Border</text>
+  <text x="700" y="278" text-anchor="middle" font-size="11" font-weight="700" fill="#4a5568">KPI</text>
+  <circle cx="720" cy="320" r="8" fill="#38a169"/><circle cx="720" cy="360" r="8" fill="#dd6b20"/><circle cx="720" cy="400" r="8" fill="#e53e3e"/>
+  <text x="555" y="470" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#718096">b Main content  filters, table, actions</text>
+  <rect x="760" y="400" width="100" height="70" rx="10" fill="#1a365d"/>
+  <text x="810" y="430" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#fff">=¬ Help</text>
+  <text x="810" y="448" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#bee3f8">Assistant</text>
+  <text x="810" y="490" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#718096">c Help chatbot</text>
+</svg>

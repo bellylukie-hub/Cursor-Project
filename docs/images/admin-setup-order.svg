@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 520" role="img" aria-label="Admin setup order">
+  <rect width="700" height="520" fill="#edf2f7"/>
+  <text x="350" y="34" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#1a365d">Recommended Admin Setup Order</text>
+  <line x1="350" y1="55" x2="350" y2="470" stroke="#cbd5e0" stroke-width="3"/>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="12">
+    <circle cx="350" cy="75" r="14" fill="#2b6cb0"/><text x="346" y="80" fill="#fff" font-weight="700">1</text>
+    <rect x="380" y="58" width="280" height="34" rx="6" fill="#fff" stroke="#e2e8f0"/><text x="395" y="80" fill="#2d3748">Manage Users  create accounts, change passwords</text>
+    <circle cx="350" cy="125" r="14" fill="#2b6cb0"/><text x="344" y="130" fill="#fff" font-weight="700">2</text>
+    <rect x="380" y="108" width="280" height="34" rx="6" fill="#fff" stroke="#e2e8f0"/><text x="395" y="130" fill="#2d3748">Role Manager  review permissions</text>
+    <circle cx="350" cy="175" r="14" fill="#2b6cb0"/><text x="344" y="180" fill="#fff" font-weight="700">3</text>
+    <rect x="380" y="158" width="280" height="34" rx="6" fill="#fff" stroke="#e2e8f0"/><text x="395" y="180" fill="#2d3748">System Settings  app name, session, sign-ups OFF</text>
+    <circle cx="350" cy="225" r="14" fill="#3182ce"/><text x="344" y="230" fill="#fff" font-weight="700">4</text>
+    <rect x="380" y="208" width="280" height="34" rx="6" fill="#fff" stroke="#e2e8f0"/><text x="395" y="230" fill="#2d3748">Area Assignments + Module Permissions</text>
+    <circle cx="350" cy="275" r="14" fill="#3182ce"/><text x="344" y="280" fill="#fff" font-weight="700">5</text>
+    <rect x="380" y="258" width="280" height="34" rx="6" fill="#fff" stroke="#e2e8f0"/><text x="395" y="280" fill="#2d3748">KPI Settings + Helpdesk SLA Settings</text>
+    <circle cx="350" cy="325" r="14" fill="#4299e1"/><text x="344" y="330" fill="#fff" font-weight="700">6</text>
+    <rect x="380" y="308" width="280" height="34" rx="6" fill="#fff" stroke="#e2e8f0"/><text x="395" y="330" fill="#2d3748">Freight &amp; FMS Settings + Upload Templates</text>
+    <circle cx="350" cy="375" r="14" fill="#38a169"/><text x="344" y="380" fill="#fff" font-weight="700">7</text>
+    <rect x="380" y="358" width="280" height="34" rx="6" fill="#fff" stroke="#e2e8f0"/><text x="395" y="380" fill="#2d3748">Master data: Clients · Routes · Fleet</text>
+    <circle cx="350" cy="425" r="14" fill="#38a169"/><text x="344" y="430" fill="#fff" font-weight="700">8</text>
+    <rect x="380" y="408" width="280" height="34" rx="6" fill="#fff" stroke="#e2e8f0"/><text x="395" y="430" fill="#2d3748">Test: upload NB file · create order · helpdesk ticket</text>
+  </g>
+  <rect x="40" y="460" width="620" height="44" rx="8" fill="#fffaf0" stroke="#ed8936"/>
+  <text x="350" y="487" text-anchor="middle" font-size="12" fill="#c05621">Set RUN_SEED=false in server .env after first deploy · Change all default passwords</text>
+</svg>

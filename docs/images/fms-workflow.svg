@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 280" role="img" aria-label="FMS workflow">
+  <rect width="900" height="280" fill="#f7fafc"/>
+  <text x="450" y="32" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#1a365d">Freight Management (FMS)  Setup &amp; Daily Flow</text>
+  <g font-family="Segoe UI, Arial, sans-serif">
+    <rect x="30" y="55" width="120" height="70" rx="10" fill="#2b6cb0"/>
+    <text x="90" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">Clients</text>
+    <text x="90" y="108" text-anchor="middle" font-size="10" fill="#ebf8ff">Register customers</text>
+    <text x="165" y="92" font-size="22" fill="#2b6cb0">’</text>
+    <rect x="180" y="55" width="130" height="70" rx="10" fill="#3182ce"/>
+    <text x="245" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">Route Catalog</text>
+    <text x="245" y="108" text-anchor="middle" font-size="10" fill="#ebf8ff">Stations &amp; routes</text>
+    <text x="325" y="92" font-size="22" fill="#2b6cb0">’</text>
+    <rect x="340" y="55" width="130" height="70" rx="10" fill="#4299e1"/>
+    <text x="405" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">Client Orders</text>
+    <text x="405" y="108" text-anchor="middle" font-size="10" fill="#ebf8ff">Create cargo order</text>
+    <text x="485" y="92" font-size="22" fill="#2b6cb0">’</text>
+    <rect x="500" y="55" width="130" height="70" rx="10" fill="#63b3ed"/>
+    <text x="565" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">Trip Scheduler</text>
+    <text x="565" y="108" text-anchor="middle" font-size="10" fill="#1a365d">Assign fleet + orders</text>
+    <text x="645" y="92" font-size="22" fill="#2b6cb0">’</text>
+    <rect x="660" y="55" width="130" height="70" rx="10" fill="#1a365d"/>
+    <text x="725" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">Fleet Registry</text>
+    <text x="725" y="108" text-anchor="middle" font-size="10" fill="#bee3f8">Truck · Trailer · GPS</text>
+  </g>
+  <rect x="100" y="155" width="700" height="95" rx="10" fill="#fff" stroke="#e2e8f0"/>
+  <text x="450" y="180" text-anchor="middle" font-size="13" font-weight="700" fill="#2d3748">Trip Scheduler auto-fill</text>
+  <text x="450" y="202" text-anchor="middle" font-size="11" fill="#4a5568">Select Client Order from dropdown ’ route, cargo, borders, containers fill automatically</text>
+  <text x="450" y="222" text-anchor="middle" font-size="11" fill="#4a5568">Save trip ’ orders marked allocated · truck appears in operations tables</text>
+  <text x="450" y="242" text-anchor="middle" font-size="11" fill="#718096">Configure rules: Admin ’ Freight &amp; FMS Settings</text>
+  <text x="450" y="272" text-anchor="middle" font-size="11" fill="#718096">Track trucks: Fleet Map · Position Live (GPS pins)</text>
+</svg>

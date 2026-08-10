@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 340" role="img" aria-label="Module permissions matrix">
+  <rect width="800" height="340" fill="#edf2f7"/>
+  <text x="400" y="32" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#1a365d">Module Permissions  View / Edit / Delete</text>
+  <rect x="60" y="55" width="680" height="250" rx="10" fill="#fff" stroke="#e2e8f0"/>
+  <rect x="60" y="55" width="680" height="36" fill="#1a365d"/>
+  <text x="200" y="78" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" fill="#fff">Module</text>
+  <text x="400" y="78" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" fill="#fff">Area</text>
+  <text x="530" y="78" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" fill="#fff">View</text>
+  <text x="610" y="78" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" fill="#fff">Edit</text>
+  <text x="690" y="78" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" fill="#fff">Delete</text>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#2d3748">
+    <line x1="60" y1="115" x2="740" y2="115" stroke="#e2e8f0"/>
+    <text x="80" y="108">NB Operations</text><text x="400" y="108" text-anchor="middle">Kasumbalesa</text>
+    <rect x="515" y="94" width="30" height="20" rx="3" fill="#c6f6d5" stroke="#38a169"/><text x="530" y="108" text-anchor="middle" font-size="10"></text>
+    <rect x="595" y="94" width="30" height="20" rx="3" fill="#c6f6d5" stroke="#38a169"/><text x="610" y="108" text-anchor="middle" font-size="10"></text>
+    <rect x="675" y="94" width="30" height="20" rx="3" fill="#fed7d7" stroke="#e53e3e"/>
+    <line x1="60" y1="145" x2="740" y2="145" stroke="#e2e8f0"/>
+    <text x="80" y="138">Client Orders</text><text x="400" y="138" text-anchor="middle">_global</text>
+    <rect x="515" y="124" width="30" height="20" rx="3" fill="#c6f6d5" stroke="#38a169"/><text x="530" y="138" text-anchor="middle" font-size="10"></text>
+    <rect x="595" y="124" width="30" height="20" rx="3" fill="#c6f6d5" stroke="#38a169"/><text x="610" y="138" text-anchor="middle" font-size="10"></text>
+    <rect x="675" y="124" width="30" height="20" rx="3" fill="#fed7d7" stroke="#e53e3e"/>
+    <line x1="60" y1="175" x2="740" y2="175" stroke="#e2e8f0"/>
+    <text x="80" y="168">Helpdesk</text><text x="400" y="168" text-anchor="middle">_global</text>
+    <rect x="515" y="154" width="30" height="20" rx="3" fill="#c6f6d5" stroke="#38a169"/><text x="530" y="168" text-anchor="middle" font-size="10"></text>
+    <rect x="595" y="154" width="30" height="20" rx="3" fill="#feebc8" stroke="#dd6b20"/>
+    <rect x="675" y="154" width="30" height="20" rx="3" fill="#fed7d7" stroke="#e53e3e"/>
+    <line x1="60" y1="205" x2="740" y2="205" stroke="#e2e8f0"/>
+    <text x="80" y="198">Fleet Map</text><text x="400" y="198" text-anchor="middle">_global</text>
+    <rect x="515" y="184" width="30" height="20" rx="3" fill="#c6f6d5" stroke="#38a169"/><text x="530" y="198" text-anchor="middle" font-size="10"></text>
+    <rect x="595" y="184" width="30" height="20" rx="3" fill="#fed7d7" stroke="#e53e3e"/>
+    <rect x="675" y="184" width="30" height="20" rx="3" fill="#fed7d7" stroke="#e53e3e"/>
+  </g>
+  <text x="400" y="240" text-anchor="middle" font-size="11" fill="#718096">Admin ’ Module Permissions ’ select user ’ set checkboxes ’ Save</text>
+  <text x="400" y="260" text-anchor="middle" font-size="11" fill="#718096">Global modules (FMS, Helpdesk) use _global · Operations modules use per-area rows</text>
+  <text x="400" y="320" text-anchor="middle" font-size="11" fill="#718096">If a user cannot see a menu, check Module Permissions and Area Assignments together</text>
+</svg>

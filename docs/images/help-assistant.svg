@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 460" role="img" aria-label="Help assistant chatbot">
+  <rect width="800" height="460" fill="#edf2f7"/>
+  <text x="400" y="32" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#1a365d">Help Assistant (Chatbot)</text>
+  <rect x="60" y="55" width="520" height="360" rx="12" fill="#fff" stroke="#e2e8f0" stroke-width="2"/>
+  <rect x="60" y="55" width="520" height="44" rx="12" fill="#1a365d"/>
+  <rect x="60" y="87" width="520" height="12" fill="#1a365d"/>
+  <text x="320" y="82" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" fill="#fff">=¬ TruckControl Help Assistant</text>
+  <rect x="80" y="115" width="320" height="56" rx="12" fill="#ebf8ff" stroke="#bee3f8"/>
+  <text x="95" y="138" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#2d3748">How do I upload NB live file?</text>
+  <rect x="200" y="185" width="360" height="90" rx="12" fill="#f7fafc" stroke="#e2e8f0"/>
+  <text x="215" y="208" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" fill="#1a365d">Assistant:</text>
+  <text x="215" y="228" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#4a5568">1. Open NB Operations</text>
+  <text x="215" y="246" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#4a5568">2. Click =ä Upload NB Live File</text>
+  <text x="215" y="264" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#4a5568">3. Select your CSV template file</text>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="11">
+    <rect x="80" y="295" width="110" height="28" rx="14" fill="#e2e8f0"/><text x="135" y="313" text-anchor="middle" fill="#2d3748">Menu guide</text>
+    <rect x="200" y="295" width="110" height="28" rx="14" fill="#e2e8f0"/><text x="255" y="313" text-anchor="middle" fill="#2d3748">NB workflow</text>
+    <rect x="320" y="295" width="110" height="28" rx="14" fill="#e2e8f0"/><text x="375" y="313" text-anchor="middle" fill="#2d3748">My access</text>
+    <rect x="440" y="295" width="120" height="28" rx="14" fill="#e2e8f0"/><text x="500" y="313" text-anchor="middle" fill="#2d3748">Trip Scheduler</text>
+  </g>
+  <rect x="80" y="345" width="440" height="36" rx="8" fill="#fff" stroke="#cbd5e0"/>
+  <text x="95" y="368" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#a0aec0">Type your question here...</text>
+  <rect x="530" y="345" width="36" height="36" rx="8" fill="#2b6cb0"/>
+  <text x="548" y="368" text-anchor="middle" font-size="14" fill="#fff">¤</text>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#4a5568">
+    <text x="620" y="100" font-weight="700" fill="#1a365d">How to open</text>
+    <text x="620" y="122">Click =¬ Help button</text>
+    <text x="620" y="140">(bottom-right corner)</text>
+    <text x="620" y="180" font-weight="700" fill="#1a365d">What to ask</text>
+    <text x="620" y="202">" Any menu name</text>
+    <text x="620" y="222">" "NB workflow"</text>
+    <text x="620" y="242">" "Report issue"</text>
+    <text x="620" y="262">" "What can I access?"</text>
+    <text x="620" y="302" font-weight="700" fill="#1a365d">Quick chips</text>
+    <text x="620" y="324">Click suggestions for</text>
+    <text x="620" y="344">instant answers</text>
+  </g>
+  <text x="400" y="440" text-anchor="middle" font-size="12" fill="#718096">The assistant knows your role, areas, and current page for context-aware help</text>
+</svg>

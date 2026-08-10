@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 420" role="img" aria-label="Fleet map with GPS pins">
+  <rect width="800" height="420" fill="#e6f4ea"/>
+  <text x="400" y="32" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#1a365d">Fleet Map  Click a Pin to See Truck Position</text>
+  <rect x="50" y="50" width="700" height="300" rx="10" fill="#aad3df" stroke="#8ab4c4"/>
+  <path d="M0,0" fill="none"/>
+  <text x="120" y="120" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#5a7a6a" opacity="0.6">OpenStreetMap tiles</text>
+  <path d="M100,200 Q200,150 300,180 T500,160 T650,220" stroke="#8ab4c4" stroke-width="8" fill="none" opacity="0.5"/>
+  <g>
+    <path d="M180,160 l0,24 c0,8 -16,16 -16,16 s-16,-8 -16,-16 l0,-24 c0,-9 7,-16 16,-16 s16,7 16,16z" fill="#dd6b20" stroke="#fff" stroke-width="2"/>
+    <circle cx="180" cy="160" r="5" fill="#fff"/>
+    <path d="M380,200 l0,24 c0,8 -16,16 -16,16 s-16,-8 -16,-16 l0,-24 c0,-9 7,-16 16,-16 s16,7 16,16z" fill="#38a169" stroke="#fff" stroke-width="2"/>
+    <circle cx="380" cy="200" r="5" fill="#fff"/>
+    <path d="M560,140 l0,24 c0,8 -16,16 -16,16 s-16,-8 -16,-16 l0,-24 c0,-9 7,-16 16,-16 s16,7 16,16z" fill="#3182ce" stroke="#fff" stroke-width="2"/>
+    <circle cx="560" cy="140" r="5" fill="#fff"/>
+  </g>
+  <rect x="480" y="90" width="220" height="120" rx="10" fill="#fff" stroke="#cbd5e0" stroke-width="2"/>
+  <text x="590" y="115" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="700" fill="#1a365d">=› ABC123DRC</text>
+  <text x="500" y="138" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#4a5568">Driver: John Doe</text>
+  <text x="500" y="156" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#4a5568">Location: Kasumbalesa</text>
+  <text x="500" y="174" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#4a5568">Status: in transit</text>
+  <rect x="500" y="185" width="180" height="24" rx="4" fill="#2b6cb0"/>
+  <text x="590" y="201" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#fff">=Í Truck detail map</text>
+  <line x1="560" y1="164" x2="548" y2="148" stroke="#718096" stroke-width="1.5" stroke-dasharray="4"/>
+  <text x="400" y="385" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#4a5568">Add GPS coordinates in Fleet Registry ’ Fleet Set ’ GPS tracking</text>
+  <text x="400" y="405" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#718096">Menu: Management ’ Fleet Map · Also from Position Live and Fleet Registry</text>
+</svg>

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 480" role="img" aria-label="Login screen illustration">
+  <rect width="720" height="480" fill="#edf2f7"/>
+  <text x="360" y="36" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#1a365d">Step 1  Sign in to TruckControl</text>
+  <rect x="210" y="70" width="300" height="360" rx="16" fill="#fff" stroke="#e2e8f0" stroke-width="2"/>
+  <rect x="210" y="70" width="300" height="70" rx="16" fill="#1a365d"/>
+  <rect x="210" y="124" width="300" height="16" fill="#1a365d"/>
+  <text x="360" y="112" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#fff">=› TruckControl</text>
+  <text x="360" y="165" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#718096">Operations Control System</text>
+  <text x="240" y="210" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="600" fill="#2d3748">Username</text>
+  <rect x="240" y="220" width="240" height="36" rx="6" fill="#f7fafc" stroke="#cbd5e0"/>
+  <text x="252" y="243" font-family="Segoe UI, Arial, sans-serif" font-size="13" fill="#4a5568">super_admin</text>
+  <text x="240" y="285" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="600" fill="#2d3748">Password</text>
+  <rect x="240" y="295" width="240" height="36" rx="6" fill="#f7fafc" stroke="#cbd5e0"/>
+  <text x="252" y="318" font-family="Segoe UI, Arial, sans-serif" font-size="13" fill="#a0aec0">""""""""""""</text>
+  <rect x="240" y="355" width="240" height="40" rx="8" fill="#2b6cb0"/>
+  <text x="360" y="380" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" fill="#fff">Sign In</text>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#4a5568">
+    <text x="540" y="150" font-weight="700" fill="#1a365d">` Open browser</text>
+    <text x="540" y="172">Go to http://localhost:3001</text>
+    <text x="540" y="210" font-weight="700" fill="#1a365d">a Enter credentials</text>
+    <text x="540" y="232">Username + password</text>
+    <text x="540" y="270" font-weight="700" fill="#1a365d">b Click Sign In</text>
+    <text x="540" y="292">You arrive at Dashboard</text>
+    <text x="540" y="330" font-weight="700" fill="#c05621">  Change default</text>
+    <text x="540" y="352">password after first login</text>
+  </g>
+</svg>

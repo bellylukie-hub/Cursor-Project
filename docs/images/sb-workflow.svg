@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 220" role="img" aria-label="SB workflow">
+  <rect width="900" height="220" fill="#f7fafc"/>
+  <text x="450" y="30" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#1a365d">SB Operations Workflow (Southbound)</text>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="700">
+    <rect x="20" y="55" width="100" height="56" rx="8" fill="#805ad5"/><text x="70" y="88" text-anchor="middle" fill="#fff">Loading</text>
+    <text x="130" y="86" font-size="20" fill="#805ad5">’</text>
+    <rect x="140" y="55" width="100" height="56" rx="8" fill="#6b46c1"/><text x="190" y="88" text-anchor="middle" fill="#fff">Documents</text>
+    <text x="250" y="86" font-size="20" fill="#805ad5">’</text>
+    <rect x="260" y="55" width="80" height="56" rx="8" fill="#553c9a"/><text x="300" y="88" text-anchor="middle" fill="#fff">Seal</text>
+    <text x="350" y="86" font-size="20" fill="#805ad5">’</text>
+    <rect x="360" y="55" width="90" height="56" rx="8" fill="#44337a"/><text x="405" y="88" text-anchor="middle" fill="#fff">Escort</text>
+    <text x="460" y="86" font-size="20" fill="#805ad5">’</text>
+    <rect x="470" y="55" width="100" height="56" rx="8" fill="#322659"/><text x="520" y="88" text-anchor="middle" fill="#fff">Dispatch</text>
+    <text x="580" y="86" font-size="20" fill="#805ad5">’</text>
+    <rect x="590" y="55" width="100" height="56" rx="8" fill="#2b6cb0"/><text x="640" y="88" text-anchor="middle" fill="#fff">Kanyaka</text>
+    <text x="700" y="86" font-size="20" fill="#805ad5">’</text>
+    <rect x="710" y="55" width="120" height="56" rx="8" fill="#1a365d"/><text x="770" y="88" text-anchor="middle" fill="#fff">Border Exit</text>
+  </g>
+  <text x="450" y="145" text-anchor="middle" font-size="12" fill="#718096">Upload SB Live File daily · Same truck may continue from NB turnaround (see Turnarounds)</text>
+  <rect x="200" y="165" width="500" height="36" rx="6" fill="#faf5ff" stroke="#d6bcfa"/>
+  <text x="450" y="188" text-anchor="middle" font-size="12" fill="#553c9a">Admin ’ Fleet  Same Truck for SB controls turnaround linking policy</text>
+</svg>
