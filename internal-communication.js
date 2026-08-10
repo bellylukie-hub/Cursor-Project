@@ -3,8 +3,12 @@
  */
 (function () {
     const STORAGE_KEY = 'truckcontrol_internal_comm_v2';
+    const SHARED_MAILBOX_KEY = 'truckcontrol_internal_comm_shared_mailbox_v1';
     const LEGACY_USER = 'Current User';
     const LEGACY_EMAIL = 'current.user@truckcontrol.local';
+    let commPollTimer = null;
+    let lastKnownUnreadEmail = 0;
+    let lastKnownUnreadChat = 0;
 
     let commRibbonTab = 'home';
     let commTheme = 'light';
@@ -79,17 +83,18 @@
     }
 
     function isEmailOwnedByCurrentUser(email) {
-        if (!email || email.mirrorOf) return false;
+        if (!email) return false;
         const name = getCurrentCommUserName();
         const userEmail = getCurrentCommUserEmail().toLowerCase();
-        if (email.ownerEmail && email.ownerEmail.toLowerCase() === userEmail) return true;
         if (email.forUserEmail && email.forUserEmail.toLowerCase() === userEmail) return true;
+        if (email.ownerEmail && email.ownerEmail.toLowerCase() === userEmail) return true;
+        if (email.mirrorOf && (email.fromEmail || '').toLowerCase() === userEmail) return false;
         if (email.folder === 'sent' || email.folder === 'drafts') {
             return email.from === name || (email.fromEmail || '').toLowerCase() === userEmail;
         }
         if (email.folder === 'inbox') {
-            return (email.to || []).includes(name)
-                || (email.toEmails || []).some(e => String(e).toLowerCase() === userEmail);
+            return (email.toEmails || []).some(e => String(e).toLowerCase() === userEmail)
+                || (email.to || []).includes(name);
         }
         if (email.folder === 'starred' || email.folder === 'archive' || email.folder === 'trash') {
             return (email.to || []).includes(name) || email.from === name
@@ -139,12 +144,18 @@
     function lookupUserByRecipient(token) {
         const t = String(token || '').trim();
         if (!t) return null;
-        return (systemUsersDB || []).find(u =>
-            u.name === t || u.email === t || u.email?.split('@')[0] === t
-        ) || (adminUsersDB || []).find(u =>
-            u.username === t || u.email === t
-            || u.username.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) === t
+        const norm = s => String(s || '').toLowerCase();
+        const displayFromUsername = u => u.username.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const fromAdmin = (adminUsersDB || []).find(u =>
+            norm(u.username) === norm(t) || norm(u.email) === norm(t)
+            || norm(displayFromUsername(u)) === norm(t)
         );
+        if (fromAdmin) {
+            return { name: displayFromUsername(fromAdmin), email: fromAdmin.email, username: fromAdmin.username };
+        }
+        return (systemUsersDB || []).find(u =>
+            u.name === t || norm(u.email) === norm(t) || norm(u.email?.split('@')[0]) === norm(t)
+        ) || null;
     }
 
     function deliverEmailCopies(sentEmail, recipients) {
@@ -157,8 +168,8 @@
                 ...sentEmail,
                 id: `EM-${String(nextEmailId++).padStart(3, '0')}`,
                 folder: 'inbox',
-                forUserEmail: recipientEmail,
-                ownerEmail: recipientEmail,
+                forUserEmail: recipientEmail.toLowerCase(),
+                ownerEmail: recipientEmail.toLowerCase(),
                 to: [user?.name || recipient],
                 toEmails: [recipientEmail],
                 cc: [],
@@ -167,6 +178,145 @@
                 mirrorOf: sentEmail.id
             });
         });
+        pushToSharedMailbox(sentEmail, recipients);
+    }
+
+    function readSharedMailbox() {
+        try {
+            const raw = localStorage.getItem(SHARED_MAILBOX_KEY);
+            return raw ? JSON.parse(raw) : { emails: [], chatRooms: [], chatMessages: [] };
+        } catch (_) {
+            return { emails: [], chatRooms: [], chatMessages: [] };
+        }
+    }
+
+    function writeSharedMailbox(data) {
+        try { localStorage.setItem(SHARED_MAILBOX_KEY, JSON.stringify(data)); } catch (_) {}
+    }
+
+    function pushToSharedMailbox(sentEmail, recipients) {
+        const shared = readSharedMailbox();
+        shared.emails = shared.emails || [];
+        const senderEmail = getCurrentCommUserEmail().toLowerCase();
+        if (!shared.emails.some(e => e.id === sentEmail.id)) {
+            shared.emails.unshift({ ...sentEmail, ownerEmail: senderEmail, forUserEmail: senderEmail });
+        }
+        recipients.forEach(recipient => {
+            const user = lookupUserByRecipient(recipient);
+            const recipientEmail = user?.email || (recipient.includes('@') ? recipient : null);
+            if (!recipientEmail || recipientEmail.toLowerCase() === senderEmail) return;
+            const copyId = `${sentEmail.id}-to-${recipientEmail}`;
+            if (shared.emails.some(e => e.id === copyId)) return;
+            shared.emails.unshift({
+                ...sentEmail,
+                id: copyId,
+                folder: 'inbox',
+                forUserEmail: recipientEmail.toLowerCase(),
+                ownerEmail: recipientEmail.toLowerCase(),
+                to: [user?.name || recipient],
+                toEmails: [recipientEmail],
+                read: false,
+                mirrorOf: sentEmail.id
+            });
+        });
+        writeSharedMailbox(shared);
+    }
+
+    function mergeSharedMailboxIntoLocal() {
+        const shared = readSharedMailbox();
+        const userEmail = getCurrentCommUserEmail().toLowerCase();
+        (shared.emails || []).forEach(email => {
+            if (String(email.forUserEmail || '').toLowerCase() !== userEmail) return;
+            if ((emailsDB || []).some(e => e.id === email.id)) return;
+            emailsDB.unshift({ ...email });
+        });
+    }
+
+    function pushCommNotification(title, body) {
+        if (typeof showToast === 'function') showToast(body, 'success');
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            try { new Notification(title, { body, icon: '/favicon.svg' }); } catch (_) {}
+        }
+    }
+
+    function requestCommNotificationPermission() {
+        if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+            Notification.requestPermission().catch(() => {});
+        }
+    }
+
+    function countUnreadEmails() {
+        return getVisibleEmails().filter(e => e.folder === 'inbox' && !e.read).length;
+    }
+
+    function countUnreadChats() {
+        return (chatRoomsDB || []).reduce((sum, room) => sum + getRoomUnreadCount(room), 0);
+    }
+
+    async function syncInternalCommFromApi() {
+        if (typeof isApiAvailable !== 'function' || !isApiAvailable() || typeof fetchInternalMailboxApi !== 'function') {
+            mergeSharedMailboxIntoLocal();
+            return false;
+        }
+        try {
+            const prevUnread = countUnreadEmails();
+            const mailbox = await fetchInternalMailboxApi();
+            emailsDB.splice(0, emailsDB.length, ...mailbox);
+            if (typeof fetchInternalChatApi === 'function') {
+                const chat = await fetchInternalChatApi();
+                chatRoomsDB.splice(0, chatRoomsDB.length, ...(chat.rooms || []));
+                chatMessagesDB.splice(0, chatMessagesDB.length, ...(chat.messages || []));
+            }
+            syncRoomUnreadCounts();
+            writeStore();
+            const prevChatUnread = lastKnownUnreadChat;
+            const newUnread = countUnreadEmails();
+            const newChatUnread = countUnreadChats();
+            if (newUnread > prevUnread) {
+                const latest = getVisibleEmails().find(e => e.folder === 'inbox' && !e.read);
+                if (latest) pushCommNotification('New email', `${latest.from}: ${latest.subject}`);
+            }
+            if (newChatUnread > prevChatUnread) {
+                const name = getCurrentCommUserName();
+                let latestMsg = null;
+                let latestRoom = null;
+                (chatRoomsDB || []).forEach(room => {
+                    const unread = getRoomUnreadCount(room);
+                    if (!unread) return;
+                    const msgs = (chatMessagesDB || []).filter(m => m.roomId === room.id && m.sender !== name);
+                    const last = msgs[msgs.length - 1];
+                    if (last && (!latestMsg || last.sentAt > latestMsg.sentAt)) {
+                        latestMsg = last;
+                        latestRoom = room;
+                    }
+                });
+                if (latestMsg) {
+                    pushCommNotification('New chat message', `${latestMsg.sender} in ${latestRoom?.name || 'Chat'}: ${(latestMsg.message || '').slice(0, 80)}`);
+                }
+            }
+            lastKnownUnreadEmail = newUnread;
+            lastKnownUnreadChat = newChatUnread;
+            if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
+            return true;
+        } catch (e) {
+            console.warn('Internal comm API sync failed:', e.message);
+            mergeSharedMailboxIntoLocal();
+            return false;
+        }
+    }
+
+    function startCommPolling() {
+        if (commPollTimer) clearInterval(commPollTimer);
+        lastKnownUnreadEmail = countUnreadEmails();
+        lastKnownUnreadChat = countUnreadChats();
+        requestCommNotificationPermission();
+        commPollTimer = setInterval(() => {
+            syncInternalCommFromApi().then(() => {
+                if (typeof currentPage !== 'undefined' && currentPage === 'internal-communication' && typeof renderInternalCommunication === 'function') {
+                    renderInternalCommunication(document.getElementById('contentArea'));
+                }
+            });
+        }, 5000);
     }
 
     function seedWelcomeData() {
@@ -211,7 +361,7 @@
     }
 
     function initInternalComm(force) {
-        if (typeof emailsDB === 'undefined' || commDataLoaded && !force) return;
+        if (typeof emailsDB === 'undefined' || (commDataLoaded && !force)) return;
         const stored = readStore();
         if (stored) {
             applyLoadedData(stored);
@@ -219,10 +369,14 @@
             seedWelcomeData();
         }
         replaceLegacyUserRefs(getCurrentCommUserName(), getCurrentCommUserEmail());
-        syncRoomUnreadCounts();
-        applyCommTheme(commTheme, true);
-        commDataLoaded = true;
-        writeStore();
+        mergeSharedMailboxIntoLocal();
+        syncInternalCommFromApi().finally(() => {
+            syncRoomUnreadCounts();
+            applyCommTheme(commTheme, true);
+            commDataLoaded = true;
+            writeStore();
+            startCommPolling();
+        });
     }
 
     function applyCommTheme(theme, silent) {
@@ -267,7 +421,7 @@
                 <div class="comm-ribbon-group"><div class="comm-ribbon-group-label">Move</div><div class="comm-ribbon-group-btns">${ribbonBtn('Archive', '🗄️', selectedEmailId ? `markEmailAction('${selectedEmailId}','archive')` : '', !selectedEmailId)}${ribbonBtn('Delete', '🗑️', selectedEmailId ? `markEmailAction('${selectedEmailId}','trash')` : '', !selectedEmailId)}</div></div>
                 <div class="comm-ribbon-group"><div class="comm-ribbon-group-label">Tags</div><div class="comm-ribbon-group-btns">${ribbonBtn('Mark read', '✓', selectedEmailId ? `markEmailAction('${selectedEmailId}','read')` : '', !selectedEmailId)}${ribbonBtn('Star', '⭐', selectedEmailId ? `toggleEmailStar('${selectedEmailId}')` : '', !selectedEmailId)}</div></div>`;
             } else if (isChat) {
-                groups = `<div class="comm-ribbon-group"><div class="comm-ribbon-group-label">Chat</div><div class="comm-ribbon-group-btns">${ribbonBtn('New chat', '💬', 'openNewDirectChat()')}${ribbonBtn('New group', '👥', 'openNewGroupChatForm()')}</div></div>
+                groups = `<div class="comm-ribbon-group"><div class="comm-ribbon-group-label">Chat</div><div class="comm-ribbon-group-btns">${ribbonBtn('New chat', '💬', 'openNewDirectChatPicker()')}${ribbonBtn('New group', '👥', 'openNewGroupChatForm()')}</div></div>
                 <div class="comm-ribbon-group"><div class="comm-ribbon-group-label">Room</div><div class="comm-ribbon-group-btns">${ribbonBtn('Pin', '📌', activeChatRoomId ? `toggleChatPin('${activeChatRoomId}')` : '', !activeChatRoomId)}${ribbonBtn('Mute', '🔇', activeChatRoomId ? `toggleChatMute('${activeChatRoomId}')` : '', !activeChatRoomId)}</div></div>`;
             }
         } else if (commRibbonTab === 'view') {
@@ -286,13 +440,15 @@
     window.refreshInternalComm = function () {
         initInternalComm(true);
         if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
-        syncRoomUnreadCounts();
-        writeStore();
-        if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
-        if (typeof renderInternalCommunication === 'function' && currentPage === 'internal-communication') {
-            renderInternalCommunication(document.getElementById('contentArea'));
-        }
-        showToast('Mailbox synced', 'success');
+        syncInternalCommFromApi().then(() => {
+            syncRoomUnreadCounts();
+            writeStore();
+            if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
+            if (typeof renderInternalCommunication === 'function' && currentPage === 'internal-communication') {
+                renderInternalCommunication(document.getElementById('contentArea'));
+            }
+            showToast('Mailbox synced', 'success');
+        });
     };
 
     window.getCurrentCommUserName = getCurrentCommUserName;
@@ -305,5 +461,7 @@
     window.syncCommRoomUnreadCounts = syncRoomUnreadCounts;
     window.markCommRoomRead = markRoomRead;
     window.deliverInternalEmailCopies = deliverEmailCopies;
+    window.syncInternalCommFromApi = syncInternalCommFromApi;
+    window.pushCommNotification = pushCommNotification;
     window.getCommTheme = () => commTheme;
 })();

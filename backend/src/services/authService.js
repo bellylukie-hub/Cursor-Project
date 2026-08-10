@@ -66,16 +66,21 @@ function getUserByUsername(username) {
 }
 
 function getUserByEmail(email) {
-  const normalized = String(email || '').trim().toLowerCase();
-  if (!normalized) return null;
-  return db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get(normalized);
+  return db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(email);
 }
 
 function getUserByLoginIdentifier(identifier) {
-  const value = String(identifier || '').trim();
-  if (!value) return null;
-  if (value.includes('@')) return getUserByEmail(value);
-  return getUserByUsername(value);
+  const t = String(identifier || '').trim();
+  if (!t) return null;
+  let user = getUserByUsername(t);
+  if (!user && t.includes('@')) user = getUserByEmail(t);
+  if (!user) {
+    user = db.prepare(`
+      SELECT * FROM users
+      WHERE LOWER(REPLACE(username, '_', ' ')) = LOWER(?)
+    `).get(t);
+  }
+  return user || null;
 }
 
 function formatUserSession(user) {

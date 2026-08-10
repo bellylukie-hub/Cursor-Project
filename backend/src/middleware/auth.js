@@ -6,6 +6,7 @@ function authenticate(req, res, next) {
     req.user = {
       id: req.headers['x-user-id'] || 'ADM-001',
       username: req.headers['x-username'] || 'super_admin',
+      email: req.headers['x-user-email'] || 'admin@truckcontrol.local',
       roleId: 'role-super-admin',
       roleName: 'Super Admin',
       permissions: ['*']

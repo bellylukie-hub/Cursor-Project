@@ -54,6 +54,8 @@ function apiHeaders() {
   const user = typeof getCurrentAdminUser === 'function' ? getCurrentAdminUser() : null;
   headers['X-User-Id'] = userId;
   headers['X-Username'] = user?.username || 'super_admin';
+  if (user?.email) headers['X-User-Email'] = user.email;
+  else if (authUser?.email) headers['X-User-Email'] = authUser.email;
   return headers;
 }
 
@@ -578,5 +580,42 @@ async function runDbQueryApi(sql, maxRows) {
     body: JSON.stringify({ sql, maxRows })
   });
 }
+
+async function fetchInternalMailboxApi() {
+  const data = await apiRequest('/internal-comm/mailbox');
+  return data.emails || [];
+}
+
+async function sendInternalEmailApi(payload) {
+  return apiRequest('/internal-comm/emails', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+async function updateInternalEmailApi(emailId, patch) {
+  const data = await apiRequest(`/internal-comm/emails/${encodeURIComponent(emailId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch)
+  });
+  return data.email;
+}
+
+async function fetchInternalChatApi() {
+  return apiRequest('/internal-comm/chat');
+}
+
+async function createInternalChatRoomApi(payload) {
+  const data = await apiRequest('/internal-comm/chat/rooms', { method: 'POST', body: JSON.stringify(payload) });
+  return data.room;
+}
+
+async function createInternalDirectChatApi(email) {
+  const data = await apiRequest('/internal-comm/chat/direct', { method: 'POST', body: JSON.stringify({ email }) });
+  return data.room;
+}
+
+async function sendInternalChatMessageApi(payload) {
+  const data = await apiRequest('/internal-comm/chat/messages', { method: 'POST', body: JSON.stringify(payload) });
+  return data.message;
+}
+
 
 loadStoredAuth();
