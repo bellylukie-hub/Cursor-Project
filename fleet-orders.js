@@ -124,7 +124,7 @@
                     <div class="co-filter-col">
                         <div class="co-filter-field"><label>Container No.</label><input class="form-control" id="coFiltContainerNo" value="${f.containerNo}"></div>
                         <div class="co-filter-field"><label>Commodity</label><select class="form-control" id="coFiltCommodity">${filterOpt('all', '<ALL>', f.commodity)}${commodities.map(c => filterOpt(c, c, f.commodity)).join('')}</select></div>
-                        <div class="co-filter-field"><label>Status</label><select class="form-control" id="coFiltStatus">${filterOpt('all', 'ALL', f.status)}${['draft', 'confirmed', 'allocated', 'in_transit', 'completed', 'cancelled'].map(s => filterOpt(s, s, f.status)).join('')}</select></div>
+                        <div class="co-filter-field"><label>Status</label><select class="form-control" id="coFiltStatus">${filterOpt('all', 'ALL', f.status)}${['draft', 'confirmed', 'allocated', 'in_transit', 'completed', 'cancelled', 'deleted'].map(s => filterOpt(s, s === 'deleted' ? 'Deleted' : s, f.status)).join('')}</select></div>
                         <div class="co-filter-field"><label>Order Owner</label><select class="form-control" id="coFiltOrderOwner">${filterOpt('all', 'ALL', f.orderOwner)}${uniqueOrderValues('createdBy').map(o => filterOpt(o, o, f.orderOwner)).join('')}<option value="Greendoor Group"${f.orderOwner === 'Greendoor Group' ? ' selected' : ''}>Greendoor Group</option></select></div>
                         <div class="co-filter-field"><label>From Date</label><input type="date" class="form-control" id="coFiltFromDate" value="${f.fromDate}"></div>
                         <div class="co-filter-field"><label>To Date</label><input type="date" class="form-control" id="coFiltToDate" value="${f.toDate}"></div>
@@ -138,6 +138,7 @@
                     </div>
                     <div class="co-filter-col co-filter-col-actions">
                         <label class="co-filter-check"><input type="checkbox" id="coFiltUrgent"${f.urgentOnly ? ' checked' : ''}> Urgent / Priority</label>
+                        ${typeof renderSoftDeleteShowCheckbox === 'function' ? `<div class="co-filter-actions-stack">${renderSoftDeleteShowCheckbox('client-orders', 'refreshClientOrdersPage')}</div>` : ''}
                         <label class="co-filter-check"><input type="checkbox" id="coFiltViaStations"${f.incViaStations ? ' checked' : ''}> Inc Via Stations</label>
                         <div class="co-filter-btn-row">
                             <button type="button" class="btn btn-primary" onclick="fleetOrderFetch()">🔍 Fetch</button>
@@ -1148,6 +1149,8 @@
             if (!containers.toLowerCase().includes(f.containerNo.toLowerCase())) return false;
         }
         if (f.commodity !== 'all' && (o.commodity || '') !== f.commodity) return false;
+        if (f.status === 'deleted') return typeof isRecordDeleted === 'function' && isRecordDeleted(o);
+        if (typeof isRecordDeleted === 'function' && isRecordDeleted(o)) return false;
         if (f.status !== 'all' && o.status !== f.status) return false;
         if (f.orderOwner !== 'all' && (o.createdBy || '') !== f.orderOwner && f.orderOwner !== 'Greendoor Group') return false;
         if (f.cargoType !== 'all' && (o.cargoType || '') !== f.cargoType) return false;
@@ -1160,9 +1163,29 @@
 
     function filteredOrders() {
         const f = orderFilter;
-        if (!orderFilterApplied) return clientOrdersDB.slice();
-        return clientOrdersDB.filter(o => orderMatchesFilter(o, f));
+        let orders = !orderFilterApplied
+            ? clientOrdersDB.slice()
+            : clientOrdersDB.filter(o => orderMatchesFilter(o, f));
+        if (f.status === 'deleted') return orders.filter(o => typeof isRecordDeleted === 'function' && isRecordDeleted(o));
+        if (typeof applySoftDeleteFilter === 'function') {
+            orders = applySoftDeleteFilter(orders, 'client-orders');
+        } else {
+            orders = orders.filter(o => !o.deletedAt);
+        }
+        return orders;
     }
+
+    window.refreshClientOrdersPage = function () {
+        const ca = document.getElementById('contentArea');
+        if (currentPage === 'client-orders' && ca) renderClientOrders(ca);
+    };
+
+    window.refreshClientsPage = function () {
+        const ca = document.getElementById('contentArea');
+        if (currentPage === 'clients' && ca) renderClientsManagement(ca);
+    };
+
+    window.getOrderById = getOrderById;
 
     window.renderClientOrders = async function (container) {
         try {
@@ -1203,8 +1226,8 @@
                         ${orders.length ? orders.map(o => {
                             const ld = o.loadDetails || {};
                             const allocs = getAllocationsForOrder(o.id);
-                            return `<tr>
-                                <td><strong>${o.orderNumber || '—'}</strong></td>
+                            return `<tr class="${typeof softDeleteRowClass === 'function' ? softDeleteRowClass(o) : ''}">
+                                <td><strong>${o.orderNumber || '—'}</strong>${typeof renderSoftDeleteBadge === 'function' ? renderSoftDeleteBadge(o) : ''}</td>
                                 <td>${o.orderDate || '—'}</td>
                                 <td>${o.readyToLoadOn || '—'}</td>
                                 <td>${o.completeLoadsBy || o.requiredDate || '—'}</td>
@@ -1221,9 +1244,10 @@
                                 <td style="min-width:180px;font-size:12px;">${routeSummary(o)}</td>
                                 <td>${orderStatusBadge(o.status)}</td>
                                 <td style="white-space:nowrap;">
-                                    ${canEdit ? `<button class="btn btn-sm btn-outline" onclick="openAllocateFleetModal('${o.id}')">🚛</button>` : ''}
-                                    ${canEdit ? `<button class="btn btn-sm btn-outline" onclick="openClientOrderModal('${o.id}')">✏️</button>` : ''}
+                                    ${!isRecordDeleted(o) && canEdit ? `<button class="btn btn-sm btn-outline" onclick="openAllocateFleetModal('${o.id}')">🚛</button>` : ''}
+                                    ${!isRecordDeleted(o) && canEdit ? `<button class="btn btn-sm btn-outline" onclick="openClientOrderModal('${o.id}')">✏️</button>` : ''}
                                     ${allocs[0] ? `<button class="btn btn-sm btn-primary" onclick="openFleetGpsMap('${allocs[0].fleetUnitId}')">📍</button>` : ''}
+                                    ${typeof renderSoftDeleteActions === 'function' ? renderSoftDeleteActions('client-orders', o.id, '_global', 'refreshClientOrdersPage') : ''}
                                 </td>
                             </tr>`;
                         }).join('') : `<tr><td colspan="${orderShowTonnageDetails ? 19 : 16}" style="text-align:center;padding:24px;color:var(--text-secondary);">${orderFilterApplied ? 'No orders match your filters. Click Clear All or adjust criteria.' : 'No orders yet. Create a client order and click Fetch to search.'}</td></tr>`}
@@ -1252,6 +1276,9 @@
         const canEdit = canEditFleet();
         const q = (fleetFilter.search || '').toLowerCase();
         const clients = clientsDB.filter(c => {
+            if (typeof isRecordDeleted === 'function' && isRecordDeleted(c)) {
+                return typeof getSoftDeleteUi === 'function' && getSoftDeleteUi('clients').showDeleted;
+            }
             if (!q) return true;
             return [c.name, c.contactPerson, c.phone, c.email, c.whatsapp].join(' ').toLowerCase().includes(q);
         });
@@ -1274,6 +1301,7 @@
                 <div class="search-filter" style="flex:1;"><span>🔍</span>
                     <input type="text" placeholder="Search clients..." value="${fleetFilter.search}" oninput="fleetRegistrySetSearch(this.value)">
                 </div>
+                ${typeof renderSoftDeleteShowCheckbox === 'function' ? renderSoftDeleteShowCheckbox('clients', 'refreshClientsPage') : ''}
             </div>
             ${renderClientsTable(clients, canEdit)}`;
     };
@@ -1468,13 +1496,13 @@
         return `<div class="table-container"><div class="table-header"><h3>Clients</h3>
             ${canEdit ? `<button class="btn btn-sm btn-primary" onclick="openClientModal()">+ Add Client</button>` : ''}</div>
             <table><thead><tr><th>Name</th><th>Contact</th><th>Phone</th><th>WhatsApp</th><th>Email</th><th></th></tr></thead><tbody>
-            ${clients.map(c => `<tr>
-                <td><strong>${c.name}</strong></td>
+            ${clients.map(c => `<tr class="${typeof softDeleteRowClass === 'function' ? softDeleteRowClass(c) : ''}">
+                <td><strong>${c.name}</strong>${typeof renderSoftDeleteBadge === 'function' ? renderSoftDeleteBadge(c) : ''}</td>
                 <td>${c.contactPerson || '—'}</td>
                 <td>${c.phone || '—'}</td>
                 <td>${c.whatsapp ? `<a href="${whatsappLink(c.whatsapp)}" target="_blank" rel="noopener">📱</a>` : '—'}</td>
                 <td>${c.email || '—'}</td>
-                <td>${canEdit ? `<button class="btn btn-sm btn-outline" onclick="openClientModal('${c.id}')">✏️</button>` : ''}</td>
+                <td>${!isRecordDeleted(c) && canEdit ? `<button class="btn btn-sm btn-outline" onclick="openClientModal('${c.id}')">✏️</button>` : ''}${typeof renderSoftDeleteActions === 'function' ? renderSoftDeleteActions('clients', c.id, '_global', 'refreshClientsPage') : ''}</td>
             </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;padding:20px;">No clients.</td></tr>'}
             </tbody></table></div>`;
     }

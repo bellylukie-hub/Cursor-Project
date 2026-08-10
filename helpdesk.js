@@ -239,18 +239,25 @@
 
     function filteredTickets(list) {
         const q = (helpdeskFilter.search || '').toLowerCase();
-        return list.filter(t => {
+        let items = list.filter(t => {
+            if (helpdeskFilter.status === 'deleted') return typeof isRecordDeleted === 'function' && isRecordDeleted(t);
+            if (typeof isRecordDeleted === 'function' && isRecordDeleted(t)) {
+                return typeof getSoftDeleteUi === 'function' && getSoftDeleteUi('helpdesk').showDeleted;
+            }
             if (helpdeskFilter.status !== 'all' && t.status !== helpdeskFilter.status) return false;
             if (helpdeskFilter.priority !== 'all' && t.priority !== helpdeskFilter.priority) return false;
             if (!q) return true;
             const hay = [t.ticketNumber, t.subject, t.description, t.reporterUsername, t.category, t.modulePage].join(' ').toLowerCase();
             return hay.includes(q);
         });
+        return items;
     }
 
     function findTicket(id) {
         return myTicketsDB.find(x => x.id === id) || teamTicketsDB.find(x => x.id === id) || null;
     }
+
+    window.findHelpdeskTicketById = findTicket;
 
     function upsertLocalTicket(saved) {
         if (!saved?.id) return;
@@ -268,8 +275,8 @@
         if (!tickets.length) {
             return '<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--text-secondary);">No issues logged yet. Click <strong>Report Issue</strong> to create one.</td></tr>';
         }
-        return tickets.map(t => `<tr>
-            <td><strong>${escapeHtml(t.ticketNumber)}</strong></td>
+        return tickets.map(t => `<tr class="${typeof softDeleteRowClass === 'function' ? softDeleteRowClass(t) : ''}">
+            <td><strong>${escapeHtml(t.ticketNumber)}</strong>${typeof renderSoftDeleteBadge === 'function' ? renderSoftDeleteBadge(t) : ''}</td>
             <td>${escapeHtml(t.subject || '—')}</td>
             <td>${escapeHtml(t.category || '—')}</td>
             <td>${priorityBadge(t.priority)}</td>
@@ -282,7 +289,8 @@
             <td style="white-space:nowrap;">${slaBadge(t, 'response')} ${slaBadge(t, 'resolution')}</td>
             <td style="white-space:nowrap;">
                 <button class="btn btn-sm btn-outline" onclick="openHelpdeskTicketModal('${escapeHtml(t.id)}')">View</button>
-                ${canManage ? `<button class="btn btn-sm btn-primary" onclick="quickResolveHelpdeskTicket('${escapeHtml(t.id)}')">✓</button>` : ''}
+                ${!isRecordDeleted(t) && canManage ? `<button class="btn btn-sm btn-primary" onclick="quickResolveHelpdeskTicket('${escapeHtml(t.id)}')">✓</button>` : ''}
+                ${typeof renderSoftDeleteActions === 'function' ? renderSoftDeleteActions('helpdesk', t.id, '_global', 'refreshHelpdeskPage') : ''}
             </td>
         </tr>`).join('');
     }
@@ -319,7 +327,9 @@
                 <select class="form-control" style="width:140px;" onchange="helpdeskSetFilter('status', this.value); refreshHelpdeskPage()">
                     <option value="all">All status</option>
                     ${STATUSES.map(s => `<option value="${s}"${helpdeskFilter.status === s ? ' selected' : ''}>${s.replace('_', ' ')}</option>`).join('')}
+                    <option value="deleted"${helpdeskFilter.status === 'deleted' ? ' selected' : ''}>Deleted</option>
                 </select>
+                ${typeof renderSoftDeleteShowCheckbox === 'function' ? renderSoftDeleteShowCheckbox('helpdesk', 'refreshHelpdeskPage') : ''}
                 <select class="form-control" style="width:130px;" onchange="helpdeskSetFilter('priority', this.value); refreshHelpdeskPage()">
                     <option value="all">All priority</option>
                     ${PRIORITIES.map(p => `<option value="${p}"${helpdeskFilter.priority === p ? ' selected' : ''}>${p}</option>`).join('')}

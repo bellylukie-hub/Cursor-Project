@@ -998,14 +998,14 @@
             const canEdit = typeof canEditInModule !== 'function' || canEditInModule(moduleId, area);
             const cells = cols.map(col => renderLiveColumnBodyCell(col, context, renderOperationsCellHtml(t, col, i))).join('');
             const kpi = normalizeKpi(t.kpi);
-            const commentBtn = canEdit
+            const commentBtn = canEdit && !isRecordDeleted(t)
                 ? `<button class="btn btn-sm kpi-comment-btn kpi-${kpi}" onclick="openCommentModal('${t.tripNumber}', '${statusCtx}')">💬 Comment</button>`
                 : '';
             const viewBtn = typeof renderTripViewButton === 'function' ? renderTripViewButton(t.tripNumber) : '';
-            return `<tr class="${getKpiRowClass(t)}">
+            return `<tr class="${getKpiRowClass(t)} ${typeof softDeleteRowClass === 'function' ? softDeleteRowClass(t) : ''}">
                 ${listKey ? `<td style="width:36px;text-align:center;" class="live-col-checkbox">${typeof renderListRowCheckbox === 'function' ? renderListRowCheckbox(listKey, t.tripNumber) : ''}</td>` : ''}
                 ${cells}
-                <td class="live-actions-col">${commentBtn}${viewBtn}</td>
+                <td class="live-actions-col">${commentBtn}${viewBtn}${typeof renderSoftDeleteActions === 'function' ? renderSoftDeleteActions(moduleId, t.tripNumber, area, type === 'SB' ? 'refreshSBTable' : 'refreshNBTable') : ''}</td>
             </tr>`;
         }).join('');
     };

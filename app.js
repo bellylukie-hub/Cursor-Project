@@ -1357,7 +1357,7 @@ const ALL_PERMISSIONS = Object.values(PERMISSION_KEYS);
 
 const rolesDB = [
     { id: 'role-super-admin', name: 'Super Admin', description: 'Full system owner — CREATE, DROP, SELECT, UPDATE, DELETE on all data', system: true, permissions: [...ALL_PERMISSIONS, 'manage_area_statuses'] },
-    { id: 'role-manager', name: 'Manager', description: 'Operations manager with broad read/write but no delete', system: true, permissions: ['read_all', 'create', 'edit_all', 'view_logs', 'manage_users', 'manage_settings'] },
+    { id: 'role-manager', name: 'Manager', description: 'Operations manager — can soft-delete records in assigned modules (cannot restore; Super Admin restores)', system: true, permissions: ['read_all', 'create', 'edit_all', 'delete', 'view_logs', 'manage_users', 'manage_settings'] },
     { id: 'role-moderator', name: 'Moderator', description: 'Limited editor — can update specific records only', system: true, permissions: ['read_all', 'edit_limited'] },
     { id: 'role-user', name: 'User', description: 'Standard app user — read own data only', system: true, permissions: ['read_own'] }
 ];
@@ -1794,13 +1794,13 @@ function buildDefaultModulePermissions(user) {
         if (mod.global) {
             const canView = isSuper || isManager || isModerator || role?.permissions?.includes('read_all') || role?.permissions?.includes('read_own');
             const canEdit = isSuper || isManager || (isModerator && role?.permissions?.includes('edit_limited'));
-            const canDelete = isSuper || (isManager && role?.permissions?.includes('delete'));
+            const canDelete = isSuper || isManager;
             grant(mod.id, '_global', canView, canEdit, canDelete);
             return;
         }
         areas.forEach(area => {
             if (isSuper || isManager || areas.includes('All Areas')) {
-                grant(mod.id, area, true, true, isSuper);
+                grant(mod.id, area, true, true, isSuper || isManager);
             } else if (isModerator) {
                 const view = true;
                 const edit = ['nb-operations', 'sb-operations', 'border-clearance', 'pod-management', 'area-browser'].includes(mod.id);
@@ -1820,7 +1820,7 @@ function buildDefaultModulePermissions(user) {
                 perms[modId][area].view = true;
                 if (isSuper || isManager) {
                     perms[modId][area].edit = true;
-                    perms[modId][area].delete = isSuper;
+                    perms[modId][area].delete = isSuper || isManager;
                 }
             });
         });
@@ -3237,7 +3237,24 @@ function filterTrips(direction, searchTerm) {
     if (pageModule && ['nb-operations', 'sb-operations', 'border-clearance', 'pod-management', 'area-browser'].includes(pageModule)) {
         trips = filterTripsByModulePermission(trips, pageModule);
     }
+    if (typeof filterTripsForSoftDelete === 'function') {
+        const tripModule = pageModule && ['nb-operations', 'sb-operations', 'border-clearance', 'area-browser'].includes(pageModule)
+            ? pageModule
+            : (direction === 'SB' ? 'sb-operations' : 'nb-operations');
+        trips = filterTripsForSoftDelete(trips, tripModule);
+    } else if (typeof isRecordDeleted === 'function') {
+        trips = trips.filter(t => !isRecordDeleted(t));
+    }
     return trips;
+}
+
+function filterTripsForSoftDelete(trips, moduleId) {
+    if (typeof getSoftDeleteUi !== 'function' || typeof isRecordDeleted !== 'function') {
+        return trips.filter(t => !t.deletedAt);
+    }
+    const ui = getSoftDeleteUi(moduleId);
+    if (ui.showDeleted) return trips;
+    return trips.filter(t => !isRecordDeleted(t));
 }
 
 // ============================================
@@ -4167,6 +4184,7 @@ function renderNBOperations(container) {
             <div class="filter-group"><label>Border:</label><select id="nbBorderFilter" onchange="refreshNBTable()"><option value="all">All</option><option>Kasumbalesa</option><option>Sakania</option><option>Mokambo</option></select></div>
             <div class="filter-group"><label>KPI:</label><select id="nbKPIFilter" onchange="refreshNBTable()"><option value="all">All</option><option value="green">🟢 On Track</option><option value="orange">🟠 Priority</option><option value="red">🔴 Overdue</option></select></div>
             <div class="search-filter"><span>🔍</span><input type="text" id="nbSearchInput" placeholder="Search by Trip#, Truck, Driver..." onkeyup="refreshNBTable()"></div>
+            ${typeof renderSoftDeleteShowCheckbox === 'function' ? renderSoftDeleteShowCheckbox('nb-operations', 'refreshNBTable') : ''}
             <button class="btn btn-outline btn-sm" onclick="clearNBFilters()">Clear</button>
         </div>
         <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
@@ -4238,6 +4256,7 @@ function renderSBOperations(container) {
             <div class="filter-group"><label>Exit Border:</label><select id="sbBorderFilter" onchange="refreshSBTable()"><option value="all">All</option><option>Kasumbalesa</option><option>Sakania</option><option>Mokambo</option></select></div>
             <div class="filter-group"><label>KPI:</label><select id="sbKPIFilter" onchange="refreshSBTable()"><option value="all">All</option><option value="green">🟢 On Track</option><option value="orange">🟠 Priority</option><option value="red">🔴 Overdue</option></select></div>
             <div class="search-filter"><span>🔍</span><input type="text" id="sbSearchInput" placeholder="Search by Trip#, Truck, Driver..." onkeyup="refreshSBTable()"></div>
+            ${typeof renderSoftDeleteShowCheckbox === 'function' ? renderSoftDeleteShowCheckbox('sb-operations', 'refreshSBTable') : ''}
             <button class="btn btn-outline btn-sm" onclick="clearSBFilters()">Clear</button>
         </div>
         <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
@@ -4449,6 +4468,7 @@ function renderBorderClearanceOverview(container) {
             <div class="filter-group"><label>Kasumbalesa Process:</label><select id="borderProcessFilter" onchange="refreshBorderTable()"><option value="all">All</option>${KASUMBALESA_NB_PROCESSES.map(p => `<option value="${p}">${p}</option>`).join('')}</select></div>
             <div class="filter-group"><label>KPI:</label><select id="borderKPIFilter" onchange="refreshBorderTable()"><option value="all">All</option><option value="green">🟢 On Track</option><option value="orange">🟠 Priority</option><option value="red">🔴 Overdue</option></select></div>
             <div class="search-filter"><span>🔍</span><input type="text" id="borderSearchInput" placeholder="Search by Trip#, Truck, Driver, Border, Status..." onkeyup="refreshBorderTable()"></div>
+            ${typeof renderSoftDeleteShowCheckbox === 'function' ? renderSoftDeleteShowCheckbox('border-clearance', 'refreshBorderTable') : ''}
             <button class="btn btn-outline btn-sm" onclick="clearBorderFilters()">Clear</button>
             ${canEditInModule('border-clearance') ? `<button class="btn btn-primary btn-sm" onclick="openDriverRegistrationModal()">📱 Register NB Driver</button>` : ''}
         </div>
@@ -4934,9 +4954,9 @@ function renderPODTableRows(items) {
         return `<tr><td colspan="13" style="text-align:center;padding:24px;color:var(--text-secondary);">${msg}</td></tr>`;
     }
     return items.map(p => `
-        <tr>
+        <tr class="${typeof softDeleteRowClass === 'function' ? softDeleteRowClass(p) : ''}">
             <td style="width:36px;text-align:center;">${renderListRowCheckbox('pod', p.trip)}</td>
-            <td><strong>${p.trip}</strong></td>
+            <td><strong>${p.trip}</strong>${typeof renderSoftDeleteBadge === 'function' ? renderSoftDeleteBadge(p) : ''}</td>
             <td>${p.truck}</td>
             <td>${p.driver}</td>
             <td>${p.area}</td>
@@ -4948,11 +4968,12 @@ function renderPODTableRows(items) {
             <td>${p.collected && p.hoursToCollect ? p.hoursToCollect + 'h' : '—'}</td>
             <td><span class="status-badge ${p.kpi}"><span class="dot"></span> ${p.kpi === 'green' ? 'On Track' : p.kpi === 'orange' ? 'Priority' : 'Overdue'}</span></td>
             <td>
-                ${canEditInModule('pod-management', p.area) ? `<button class="btn btn-primary btn-sm" onclick="openCommentModal('${p.trip}', 'pod')">💬</button>` : ''}
-                ${canEditInModule('pod-management', p.area) && !p.collected ? `<button class="btn btn-outline btn-sm" onclick="openPodActionModal('${p.trip}','collected')">📋 Collect</button>` : ''}
-                ${canEditInModule('pod-management', p.area) && p.collected && !p.scanned ? `<button class="btn btn-outline btn-sm" onclick="openPodActionModal('${p.trip}','scanned')">🔍 Scan</button>` : ''}
-                ${canEditInModule('pod-management', p.area) && p.scanned && !p.uploaded ? `<button class="btn btn-outline btn-sm" onclick="openPodActionModal('${p.trip}','uploaded')">📤 Upload</button>` : ''}
-                ${canEditInModule('pod-management', p.area) && p.uploaded && !p.sentToInvoicing ? `<button class="btn btn-outline btn-sm" onclick="openPodActionModal('${p.trip}','sent_to_invoicing')">💰 Invoice</button>` : ''}
+                ${!isRecordDeleted(p) && canEditInModule('pod-management', p.area) ? `<button class="btn btn-primary btn-sm" onclick="openCommentModal('${p.trip}', 'pod')">💬</button>` : ''}
+                ${!isRecordDeleted(p) && canEditInModule('pod-management', p.area) && !p.collected ? `<button class="btn btn-outline btn-sm" onclick="openPodActionModal('${p.trip}','collected')">📋 Collect</button>` : ''}
+                ${!isRecordDeleted(p) && canEditInModule('pod-management', p.area) && p.collected && !p.scanned ? `<button class="btn btn-outline btn-sm" onclick="openPodActionModal('${p.trip}','scanned')">🔍 Scan</button>` : ''}
+                ${!isRecordDeleted(p) && canEditInModule('pod-management', p.area) && p.scanned && !p.uploaded ? `<button class="btn btn-outline btn-sm" onclick="openPodActionModal('${p.trip}','uploaded')">📤 Upload</button>` : ''}
+                ${!isRecordDeleted(p) && canEditInModule('pod-management', p.area) && p.uploaded && !p.sentToInvoicing ? `<button class="btn btn-outline btn-sm" onclick="openPodActionModal('${p.trip}','sent_to_invoicing')">💰 Invoice</button>` : ''}
+                ${typeof renderSoftDeleteActions === 'function' ? renderSoftDeleteActions('pod-management', p.trip, p.area, 'refreshPODTable') : ''}
             </td>
         </tr>
     `).join('');
@@ -5085,6 +5106,11 @@ function getFilteredPODItems() {
     const kpis = syncSelectedPodKpisFromDOM();
     const statuses = syncSelectedPodStatusesFromDOM();
     let items = filterPODItems(currentPODFilter);
+    if (typeof applySoftDeleteFilter === 'function') {
+        items = applySoftDeleteFilter(items, 'pod-management');
+    } else {
+        items = items.filter(p => !p.deletedAt);
+    }
 
     if (kpis.length === 0 || statuses.length === 0) return [];
     if (kpis.length < POD_KPI_OPTIONS.length) {
@@ -5188,6 +5214,7 @@ function renderPODManagement(container) {
                 <span>🔍</span>
                 <input type="text" id="podSearchInput" placeholder="Search by Trip#, Truck, Driver, Area, Offloading Point..." value="${podSearchTerm}" onkeyup="refreshPODTable()">
             </div>
+            ${typeof renderSoftDeleteShowCheckbox === 'function' ? renderSoftDeleteShowCheckbox('pod-management', 'refreshPODTable') : ''}
             <button class="btn btn-outline btn-sm" onclick="clearPODFilters()">Clear All Filters</button>
         </div>
 
@@ -5373,8 +5400,17 @@ function getFilteredAssetsRegistry() {
     const category = assetsCategoryFilter || document.getElementById('assetsCategoryFilter')?.value || 'all';
     let items = [...assetsRegistryDB];
 
+    if (typeof isRecordDeleted === 'function' && status === 'deleted') {
+        items = items.filter(isRecordDeleted);
+    } else if (typeof filterListWithSoftDelete === 'function') {
+        items = filterListWithSoftDelete(items, 'assets', status === 'all' ? 'all' : null, a => a.status);
+        if (status !== 'all' && status !== 'deleted') items = items.filter(a => !isRecordDeleted(a) && a.status === status);
+    } else {
+        items = items.filter(a => !a.deletedAt);
+        if (status !== 'all') items = items.filter(a => a.status === status);
+    }
+
     if (category !== 'all') items = items.filter(a => a.category === category);
-    if (status !== 'all') items = items.filter(a => a.status === status);
     if (search) {
         const term = search.toLowerCase();
         items = items.filter(a =>
@@ -5409,9 +5445,9 @@ function renderAssetsTableRows(items) {
         return '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text-secondary);">No assets or equipment match your search</td></tr>';
     }
     return items.map(a => `
-        <tr>
+        <tr class="${typeof softDeleteRowClass === 'function' ? softDeleteRowClass(a) : ''}">
             <td style="width:36px;text-align:center;">${renderListRowCheckbox('assets', a.id)}</td>
-            <td><strong>${a.id}</strong></td>
+            <td><strong>${a.id}</strong>${typeof renderSoftDeleteBadge === 'function' ? renderSoftDeleteBadge(a) : ''}</td>
             <td>${a.category === 'vehicle' ? '🚛 Vehicle' : '💻 Equipment'}</td>
             <td>${a.assetType}</td>
             <td><strong>${a.name}</strong><br><small style="color:var(--text-secondary);">${a.category === 'vehicle' ? (a.plateNumber || '—') : (a.serialNumber || '—')}</small></td>
@@ -5422,8 +5458,9 @@ function renderAssetsTableRows(items) {
             <td><span class="status-badge ${a.status === 'active' ? 'green' : a.status === 'maintenance' ? 'orange' : 'red'}">${formatAssetStatus(a.status)}</span></td>
             <td>
                 <button class="btn btn-outline btn-sm" onclick="openAssetDetailModal('${a.id}')" title="View details">👁️</button>
-                ${canEditInModule('assets') ? `<button class="btn btn-primary btn-sm" onclick="openAssetStatusModal('${a.id}')" title="Update status">💬</button>
+                ${!isRecordDeleted(a) && canEditInModule('assets') ? `<button class="btn btn-primary btn-sm" onclick="openAssetStatusModal('${a.id}')" title="Update status">💬</button>
                 <button class="btn btn-primary btn-sm" onclick="openAddAssetDocumentModal('${a.id}')" title="Add document">📄</button>` : ''}
+                ${typeof renderSoftDeleteActions === 'function' ? renderSoftDeleteActions('assets', a.id, '_global', 'refreshAssetsTable') : ''}
             </td>
         </tr>
     `).join('');
@@ -5791,7 +5828,8 @@ function renderAssets(container) {
 
         <div class="filters-bar">
             <div class="filter-group"><label>Category:</label><select id="assetsCategoryFilter" onchange="refreshAssetsTable()"><option value="all"${assetsCategoryFilter === 'all' ? ' selected' : ''}>All</option><option value="vehicle"${assetsCategoryFilter === 'vehicle' ? ' selected' : ''}>🚛 Vehicles</option><option value="equipment"${assetsCategoryFilter === 'equipment' ? ' selected' : ''}>💻 Equipment</option></select></div>
-            <div class="filter-group"><label>Status:</label><select id="assetsStatusFilter" onchange="refreshAssetsTable()"><option value="all"${assetsStatusFilter === 'all' ? ' selected' : ''}>All</option><option value="active"${assetsStatusFilter === 'active' ? ' selected' : ''}>Active</option><option value="maintenance"${assetsStatusFilter === 'maintenance' ? ' selected' : ''}>Maintenance</option><option value="retired"${assetsStatusFilter === 'retired' ? ' selected' : ''}>Retired</option></select></div>
+            <div class="filter-group"><label>Status:</label><select id="assetsStatusFilter" onchange="refreshAssetsTable()"><option value="all"${assetsStatusFilter === 'all' ? ' selected' : ''}>All</option><option value="active"${assetsStatusFilter === 'active' ? ' selected' : ''}>Active</option><option value="maintenance"${assetsStatusFilter === 'maintenance' ? ' selected' : ''}>Maintenance</option><option value="retired"${assetsStatusFilter === 'retired' ? ' selected' : ''}>Retired</option><option value="deleted"${assetsStatusFilter === 'deleted' ? ' selected' : ''}>Deleted</option></select></div>
+            ${typeof renderSoftDeleteShowCheckbox === 'function' ? `<div class="filter-group">${renderSoftDeleteShowCheckbox('assets', 'refreshAssetsTable')}</div>` : ''}
             <div class="search-filter" style="flex:2;">
                 <span>🔍</span>
                 <input type="text" id="assetsSearchInput" placeholder="Search by ID, plate, serial, make, model, assigned to..." value="${assetsSearchTerm}" onkeyup="refreshAssetsTable()">
@@ -6348,10 +6386,17 @@ function getFilteredDriverContacts() {
     const registered = driverRegistryRegisteredFilter || document.getElementById('driverRegistryRegistered')?.value || 'all';
 
     let items = [...driverContactsDB];
+    if (typeof isRecordDeleted === 'function' && registered === 'deleted') {
+        items = items.filter(isRecordDeleted);
+    } else if (typeof applySoftDeleteFilter === 'function') {
+        items = applySoftDeleteFilter(items, 'driver-registry');
+    } else {
+        items = items.filter(c => !c.deletedAt);
+    }
     if (direction !== 'all') items = items.filter(c => c.direction === direction);
     if (border !== 'all') items = items.filter(c => c.border === border);
-    if (registered === 'yes') items = items.filter(c => c.drcNumber && c.whatsapp);
-    if (registered === 'no') items = items.filter(c => !c.drcNumber || !c.whatsapp);
+    if (registered === 'yes') items = items.filter(c => !isRecordDeleted(c) && c.drcNumber && c.whatsapp);
+    if (registered === 'no') items = items.filter(c => !isRecordDeleted(c) && (!c.drcNumber || !c.whatsapp));
     if (search) {
         const term = search.toLowerCase();
         items = items.filter(c =>
@@ -6372,8 +6417,8 @@ function renderDriverRegistryRows(items) {
         return '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text-secondary);">No drivers match your search</td></tr>';
     }
     return items.map(c => `
-        <tr>
-            <td>${renderDriverLink(c.driverName, c.tripNumber)}</td>
+        <tr class="${typeof softDeleteRowClass === 'function' ? softDeleteRowClass(c) : ''}">
+            <td>${renderDriverLink(c.driverName, c.tripNumber)}${typeof renderSoftDeleteBadge === 'function' ? renderSoftDeleteBadge(c) : ''}</td>
             <td>${c.tripNumber || '—'}</td>
             <td>${c.truck || '—'}</td>
             <td><span class="status-badge blue">${c.direction || '—'}</span></td>
@@ -6384,8 +6429,9 @@ function renderDriverRegistryRows(items) {
             <td>${c.registeredBy || '—'}</td>
             <td>${c.registeredAt ? c.registeredAt.replace('T', ' ').slice(0, 16) : '—'}</td>
             <td>
-                <button class="btn btn-outline btn-sm" onclick="openDriverRegistrationModal('${escapeJsString(c.tripNumber || '')}')" title="Edit">✏️</button>
+                ${!isRecordDeleted(c) ? `<button class="btn btn-outline btn-sm" onclick="openDriverRegistrationModal('${escapeJsString(c.tripNumber || '')}')" title="Edit">✏️</button>` : ''}
                 ${c.tripNumber ? `<button class="btn btn-outline btn-sm" onclick="navigateToTripView('${escapeJsString(c.tripNumber)}')" title="View trip">👁️</button>` : ''}
+                ${typeof renderSoftDeleteActions === 'function' ? renderSoftDeleteActions('driver-registry', c.id, '_global', 'refreshDriverRegistryTable') : ''}
             </td>
         </tr>
     `).join('');
@@ -6444,7 +6490,8 @@ function renderDriverRegistry(container) {
         <div class="filters-bar">
             <div class="filter-group"><label>Direction:</label><select id="driverRegistryDirection" onchange="refreshDriverRegistryTable()"><option value="all">All</option><option value="NB">NB</option><option value="SB">SB</option></select></div>
             <div class="filter-group"><label>Border:</label><select id="driverRegistryBorder" onchange="refreshDriverRegistryTable()"><option value="all">All</option><option>Kasumbalesa</option><option>Sakania</option><option>Mokambo</option></select></div>
-            <div class="filter-group"><label>Status:</label><select id="driverRegistryRegistered" onchange="refreshDriverRegistryTable()"><option value="all">All</option><option value="yes">Registered</option><option value="no">Incomplete</option></select></div>
+            <div class="filter-group"><label>Status:</label><select id="driverRegistryRegistered" onchange="refreshDriverRegistryTable()"><option value="all">All</option><option value="yes">Registered</option><option value="no">Incomplete</option><option value="deleted">Deleted</option></select></div>
+            ${typeof renderSoftDeleteShowCheckbox === 'function' ? `<div class="filter-group">${renderSoftDeleteShowCheckbox('driver-registry', 'refreshDriverRegistryTable')}</div>` : ''}
             <div class="search-filter" style="flex:1;">
                 <span>🔍</span>
                 <input type="text" id="driverRegistrySearch" placeholder="Search driver, trip, truck, DRC number, WhatsApp, company, border..." value="${driverRegistrySearchTerm}" onkeyup="refreshDriverRegistryTable()">
@@ -6503,9 +6550,21 @@ function getFilteredMatrixContacts() {
     const area = matrixAreaFilter || document.getElementById('matrixAreaFilter')?.value || 'all';
     const active = matrixActiveFilter || document.getElementById('matrixActiveFilter')?.value || 'all';
     let items = [...communicationMatrixDB];
+
+    if (typeof isRecordDeleted === 'function' && active === 'deleted') {
+        items = items.filter(isRecordDeleted);
+    } else {
+        const live = items.filter(c => !isRecordDeleted(c));
+        const deleted = items.filter(isRecordDeleted);
+        if (active === 'active') items = live.filter(c => c.active);
+        else if (active === 'inactive') items = live.filter(c => !c.active);
+        else items = live;
+        if (typeof getSoftDeleteUi === 'function' && getSoftDeleteUi('communication-matrix').showDeleted) {
+            items = [...items, ...deleted];
+        }
+    }
+
     if (area !== 'all') items = items.filter(c => c.area === area);
-    if (active === 'active') items = items.filter(c => c.active);
-    if (active === 'inactive') items = items.filter(c => !c.active);
     if (search) {
         const term = search.toLowerCase();
         items = items.filter(c =>
@@ -6611,9 +6670,9 @@ function renderMatrixContactRows(items) {
         `).join('');
     }
     return items.map(c => `
-        <tr>
+        <tr class="${typeof softDeleteRowClass === 'function' ? softDeleteRowClass(c) : ''}">
             <td style="width:36px;text-align:center;">${renderListRowCheckbox('commMatrix', c.id)}</td>
-            <td><strong>${c.id}</strong></td>
+            <td><strong>${c.id}</strong>${typeof renderSoftDeleteBadge === 'function' ? renderSoftDeleteBadge(c) : ''}</td>
             <td>${c.name}</td>
             <td>${c.company}</td>
             <td>${c.function}</td>
@@ -6622,9 +6681,10 @@ function renderMatrixContactRows(items) {
             <td>${c.phone || '—'}</td>
             <td>${c.whatsapp || '—'}</td>
             <td>${c.area}</td>
-            <td>${c.active ? '<span class="status-badge green">Active</span>' : '<span class="status-badge orange">Inactive</span>'}</td>
+            <td>${isRecordDeleted(c) ? '<span class="status-badge row-deleted-badge">Deleted</span>' : (c.active ? '<span class="status-badge green">Active</span>' : '<span class="status-badge orange">Inactive</span>')}</td>
             <td>
-                <button class="btn btn-outline btn-sm" onclick="openMatrixContactModal('${c.id}')" title="Edit">✏️</button>
+                ${!isRecordDeleted(c) ? `<button class="btn btn-outline btn-sm" onclick="openMatrixContactModal('${c.id}')" title="Edit">✏️</button>` : ''}
+                ${typeof renderSoftDeleteActions === 'function' ? renderSoftDeleteActions('communication-matrix', c.id, '_global', 'refreshMatrixTable') : ''}
             </td>
         </tr>
     `).join('');
@@ -6764,7 +6824,8 @@ function renderCommunicationMatrix(container) {
         <div class="filters-bar">
             ${filter === 'contacts' ? `
                 <div class="filter-group"><label>Area:</label><select id="matrixAreaFilter" onchange="refreshMatrixTable()"><option value="all">All</option>${MATRIX_AREAS.map(a => `<option value="${a}">${a}</option>`).join('')}</select></div>
-                <div class="filter-group"><label>Status:</label><select id="matrixActiveFilter" onchange="refreshMatrixTable()"><option value="all">All</option><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+                <div class="filter-group"><label>Status:</label><select id="matrixActiveFilter" onchange="refreshMatrixTable()"><option value="all">All</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="deleted">Deleted</option></select></div>
+                ${typeof renderSoftDeleteShowCheckbox === 'function' ? `<div class="filter-group">${renderSoftDeleteShowCheckbox('communication-matrix', 'refreshMatrixTable')}</div>` : ''}
             ` : ''}
             <div class="search-filter" style="flex:1;">
                 <span>🔍</span>
@@ -9577,6 +9638,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (typeof refreshAppLogo === 'function') refreshAppLogo();
     initKpiSettings();
     syncAllAssetDocumentsToGlobalRegistry();
+    if (typeof initSoftDeleteModules === 'function') initSoftDeleteModules();
     adminUsersDB.forEach(u => ensureUserModulePermissions(u));
     initMatrixModalSelects();
 
