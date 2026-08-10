@@ -243,7 +243,6 @@ function seedRouteCatalog() {
 }
 
 function getFullCatalog() {
-  seedRouteCatalog();
   return {
     countries: listCountries(),
     stations: listStations(),

@@ -54,11 +54,17 @@
         saveLocal();
     }
 
-    function applyCatalog(catalog) {
+    function applyCatalog(catalog, authoritative) {
         if (!catalog) return;
-        countriesDB = catalog.countries || countriesDB;
-        stationsDB = catalog.stations || stationsDB;
-        routeTemplatesDB = catalog.routeTemplates || routeTemplatesDB;
+        if (authoritative) {
+            countriesDB = (catalog.countries || []).slice();
+            stationsDB = (catalog.stations || []).slice();
+            routeTemplatesDB = (catalog.routeTemplates || []).slice();
+        } else {
+            countriesDB = catalog.countries || countriesDB;
+            stationsDB = catalog.stations || stationsDB;
+            routeTemplatesDB = catalog.routeTemplates || routeTemplatesDB;
+        }
         saveLocal();
     }
 
@@ -66,7 +72,7 @@
         if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof fetchRouteCatalog === 'function') {
             try {
                 const catalog = await fetchRouteCatalog();
-                applyCatalog(catalog);
+                applyCatalog(catalog, true);
                 return true;
             } catch (e) {
                 console.warn('Route catalog sync failed:', e.message);
@@ -320,6 +326,4 @@
     window.resolveRouteFromCatalog = resolveRouteFromCatalog;
     window.stationsForRouteCountry = stationsForCountry;
     window.syncRouteCatalogFromApi = syncRouteCatalogFromApi;
-
-    if (!loadLocal()) seedFallback();
 })();

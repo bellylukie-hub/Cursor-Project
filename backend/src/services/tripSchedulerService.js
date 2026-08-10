@@ -141,8 +141,6 @@ function seedDemoTrips() {
 }
 
 function getSchedulerBundle() {
-  routeCatalog.seedRouteCatalog();
-  seedDemoTrips();
   return {
     trips: listTrips(),
     catalog: routeCatalog.getFullCatalog(),

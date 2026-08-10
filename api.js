@@ -326,19 +326,6 @@ async function syncDriverContactsFromApi() {
   }
 }
 
-async function syncDriverContactsFromApi() {
-  if (!apiAvailable || typeof driverContactsDB === 'undefined') return false;
-  try {
-    const contacts = await fetchDriverContacts();
-    if (!contacts.length) return true;
-    contacts.forEach(c => mergeDriverContactIntoLocalDb(c));
-    return true;
-  } catch (e) {
-    console.warn('Failed to sync driver contacts from API:', e.message);
-    return false;
-  }
-}
-
 // Admin settings API
 async function fetchAdminUsers() {
   const data = await apiRequest('/users');

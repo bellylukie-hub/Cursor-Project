@@ -971,23 +971,32 @@
         saveLocal();
     }
 
-    function applyBundle(bundle) {
+    function applyBundle(bundle, authoritative) {
         if (!bundle) return;
-        // Merge server data with any local-only records (e.g. if API was briefly unavailable)
-        const mergeById = (local, remote, idKey = 'id') => {
-            const map = new Map((remote || []).map(r => [r[idKey], r]));
-            (local || []).forEach(item => {
-                if (item && item[idKey] && !map.has(item[idKey])) map.set(item[idKey], item);
-            });
-            return Array.from(map.values());
-        };
-        clientsDB = mergeById(clientsDB, bundle.clients);
-        fleetDriversDB = mergeById(fleetDriversDB, bundle.drivers);
-        fleetUnitsDB = mergeById(fleetUnitsDB, bundle.units);
-        trucksDB = mergeById(trucksDB, bundle.trucks);
-        trailersDB = mergeById(trailersDB, bundle.trailers);
-        clientOrdersDB = mergeById(clientOrdersDB, bundle.orders);
-        orderAllocationsDB = mergeById(orderAllocationsDB, bundle.allocations);
+        if (authoritative) {
+            clientsDB = (bundle.clients || []).slice();
+            fleetDriversDB = (bundle.drivers || []).slice();
+            fleetUnitsDB = (bundle.units || []).slice();
+            trucksDB = (bundle.trucks || []).slice();
+            trailersDB = (bundle.trailers || []).slice();
+            clientOrdersDB = (bundle.orders || []).slice();
+            orderAllocationsDB = (bundle.allocations || []).slice();
+        } else {
+            const mergeById = (local, remote, idKey = 'id') => {
+                const map = new Map((remote || []).map(r => [r[idKey], r]));
+                (local || []).forEach(item => {
+                    if (item && item[idKey] && !map.has(item[idKey])) map.set(item[idKey], item);
+                });
+                return Array.from(map.values());
+            };
+            clientsDB = mergeById(clientsDB, bundle.clients);
+            fleetDriversDB = mergeById(fleetDriversDB, bundle.drivers);
+            fleetUnitsDB = mergeById(fleetUnitsDB, bundle.units);
+            trucksDB = mergeById(trucksDB, bundle.trucks);
+            trailersDB = mergeById(trailersDB, bundle.trailers);
+            clientOrdersDB = mergeById(clientOrdersDB, bundle.orders);
+            orderAllocationsDB = mergeById(orderAllocationsDB, bundle.allocations);
+        }
         saveLocal();
     }
 
@@ -1014,8 +1023,7 @@
         }
         try {
             const bundle = await fetchFleetOrderBundle();
-            applyBundle(bundle);
-            if (!clientOrdersDB.length && !clientsDB.length) seedDemoIfEmpty();
+            applyBundle(bundle, true);
             return true;
         } catch (e) {
             console.warn('Fleet orders sync failed:', e.message);
@@ -1936,5 +1944,4 @@
     window.getFleetTrailers = () => trailersDB.slice();
     window.getFleetAllocations = () => orderAllocationsDB.slice();
 
-    if (!loadLocal()) seedDemoIfEmpty();
 })();

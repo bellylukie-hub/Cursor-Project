@@ -191,9 +191,9 @@
         if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof fetchHelpdeskBundle === 'function') {
             try {
                 const bundle = await fetchHelpdeskBundle();
-                myTicketsDB = bundle.tickets || myTicketsDB;
-                if (bundle.allTickets && canManageHelpdesk()) teamTicketsDB = bundle.allTickets;
-                settingsDB = bundle.settings || settingsDB;
+                myTicketsDB = (bundle.tickets || []).slice();
+                if (bundle.allTickets && canManageHelpdesk()) teamTicketsDB = bundle.allTickets.slice();
+                if (bundle.settings) settingsDB = bundle.settings;
                 saveLocal();
                 return true;
             } catch (e) { console.warn('Helpdesk API sync failed:', e.message); }

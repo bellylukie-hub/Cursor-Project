@@ -329,7 +329,6 @@ function seedFleetOrderData() {
 }
 
 function getFullFleetOrderBundle() {
-  seedFleetOrderData();
   const fleetAsset = require('./fleetAssetService');
   return {
     clients: listClients(),
