@@ -1,7 +1,7 @@
 # TruckControl — Complete User & Administrator Manual
 
 **Product:** Truck Turnaround & Operations Control System  
-**Manual version:** v2.4.0-production  
+**Manual version:** v2.5.4-full-production  
 **Audience:** Operations staff, dispatchers, border moderators, FMS users, managers, and system administrators
 
 > **Illustrations:** This manual includes diagrams in `docs/images/`. View on GitHub, VS Code, or any Markdown viewer that supports SVG images.
@@ -42,6 +42,8 @@
 | Module permissions | `images/module-permissions.svg` | View / edit / delete matrix |
 | Bulk actions toolbar | `images/bulk-actions-toolbar.svg` | Checkbox selection actions |
 | Soft delete & restore | `images/soft-delete-rbac.svg` | RBAC for delete/restore |
+| Internal email | `images/internal-comm-email.svg` | Cross-user email delivery & notifications |
+| Internal chat | `images/internal-comm-chat.svg` | Chat tab, contact picker, direct messages |
 | Domain deployment | `images/domain-deployment.svg` | HTTPS + DNS architecture |
 
 ---
@@ -301,13 +303,72 @@ When you select one or more rows using the checkboxes, a **bulk actions toolbar*
 
 **Menu:** Communication → **Internal Communication**
 
-**Purpose:** Team email and chat.
+**Purpose:** Team **email** and **chat** between TruckControl users. Messages are stored on the **server** so each person sees mail in their own Inbox and chat rooms sync across sessions (not only in one browser).
 
-**Steps:**
+![Internal email delivery — sender, server mailbox, recipient inbox, and notification](images/internal-comm-email.svg)
+
+### Email tab (Outlook-style)
+
+**Steps — send a message:**
 1. Open **Internal Communication**.
-2. **Email tab:** inbox, sent, drafts — compose, reply, attach files.
-3. **Chat tab:** border rooms, area rooms, direct messages.
-4. Link messages to trips or modules where available.
+2. Stay on the **Email (Outlook)** tab (or click it if you are on Chat).
+3. Click **New mail** in the ribbon (Home tab).
+4. In **To**, enter one or more colleagues using any of:
+   - **Username** — e.g. `kanyaka_dispatcher`
+   - **Display name** — e.g. `Kanyaka Dispatcher`
+   - **Email address** — e.g. `david.m@truckcontrol.local`
+5. Use **quick-add** buttons below the compose area for active users, or type comma-separated names.
+6. Enter **Subject** and **Message** (required to send).
+7. Optional: use **Link** to attach the email to a trip, area, asset, or equipment record.
+8. Click **Send**.
+
+**Steps — read and organise mail:**
+1. Use the folder list: **Inbox**, **Sent**, **Drafts**, **Starred**, **Archive**, **Trash**.
+2. Click a message to read it; use **Reply**, **Forward**, **Star**, **Archive**, or **Delete** from the ribbon or read pane.
+3. Click **Sync** (View tab) to refresh from the server immediately.
+
+**Notifications:**
+- When a new email arrives, you see an **on-screen toast**.
+- If you **allow browser notifications** when prompted, you also get a desktop alert.
+- The sidebar **Internal Communication** badge shows unread email and chat counts.
+
+### Chat tab
+
+![Internal chat — Chat tab, contact picker, and direct conversation](images/internal-comm-chat.svg)
+
+**Steps — start a direct chat:**
+1. Open **Internal Communication**.
+2. Click the **Chat** tab.
+3. Click the **+** button in the chat sidebar **or** ribbon **New chat**.
+4. In **Start Chat**, select a colleague from the list (active users from Admin → Manage Users).
+5. Type your message and press **Enter** or click **Send**.
+
+**Steps — group chat:**
+1. On the Chat tab, click **New group** (ribbon or sidebar).
+2. Enter a **group name** and **member names** (comma-separated).
+3. Save — the group appears in your chat list.
+
+**Chat features:**
+- **Pin** or **Mute** a room from the ribbon (Room group).
+- **Unread only** filter on the View tab.
+- New chat messages trigger the same **toast and browser notifications** as email.
+
+### Who can use it
+
+| Feature | Who |
+|---------|-----|
+| Internal email & chat | All users with **Internal Communication** module access |
+| Contact list | Active users from **Admin → Manage Users** |
+| Cross-user delivery | Requires server API (Docker/production deploy with login) |
+
+### Tips
+
+| Tip | Detail |
+|-----|--------|
+| Address format | Username, display name, and email all work in the To field |
+| Not in inbox? | Click **Sync** on the View tab; confirm recipient username is correct |
+| Notifications | Allow browser permission on first visit to Internal Communication |
+| After upgrade | Run `docker compose down && docker compose up -d --build` for v2.5.4+ |
 
 ---
 
@@ -1039,6 +1100,7 @@ Full step-by-step: [INSTALLATION.md §12](INSTALLATION.md#12-nginx--caddy--https
 | Morning | Upload 1st position file | Position Live |
 | Ongoing | Update border clearance | Border Clearance |
 | Ongoing | Register new drivers | Driver Registry |
+| Ongoing | Team email / dispatch chat | Internal Communication |
 | Midday / evening | Upload 2nd & 3rd position files | Position Live |
 | End of shift | Advance POD stages | POD Management |
 | As needed | Schedule trips / orders | Trip Scheduler |
@@ -1069,6 +1131,9 @@ Full step-by-step: [INSTALLATION.md §12](INSTALLATION.md#12-nginx--caddy--https
 | Helpdesk quick resolve wiped data | Update to v2.2.0+ |
 | Fleet map empty | Add GPS lat/lng in Fleet Registry fleet sets |
 | KPI always red | Admin adjusts targets in KPI Settings |
+| Email says sent but inbox empty | Upgrade to v2.5.4+; rebuild Docker; use username or email in To field; click Sync |
+| Chat — cannot choose contact | Chat tab → + or ribbon New chat → pick user from Start Chat list |
+| No desktop alert for mail/chat | Allow browser notifications; stay logged in; app polls every few seconds |
 | Page blank / errors | Hard refresh (Ctrl+F5); check browser console |
 
 ## 6.4 Health check
@@ -1086,8 +1151,8 @@ Expected: `"status":"ok"` and `"requireAuth":true` for production.
 | Field | Value |
 |-------|-------|
 | Manual title | TruckControl Complete User & Administrator Manual |
-| Version | v2.2.1-production |
-| Illustrations | `docs/images/*.svg` (12 diagrams) |
+| Version | v2.5.4-full-production |
+| Illustrations | `docs/images/*.svg` (17 diagrams) |
 | Last updated | August 2026 |
 | Related | INSTALLATION.md, USER-GUIDE.md, PRODUCTION.md |
 

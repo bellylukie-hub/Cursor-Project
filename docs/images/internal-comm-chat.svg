@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 400" role="img" aria-label="Internal chat with contact picker">
+  <rect width="920" height="400" fill="#edf2f7"/>
+  <text x="460" y="32" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#1a365d">Internal Chat  choose who to message</text>
+  <text x="460" y="54" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#718096">Direct and group conversations sync through the server (not browser-only storage)</text>
+
+  <rect x="40" y="72" width="520" height="300" rx="12" fill="#fff" stroke="#e2e8f0" stroke-width="2"/>
+  <rect x="40" y="72" width="520" height="40" rx="12" fill="#1a365d"/>
+  <rect x="40" y="100" width="520" height="12" fill="#1a365d"/>
+  <text x="300" y="98" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="700" fill="#fff">Internal Communication</text>
+
+  <rect x="56" y="118" width="110" height="28" rx="6" fill="#fff" stroke="#cbd5e0"/>
+  <text x="111" y="136" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#718096">Email (Outlook)</text>
+  <rect x="172" y="118" width="72" height="28" rx="6" fill="#2b6cb0"/>
+  <text x="208" y="136" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="600" fill="#fff">Chat</text>
+
+  <rect x="56" y="156" width="160" height="200" rx="8" fill="#f7fafc" stroke="#e2e8f0"/>
+  <text x="68" y="178" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="700" fill="#2d3748">Chats</text>
+  <rect x="188" y="164" width="24" height="24" rx="4" fill="#fff" stroke="#cbd5e0"/>
+  <text x="200" y="180" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#2b6cb0">+</text>
+  <rect x="68" y="190" width="136" height="36" rx="6" fill="#e6fffa" stroke="#38b2ac"/>
+  <text x="136" y="212" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#234e52">Kanyaka Dispatcher</text>
+  <rect x="68" y="232" width="136" height="36" rx="6" fill="#fff" stroke="#e2e8f0"/>
+  <text x="136" y="254" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#4a5568">Operations Team</text>
+
+  <rect x="228" y="156" width="316" height="200" rx="8" fill="#fff" stroke="#e2e8f0"/>
+  <text x="244" y="178" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="700" fill="#2d3748">Kanyaka Dispatcher</text>
+  <rect x="244" y="190" width="180" height="32" rx="12" fill="#ebf8ff"/>
+  <text x="254" y="210" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#2d3748">Truck ETA updated at Kanyaka</text>
+  <rect x="300" y="232" width="200" height="32" rx="12" fill="#f0fff4"/>
+  <text x="310" y="252" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#2d3748">Copy  thanks, noted.</text>
+  <rect x="244" y="310" width="260" height="32" rx="16" fill="#fff" stroke="#cbd5e0"/>
+  <text x="258" y="330" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#a0aec0">Type a message...</text>
+  <rect x="508" y="310" width="28" height="32" rx="16" fill="#2b6cb0"/>
+  <text x="522" y="330" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#fff">></text>
+
+  <rect x="580" y="72" width="300" height="220" rx="12" fill="#fff" stroke="#2b6cb0" stroke-width="2"/>
+  <rect x="580" y="72" width="300" height="36" rx="12" fill="#ebf8ff"/>
+  <rect x="580" y="96" width="300" height="12" fill="#ebf8ff"/>
+  <text x="730" y="96" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="700" fill="#1a365d">Start Chat</text>
+  <text x="600" y="130" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#718096">Select a colleague to message:</text>
+  <rect x="600" y="142" width="260" height="40" rx="8" fill="#fff" stroke="#e2e8f0"/>
+  <circle cx="620" cy="162" r="14" fill="#2b6cb0"/>
+  <text x="620" y="166" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#fff">KD</text>
+  <text x="642" y="158" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="700" fill="#2d3748">Kanyaka Dispatcher</text>
+  <text x="642" y="174" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#718096">david.m@truckcontrol.local</text>
+  <rect x="600" y="190" width="260" height="40" rx="8" fill="#fff" stroke="#e2e8f0"/>
+  <circle cx="620" cy="210" r="14" fill="#805ad5"/>
+  <text x="620" y="214" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#fff">SA</text>
+  <text x="642" y="206" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="700" fill="#2d3748">Super Admin</text>
+  <text x="642" y="222" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#718096">admin@truckcontrol.local</text>
+  <rect x="600" y="248" width="120" height="28" rx="6" fill="#fff" stroke="#cbd5e0"/>
+  <text x="660" y="266" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#4a5568">Cancel</text>
+
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#4a5568">
+    <text x="580" y="320" font-weight="700" fill="#1a365d">Open contact picker</text>
+    <text x="580" y="342">Chat tab ’ + button (sidebar)</text>
+    <text x="580" y="362">or ribbon ’ New chat</text>
+    <text x="580" y="382">Pick a user ’ direct room opens</text>
+  </g>
+</svg>

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 340" role="img" aria-label="Internal email delivery between users">
+  <rect width="920" height="340" fill="#edf2f7"/>
+  <text x="460" y="32" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#1a365d">Internal Email  cross-user delivery</text>
+  <text x="460" y="54" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#718096">Messages are stored on the server so each recipient sees them in their own Inbox</text>
+
+  <rect x="40" y="78" width="200" height="120" rx="10" fill="#fff" stroke="#2b6cb0" stroke-width="2"/>
+  <text x="140" y="104" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="700" fill="#1a365d">Sender</text>
+  <text x="140" y="126" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#4a5568">super_admin</text>
+  <text x="140" y="146" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#4a5568">Compose: To kanyaka_dispatcher</text>
+  <rect x="70" y="158" width="140" height="28" rx="6" fill="#2b6cb0"/>
+  <text x="140" y="177" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="600" fill="#fff">Send</text>
+
+  <text x="265" y="142" font-family="Segoe UI, Arial, sans-serif" font-size="28" fill="#2b6cb0">’</text>
+
+  <rect x="290" y="78" width="220" height="120" rx="10" fill="#ebf8ff" stroke="#2b6cb0" stroke-width="2"/>
+  <text x="400" y="104" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="700" fill="#1a365d">Server mailbox</text>
+  <text x="400" y="126" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#4a5568">internal_emails table</text>
+  <text x="400" y="146" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#4a5568">Sent copy for sender</text>
+  <text x="400" y="166" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#4a5568">Inbox copy per recipient</text>
+
+  <text x="535" y="142" font-family="Segoe UI, Arial, sans-serif" font-size="28" fill="#2b6cb0">’</text>
+
+  <rect x="560" y="78" width="200" height="120" rx="10" fill="#fff" stroke="#38a169" stroke-width="2"/>
+  <text x="660" y="104" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="700" fill="#276749">Recipient Inbox</text>
+  <text x="660" y="126" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#4a5568">kanyaka_dispatcher</text>
+  <text x="660" y="146" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#4a5568">david.m@truckcontrol.local</text>
+  <rect x="600" y="158" width="120" height="28" rx="14" fill="#c6f6d5" stroke="#38a169"/>
+  <text x="660" y="177" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#276749">Unread email</text>
+
+  <rect x="780" y="88" width="120" height="56" rx="8" fill="#fffaf0" stroke="#dd6b20" stroke-width="2"/>
+  <text x="840" y="112" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="700" fill="#c05621">Notification</text>
+  <text x="840" y="130" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#4a5568">Toast + browser alert</text>
+
+  <rect x="40" y="220" width="840" height="100" rx="10" fill="#fff" stroke="#e2e8f0"/>
+  <text x="60" y="246" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="700" fill="#1a365d">How to send email</text>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#4a5568">
+    <text x="60" y="270">1. Communication ’ Internal Communication ’ Email tab ’ New mail (ribbon).</text>
+    <text x="60" y="292">2. In To, enter username (kanyaka_dispatcher), display name, or email address.</text>
+    <text x="60" y="314">3. Use quick-add buttons or type comma-separated recipients. Click Send.</text>
+    <text x="500" y="270">4. Recipient opens Inbox  message appears within a few seconds.</text>
+    <text x="500" y="292">5. Allow browser notifications when prompted for desktop alerts.</text>
+    <text x="500" y="314">6. Optional: link email to trip, area, or asset from the Link field.</text>
+  </g>
+</svg>

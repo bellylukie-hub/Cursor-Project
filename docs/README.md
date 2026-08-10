@@ -1,6 +1,6 @@
 # TruckControl Documentation
 
-**Package version:** v2.4.0-production
+**Package version:** v2.5.4-full-production
 
 Welcome to the TruckControl documentation set included in the production ZIP.
 
@@ -32,6 +32,8 @@ Welcome to the TruckControl documentation set included in the production ZIP.
 | `nb-workflow.svg` / `sb-workflow.svg` | Operations workflows |
 | `fms-workflow.svg` | Orders → trips → fleet |
 | `help-assistant.svg` | Chatbot usage |
+| `internal-comm-email.svg` | **Internal email delivery & notifications** |
+| `internal-comm-chat.svg` | **Chat tab & contact picker** |
 | `admin-setup-order.svg` | Recommended admin setup order |
 
 ---
@@ -57,6 +59,7 @@ Welcome to the TruckControl documentation set included in the production ZIP.
 | Domain deployment | [COMPLETE-MANUAL §5.4](COMPLETE-MANUAL.md#54-deploy-on-a-public-domain-https) |
 | NB / SB / Border / POD | [COMPLETE-MANUAL §2.2–2.5](COMPLETE-MANUAL.md#22-nb-operations-northbound) |
 | Help assistant (chatbot) | [COMPLETE-MANUAL Part III](COMPLETE-MANUAL.md#part-iii--help-assistant-chatbot) |
+| Internal email & chat | [COMPLETE-MANUAL §2.9](COMPLETE-MANUAL.md#29-internal-communication) |
 | Admin setup | [COMPLETE-MANUAL Part IV](COMPLETE-MANUAL.md#part-iv--administrator-guide-step-by-step) |
 
 ---
@@ -65,10 +68,10 @@ Welcome to the TruckControl documentation set included in the production ZIP.
 
 ```bash
 chmod +x scripts/build-production-zip.sh
-./scripts/build-production-zip.sh v2.4.0-production
+./scripts/build-production-zip.sh v2.5.4-full-production
 ```
 
-Output: `dist/TruckControl-Production-v2.4.0-production.zip`
+Output: `dist/TruckControl-Production-v2.5.4-full-production.zip`
 
 ---
 

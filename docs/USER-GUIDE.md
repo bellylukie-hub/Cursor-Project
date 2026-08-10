@@ -185,9 +185,22 @@ Register **NB drivers** at border: name, truck plate, DRC mobile, WhatsApp, bord
 
 ### Internal Communication
 
-- **Email** — inbox, sent, drafts (team messaging).
-- **Chat rooms** — borders, areas, direct messages.
-- **Trip-linked threads** — KBP queues, dispatch updates, POD alerts.
+Team **email** and **chat** between TruckControl users. Mail and messages are stored on the **server** so delivery works between accounts (e.g. Super Admin ↔ area dispatcher).
+
+![Internal email — cross-user delivery and notifications](images/internal-comm-email.svg)
+
+**Email**
+1. Open **Internal Communication** → **Email (Outlook)** tab.
+2. **New mail** — in **To**, use username (`kanyaka_dispatcher`), display name, or email.
+3. Use quick-add buttons for colleagues; send. Recipient sees the message in **Inbox** within a few seconds.
+4. Allow **browser notifications** when prompted for desktop alerts on new mail.
+
+**Chat**
+1. Open the **Chat** tab (not WhatsApp — internal team chat only).
+2. Click **+** or ribbon **New chat** → select a colleague from **Start Chat**.
+3. Type and send; use **New group** for multi-person rooms.
+
+See illustrations: [COMPLETE-MANUAL §2.9](COMPLETE-MANUAL.md#29-internal-communication), `docs/images/internal-comm-email.svg`, `docs/images/internal-comm-chat.svg`.
 
 ---
 
@@ -355,6 +368,8 @@ KPI colours are consistent across truck rows, status cells, and summary cards. S
 | Upload has no effect | Confirm you are logged in; check file format against template |
 | Position not showing on NB/SB | Ensure trip number **and** truck plate match the live file |
 | KPI always red | Admin may need to adjust SLA in KPI Settings |
+| Email sent but not in recipient inbox | Upgrade to v2.5.4+; rebuild Docker; address user by username or email; Sync mailbox |
+| Cannot pick chat contact | Chat tab → + or New chat → choose user from list |
 | Page blank or errors | Hard refresh (Ctrl+F5); try another browser; report to IT |
 
 For server installation issues, see [INSTALLATION.md](INSTALLATION.md).
@@ -387,5 +402,5 @@ See illustration: [COMPLETE-MANUAL §2.2](COMPLETE-MANUAL.md#22-nb-operations-no
 | Field | Value |
 |-------|-------|
 | Product | TruckControl — Truck Turnaround & Operations Control System |
-| Guide version | v2.4.0-production |
+| Guide version | v2.5.4-full-production |
 | Related docs | [INSTALLATION.md](INSTALLATION.md), [README.md](README.md), [PRODUCTION.md](../PRODUCTION.md) |
