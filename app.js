@@ -1487,6 +1487,25 @@ let purgeTargetUserId = null;
 const SIMULATED_CLIENT_IP = '10.42.0.15';
 
 function getCurrentAdminUser() {
+    const user = adminUsersDB.find(u => u.id === CURRENT_SESSION_USER_ID);
+    if (user) return user;
+    if (typeof getAuthUser === 'function') {
+        const apiUser = getAuthUser();
+        if (apiUser && apiUser.id === CURRENT_SESSION_USER_ID) {
+            return {
+                id: apiUser.id,
+                username: apiUser.username,
+                email: apiUser.email || '',
+                roleId: apiUser.roleId,
+                status: apiUser.status || 'active',
+                area: apiUser.area || '',
+                assignedAreas: apiUser.assignedAreas || [],
+                modulePermissions: apiUser.modulePermissions || {},
+                phone: apiUser.phone || '',
+                passwordHash: '[server]'
+            };
+        }
+    }
     return adminUsersDB.find(u => u.id === CURRENT_SESSION_USER_ID) || adminUsersDB[0];
 }
 
@@ -1496,7 +1515,22 @@ function getRoleById(roleId) {
 
 function getCurrentRole() {
     const user = getCurrentAdminUser();
-    return user ? getRoleById(user.roleId) : null;
+    if (!user) return null;
+    const role = getRoleById(user.roleId);
+    if (role) return role;
+    if (typeof getAuthUser === 'function') {
+        const apiUser = getAuthUser();
+        if (apiUser?.roleId === user.roleId && apiUser.roleName) {
+            return {
+                id: apiUser.roleId,
+                name: apiUser.roleName,
+                permissions: apiUser.permissions || [],
+                description: '',
+                system: apiUser.roleName === 'Super Admin'
+            };
+        }
+    }
+    return null;
 }
 
 function roleHasPermission(role, permission) {
@@ -1565,12 +1599,28 @@ function applyAuthUserToSession(apiUser) {
     if (!apiUser) return;
     CURRENT_SESSION_USER_ID = apiUser.id;
     const existing = adminUsersDB.find(u => u.id === apiUser.id);
+    const row = {
+        roleId: apiUser.roleId,
+        username: apiUser.username,
+        email: apiUser.email || '',
+        area: apiUser.area,
+        assignedAreas: apiUser.assignedAreas || existing?.assignedAreas || [apiUser.area].filter(Boolean),
+        status: apiUser.status || 'active',
+        modulePermissions: apiUser.modulePermissions || existing?.modulePermissions || {}
+    };
     if (existing) {
-        existing.roleId = apiUser.roleId;
-        existing.area = apiUser.area;
-        existing.assignedAreas = apiUser.assignedAreas || existing.assignedAreas;
-        existing.status = apiUser.status || 'active';
-        if (apiUser.modulePermissions) existing.modulePermissions = apiUser.modulePermissions;
+        Object.assign(existing, row);
+    } else {
+        adminUsersDB.push({
+            id: apiUser.id,
+            passwordHash: '[server]',
+            phone: apiUser.phone || '',
+            createdAt: '',
+            lastLogin: null,
+            bannedAt: null,
+            bannedReason: '',
+            ...row
+        });
     }
     updateTopBarUser();
     if (typeof initCustomSqlNav === 'function') initCustomSqlNav();
@@ -8551,8 +8601,12 @@ function generateAdminUserPassword() {
     }
 }
 
-function showAdminPasswordResetModal(username, password) {
+function showAdminPasswordResetModal(username, password, email) {
     document.getElementById('adminPasswordResetUsername').textContent = username;
+    const emailHint = document.getElementById('adminPasswordResetEmailHint');
+    if (emailHint) {
+        emailHint.textContent = email ? `Sign in with username "${username}" or email "${email}".` : `Sign in with username "${username}".`;
+    }
     document.getElementById('adminPasswordResetValue').textContent = password;
     window.__lastAdminPasswordReset = password;
     openModal('adminPasswordResetModal');
@@ -8604,7 +8658,7 @@ function submitAdminUser() {
                 if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof createAdminUserApi === 'function') {
                     user = await createAdminUserApi(payload);
                     user.passwordHash = '[server]';
-                    if (user.temporaryPassword) showAdminPasswordResetModal(username, user.temporaryPassword);
+                    if (user.temporaryPassword) showAdminPasswordResetModal(username, user.temporaryPassword, email);
                 } else {
                     user = { ...payload, passwordHash: '[bcrypt-hash]', status: 'active', createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16), lastLogin: null, bannedAt: null, bannedReason: '' };
                 }
@@ -8637,7 +8691,7 @@ function resetAdminUserPassword(userId) {
                 user.passwordHash = '[bcrypt-hash-reset-' + Date.now() + ']';
             }
             logAuditEvent(`Reset Password for ${userId}`, userId, 'user', 'Password reset via admin panel');
-            if (tempPassword) showAdminPasswordResetModal(user.username, tempPassword);
+            if (tempPassword) showAdminPasswordResetModal(user.username, tempPassword, user.email);
             else showToast(`Password reset for ${user.username}.`, 'success');
             if (typeof persistAdminUsers === 'function') persistAdminUsers();
         } catch (e) {

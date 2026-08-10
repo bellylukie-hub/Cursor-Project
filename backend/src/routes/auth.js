@@ -8,7 +8,7 @@ router.post('/login', (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password are required' });
+      return res.status(400).json({ error: 'Username/email and password are required' });
     }
     const result = login(username, password, req.ip);
     res.json(result);

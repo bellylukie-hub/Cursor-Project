@@ -45,7 +45,6 @@ function seedUsers() {
       ON CONFLICT(id) DO UPDATE SET
         username = excluded.username,
         email = excluded.email,
-        password_hash = excluded.password_hash,
         role_id = excluded.role_id,
         area = excluded.area,
         assigned_areas = excluded.assigned_areas,

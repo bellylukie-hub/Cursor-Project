@@ -2086,8 +2086,8 @@
             <div class="login-error" id="loginError"></div>
             <form onsubmit="handleLoginSubmit(event)">
                 <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" class="form-control" id="loginUsername" autocomplete="username" required placeholder="super_admin">
+                    <label>Username or email</label>
+                    <input type="text" class="form-control" id="loginUsername" autocomplete="username" required placeholder="super_admin or admin@truckcontrol.local">
                 </div>
                 <div class="form-group">
                     <label>Password</label>
@@ -2572,7 +2572,8 @@
             <div class="modal-header"><h3>🔑 Password Reset</h3><button class="btn btn-outline" onclick="closeModal('adminPasswordResetModal')">✕</button></div>
             <div class="modal-body">
                 <p>A new temporary password was generated for <strong id="adminPasswordResetUsername"></strong>.</p>
-                <p style="font-size:13px;color:var(--text-secondary);margin:12px 0;">Share this password securely with the user. They should change it after first login.</p>
+                <p id="adminPasswordResetEmailHint" style="font-size:13px;color:var(--text-secondary);margin:8px 0 0;"></p>
+                <p style="font-size:13px;color:var(--text-secondary);margin:12px 0;">Share this password securely. The user can sign in with their <strong>username or email</strong> and should change the password after first login.</p>
                 <div class="password-reset-display" id="adminPasswordResetValue"></div>
             </div>
             <div class="modal-footer">
