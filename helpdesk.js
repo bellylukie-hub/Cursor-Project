@@ -293,6 +293,8 @@
 
         document.getElementById('helpdeskCommentBox').value = '';
         document.getElementById('helpdeskInternalNote').checked = false;
+        const commentsSection = document.getElementById('helpdeskCommentsSection');
+        if (commentsSection) commentsSection.style.display = t ? 'block' : 'none';
         openModal('helpdeskModal');
     };
 
