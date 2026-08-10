@@ -1077,6 +1077,8 @@
     }
 
     // ─── GPS Map Modal ───────────────────────────────────────────────
+    let fleetGpsDetailMap = null;
+
     window.openFleetGpsMap = function (opts) {
         const unit = typeof opts === 'string' ? getUnitById(opts) : (opts?.unitId ? getUnitById(opts.unitId) : findUnitByTruckPlate(opts?.truckPlate));
         if (!unit) {
@@ -1090,20 +1092,37 @@
         const driver = getDriverForUnit(unit);
         const lat = unit.gpsLat;
         const lng = unit.gpsLng;
-        const pad = 0.08;
-        const bbox = `${lng - pad},${lat - pad},${lng + pad},${lat + pad}`;
-        const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}`;
         const modal = document.getElementById('fleetGpsMapModal');
         if (!modal) return;
         document.getElementById('fleetGpsMapTitle').textContent = `📍 ${unit.truckPlate}${unit.trailerPlate ? ' + ' + unit.trailerPlate : ''}`;
         document.getElementById('fleetGpsMapMeta').innerHTML = `
             <div><strong>Driver:</strong> ${driver ? `<a href="${whatsappLink(driver.whatsapp)}" target="_blank" rel="noopener">${driver.name} 📱 WhatsApp</a>` : '—'}</div>
             <div><strong>GPS device:</strong> ${unit.gpsDeviceId || '—'} · <strong>Location:</strong> ${unit.gpsLabel || 'Live'}</div>
-            <div><strong>Coordinates:</strong> ${lat.toFixed(5)}, ${lng.toFixed(5)} · Updated: ${unit.gpsUpdatedAt ? new Date(unit.gpsUpdatedAt).toLocaleString() : '—'}</div>`;
-        document.getElementById('fleetGpsMapFrame').src = mapUrl;
+            <div><strong>Coordinates:</strong> ${lat.toFixed(5)}, ${lng.toFixed(5)} · Updated: ${unit.gpsUpdatedAt ? new Date(unit.gpsUpdatedAt).toLocaleString() : '—'}</div>
+            <div style="margin-top:8px;"><button type="button" class="btn btn-outline btn-sm" onclick="openFleetMapModal('${unit.id}')">🗺️ View on fleet map</button></div>`;
+        const frame = document.getElementById('fleetGpsMapFrame');
+        const leafletEl = document.getElementById('fleetGpsMapLeaflet');
+        if (frame) frame.style.display = 'none';
+        if (leafletEl) {
+            leafletEl.style.display = 'block';
+            if (typeof destroyFleetGpsLeafletMap === 'function') fleetGpsDetailMap = destroyFleetGpsLeafletMap(fleetGpsDetailMap);
+            if (typeof initFleetGpsLeafletMap === 'function') {
+                fleetGpsDetailMap = initFleetGpsLeafletMap(leafletEl, unit);
+            }
+        } else if (frame) {
+            const pad = 0.08;
+            const bbox = `${lng - pad},${lat - pad},${lng + pad},${lat + pad}`;
+            frame.style.display = 'block';
+            frame.src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}`;
+        }
         document.getElementById('fleetGpsMapExternal').href = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=12/${lat}/${lng}`;
         if (typeof openModal === 'function') openModal('fleetGpsMapModal');
         else modal.style.display = 'flex';
+    };
+
+    window.closeFleetGpsMapModal = function () {
+        if (typeof destroyFleetGpsLeafletMap === 'function') fleetGpsDetailMap = destroyFleetGpsLeafletMap(fleetGpsDetailMap);
+        if (typeof closeModal === 'function') closeModal('fleetGpsMapModal');
     };
 
     // ─── Client Orders Page ──────────────────────────────────────────
@@ -1293,6 +1312,7 @@
                         <div class="breadcrumb">Management / Register trucks, trailers, drivers — link them as a fleet set</div>
                     </div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button class="btn btn-outline" onclick="openFleetMapModal()">🗺️ Fleet Map</button>
                         ${canEdit ? `<button class="btn btn-outline" onclick="openFleetTruckModal()">+ Truck</button>` : ''}
                         ${canEdit ? `<button class="btn btn-outline" onclick="openFleetTrailerModal()">+ Trailer</button>` : ''}
                         ${canEdit && fs.allowSuperlinkPairing !== false ? `<button class="btn btn-outline" onclick="openSuperlinkPairModal()">🔗 Superlink Pair</button>` : ''}
@@ -1914,6 +1934,7 @@
     window.getFleetDrivers = () => fleetDriversDB.slice();
     window.getFleetTrucks = () => trucksDB.slice();
     window.getFleetTrailers = () => trailersDB.slice();
+    window.getFleetAllocations = () => orderAllocationsDB.slice();
 
     if (!loadLocal()) seedDemoIfEmpty();
 })();

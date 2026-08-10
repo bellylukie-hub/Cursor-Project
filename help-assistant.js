@@ -133,7 +133,7 @@
                 {
                     id: 'fleet-registry', icon: '🚛', label: 'Fleet Registry', moduleId: 'fleet-registry',
                     keywords: ['fleet registry', 'register truck', 'trailer', 'driver', 'gps', 'fleet set', 'superlink', 'fms register', 'vehicle spec'],
-                    description: 'Register trucks, trailers, and drivers with full FMS vehicle fields (~87 columns in Full Register). Link truck + trailer + driver as a fleet set; pair superlink front/rear trailers. GPS links enable Position Live map view.'
+                    description: 'Register trucks, trailers, and drivers with full FMS vehicle fields (~87 columns in Full Register). Link truck + trailer + driver as a fleet set; pair superlink front/rear trailers. GPS coordinates power the Fleet Map and Position Live pin links.'
                 },
                 {
                     id: 'runner-fees', icon: '💰', label: 'Runner Fees', moduleId: 'runner-fees',
@@ -151,9 +151,14 @@
                     description: 'End-to-end NB→SB journey on the same truck: border clearance through POD, then SB loading through border exit. Links to fleet same-truck policy settings.'
                 },
                 {
+                    id: 'fleet-map', icon: '🗺️', label: 'Fleet Map', moduleId: 'fleet-map',
+                    keywords: ['fleet map', 'truck map', 'gps map', 'pin', 'tracking map', 'openstreetmap', 'leaflet'],
+                    description: 'Interactive map of all fleet trucks with GPS. Click a pin to see truck plate, driver, location, and open the detailed position map. Also available from Position Live and Fleet Registry.'
+                },
+                {
                     id: 'position-live', icon: '📍', label: 'Position Live', moduleId: 'position-live',
                     keywords: ['position live', 'gps', 'position', 'tracking', 'location'],
-                    description: 'Live truck positions on the map with workflow status columns and latest comments. Upload position files and monitor fleet movement across borders and areas.'
+                    description: 'Live truck positions with workflow status columns and latest comments. Click a position cell with 📍 to open the truck map, or use Fleet Map to see all trucks at once.'
                 }
             ]
         },

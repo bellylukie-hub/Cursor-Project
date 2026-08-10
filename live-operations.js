@@ -1893,6 +1893,7 @@
                     <p class="page-subtitle">Master live operations view — ${direction === 'NB' ? 'Border → Kanyaka → Offloading → POD' : 'Loading → Documents → Seal → Escort → Dispatch → Kanyaka → Border Exit'}</p>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn btn-outline" onclick="openFleetMapModal()">🗺️ Fleet Map</button>
                     <button class="btn btn-primary" onclick="openUploadModal('POSITION')">📤 Upload Position File</button>
                     <button class="btn btn-outline" onclick="openUploadModal('${direction}')">📤 Upload ${direction} Live File</button>
                 </div>

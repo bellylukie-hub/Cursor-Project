@@ -1706,6 +1706,7 @@ const OPERATIONAL_MODULES = [
     { id: 'runner-fees', label: 'Runner Fees', icon: '💰', global: true },
     { id: 'reports', label: 'Reports', icon: '📈', global: true },
     { id: 'turnarounds', label: 'Turnarounds', icon: '🔄', global: true },
+    { id: 'fleet-map', label: 'Fleet Map', icon: '🗺️', global: true },
     { id: 'position-live', label: 'Position Live', icon: '📍', global: true }
 ];
 
@@ -1732,6 +1733,7 @@ const PAGE_MODULE_MAP = {
     reports: 'reports',
     'report-detail': 'reports',
     turnarounds: 'turnarounds',
+    'fleet-map': 'fleet-map',
     'position-live': 'position-live',
     'trip-list': 'dashboard',
     'document-alerts': 'assets',
@@ -1816,7 +1818,7 @@ function buildDefaultModulePermissions(user) {
     });
 
     if (areas.includes('Kanyaka') || areas.includes('All Areas')) {
-        ['nb-operations', 'sb-operations', 'border-clearance', 'pod-management', 'area-browser', 'turnarounds', 'position-live'].forEach(modId => {
+        ['nb-operations', 'sb-operations', 'border-clearance', 'pod-management', 'area-browser', 'turnarounds', 'fleet-map', 'position-live'].forEach(modId => {
             if (!perms[modId]) perms[modId] = {};
             OPERATIONAL_AREAS.forEach(area => {
                 if (!perms[modId][area]) perms[modId][area] = emptyModulePerm();
@@ -2336,6 +2338,10 @@ function navigateTo(page) {
         case 'admin-helpdesk-settings': if (typeof renderAdminHelpdeskSettings === 'function') renderAdminHelpdeskSettings(ca); break;
         case 'admin-upload-templates': renderAdminUploadTemplates(ca); break;
         case 'position-live': renderPositionLive(ca); break;
+        case 'fleet-map':
+            if (typeof renderFleetMap === 'function') renderFleetMap(ca);
+            else renderMissingModulePage(ca, 'fleet-map');
+            break;
         case 'turnarounds': renderTurnarounds(ca); break;
         case 'report-detail': renderReportDetail(ca); break;
         default: renderDashboard(ca);
@@ -4117,6 +4123,7 @@ function renderNBOperations(container) {
             ${canEditInModule('nb-operations') ? `<button class="btn btn-primary" onclick="openUploadModal('NB')">📤 Upload NB Live File</button>` : ''}
             ${canEditInModule('border-clearance') ? `<button class="btn btn-outline" onclick="openDriverRegistrationModal()">📱 Register NB Driver</button>` : ''}
             <button class="btn btn-outline" onclick="downloadTemplateCsv('NB')">📥 NB Template</button>
+            ${canAccessModule('fleet-map') ? `<button class="btn btn-outline" onclick="openFleetMapModal()">🗺️ Fleet Map</button>` : ''}
             ${canAccessModule('position-live') ? `<button class="btn btn-outline" onclick="navigateTo('position-live')">📍 Position Live</button>` : ''}
         </div>
         <div class="table-container">
@@ -4186,6 +4193,7 @@ function renderSBOperations(container) {
         <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
             ${canEditInModule('sb-operations') ? `<button class="btn btn-primary" onclick="openUploadModal('SB')">📤 Upload SB Live File</button>` : ''}
             <button class="btn btn-outline" onclick="downloadTemplateCsv('SB')">📥 SB Template</button>
+            ${canAccessModule('fleet-map') ? `<button class="btn btn-outline" onclick="openFleetMapModal()">🗺️ Fleet Map</button>` : ''}
             ${canAccessModule('position-live') ? `<button class="btn btn-outline" onclick="navigateTo('position-live')">📍 Position Live</button>` : ''}
         </div>
         <div class="table-container">
