@@ -94,6 +94,11 @@
                     id: 'internal-communication', icon: '✉️', label: 'Internal Communication', moduleId: 'internal-communication',
                     keywords: ['internal communication', 'email', 'chat', 'whatsapp', 'messages', 'inbox'],
                     description: 'Team email (inbox, sent, drafts) plus chat rooms for borders, areas, and direct messages. Trip-linked threads for KBP queues, dispatch updates, and POD alerts.'
+                },
+                {
+                    id: 'helpdesk', icon: '🎫', label: 'Helpdesk', moduleId: 'helpdesk',
+                    keywords: ['helpdesk', 'support', 'issue', 'bug', 'report problem', 'technical', 'ticket'],
+                    description: 'Log web app issues for the technical team. Each ticket has a logged date, target resolve time, and SLA KPI (green/orange/red). Super Admin and managers see the full team queue.'
                 }
             ]
         },
@@ -209,6 +214,11 @@
                     id: 'admin-freight-settings', icon: '📦', label: 'Freight & FMS Settings', adminPage: 'admin-freight-settings',
                     keywords: ['freight settings', 'fms settings', 'trip scheduler settings', 'route catalog settings', 'client order settings', 'fleet registry settings', 'order prefix', 'max orders per trip'],
                     description: 'Configure Trip Scheduler defaults (transporter, loading time, max orders per trip), Client Order rules (order number prefix, default status), Route Catalog enforcement, and Fleet Registry policies (superlink, FMS register tab, asset locking).'
+                },
+                {
+                    id: 'admin-helpdesk-settings', icon: '🎫', label: 'Helpdesk SLA Settings', adminPage: 'admin-helpdesk-settings',
+                    keywords: ['helpdesk settings', 'helpdesk sla', 'support sla', 'ticket kpi', 'resolution target'],
+                    description: 'Configure first-response and resolution SLA targets per priority (urgent, high, normal, low). Drives helpdesk KPI colours and overdue alerts.'
                 },
                 {
                     id: 'admin-upload-templates', icon: '📤', label: 'Upload Templates', adminPage: 'admin-upload-templates',
@@ -432,6 +442,13 @@
             }
         }
 
+        if (matchQuery(q, ['helpdesk', 'report issue', 'log issue', 'support ticket', 'bug report'])) {
+            if (!ctx.modules.some(m => m.id === 'helpdesk') && !ctx.isSuperAdmin) {
+                return adminAccessDenied(ctx, 'Helpdesk');
+            }
+            return '**Helpdesk workflow:**\n1. Open **Communication → Helpdesk**\n2. Click **Report Issue** — describe the problem, pick category and priority\n3. The system sets a **target resolve time** based on SLA (Admin → Helpdesk SLA Settings)\n4. Technical team (Super Admin / Manager) sees the **Team Queue**, assigns tickets, and adds comments\n5. KPI badge: **green** = on track · **orange** = approaching deadline · **red** = overdue\n\nAdmins configure SLA hours per priority under **Admin → Helpdesk SLA Settings**.';
+        }
+
         if (matchQuery(q, ['sequence', 'next step', 'what comes after', 'process order', 'current area'])) {
             return "Open a trip's **💬 Comment** modal. Under **Workflow Progress** you'll see the overall journey. Below that, the **process sequence panel** lists every step for the driver's **current area** in order, highlights the current step, and shows **what comes next**.";
         }
@@ -552,6 +569,7 @@
                     <button type="button" onclick="sendHelpAssistantMessage('Trip scheduler')">Trip scheduler</button>
                     <button type="button" onclick="sendHelpAssistantMessage('Route catalog')">Route catalog</button>
                     <button type="button" onclick="sendHelpAssistantMessage('How do I update status?')">Update status</button>
+                    <button type="button" onclick="sendHelpAssistantMessage('Helpdesk')">Helpdesk</button>
                     <button type="button" onclick="sendHelpAssistantMessage('Help on this page')">This page</button>
                 </div>
                 <div class="help-assistant-input-row">

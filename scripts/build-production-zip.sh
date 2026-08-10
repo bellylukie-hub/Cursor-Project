@@ -19,7 +19,7 @@ copy_item() {
 
 copy_item \
   index.html app.js api.js live-operations.js admin-persistence.js \
-  fleet-orders.js fleet-vehicle-spec.js route-catalog.js trip-scheduler.js freight-admin-settings.js \
+  fleet-orders.js fleet-vehicle-spec.js route-catalog.js trip-scheduler.js freight-admin-settings.js helpdesk.js \
   custom-reports.js themes.js process-guide.js help-assistant.js \
   Dockerfile docker-compose.yml .dockerignore .env.example \
   README.md PRODUCTION.md DEPLOY.md DOWNLOAD.md INSTALL-SERVER.md INSTALL-WAMP-DOCKER.md START-HERE.txt \

@@ -544,4 +544,31 @@ async function linkSuperlinkApi(frontId, rearId) {
   return apiRequest('/fleet-trailers/link-superlink', { method: 'POST', body: JSON.stringify({ frontId, rearId }) });
 }
 
+async function fetchHelpdeskBundle() {
+  return apiRequest('/helpdesk/bundle');
+}
+
+async function saveHelpdeskTicketApi(payload) {
+  if (payload.id) {
+    const data = await apiRequest(`/helpdesk/tickets/${encodeURIComponent(payload.id)}`, { method: 'PATCH', body: JSON.stringify(payload) });
+    return data.ticket;
+  }
+  const data = await apiRequest('/helpdesk/tickets', { method: 'POST', body: JSON.stringify(payload) });
+  return data.ticket;
+}
+
+async function addHelpdeskCommentApi(ticketId, payload) {
+  return apiRequest(`/helpdesk/tickets/${encodeURIComponent(ticketId)}/comments`, { method: 'POST', body: JSON.stringify(payload) });
+}
+
+async function fetchHelpdeskSettings() {
+  const data = await apiRequest('/helpdesk/settings');
+  return data.settings;
+}
+
+async function saveHelpdeskSettingsApi(patch) {
+  const data = await apiRequest('/helpdesk/settings', { method: 'PATCH', body: JSON.stringify(patch) });
+  return data.settings;
+}
+
 loadStoredAuth();

@@ -448,6 +448,50 @@ function migrateClientOrdersSchema() {
   add('invoice_party', 'TEXT');
   add('imp_exp', 'TEXT');
   migrateFleetUnitsSchema();
+  migrateHelpdeskSchema();
+}
+
+function migrateHelpdeskSchema() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS helpdesk_tickets (
+      id TEXT PRIMARY KEY,
+      ticket_number TEXT NOT NULL UNIQUE,
+      subject TEXT NOT NULL,
+      description TEXT,
+      category TEXT DEFAULT 'Other',
+      priority TEXT DEFAULT 'normal',
+      status TEXT DEFAULT 'open',
+      module_page TEXT,
+      browser_info TEXT,
+      reporter_user_id TEXT,
+      reporter_username TEXT,
+      assignee_user_id TEXT,
+      assignee_username TEXT,
+      area TEXT,
+      related_type TEXT,
+      related_ref TEXT,
+      target_resolve_at TEXT,
+      first_response_at TEXT,
+      resolved_at TEXT,
+      closed_at TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS helpdesk_comments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ticket_id TEXT NOT NULL,
+      author_user_id TEXT,
+      author_username TEXT,
+      body TEXT NOT NULL,
+      is_internal INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_helpdesk_tickets_status ON helpdesk_tickets(status);
+    CREATE INDEX IF NOT EXISTS idx_helpdesk_tickets_reporter ON helpdesk_tickets(reporter_user_id);
+    CREATE INDEX IF NOT EXISTS idx_helpdesk_tickets_target ON helpdesk_tickets(target_resolve_at);
+  `);
 }
 
 function migrateFleetUnitsSchema() {

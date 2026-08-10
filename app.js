@@ -584,7 +584,9 @@ function buildDefaultKpiSettings() {
         { id: 'mod-sb-live-hide', process: 'SB Live — Hide after Exit to Zambia', pageId: 'sb-operations', pageLabel: 'SB Operations', targetValue: 0, unit: 'hours', notes: 'Truck removed from live SB when Date Exit to Zambia is filled' },
         { id: 'mod-border-complete', process: 'Border — Hide when Clearance Complete', pageId: 'border-clearance', pageLabel: 'Border Clearance', targetValue: 0, unit: 'hours', notes: 'Remove from border list when process complete' },
         { id: 'mod-position-live', process: 'Position Live — Update Frequency', pageId: 'position-live', pageLabel: 'Position Live', targetValue: 4, unit: 'hours', notes: 'Expected position update interval' },
-        { id: 'mod-reports-sla', process: 'Reports — Data Freshness', pageId: 'reports', pageLabel: 'Reports', targetValue: 24, unit: 'hours', notes: 'Warn if report data older than this' }
+        { id: 'mod-reports-sla', process: 'Reports — Data Freshness', pageId: 'reports', pageLabel: 'Reports', targetValue: 24, unit: 'hours', notes: 'Warn if report data older than this' },
+        { id: 'mod-helpdesk-response', process: 'Helpdesk — First Response SLA', pageId: 'helpdesk', pageLabel: 'Helpdesk', targetValue: 4, unit: 'hours', notes: 'Target hours for first technical team response' },
+        { id: 'mod-helpdesk-resolve', process: 'Helpdesk — Resolution SLA', pageId: 'helpdesk', pageLabel: 'Helpdesk', targetValue: 24, unit: 'hours', notes: 'Target hours to resolve logged issues' }
     ].map(m => ({
         ...m,
         category: 'modules',
@@ -642,7 +644,7 @@ let kpiAdminFilter = '';
 let kpiAdminCategory = 'all';
 
 const KPI_STORAGE_KEY = 'truckcontrol_kpi_settings';
-const KPI_SETTINGS_VERSION = 4;
+const KPI_SETTINGS_VERSION = 5;
 
 function initKpiSettings() {
     try {
@@ -1571,7 +1573,8 @@ function verifyManagementModulesLoaded() {
         { page: 'clients', fn: 'renderClientsManagement', file: 'fleet-orders.js' },
         { page: 'route-catalog', fn: 'renderRouteCatalog', file: 'route-catalog.js' },
         { page: 'trip-scheduler', fn: 'renderTripScheduler', file: 'trip-scheduler.js' },
-        { page: 'fleet-registry', fn: 'renderFleetRegistry', file: 'fleet-orders.js' }
+        { page: 'fleet-registry', fn: 'renderFleetRegistry', file: 'fleet-orders.js' },
+        { page: 'helpdesk', fn: 'renderHelpdesk', file: 'helpdesk.js' }
     ];
     const missing = checks.filter(c => typeof window[c.fn] !== 'function');
     if (missing.length) {
@@ -1612,8 +1615,11 @@ async function bootApplication() {
     if (typeof syncDriverContactsFromApi === 'function' && isApiAvailable()) {
         await syncDriverContactsFromApi();
     }
-    if (typeof syncFleetOrdersFromApi === 'function' && isApiAvailable()) {
+        if (typeof syncFleetOrdersFromApi === 'function' && isApiAvailable()) {
         await syncFleetOrdersFromApi();
+    }
+    if (typeof syncHelpdeskFromApi === 'function' && isApiAvailable()) {
+        await syncHelpdeskFromApi();
     }
     navigateTo('dashboard');
     updateSidebarBadges();
@@ -1671,6 +1677,7 @@ function canAccessAdminPage(page) {
         case 'admin-module-permissions': return canUser('manage_users');
         case 'admin-fleet-settings': return canUser('manage_settings') || canUser('manage_users');
         case 'admin-freight-settings': return canUser('manage_settings') || canUser('manage_users');
+        case 'admin-helpdesk-settings': return canUser('manage_settings') || canUser('manage_users');
         case 'admin-upload-templates': return getCurrentRole()?.name === 'Super Admin';
         default: return false;
     }
@@ -1689,6 +1696,7 @@ const OPERATIONAL_MODULES = [
     { id: 'communication-matrix', label: 'Communication Matrix', icon: '📇', global: true },
     { id: 'driver-registry', label: 'Driver Registry', icon: '📱', global: true },
     { id: 'internal-communication', label: 'Internal Communication', icon: '✉️', global: true },
+    { id: 'helpdesk', label: 'Helpdesk', icon: '🎫', global: true },
     { id: 'assets', label: 'Assets & Equipment', icon: '🚗', global: true },
     { id: 'client-orders', label: 'Client Orders', icon: '📦', global: true },
     { id: 'clients', label: 'Clients', icon: '👥', global: true },
@@ -1713,6 +1721,7 @@ const PAGE_MODULE_MAP = {
     'communication-matrix': 'communication-matrix',
     'driver-registry': 'driver-registry',
     'internal-communication': 'internal-communication',
+    helpdesk: 'helpdesk',
     assets: 'assets',
     'client-orders': 'client-orders',
     'clients': 'clients',
@@ -2286,6 +2295,10 @@ function navigateTo(page) {
         case 'communication-matrix': renderCommunicationMatrix(ca); break;
         case 'driver-registry': renderDriverRegistry(ca); break;
         case 'internal-communication': renderInternalCommunication(ca); break;
+        case 'helpdesk':
+            if (typeof renderHelpdesk === 'function') renderHelpdesk(ca);
+            else renderMissingModulePage(ca, 'helpdesk');
+            break;
         case 'assets': renderAssets(ca); break;
         case 'client-orders':
             if (typeof renderClientOrders === 'function') renderClientOrders(ca);
@@ -2320,6 +2333,7 @@ function navigateTo(page) {
         case 'admin-module-permissions': renderAdminModulePermissions(ca); break;
         case 'admin-fleet-settings': renderAdminFleetSettings(ca); break;
         case 'admin-freight-settings': renderAdminFreightSettings(ca); break;
+        case 'admin-helpdesk-settings': if (typeof renderAdminHelpdeskSettings === 'function') renderAdminHelpdeskSettings(ca); break;
         case 'admin-upload-templates': renderAdminUploadTemplates(ca); break;
         case 'position-live': renderPositionLive(ca); break;
         case 'turnarounds': renderTurnarounds(ca); break;
@@ -3432,6 +3446,14 @@ function updateSidebarBadges() {
         });
     }
 
+    if (typeof getHelpdeskStats === 'function') {
+        const hd = getHelpdeskStats();
+        setNavBadge(document.getElementById('navHelpdeskBadge'), hd.mineOpen, {
+            title: `${hd.mineOpen} open helpdesk issue(s)${hd.overdue ? ` · ${hd.overdue} overdue` : ''}`,
+            warning: hd.overdue > 0 || hd.mineOpen > 0
+        });
+    }
+
     updateAlertPanel(alertPanelMenuFilter);
 }
 
@@ -3443,6 +3465,7 @@ const ALERT_MENU_SECTIONS = [
     { key: 'pod-management', label: 'POD Management', icon: '📋', page: 'pod-management' },
     { key: 'area-browser', label: 'Area Trucks', icon: '🗺️', page: 'area-browser' },
     { key: 'internal-communication', label: 'Internal Communication', icon: '✉️', page: 'internal-communication' },
+    { key: 'helpdesk', label: 'Helpdesk', icon: '🎫', page: 'helpdesk' },
     { key: 'communication-matrix', label: 'Communication Matrix', icon: '📇', page: 'communication-matrix' },
     { key: 'driver-registry', label: 'Driver Registry', icon: '📱', page: 'driver-registry' },
     { key: 'assets', label: 'Documents & Assets', icon: '📄', page: 'assets' }
@@ -3529,6 +3552,21 @@ function collectSystemAlerts() {
             action: { type: 'document', ref: d.id }
         });
     });
+
+    if (typeof getHelpdeskTicketSla === 'function' && typeof canManageHelpdesk === 'function' && canManageHelpdesk()) {
+        try {
+            const hdStats = typeof getHelpdeskStats === 'function' ? getHelpdeskStats() : null;
+            if (hdStats?.overdue > 0) {
+                alerts.push({
+                    id: 'helpdesk-overdue', menuKey: 'helpdesk', category: 'Helpdesk SLA', level: 'red', icon: '🎫',
+                    title: `${hdStats.overdue} helpdesk issue(s) past target resolve time`,
+                    subtitle: `${hdStats.open} open in team queue`,
+                    time: 'Overdue',
+                    action: { type: 'page', ref: 'helpdesk' }
+                });
+            }
+        } catch (_) { /* ignore */ }
+    }
 
     const dashAtRisk = getDashboardSidebarStats().atRisk;
     if (dashAtRisk > 0) {

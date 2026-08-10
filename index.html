@@ -1977,6 +1977,9 @@
                     <a class="nav-item" onclick="navigateToInternalComm('email')" data-page="internal-communication">
                         <span class="icon">✉️</span> Internal Communication <span class="badge nav-badge-clickable" id="navInternalCommBadge" style="display:none;" onclick="event.preventDefault();event.stopPropagation();openNavAlerts('internal-communication')" title="Unread emails and chats"></span>
                     </a>
+                    <a class="nav-item" onclick="navigateTo('helpdesk')" data-page="helpdesk">
+                        <span class="icon">🎫</span> Helpdesk <span class="badge nav-badge-clickable" id="navHelpdeskBadge" style="display:none;" onclick="event.preventDefault();event.stopPropagation();navigateTo('helpdesk')" title="Open helpdesk issues"></span>
+                    </a>
                 </div>
                 <div class="nav-section">
                     <div class="nav-section-title">Management</div>
@@ -2045,6 +2048,9 @@
                     </a>
                     <a class="nav-item" onclick="navigateToAdmin('admin-freight-settings')" data-page="admin-freight-settings">
                         <span class="icon">📦</span> Freight &amp; FMS Settings
+                    </a>
+                    <a class="nav-item" onclick="navigateToAdmin('admin-helpdesk-settings')" data-page="admin-helpdesk-settings">
+                        <span class="icon">🎫</span> Helpdesk SLA Settings
                     </a>
                     <a class="nav-item" onclick="navigateToAdmin('admin-upload-templates')" data-page="admin-upload-templates">
                         <span class="icon">📤</span> Upload Templates
@@ -2650,6 +2656,46 @@
         </div>
     </div>
 
+    <!-- HELPDESK MODAL -->
+    <div class="modal-overlay" id="helpdeskModal">
+        <div class="modal" style="max-width:720px;max-height:90vh;overflow-y:auto;">
+            <div class="modal-header"><h3 id="helpdeskModalTitle">Report Issue</h3><button class="btn btn-outline" onclick="closeModal('helpdeskModal')">✕</button></div>
+            <div class="modal-body">
+                <input type="hidden" id="helpdeskFormId">
+                <div id="helpdeskSlaInfo" class="rbac-info-banner" style="display:none;margin-bottom:12px;"></div>
+                <div class="form-group"><label>Subject *</label><input class="form-control" id="helpdeskFormSubject" placeholder="Brief description of the issue"></div>
+                <div class="form-group"><label>Description *</label><textarea class="form-control" id="helpdeskFormDescription" rows="4" placeholder="What happened? What were you trying to do? Steps to reproduce..."></textarea></div>
+                <div class="form-grid-2">
+                    <div class="form-group"><label>Category</label><select class="form-control" id="helpdeskFormCategory"></select></div>
+                    <div class="form-group"><label>Priority</label><select class="form-control" id="helpdeskFormPriority">
+                        <option value="low">Low</option><option value="normal" selected>Normal</option><option value="high">High</option><option value="urgent">Urgent</option>
+                    </select></div>
+                </div>
+                <div class="form-grid-2" id="helpdeskStatusRow" style="display:none;">
+                    <div class="form-group"><label>Status</label><select class="form-control" id="helpdeskFormStatus">
+                        <option value="open">Open</option><option value="in_progress">In Progress</option><option value="waiting">Waiting</option><option value="resolved">Resolved</option><option value="closed">Closed</option>
+                    </select></div>
+                    <div class="form-group" id="helpdeskAssignRow"><label>Assign to</label><select class="form-control" id="helpdeskFormAssignee"></select></div>
+                </div>
+                <div class="form-grid-2">
+                    <div class="form-group"><label>Page / Module</label><input class="form-control" id="helpdeskFormModule" placeholder="e.g. client-orders"></div>
+                    <div class="form-group"><label>Area</label><input class="form-control" id="helpdeskFormArea"></div>
+                </div>
+                <input type="hidden" id="helpdeskFormBrowser">
+                <div id="helpdeskCommentsSection" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+                    <h4 style="margin:0 0 10px;">Comments &amp; Updates</h4>
+                    <div id="helpdeskCommentsBody" style="max-height:200px;overflow-y:auto;margin-bottom:12px;"></div>
+                    <div class="form-group"><label>Add comment</label><textarea class="form-control" id="helpdeskCommentBox" rows="2" placeholder="Add update or reply..."></textarea></div>
+                    <label style="font-size:13px;display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <input type="checkbox" id="helpdeskInternalNote"> Internal note (technical team only)
+                    </label>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="submitHelpdeskComment()">Post Comment</button>
+                </div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('helpdeskModal')">Cancel</button><button class="btn btn-primary" onclick="submitHelpdeskTicketForm()">💾 Save Issue</button></div>
+        </div>
+    </div>
+
     <script src="api.js"></script>
     <script src="admin-persistence.js"></script>
     <script src="freight-admin-settings.js"></script>
@@ -2658,6 +2704,7 @@
     <script src="fleet-vehicle-spec.js"></script>
     <script src="fleet-orders.js"></script>
     <script src="trip-scheduler.js"></script>
+    <script src="helpdesk.js"></script>
     <script src="app.js"></script>
     <script src="custom-reports.js"></script>
     <script src="process-guide.js"></script>
