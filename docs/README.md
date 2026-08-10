@@ -1,6 +1,6 @@
 # TruckControl Documentation
 
-**Package version:** v1.2.0-production
+**Package version:** v2.2.0-production
 
 Welcome to the TruckControl documentation set included in the production ZIP.
 
@@ -11,8 +11,9 @@ Welcome to the TruckControl documentation set included in the production ZIP.
 | Document | Who it's for | Description |
 |----------|--------------|-------------|
 | [../START-HERE.txt](../START-HERE.txt) | Everyone | One-page quick start after extracting the ZIP |
+| **[COMPLETE-MANUAL.md](COMPLETE-MANUAL.md)** | **Everyone** | **Full book — step-by-step app use, chatbot, and every admin setting** |
 | [INSTALLATION.md](INSTALLATION.md) | IT / server admins | **Master install guide** — Docker, WAMP, Linux, Windows, PM2, Apache, nginx |
-| [USER-GUIDE.md](USER-GUIDE.md) | Operations users | **Full user directive** — menus, workflows, uploads, reports, admin |
+| [USER-GUIDE.md](USER-GUIDE.md) | Operations users | Shorter operating directive — menus, workflows, uploads |
 | [../PRODUCTION.md](../PRODUCTION.md) | DevOps | Environment variables, PM2, security checklist, API auth |
 | [../README.md](../README.md) | Developers | Project overview and quick start from source |
 
@@ -37,12 +38,16 @@ Welcome to the TruckControl documentation set included in the production ZIP.
 
 | Topic | Location |
 |-------|----------|
-| Sign in and roles | [USER-GUIDE §1–2](USER-GUIDE.md#1-getting-started) |
-| NB / SB / Border / POD workflows | [USER-GUIDE §5](USER-GUIDE.md#5-operations) |
-| Daily operating checklist | [USER-GUIDE §10](USER-GUIDE.md#10-daily-operating-procedures) |
+| Sign in and roles | [COMPLETE-MANUAL §1](COMPLETE-MANUAL.md#part-i--introduction) or [USER-GUIDE §1–2](USER-GUIDE.md#1-getting-started) |
+| NB / SB / Border / POD workflows | [COMPLETE-MANUAL §2.2–2.5](COMPLETE-MANUAL.md#22-nb-operations-northbound) |
+| Help assistant (chatbot) | [COMPLETE-MANUAL Part III](COMPLETE-MANUAL.md#part-iii--help-assistant-chatbot) |
+| Admin setup (every option) | [COMPLETE-MANUAL Part IV](COMPLETE-MANUAL.md#part-iv--administrator-guide-step-by-step) |
+| Daily operating checklist | [COMPLETE-MANUAL §6.1](COMPLETE-MANUAL.md#61-morning-checklist-operations-desk) |
 | CSV uploads and templates | [USER-GUIDE §12](USER-GUIDE.md#12-uploads-and-templates) |
-| Custom and cross-menu reports | [USER-GUIDE §14](USER-GUIDE.md#14-reports) |
-| Admin (users, KPI, permissions) | [USER-GUIDE §9](USER-GUIDE.md#9-administration) |
+| Custom and cross-menu reports | [COMPLETE-MANUAL §2.20](COMPLETE-MANUAL.md#220-reports) |
+| FMS (orders, trips, fleet) | [COMPLETE-MANUAL §2.11–2.17](COMPLETE-MANUAL.md#211-clients) |
+| Helpdesk | [COMPLETE-MANUAL §2.10](COMPLETE-MANUAL.md#210-helpdesk) |
+| Fleet Map | [COMPLETE-MANUAL §2.16](COMPLETE-MANUAL.md#216-fleet-map) |
 
 ---
 

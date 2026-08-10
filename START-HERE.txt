@@ -1,5 +1,5 @@
 ================================================================================
-  TruckControl — FULL PRODUCTION PACKAGE  (v2.0.1-production)
+  TruckControl — FULL PRODUCTION PACKAGE  (v2.2.0-production)
 ================================================================================
 
 This ZIP is the COMPLETE production web application — all FMS features included.
@@ -22,8 +22,9 @@ QUICK START (Docker — recommended on Windows, Linux, macOS)
 
 DOCUMENTATION (read these)
 --------------------------
+  docs/COMPLETE-MANUAL.md  *** FULL BOOK — step-by-step user + admin + chatbot guide ***
   docs/README.md           Documentation index — start here for all guides
-  docs/USER-GUIDE.md       Full user directive (menus, workflows, daily ops)
+  docs/USER-GUIDE.md       Shorter user directive (menus, workflows, daily ops)
   docs/INSTALLATION.md     Master install guide (Docker, WAMP, Linux, PM2, etc.)
 
   INSTALL-WAMP-DOCKER.md   Windows + WAMP + Docker (detailed)
