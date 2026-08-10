@@ -1315,9 +1315,6 @@ let driverRegistryDirectionFilter = 'all';
 let driverRegistryBorderFilter = 'all';
 let driverRegistryRegisteredFilter = 'all';
 
-const CURRENT_USER = 'Current User';
-const CURRENT_USER_EMAIL = 'current.user@truckcontrol.local';
-
 const systemUsersDB = [
     { id: 'U001', name: 'Jean Kalenga', email: 'jean.kalenga@truckcontrol.local', role: 'Border User', area: 'Kasumbalesa', initials: 'JK', online: true, lastSeen: 'online' },
     { id: 'U002', name: 'Ruth Mwansa', email: 'ruth.mwansa@truckcontrol.local', role: 'Border User', area: 'Kasumbalesa', initials: 'RM', online: true, lastSeen: 'online' },
@@ -1410,6 +1407,7 @@ let nextRoleId = 1;
 
 if (typeof window !== 'undefined') {
     window.adminUsersDB = adminUsersDB;
+    window.systemUsersDB = systemUsersDB;
     window.rolesDB = rolesDB;
     window.systemSettingsDB = systemSettingsDB;
     window.auditLogsDB = auditLogsDB;
@@ -1514,6 +1512,8 @@ function applyAuthUserToSession(apiUser) {
         if (apiUser.modulePermissions) existing.modulePermissions = apiUser.modulePermissions;
     }
     updateTopBarUser();
+    if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
+    if (typeof initInternalComm === 'function') initInternalComm(true);
 }
 
 function showLoginScreen(message) {
@@ -1621,6 +1621,7 @@ async function bootApplication() {
     if (typeof syncHelpdeskFromApi === 'function' && isApiAvailable()) {
         await syncHelpdeskFromApi();
     }
+    if (typeof initInternalComm === 'function') initInternalComm(true);
     navigateTo('dashboard');
     updateSidebarBadges();
     updateAdminNavVisibility();
@@ -1953,36 +1954,9 @@ function navigateToAdmin(page) {
     navigateTo(page);
 }
 
-const emailsDB = [
-    { id: 'EM-001', folder: 'inbox', threadId: 'TH-001', from: 'Jean Kalenga', fromEmail: 'jean.kalenga@truckcontrol.local', to: [CURRENT_USER], cc: ['Ruth Mwansa'], bcc: [], subject: 'KBP clearance priority — NB-2024-001', body: 'Dear Team,\n\nPlease proceed to KBP Scan Bay. Documents are ready for cross-checking.\n\nRegards,\nJean Kalenga', sentAt: '2026-07-25 10:30', read: false, starred: true, important: true, attachments: [{ name: 'KBP_Scan_Notice.pdf', size: '128 KB' }], relatedType: 'trip', relatedRef: 'NB-2024-001', relatedLabel: 'NB-2024-001 / ABC123DRC' },
-    { id: 'EM-002', folder: 'inbox', threadId: 'TH-002', from: 'Marie Mwamba', fromEmail: 'marie.mwamba@truckcontrol.local', to: [CURRENT_USER, 'Peter Mwansa'], cc: [], bcc: [], subject: 'Whisky TR8 reminder — NB-2024-008', body: 'TR8 has been issued. Please collect documents from Whisky office before 16:00 today.', sentAt: '2026-07-24 15:20', read: true, starred: false, important: false, attachments: [], relatedType: 'trip', relatedRef: 'NB-2024-008', relatedLabel: 'NB-2024-008 / JKL012DRC' },
-    { id: 'EM-003', folder: 'inbox', threadId: 'TH-003', from: 'David Mukendi', fromEmail: 'david.m@truckcontrol.local', to: [CURRENT_USER, 'Ruth Mwansa'], cc: ['Area Supervisor'], bcc: [], subject: 'Kanyaka dispatch update', body: 'Dispatch escort has been assigned. Please report to Kanyaka gate at 07:00.', sentAt: '2026-07-25 07:45', read: true, starred: false, important: false, attachments: [], relatedType: 'area', relatedRef: 'Kanyaka', relatedLabel: 'Kanyaka Area' },
-    { id: 'EM-004', folder: 'inbox', threadId: 'TH-004', from: 'Asset Controller', fromEmail: 'assets@truckcontrol.local', to: [CURRENT_USER], cc: [], bcc: [], subject: 'Asset handover — Samsung Galaxy A54', body: 'Driver dispatch phone assigned to Mike Johnson. Handover form is attached for your records.', sentAt: '2026-07-24 09:15', read: false, starred: false, important: false, attachments: [{ name: 'Handover_EQ-PHONE-14.pdf', size: '245 KB' }], relatedType: 'equipment', relatedRef: 'EQ-PHONE-14', relatedLabel: 'EQ-PHONE-14 / Samsung A54' },
-    { id: 'EM-005', folder: 'inbox', threadId: 'TH-005', from: 'Officer Kalaba', fromEmail: 'kalaba@truckcontrol.local', to: [CURRENT_USER, 'Operations Manager'], cc: [], bcc: [], subject: 'POD collection overdue — NB-2024-022', body: 'POD collection is overdue for NB-2024-022. Please submit within 24 hours.', sentAt: '2026-07-25 06:00', read: false, starred: false, important: true, attachments: [], relatedType: 'trip', relatedRef: 'NB-2024-022', relatedLabel: 'NB-2024-022 / GHI789DRC' },
-    { id: 'EM-006', folder: 'sent', threadId: 'TH-006', from: CURRENT_USER, fromEmail: CURRENT_USER_EMAIL, to: ['Jean Kalenga', 'Ruth Mwansa'], cc: [], bcc: [], subject: 'RE: Border queue status update', body: 'Thanks Jean. I have notified all NB drivers in Kasumbalesa area.', sentAt: '2026-07-25 08:25', read: true, starred: false, important: false, attachments: [], relatedType: 'area', relatedRef: 'Kasumbalesa', relatedLabel: 'Kasumbalesa Area' },
-    { id: 'EM-007', folder: 'sent', threadId: 'TH-007', from: CURRENT_USER, fromEmail: CURRENT_USER_EMAIL, to: ['David Mukendi'], cc: [], bcc: [], subject: 'SB dispatch confirmation', body: 'Confirmed. Trucks MNO345DRC and DEF456DRC are ready for escort.', sentAt: '2026-07-24 16:10', read: true, starred: false, important: false, attachments: [], relatedType: 'trip', relatedRef: 'SB-2024-005', relatedLabel: 'SB-2024-005 / MNO345DRC' },
-    { id: 'EM-008', folder: 'drafts', threadId: 'TH-008', from: CURRENT_USER, fromEmail: CURRENT_USER_EMAIL, to: ['Operations Manager'], cc: [], bcc: [], subject: 'Weekly NB performance summary', body: 'Draft — Weekly summary for NB operations across all areas...', sentAt: '2026-07-25 12:00', read: true, starred: false, important: false, attachments: [], relatedType: '', relatedRef: '', relatedLabel: '' },
-    { id: 'EM-009', folder: 'starred', threadId: 'TH-001', from: 'Jean Kalenga', fromEmail: 'jean.kalenga@truckcontrol.local', to: [CURRENT_USER], cc: [], bcc: [], subject: 'KBP clearance priority — NB-2024-001', body: 'Please proceed to KBP Scan Bay.', sentAt: '2026-07-25 10:30', read: false, starred: true, important: true, attachments: [], relatedType: 'trip', relatedRef: 'NB-2024-001', relatedLabel: 'NB-2024-001 / ABC123DRC', mirrorOf: 'EM-001' },
-    { id: 'EM-010', folder: 'archive', threadId: 'TH-010', from: 'Inspector Kabwe', fromEmail: 'kabwe@truckcontrol.local', to: [CURRENT_USER], cc: [], bcc: [], subject: 'Sakania clearance completed', body: 'NB-2024-015 has completed Sakania border clearance.', sentAt: '2026-07-20 14:00', read: true, starred: false, important: false, attachments: [], relatedType: 'trip', relatedRef: 'NB-2024-015', relatedLabel: 'NB-2024-015 / XYZ789DRC' }
-];
-
-const chatRoomsDB = [
-    { id: 'ROOM-001', name: 'Kasumbalesa Border Team', type: 'group', memberNames: ['Jean Kalenga', 'Ruth Mwansa', 'Marie Mwamba', 'Inspector Kabwe', 'Current User'], avatar: '👥', relatedType: 'area', relatedRef: 'Kasumbalesa', pinned: true, muted: false, unreadCount: 2, lastMessage: 'Queue update: 4+ hour delay at KBP scan bay', lastAt: '2026-07-25 08:15', createdBy: 'Jean Kalenga' },
-    { id: 'ROOM-002', name: 'Kanyaka SB Dispatch', type: 'group', memberNames: ['David Mukendi', 'Mike Johnson', 'Ruth Mwansa', 'Current User'], avatar: '👥', relatedType: 'area', relatedRef: 'Kanyaka', pinned: false, muted: false, unreadCount: 0, lastMessage: 'Escort shortage — hold dispatch until 10:00', lastAt: '2026-07-25 05:45', createdBy: 'David Mukendi' },
-    { id: 'ROOM-003', name: 'POD & Invoicing', type: 'group', memberNames: ['Officer Kalaba', 'Operations Manager', 'Current User'], avatar: '📋', relatedType: 'user', relatedRef: 'POD Team', pinned: false, muted: true, unreadCount: 1, lastMessage: '3 PODs sent to invoice team today', lastAt: '2026-07-25 11:00', createdBy: 'Officer Kalaba' },
-    { id: 'ROOM-004', name: 'Ruth Mwansa', type: 'direct', memberNames: ['Ruth Mwansa', 'Current User'], avatar: 'RM', relatedType: 'user', relatedRef: 'Direct', pinned: false, muted: false, unreadCount: 0, lastMessage: 'Driver contact recorded for NB-2024-001', lastAt: '2026-07-25 11:30', createdBy: 'Ruth Mwansa' },
-    { id: 'ROOM-005', name: 'Jean Kalenga', type: 'direct', memberNames: ['Jean Kalenga', 'Current User'], avatar: 'JK', relatedType: 'user', relatedRef: 'Direct', pinned: false, muted: false, unreadCount: 1, lastMessage: 'Documents ready at scan bay', lastAt: '2026-07-25 10:35', createdBy: 'Jean Kalenga' }
-];
-
-const chatMessagesDB = [
-    { id: 'CHAT-001', roomId: 'ROOM-001', sender: 'Jean Kalenga', message: 'Queue update: 4+ hour delay at KBP scan bay. All NB drivers report status.', type: 'text', fileName: null, status: 'read', replyTo: null, sentAt: '2026-07-25 08:15' },
-    { id: 'CHAT-002', roomId: 'ROOM-001', sender: 'Ruth Mwansa', message: 'Acknowledged. Notifying clearing agents.', type: 'text', fileName: null, status: 'read', replyTo: 'CHAT-001', sentAt: '2026-07-25 08:18' },
-    { id: 'CHAT-003', roomId: 'ROOM-001', sender: 'Jean Kalenga', message: 'KBP_Queue_Notice.pdf', type: 'file', fileName: 'KBP_Queue_Notice.pdf', status: 'delivered', replyTo: null, sentAt: '2026-07-25 08:20' },
-    { id: 'CHAT-004', roomId: 'ROOM-002', sender: 'David Mukendi', message: 'Escort shortage — hold dispatch until 10:00', type: 'text', fileName: null, status: 'read', replyTo: null, sentAt: '2026-07-25 05:45' },
-    { id: 'CHAT-005', roomId: 'ROOM-004', sender: 'Ruth Mwansa', message: 'Driver contact recorded for NB-2024-001. WhatsApp: +260 977 123456', type: 'text', fileName: null, status: 'read', replyTo: null, sentAt: '2026-07-25 11:30' },
-    { id: 'CHAT-006', roomId: 'ROOM-005', sender: 'Jean Kalenga', message: 'Documents ready at scan bay for NB-2024-001', type: 'text', fileName: null, status: 'delivered', replyTo: null, sentAt: '2026-07-25 10:35' },
-    { id: 'CHAT-007', roomId: 'ROOM-003', sender: 'Officer Kalaba', message: '3 PODs sent to invoice team today', type: 'text', fileName: null, status: 'sent', replyTo: null, sentAt: '2026-07-25 11:00' }
-];
+const emailsDB = [];
+const chatRoomsDB = [];
+const chatMessagesDB = [];
 
 let nextMatrixContactId = 10;
 let nextEmailId = 11;
@@ -3376,7 +3350,8 @@ function getCommunicationDashboardStats() {
     const matrix = getMatrixStats();
     const driverStats = getDriverRegistryStats();
     const emailCounts = getEmailFolderCounts();
-    const unreadChats = chatRoomsDB.reduce((sum, room) => sum + (room.unreadCount || 0), 0);
+    if (typeof syncCommRoomUnreadCounts === 'function') syncCommRoomUnreadCounts();
+    const unreadChats = chatRoomsDB.reduce((sum, room) => sum + (typeof getRoomUnreadCount === 'function' ? getRoomUnreadCount(room) : (room.unreadCount || 0)), 0);
     return {
         matrixTotalContacts: matrix.totalContacts,
         matrixActiveContacts: matrix.activeContacts,
@@ -3398,6 +3373,9 @@ function getCommunicationDashboardStats() {
 function updateSidebarBadges() {
     const stats = getSidebarBadgeStats();
     const comm = stats.internalDetail;
+    const alerts = collectSystemAlerts();
+    const alertCountByMenu = {};
+    alerts.forEach(a => { alertCountByMenu[a.menuKey] = (alertCountByMenu[a.menuKey] || 0) + 1; });
 
     setNavBadge(document.getElementById('navDashboardBadge'), stats.dashboard.atRisk, {
         title: `${stats.dashboard.atRisk} priority/overdue trip(s) — open Dashboard`,
@@ -3431,12 +3409,14 @@ function updateSidebarBadges() {
         showZero: false
     });
 
-    setNavBadge(document.getElementById('navMatrixBadge'), stats.matrix, {
-        title: `${stats.matrix} contact(s) in Communication Matrix`
+    setNavBadge(document.getElementById('navMatrixBadge'), alertCountByMenu['communication-matrix'] || 0, {
+        title: alertCountByMenu['communication-matrix'] ? `${alertCountByMenu['communication-matrix']} matrix alert(s)` : `${stats.matrix} contact(s) in Communication Matrix`,
+        warning: (alertCountByMenu['communication-matrix'] || 0) > 0
     });
 
-    setNavBadge(document.getElementById('navDriverRegistryBadge'), stats.drivers, {
-        title: `${stats.drivers} registered driver(s) — ${comm.driverRegistryNb} NB`
+    setNavBadge(document.getElementById('navDriverRegistryBadge'), alertCountByMenu['driver-registry'] || 0, {
+        title: alertCountByMenu['driver-registry'] ? `${alertCountByMenu['driver-registry']} driver registry alert(s)` : `${stats.drivers} registered driver(s)`,
+        warning: (alertCountByMenu['driver-registry'] || 0) > 0
     });
 
     setNavBadge(document.getElementById('navInternalCommBadge'), stats.internalUnread, {
@@ -3479,8 +3459,11 @@ const ALERT_MENU_SECTIONS = [
 
 function collectSystemAlerts() {
     const alerts = [];
+    const visibleEmails = typeof getVisibleEmails === 'function' ? getVisibleEmails() : emailsDB.filter(e => !e.mirrorOf);
+    const myName = typeof getCurrentCommUserName === 'function' ? getCurrentCommUserName() : '';
+    const myDrafts = visibleEmails.filter(e => e.folder === 'drafts' && e.from === myName);
 
-    emailsDB.filter(e => !e.mirrorOf && e.folder === 'inbox' && !e.read).forEach(e => {
+    visibleEmails.filter(e => e.folder === 'inbox' && !e.read).forEach(e => {
         alerts.push({
             id: `email-${e.id}`, menuKey: 'internal-communication', category: 'Unread Email', level: e.important ? 'orange' : 'blue', icon: '✉️',
             title: e.subject,
@@ -3490,18 +3473,20 @@ function collectSystemAlerts() {
         });
     });
 
-    chatRoomsDB.filter(r => (r.unreadCount || 0) > 0).forEach(r => {
+    if (typeof syncCommRoomUnreadCounts === 'function') syncCommRoomUnreadCounts();
+    chatRoomsDB.filter(r => (typeof getRoomUnreadCount === 'function' ? getRoomUnreadCount(r) : (r.unreadCount || 0)) > 0).forEach(r => {
+        const unread = typeof getRoomUnreadCount === 'function' ? getRoomUnreadCount(r) : r.unreadCount;
         alerts.push({
             id: `chat-${r.id}`, menuKey: 'internal-communication', category: 'Unread Chat', level: 'blue',
             icon: r.type === 'group' ? '👥' : '💬',
-            title: `${r.name} — ${r.unreadCount} unread message${r.unreadCount !== 1 ? 's' : ''}`,
+            title: `${r.name} — ${unread} unread message${unread !== 1 ? 's' : ''}`,
             subtitle: r.lastMessage,
             time: r.lastAt,
             action: { type: 'chat', ref: r.id }
         });
     });
 
-    emailsDB.filter(e => !e.mirrorOf && e.folder === 'drafts').forEach(e => {
+    myDrafts.forEach(e => {
         alerts.push({
             id: `draft-${e.id}`, menuKey: 'internal-communication', category: 'Email Draft', level: 'orange', icon: '📝',
             title: `Draft: ${e.subject}`,
@@ -6235,7 +6220,7 @@ async function submitDriverRegistration() {
 
     const payload = { id: id || undefined, tripNumber, driverName, truck, owner, drcNumber, whatsapp, direction, border, notes };
     const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
-    const registeredBy = getCurrentAdminUser()?.username || CURRENT_USER;
+    const registeredBy = getCurrentAdminUser()?.username || getCurrentCommUserName();
 
     try {
         if (typeof saveDriverContact === 'function' && isApiAvailable()) {
@@ -6743,7 +6728,7 @@ function navigateToInternalComm(filter) {
 }
 
 function getEmailFolderCounts() {
-    const visible = emailsDB.filter(e => !e.mirrorOf);
+    const visible = typeof getVisibleEmails === 'function' ? getVisibleEmails() : emailsDB.filter(e => !e.mirrorOf);
     return {
         inbox: visible.filter(e => e.folder === 'inbox').length,
         sent: visible.filter(e => e.folder === 'sent').length,
@@ -6756,7 +6741,7 @@ function getEmailFolderCounts() {
 }
 
 function getEmailsForFolder(folder) {
-    let items = emailsDB.filter(e => !e.mirrorOf);
+    let items = typeof getVisibleEmails === 'function' ? getVisibleEmails() : emailsDB.filter(e => !e.mirrorOf);
     if (folder === 'starred') items = items.filter(e => e.starred && e.folder !== 'trash');
     else if (folder === 'inbox') items = items.filter(e => e.folder === 'inbox');
     else items = items.filter(e => e.folder === folder);
@@ -6789,6 +6774,8 @@ function selectEmail(id) {
     emailComposeData = null;
     const email = getEmailById(id);
     if (email && !email.read) email.read = true;
+    if (typeof persistInternalComm === 'function') persistInternalComm();
+    if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
     renderInternalCommunication(document.getElementById('contentArea'));
 }
 
@@ -6800,8 +6787,8 @@ function openEmailCompose(mode, emailId) {
         const src = getEmailById(emailId);
         if (src) {
             emailComposeData.prefill = {
-                to: mode === 'reply' ? [src.from] : mode === 'replyAll' ? [...new Set([src.from, ...src.to, ...src.cc].filter(x => x !== CURRENT_USER))] : [],
-                cc: mode === 'replyAll' ? src.cc.filter(x => x !== CURRENT_USER) : [],
+                to: mode === 'reply' ? [src.from] : mode === 'replyAll' ? [...new Set([src.from, ...src.to, ...src.cc].filter(x => x !== getCurrentCommUserName()))] : [],
+                cc: mode === 'replyAll' ? src.cc.filter(x => x !== getCurrentCommUserName()) : [],
                 subject: mode === 'forward' ? `FW: ${src.subject}` : `RE: ${src.subject}`,
                 body: mode === 'forward'
                     ? `\n\n---------- Forwarded message ----------\nFrom: ${src.from}\nDate: ${src.sentAt}\nSubject: ${src.subject}\n\n${src.body}`
@@ -6821,6 +6808,7 @@ function openEmailCompose(mode, emailId) {
 function toggleEmailStar(id) {
     const email = getEmailById(id);
     if (email) email.starred = !email.starred;
+    if (typeof persistInternalComm === 'function') persistInternalComm();
     renderInternalCommunication(document.getElementById('contentArea'));
 }
 
@@ -6831,12 +6819,14 @@ function markEmailAction(id, action) {
     if (action === 'unread') email.read = false;
     if (action === 'archive') email.folder = 'archive';
     if (action === 'trash') email.folder = 'trash';
-    if (action === 'restore') email.folder = email.from === CURRENT_USER ? 'sent' : 'inbox';
+    if (action === 'restore') email.folder = email.from === getCurrentCommUserName() ? 'sent' : 'inbox';
     if (action === 'delete') {
         const idx = emailsDB.findIndex(e => e.id === id);
         if (idx >= 0) emailsDB.splice(idx, 1);
         selectedEmailId = null;
     }
+    if (typeof persistInternalComm === 'function') persistInternalComm();
+    if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
     renderInternalCommunication(document.getElementById('contentArea'));
     showToast(`Email ${action}`, 'success');
 }
@@ -6875,14 +6865,14 @@ function sendEmailFromCompose(saveAsDraft) {
         if (draft) {
             Object.assign(draft, { to, cc, bcc, subject, body, attachments: [...emailAttachments], relatedType: linkType, relatedRef: linkRef, relatedLabel, sentAt: now, folder: saveAsDraft ? 'drafts' : 'sent' });
             if (!saveAsDraft) {
-                emailsDB.unshift({ ...draft, id: `EM-${String(nextEmailId++).padStart(3, '0')}`, from: CURRENT_USER, fromEmail: CURRENT_USER_EMAIL, folder: 'sent', read: true });
+                emailsDB.unshift({ ...draft, id: `EM-${String(nextEmailId++).padStart(3, '0')}`, from: getCurrentCommUserName(), fromEmail: getCurrentCommUserEmail(), folder: 'sent', read: true });
                 draft.folder = 'archive';
             }
         }
     } else {
         const email = {
             id: `EM-${String(nextEmailId++).padStart(3, '0')}`, threadId: `TH-${nextEmailId}`,
-            from: CURRENT_USER, fromEmail: CURRENT_USER_EMAIL, to, cc, bcc,
+            from: getCurrentCommUserName(), fromEmail: getCurrentCommUserEmail(), to, cc, bcc,
             subject: subject || '(No subject)', body: body || '', sentAt: now,
             read: true, starred: false, important: false,
             attachments: [...emailAttachments], relatedType: linkType, relatedRef: linkRef, relatedLabel,
@@ -6890,13 +6880,20 @@ function sendEmailFromCompose(saveAsDraft) {
         };
         emailsDB.unshift(email);
         if (!saveAsDraft) {
-            to.forEach(recipient => {
-                if (recipient !== CURRENT_USER) {
-                    emailsDB.unshift({ ...email, id: `EM-${String(nextEmailId++).padStart(3, '0')}`, folder: 'inbox', from: CURRENT_USER, fromEmail: CURRENT_USER_EMAIL, to: [recipient], cc: [], bcc: [], read: false });
-                }
-            });
+            email.ownerEmail = getCurrentCommUserEmail();
+            if (typeof deliverInternalEmailCopies === 'function') {
+                deliverInternalEmailCopies(email, to);
+            } else {
+                to.forEach(recipient => {
+                    if (recipient !== getCurrentCommUserName()) {
+                        emailsDB.unshift({ ...email, id: `EM-${String(nextEmailId++).padStart(3, '0')}`, folder: 'inbox', from: getCurrentCommUserName(), fromEmail: getCurrentCommUserEmail(), to: [recipient], cc: [], bcc: [], read: false, forUserEmail: recipient });
+                    }
+                });
+            }
         }
     }
+    if (typeof persistInternalComm === 'function') persistInternalComm();
+    if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
     emailView = 'list';
     emailComposeData = null;
     emailAttachments = [];
@@ -7032,7 +7029,7 @@ function getFilteredChatRooms() {
     let items = [...chatRoomsDB].sort((a, b) => (b.pinned - a.pinned) || b.lastAt.localeCompare(a.lastAt));
     if (chatTypeFilter === 'group') items = items.filter(r => r.type === 'group');
     if (chatTypeFilter === 'direct') items = items.filter(r => r.type === 'direct');
-    if (chatShowUnreadOnly) items = items.filter(r => (r.unreadCount || 0) > 0);
+    if (chatShowUnreadOnly) items = items.filter(r => (typeof getRoomUnreadCount === 'function' ? getRoomUnreadCount(r) : (r.unreadCount || 0)) > 0);
     const search = chatListSearch || (document.getElementById('waSearchInput')?.value || '').trim();
     if (search) {
         const term = search.toLowerCase();
@@ -7044,8 +7041,13 @@ function getFilteredChatRooms() {
 function selectChatRoom(roomId) {
     activeChatRoomId = roomId;
     chatReplyToId = null;
-    const room = chatRoomsDB.find(r => r.id === roomId);
-    if (room) room.unreadCount = 0;
+    if (typeof markCommRoomRead === 'function') markCommRoomRead(roomId);
+    else {
+        const room = chatRoomsDB.find(r => r.id === roomId);
+        if (room) room.unreadCount = 0;
+    }
+    if (typeof persistInternalComm === 'function') persistInternalComm();
+    if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
     renderInternalCommunication(document.getElementById('contentArea'));
 }
 
@@ -7055,7 +7057,7 @@ function getChatMessages(roomId) {
 
 function renderWaChatList() {
     return getFilteredChatRooms().map(r => {
-        const other = r.type === 'direct' ? r.memberNames.find(m => m !== CURRENT_USER) : null;
+        const other = r.type === 'direct' ? r.memberNames.find(m => m !== getCurrentCommUserName()) : null;
         const user = other ? systemUsersDB.find(u => u.name === other) : null;
         const avatar = r.type === 'group' ? (r.avatar || '👥') : (user?.initials || r.avatar || '?');
         return `
@@ -7063,7 +7065,7 @@ function renderWaChatList() {
             <div class="wa-avatar${r.type === 'group' ? ' group' : ''}">${avatar}</div>
             <div class="wa-chat-info">
                 <div class="wa-chat-top"><span class="wa-chat-name">${r.pinned ? '📌 ' : ''}${r.name}${r.muted ? ' 🔇' : ''}</span><span class="wa-chat-time">${r.lastAt.split(' ')[1] || r.lastAt}</span></div>
-                <div class="wa-chat-bottom"><span class="wa-chat-preview">${r.lastMessage}</span>${r.unreadCount ? `<span class="wa-unread-badge">${r.unreadCount}</span>` : ''}</div>
+                <div class="wa-chat-bottom"><span class="wa-chat-preview">${r.lastMessage}</span>${(typeof getRoomUnreadCount === 'function' ? getRoomUnreadCount(r) : r.unreadCount) ? `<span class="wa-unread-badge">${typeof getRoomUnreadCount === 'function' ? getRoomUnreadCount(r) : r.unreadCount}</span>` : ''}</div>
             </div>
         </div>`;
     }).join('');
@@ -7078,7 +7080,7 @@ function renderWaTicks(status) {
 function renderWaMessages(roomId) {
     const messages = getChatMessages(roomId);
     return messages.map(m => {
-        const isSent = m.sender === CURRENT_USER;
+        const isSent = m.sender === getCurrentCommUserName();
         const reply = m.replyTo ? chatMessagesDB.find(x => x.id === m.replyTo) : null;
         return `
         <div class="wa-msg-row ${isSent ? 'sent' : 'received'}">
@@ -7094,7 +7096,7 @@ function renderWaMessages(roomId) {
 function renderWaConversation() {
     const room = chatRoomsDB.find(r => r.id === activeChatRoomId);
     if (!room) return '<div class="wa-empty"><div><div style="font-size:48px;">💬</div><h3>TruckControl Chat</h3><p>Select a conversation or start a new chat</p></div></div>';
-    const other = room.type === 'direct' ? room.memberNames.find(m => m !== CURRENT_USER) : null;
+    const other = room.type === 'direct' ? room.memberNames.find(m => m !== getCurrentCommUserName()) : null;
     const user = other ? systemUsersDB.find(u => u.name === other) : null;
     const statusText = room.type === 'group' ? `${room.memberNames.length} members · ${room.relatedRef}` : (user?.online ? 'online' : `last seen ${user?.lastSeen || 'recently'}`);
     const replyMsg = chatReplyToId ? chatMessagesDB.find(m => m.id === chatReplyToId) : null;
@@ -7138,13 +7140,15 @@ function sendWaMessage() {
     if (!roomId || !text) return;
     const msg = {
         id: `CHAT-${String(nextChatMessageId++).padStart(3, '0')}`,
-        roomId, sender: CURRENT_USER, message: text, type: 'text', fileName: null,
+        roomId, sender: getCurrentCommUserName(), message: text, type: 'text', fileName: null,
         status: 'delivered', replyTo: chatReplyToId, sentAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
     };
     chatMessagesDB.push(msg);
     const room = chatRoomsDB.find(r => r.id === roomId);
     if (room) { room.lastMessage = text; room.lastAt = msg.sentAt; }
     chatReplyToId = null;
+    if (typeof persistInternalComm === 'function') persistInternalComm();
+    if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
     renderInternalCommunication(document.getElementById('contentArea'));
     setTimeout(() => { const pane = document.getElementById('waMessagesPane'); if (pane) pane.scrollTop = pane.scrollHeight; }, 50);
 }
@@ -7154,33 +7158,36 @@ function attachWaFile(input) {
     if (!file || !activeChatRoomId) return;
     const msg = {
         id: `CHAT-${String(nextChatMessageId++).padStart(3, '0')}`,
-        roomId: activeChatRoomId, sender: CURRENT_USER, message: file.name, type: 'file', fileName: file.name,
+        roomId: activeChatRoomId, sender: getCurrentCommUserName(), message: file.name, type: 'file', fileName: file.name,
         status: 'delivered', replyTo: null, sentAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
     };
     chatMessagesDB.push(msg);
     const room = chatRoomsDB.find(r => r.id === activeChatRoomId);
     if (room) { room.lastMessage = `📎 ${file.name}`; room.lastAt = msg.sentAt; }
     input.value = '';
+    if (typeof persistInternalComm === 'function') persistInternalComm();
+    if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
     renderInternalCommunication(document.getElementById('contentArea'));
     showToast(`File ${file.name} sent`, 'success');
 }
 
 function openNewDirectChatPicker() {
-    const name = prompt('Start chat with:\n' + systemUsersDB.filter(u => u.name !== CURRENT_USER).map(u => u.name).join('\n'));
+    const name = prompt('Start chat with:\n' + systemUsersDB.filter(u => u.name !== getCurrentCommUserName()).map(u => u.name).join('\n'));
     if (!name) return;
     startDirectChat(name.trim());
 }
 
 function startDirectChat(userName) {
-    let room = chatRoomsDB.find(r => r.type === 'direct' && r.memberNames.includes(userName) && r.memberNames.includes(CURRENT_USER));
+    let room = chatRoomsDB.find(r => r.type === 'direct' && r.memberNames.includes(userName) && r.memberNames.includes(getCurrentCommUserName()));
     if (!room) {
         room = {
             id: `ROOM-${String(nextChatRoomId++).padStart(3, '0')}`, name: userName, type: 'direct',
-            memberNames: [userName, CURRENT_USER], avatar: systemUsersDB.find(u => u.name === userName)?.initials || '?',
+            memberNames: [userName, getCurrentCommUserName()], avatar: systemUsersDB.find(u => u.name === userName)?.initials || '?',
             relatedType: 'user', relatedRef: 'Direct', pinned: false, muted: false, unreadCount: 0,
-            lastMessage: 'Chat started', lastAt: new Date().toISOString().slice(0, 16).replace('T', ' '), createdBy: CURRENT_USER
+            lastMessage: 'Chat started', lastAt: new Date().toISOString().slice(0, 16).replace('T', ' '), createdBy: getCurrentCommUserName()
         };
         chatRoomsDB.unshift(room);
+        if (typeof persistInternalComm === 'function') persistInternalComm();
     }
     selectChatRoom(room.id);
 }
@@ -7189,17 +7196,18 @@ function openNewGroupChatForm() {
     const name = prompt('Group name:');
     if (!name) return;
     const members = prompt('Members (comma-separated):', 'Jean Kalenga, Ruth Mwansa, Current User');
-    const memberNames = (members || CURRENT_USER).split(',').map(s => s.trim()).filter(Boolean);
-    if (!memberNames.includes(CURRENT_USER)) memberNames.push(CURRENT_USER);
+    const memberNames = (members || getCurrentCommUserName()).split(',').map(s => s.trim()).filter(Boolean);
+    if (!memberNames.includes(getCurrentCommUserName())) memberNames.push(getCurrentCommUserName());
     const room = {
         id: `ROOM-${String(nextChatRoomId++).padStart(3, '0')}`, name: name.trim(), type: 'group',
         memberNames, avatar: '👥', relatedType: 'area', relatedRef: 'Custom Group',
         pinned: false, muted: false, unreadCount: 0,
         lastMessage: 'Group created', lastAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-        createdBy: CURRENT_USER
+        createdBy: getCurrentCommUserName()
     };
     chatRoomsDB.unshift(room);
     selectChatRoom(room.id);
+    if (typeof persistInternalComm === 'function') persistInternalComm();
     showToast(`Group "${name}" created`, 'success');
 }
 
@@ -7228,7 +7236,8 @@ function setChatReply(messageId) {
 
 function getInternalCommStats() {
     const counts = getEmailFolderCounts();
-    const unreadChats = chatRoomsDB.reduce((sum, room) => sum + (room.unreadCount || 0), 0);
+    if (typeof syncCommRoomUnreadCounts === 'function') syncCommRoomUnreadCounts();
+    const unreadChats = chatRoomsDB.reduce((sum, room) => sum + (typeof getRoomUnreadCount === 'function' ? getRoomUnreadCount(room) : (room.unreadCount || 0)), 0);
     return {
         unread: counts.unread,
         sent: counts.sent,
@@ -7263,10 +7272,11 @@ function renderInternalCommunication(container) {
             <button class="comm-app-tab${internalCommFilter === 'email' ? ' active' : ''}" onclick="chatTypeFilter='all';chatShowUnreadOnly=false;navigateToInternalComm('email')">📧 Email (Outlook)</button>
             <button class="comm-app-tab${internalCommFilter === 'chat' ? ' active' : ''}" onclick="emailShowUnreadOnly=false;navigateToInternalComm('chat')">💬 Chat (WhatsApp)</button>
         </div>
+        ${typeof renderCommRibbon === 'function' ? renderCommRibbon() : ''}
         ${emailShowUnreadOnly ? `<div style="background:#fffaf0;border:1px solid #f6ad55;padding:10px 16px;margin-bottom:12px;border-radius:8px;font-size:13px;">Showing <strong>unread emails only</strong> in Inbox. <button class="btn btn-outline btn-sm" onclick="emailShowUnreadOnly=false;renderInternalCommunication(document.getElementById('contentArea'))">Show all</button></div>` : ''}
         ${chatShowUnreadOnly ? `<div style="background:#fffaf0;border:1px solid #f6ad55;padding:10px 16px;margin-bottom:12px;border-radius:8px;font-size:13px;">Showing <strong>chats with unread messages</strong>. <button class="btn btn-outline btn-sm" onclick="chatShowUnreadOnly=false;renderInternalCommunication(document.getElementById('contentArea'))">Show all chats</button></div>` : ''}
         ${chatTypeFilter !== 'all' ? `<div style="background:#ebf8ff;border:1px solid #90cdf4;padding:10px 16px;margin-bottom:12px;border-radius:8px;font-size:13px;">Showing <strong>${chatTypeFilter === 'group' ? 'group' : 'direct'} chats only</strong>. <button class="btn btn-outline btn-sm" onclick="chatTypeFilter='all';renderInternalCommunication(document.getElementById('contentArea'))">Show all</button></div>` : ''}
-        <div class="comm-shell">${internalCommFilter === 'chat' ? renderWhatsAppClient() : renderOutlookClient()}</div>
+        <div class="comm-shell${typeof getCommTheme === 'function' && getCommTheme() === 'dark' ? ' comm-dark' : ''}">${internalCommFilter === 'chat' ? renderWhatsAppClient() : renderOutlookClient()}</div>
         <button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">⬅️ Back to Dashboard</button>
     `;
     if (emailView === 'compose') populateEmailLinkSelect();

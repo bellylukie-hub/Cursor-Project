@@ -1850,6 +1850,40 @@
         .wa-reply-bar { background: #f0f2f5; border-top: 1px solid #d1d7db; padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
         .wa-empty { display: flex; align-items: center; justify-content: center; flex: 1; color: #667781; text-align: center; padding: 40px; }
 
+        /* Outlook-style ribbon + dark theme for internal comm */
+        .comm-ribbon { background: #f3f4f6; border: 1px solid var(--border); border-radius: 8px 8px 0 0; margin-bottom: -1px; }
+        .comm-ribbon-tabs { display: flex; gap: 4px; padding: 6px 10px 0; border-bottom: 1px solid var(--border); background: #fafbfc; }
+        .comm-ribbon-tab { border: none; background: transparent; padding: 8px 14px; border-radius: 6px 6px 0 0; cursor: pointer; font-weight: 600; color: var(--text-secondary); }
+        .comm-ribbon-tab.active { background: #f3f4f6; color: var(--primary); border: 1px solid var(--border); border-bottom-color: #f3f4f6; margin-bottom: -1px; }
+        .comm-ribbon-body { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px 14px; min-height: 72px; align-items: flex-start; }
+        .comm-ribbon-group { border-right: 1px solid #d1d5db; padding-right: 12px; }
+        .comm-ribbon-group:last-child { border-right: none; }
+        .comm-ribbon-group-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 6px; }
+        .comm-ribbon-group-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+        .comm-ribbon-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 64px; padding: 6px 8px; border: 1px solid transparent; border-radius: 6px; background: transparent; cursor: pointer; font-size: 11px; color: var(--text-primary); }
+        .comm-ribbon-btn:hover:not(:disabled) { background: #e5e7eb; border-color: #d1d5db; }
+        .comm-ribbon-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .comm-ribbon-icon { font-size: 18px; }
+        .comm-ribbon-account { padding: 6px 14px 10px; font-size: 12px; color: var(--text-secondary); border-top: 1px solid #e5e7eb; }
+        .comm-dark { background: #1f2937 !important; color: #e5e7eb; border-color: #374151 !important; }
+        .comm-dark .outlook-folders, .comm-dark .outlook-read-toolbar, .comm-dark .outlook-read-pane, .comm-dark .outlook-list-pane { background: #111827 !important; color: #e5e7eb; border-color: #374151 !important; }
+        .comm-dark .outlook-folder:hover, .comm-dark .outlook-folder.active { background: #1e3a5f !important; color: #93c5fd !important; }
+        .comm-dark .outlook-email-item { border-color: #374151; }
+        .comm-dark .outlook-email-item:hover { background: #1f2937; }
+        .comm-dark .outlook-email-item.unread { background: #172554; }
+        .comm-dark .outlook-email-item.active { background: #1e3a5f; }
+        .comm-dark .wa-sidebar, .comm-dark .wa-conv-header, .comm-dark .wa-input-bar { background: #202c33 !important; border-color: #374151 !important; color: #e5e7eb; }
+        .comm-dark .whatsapp-client { background: #0b141a !important; }
+        .comm-dark .wa-conversation { background: #0b141a !important; }
+        .comm-dark .wa-bubble.received { background: #202c33 !important; color: #e5e7eb; }
+        .comm-dark .wa-bubble.sent { background: #005c4b !important; color: #e5e7eb; }
+        .comm-dark .wa-chat-item:hover, .comm-dark .wa-chat-item.active { background: #2a3942 !important; }
+        .comm-dark .comm-ribbon { background: #111827; border-color: #374151; }
+        .comm-dark .comm-ribbon-tabs { background: #0f172a; border-color: #374151; }
+        .comm-dark .comm-ribbon-tab.active { background: #111827; color: #93c5fd; border-color: #374151; }
+        .comm-dark .comm-ribbon-btn:hover:not(:disabled) { background: #374151; }
+        .comm-dark .form-control, .comm-dark input, .comm-dark textarea, .comm-dark select { background: #1f2937; color: #e5e7eb; border-color: #4b5563; }
+
         @media (max-width: 1100px) {
             .outlook-client { grid-template-columns: 180px 280px 1fr; }
             .whatsapp-client { grid-template-columns: 300px 1fr; }
@@ -2780,6 +2814,7 @@
     <script src="trip-scheduler.js"></script>
     <script src="helpdesk.js"></script>
     <script src="app.js"></script>
+    <script src="internal-communication.js"></script>
     <script src="custom-reports.js"></script>
     <script src="process-guide.js"></script>
     <script src="help-assistant.js"></script>
