@@ -1,5 +1,5 @@
 ================================================================================
-  TruckControl — FULL PRODUCTION PACKAGE  (v2.5.7-full-production)
+  TruckControl — FULL PRODUCTION PACKAGE  (v2.5.8-full-production)
   ALL DEVELOPMENT FEATURES + ILLUSTRATED USER MANUAL
 ================================================================================
 
@@ -8,9 +8,9 @@ This ZIP contains EVERY module developed to date — merged into one deployable 
 DOWNLOAD
 --------
   Latest release ZIP:
-  https://github.com/bellylukie-hub/Cursor-Project/releases/tag/v2.5.7-full-production
+  https://github.com/bellylukie-hub/Cursor-Project/releases/tag/v2.5.8-full-production
 
-  File: TruckControl-Production-v2.5.7-full-production.zip
+  File: TruckControl-Production-v2.5.8-full-production.zip
 
 QUICK START (Docker — recommended)
 ----------------------------------
@@ -36,7 +36,7 @@ Always rebuild Docker or you will NOT see new features:
    docker compose down
    docker compose up -d --build
 
-FEATURES IN THIS BUILD (v2.5.7)
+FEATURES IN THIS BUILD (v2.5.8)
 -------------------------------
   OPERATIONS
   - NB / SB / Border / POD / Position Live tables
@@ -61,10 +61,9 @@ FEATURES IN THIS BUILD (v2.5.7)
   - Upload Templates, Module Permissions, Area Assignments
 
   UI / UX
-  - TruckControl favicon + dynamic browser tab titles
-  - Click sidebar logo → Dashboard
-  - Draggable help assistant chatbot
-  - Document print links, aligned sidebar badges
+  - Control Room Black login, theme picker, auto-hide menu
+  - Working global top-bar search
+  - Fix: blank screen after deploy when a non-default theme was saved
 
 VERIFY PACKAGE (optional)
 -------------------------
