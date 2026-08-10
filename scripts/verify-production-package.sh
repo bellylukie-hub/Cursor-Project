@@ -20,6 +20,11 @@ for f in $REQUIRED; do
   fi
 done
 
+if [ ! -f backend/src/services/databaseExplorerService.js ]; then
+  echo "MISSING backend: backend/src/services/databaseExplorerService.js"
+  MISSING=1
+fi
+
 if [ "$MISSING" -eq 1 ]; then
   echo "Production package verification FAILED"
   exit 1

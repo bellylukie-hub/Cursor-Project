@@ -1,5 +1,5 @@
 ================================================================================
-  TruckControl — FULL PRODUCTION PACKAGE  (v2.5.0-full-production)
+  TruckControl — FULL PRODUCTION PACKAGE  (v2.5.1-full-production)
   ALL DEVELOPMENT FEATURES INCLUDED
 ================================================================================
 
@@ -29,7 +29,7 @@ Always rebuild Docker or you will NOT see new features:
    docker compose down
    docker compose up -d --build
 
-FEATURES IN THIS BUILD (v2.5.0)
+FEATURES IN THIS BUILD (v2.5.1)
 -------------------------------
   OPERATIONS
   - NB / SB / Border / POD / Position Live tables
@@ -46,6 +46,7 @@ FEATURES IN THIS BUILD (v2.5.0)
   ADMIN
   - Users, roles, KPI settings, themes, Freight & FMS Settings
   - Database Browser + Query Developer (Super Admin)
+  - Development menu — custom SQL pages published from Query Developer
   - Upload Templates, Module Permissions, Area Assignments
 
   UI / UX
@@ -73,5 +74,8 @@ DEPLOY ON DOMAIN
 DEFAULT USERS
 -------------
   super_admin / ChangeMe123!  (change after first login)
+
+  Database Browser, Query Developer, and the Development menu are visible
+  only when logged in as Super Admin (super_admin).
 
 ================================================================================

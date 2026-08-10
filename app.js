@@ -1573,6 +1573,7 @@ function applyAuthUserToSession(apiUser) {
         if (apiUser.modulePermissions) existing.modulePermissions = apiUser.modulePermissions;
     }
     updateTopBarUser();
+    if (typeof initCustomSqlNav === 'function') initCustomSqlNav();
     if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
     if (typeof initInternalComm === 'function') initInternalComm(true);
 }
@@ -1636,7 +1637,9 @@ function verifyManagementModulesLoaded() {
         { page: 'route-catalog', fn: 'renderRouteCatalog', file: 'route-catalog.js' },
         { page: 'trip-scheduler', fn: 'renderTripScheduler', file: 'trip-scheduler.js' },
         { page: 'fleet-registry', fn: 'renderFleetRegistry', file: 'fleet-orders.js' },
-        { page: 'helpdesk', fn: 'renderHelpdesk', file: 'helpdesk.js' }
+        { page: 'helpdesk', fn: 'renderHelpdesk', file: 'helpdesk.js' },
+        { page: 'admin-database-browser', fn: 'renderDatabaseBrowser', file: 'database-tools.js' },
+        { page: 'admin-query-developer', fn: 'renderQueryDeveloper', file: 'database-tools.js' }
     ];
     const missing = checks.filter(c => typeof window[c.fn] !== 'function');
     if (missing.length) {
@@ -1700,6 +1703,7 @@ function updateAdminNavVisibility() {
             nav.style.display = canAccessPage(page) ? '' : 'none';
         }
     });
+    if (typeof initCustomSqlNav === 'function') initCustomSqlNav();
 }
 
 function populateRoleSwitcher() {
@@ -2461,8 +2465,14 @@ function navigateTo(page) {
         case 'admin-freight-settings': renderAdminFreightSettings(ca); break;
         case 'admin-helpdesk-settings': if (typeof renderAdminHelpdeskSettings === 'function') renderAdminHelpdeskSettings(ca); break;
         case 'admin-upload-templates': renderAdminUploadTemplates(ca); break;
-        case 'admin-database-browser': if (typeof renderDatabaseBrowser === 'function') renderDatabaseBrowser(ca); break;
-        case 'admin-query-developer': if (typeof renderQueryDeveloper === 'function') renderQueryDeveloper(ca); break;
+        case 'admin-database-browser':
+            if (typeof renderDatabaseBrowser === 'function') renderDatabaseBrowser(ca);
+            else renderMissingModulePage(ca, 'admin-database-browser');
+            break;
+        case 'admin-query-developer':
+            if (typeof renderQueryDeveloper === 'function') renderQueryDeveloper(ca);
+            else renderMissingModulePage(ca, 'admin-query-developer');
+            break;
         case 'custom-sql-page': if (typeof renderCustomSqlPage === 'function') renderCustomSqlPage(ca); break;
         case 'position-live': renderPositionLive(ca); break;
         case 'fleet-map':

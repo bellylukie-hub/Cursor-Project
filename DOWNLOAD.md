@@ -1,4 +1,4 @@
-# Download & Deploy — TruckControl v2.5.0 (Full Production)
+# Download & Deploy — TruckControl v2.5.1 (Full Production)
 
 This is the **complete** Truck Turnaround & Operations Control System with **all development features merged** — bulk actions, soft delete, database tools, internal communication, and more.
 
@@ -15,11 +15,11 @@ docker compose up -d --build
 
 ## Option 1 — Use the ZIP in this package
 
-If you received `TruckControl-Production-v2.5.0-full-production.zip`:
+If you received `TruckControl-Production-v2.5.1-full-production.zip`:
 
 ```bash
-unzip TruckControl-Production-v2.5.0-full-production.zip
-cd TruckControl-Production-v2.5.0-full-production
+unzip TruckControl-Production-v2.5.1-full-production.zip
+cd TruckControl-Production-v2.5.1-full-production
 cp .env.example .env
 # Edit .env — set JWT_SECRET (32+ random characters), RUN_SEED=true first time only
 docker compose up -d --build
@@ -28,6 +28,8 @@ docker compose up -d --build
 Open **http://your-server:3001** — Login: `super_admin` / `ChangeMe123!`
 
 Set `RUN_SEED=false` in `.env` and restart after first deploy.
+
+**Super Admin only:** Database Browser, Query Developer, and the Development sidebar section appear only when logged in as `super_admin`.
 
 ---
 
@@ -39,8 +41,8 @@ cd Cursor-Project
 git checkout cursor/full-production-release-42ca   # or main when merged
 
 chmod +x scripts/build-production-zip.sh scripts/verify-production-package.sh
-./scripts/build-production-zip.sh v2.5.0-full-production
-# Output: dist/TruckControl-Production-v2.5.0-full-production.zip
+./scripts/build-production-zip.sh v2.5.1-full-production
+# Output: dist/TruckControl-Production-v2.5.1-full-production.zip
 ```
 
 ---
@@ -67,7 +69,7 @@ See `docs/images/domain-deployment.svg` and **docs/INSTALLATION.md §12**.
 
 ---
 
-## What's included in v2.5.0
+## What's included in v2.5.1
 
 | Module | Features |
 |--------|----------|
@@ -79,7 +81,7 @@ See `docs/images/domain-deployment.svg` and **docs/INSTALLATION.md §12**.
 | **Fleet Registry** | Trucks, trailers, drivers, superlink |
 | **Communication** | Driver registry, matrix, **internal email/chat**, helpdesk |
 | **Admin** | Users, roles, KPI, themes, Freight & FMS Settings |
-| **Database tools** | **Database Browser** + **Query Developer** (Super Admin) |
+| **Database tools** | **Database Browser** + **Query Developer** + **Development** menu (Super Admin) |
 | **UI / UX** | Favicon, dynamic tab titles, logo → Dashboard, draggable chatbot |
 | **Help** | In-app assistant, **COMPLETE-MANUAL** with illustrations |
 
