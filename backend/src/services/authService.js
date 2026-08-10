@@ -65,6 +65,24 @@ function getUserByUsername(username) {
   return db.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE').get(username);
 }
 
+function getUserByEmail(email) {
+  return db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(email);
+}
+
+function getUserByLoginIdentifier(identifier) {
+  const t = String(identifier || '').trim();
+  if (!t) return null;
+  let user = getUserByUsername(t);
+  if (!user && t.includes('@')) user = getUserByEmail(t);
+  if (!user) {
+    user = db.prepare(`
+      SELECT * FROM users
+      WHERE LOWER(REPLACE(username, '_', ' ')) = LOWER(?)
+    `).get(t);
+  }
+  return user || null;
+}
+
 function formatUserSession(user) {
   const role = getRoleById(user.role_id);
   const permissions = role ? JSON.parse(role.permissions || '[]') : [];
@@ -84,7 +102,7 @@ function formatUserSession(user) {
 }
 
 function login(username, password, ipAddress) {
-  const user = getUserByUsername(username);
+  const user = getUserByLoginIdentifier(username);
   if (!user) throw new Error('Invalid username or password');
   if (user.status !== 'active') throw new Error('Account is not active');
   if (!verifyPassword(password, user.password_hash)) throw new Error('Invalid username or password');
@@ -143,5 +161,8 @@ module.exports = {
   listUsers,
   listRoles,
   getUserById,
+  getUserByUsername,
+  getUserByEmail,
+  getUserByLoginIdentifier,
   formatUserSession
 };

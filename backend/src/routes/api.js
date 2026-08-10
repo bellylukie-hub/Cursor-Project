@@ -767,4 +767,70 @@ router.get('/helpdesk/stats', (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Internal communication — shared mailbox & chat (cross-user delivery)
+const internalCommSvc = () => require('../services/internalCommService');
+
+function commSender(req) {
+  const u = getUser(req);
+  const { getUserByUsername } = require('../services/authService');
+  const dbUser = u.email ? u : getUserByUsername(u.username);
+  const email = dbUser?.email || req.headers['x-user-email'] || `${u.username}@truckcontrol.local`;
+  return {
+    email,
+    username: u.username || dbUser?.username,
+    displayName: (u.username || dbUser?.username || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+  };
+}
+
+router.get('/internal-comm/mailbox', (req, res) => {
+  try {
+    const sender = commSender(req);
+    res.json({ emails: internalCommSvc().listMailbox(sender.email) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/internal-comm/emails', (req, res) => {
+  try {
+    const result = internalCommSvc().sendEmail(req.body, commSender(req));
+    res.status(201).json(result);
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.patch('/internal-comm/emails/:emailId', (req, res) => {
+  try {
+    const sender = commSender(req);
+    const email = internalCommSvc().updateEmail(req.params.emailId, sender.email, req.body);
+    res.json({ email });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.get('/internal-comm/chat', (req, res) => {
+  try {
+    const sender = commSender(req);
+    res.json(internalCommSvc().listChatData(sender.email));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/internal-comm/chat/rooms', (req, res) => {
+  try {
+    const room = internalCommSvc().createChatRoom(req.body, commSender(req));
+    res.status(201).json({ room });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.post('/internal-comm/chat/direct', (req, res) => {
+  try {
+    const { email } = req.body;
+    const room = internalCommSvc().findOrCreateDirectRoom(email, commSender(req));
+    res.json({ room });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.post('/internal-comm/chat/messages', (req, res) => {
+  try {
+    const message = internalCommSvc().sendChatMessage(req.body, commSender(req));
+    res.status(201).json({ message });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
 module.exports = router;

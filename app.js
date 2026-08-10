@@ -3810,7 +3810,7 @@ function renderCommunicationDashboardSection() {
                 <div class="pod-stat-icon">💬</div>
                 <div class="pod-stat-value orange">${c.unreadChats}</div>
                 <div class="pod-stat-label">Unread Chats</div>
-                <div class="pod-stat-sub">WhatsApp-style messages</div>
+                <div class="pod-stat-sub">Internal chat messages</div>
             </div>
             <div class="pod-stat-item" onclick="navigateToInternalComm('email')" title="Open Internal Communication">
                 <div class="pod-stat-icon">📨</div>
@@ -6825,10 +6825,18 @@ function markEmailAction(id, action) {
         if (idx >= 0) emailsDB.splice(idx, 1);
         selectedEmailId = null;
     }
-    if (typeof persistInternalComm === 'function') persistInternalComm();
-    if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
-    renderInternalCommunication(document.getElementById('contentArea'));
-    showToast(`Email ${action}`, 'success');
+    const syncPatch = action === 'read' ? { read: true }
+        : action === 'unread' ? { read: false }
+        : ['archive', 'trash', 'restore'].includes(action) ? { folder: email.folder } : null;
+    (async () => {
+        if (syncPatch && typeof isApiAvailable === 'function' && isApiAvailable() && typeof updateInternalEmailApi === 'function') {
+            try { await updateInternalEmailApi(id, syncPatch); } catch (_) {}
+        }
+        if (typeof persistInternalComm === 'function') persistInternalComm();
+        if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
+        renderInternalCommunication(document.getElementById('contentArea'));
+        showToast(`Email ${action}`, 'success');
+    })();
 }
 
 function handleEmailAttachmentSelect(input) {
@@ -6860,46 +6868,64 @@ function sendEmailFromCompose(saveAsDraft) {
     }
     const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
     const relatedLabel = linkType === 'trip' && tripsDB[linkRef] ? `${linkRef} / ${tripsDB[linkRef].truck}` : linkRef || '';
-    if (emailComposeData?.draftId) {
-        const draft = getEmailById(emailComposeData.draftId);
-        if (draft) {
-            Object.assign(draft, { to, cc, bcc, subject, body, attachments: [...emailAttachments], relatedType: linkType, relatedRef: linkRef, relatedLabel, sentAt: now, folder: saveAsDraft ? 'drafts' : 'sent' });
-            if (!saveAsDraft) {
-                emailsDB.unshift({ ...draft, id: `EM-${String(nextEmailId++).padStart(3, '0')}`, from: getCurrentCommUserName(), fromEmail: getCurrentCommUserEmail(), folder: 'sent', read: true });
-                draft.folder = 'archive';
-            }
-        }
-    } else {
-        const email = {
-            id: `EM-${String(nextEmailId++).padStart(3, '0')}`, threadId: `TH-${nextEmailId}`,
-            from: getCurrentCommUserName(), fromEmail: getCurrentCommUserEmail(), to, cc, bcc,
-            subject: subject || '(No subject)', body: body || '', sentAt: now,
-            read: true, starred: false, important: false,
-            attachments: [...emailAttachments], relatedType: linkType, relatedRef: linkRef, relatedLabel,
-            folder: saveAsDraft ? 'drafts' : 'sent'
-        };
-        emailsDB.unshift(email);
-        if (!saveAsDraft) {
-            email.ownerEmail = getCurrentCommUserEmail();
-            if (typeof deliverInternalEmailCopies === 'function') {
-                deliverInternalEmailCopies(email, to);
-            } else {
-                to.forEach(recipient => {
-                    if (recipient !== getCurrentCommUserName()) {
-                        emailsDB.unshift({ ...email, id: `EM-${String(nextEmailId++).padStart(3, '0')}`, folder: 'inbox', from: getCurrentCommUserName(), fromEmail: getCurrentCommUserEmail(), to: [recipient], cc: [], bcc: [], read: false, forUserEmail: recipient });
-                    }
+
+    const finishSend = () => {
+        if (typeof persistInternalComm === 'function') persistInternalComm();
+        if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
+        emailView = 'list';
+        emailComposeData = null;
+        emailAttachments = [];
+        emailFolder = saveAsDraft ? 'drafts' : 'sent';
+        renderInternalCommunication(document.getElementById('contentArea'));
+        showToast(saveAsDraft ? 'Draft saved' : 'Email sent', 'success');
+    };
+
+    (async () => {
+        if (!saveAsDraft && typeof isApiAvailable === 'function' && isApiAvailable() && typeof sendInternalEmailApi === 'function') {
+            try {
+                await sendInternalEmailApi({
+                    id: `EM-${Date.now()}`,
+                    to, cc, bcc, subject, body,
+                    attachments: [...emailAttachments],
+                    relatedType: linkType, relatedRef: linkRef, relatedLabel
                 });
+                if (typeof syncInternalCommFromApi === 'function') await syncInternalCommFromApi();
+                finishSend();
+                return;
+            } catch (e) {
+                showToast(e.message || 'Failed to send email', 'warning');
+                return;
             }
         }
-    }
-    if (typeof persistInternalComm === 'function') persistInternalComm();
-    if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
-    emailView = 'list';
-    emailComposeData = null;
-    emailAttachments = [];
-    emailFolder = saveAsDraft ? 'drafts' : 'sent';
-    renderInternalCommunication(document.getElementById('contentArea'));
-    showToast(saveAsDraft ? 'Draft saved' : 'Email sent', 'success');
+
+        if (emailComposeData?.draftId) {
+            const draft = getEmailById(emailComposeData.draftId);
+            if (draft) {
+                Object.assign(draft, { to, cc, bcc, subject, body, attachments: [...emailAttachments], relatedType: linkType, relatedRef: linkRef, relatedLabel, sentAt: now, folder: saveAsDraft ? 'drafts' : 'sent' });
+                if (!saveAsDraft) {
+                    emailsDB.unshift({ ...draft, id: `EM-${String(nextEmailId++).padStart(3, '0')}`, from: getCurrentCommUserName(), fromEmail: getCurrentCommUserEmail(), folder: 'sent', read: true });
+                    draft.folder = 'archive';
+                }
+            }
+        } else {
+            const email = {
+                id: `EM-${String(nextEmailId++).padStart(3, '0')}`, threadId: `TH-${nextEmailId}`,
+                from: getCurrentCommUserName(), fromEmail: getCurrentCommUserEmail(), to, cc, bcc,
+                subject: subject || '(No subject)', body: body || '', sentAt: now,
+                read: true, starred: false, important: false,
+                attachments: [...emailAttachments], relatedType: linkType, relatedRef: linkRef, relatedLabel,
+                folder: saveAsDraft ? 'drafts' : 'sent'
+            };
+            emailsDB.unshift(email);
+            if (!saveAsDraft) {
+                email.ownerEmail = getCurrentCommUserEmail();
+                if (typeof deliverInternalEmailCopies === 'function') {
+                    deliverInternalEmailCopies(email, [...to, ...cc]);
+                }
+            }
+        }
+        finishSend();
+    })();
 }
 
 function renderEmailFolders() {
@@ -6980,15 +7006,17 @@ function renderEmailComposePane() {
             <div class="outlook-compose-row"><label>Link</label><div style="display:flex;gap:8px;"><select class="form-control" id="emailComposeLinkType" onchange="populateEmailLinkSelect()" style="max-width:140px;"><option value="">None</option>${INTERNAL_LINK_TYPES.map(t => `<option value="${t}" ${pre.relatedType === t ? 'selected' : ''}>${t}</option>`).join('')}</select><select class="form-control" id="emailComposeLinkRef" style="flex:1;"><option value="">Reference</option></select></div></div>
             <div style="margin:12px 0 8px 70px;"><label class="btn btn-outline btn-sm" style="cursor:pointer;">📎 Attach<input type="file" hidden onchange="handleEmailAttachmentSelect(this)"></label><div id="emailAttachList" class="outlook-attach-list">${emailAttachments.map((a, i) => `<span class="outlook-attach-chip">📎 ${a.name} <button type="button" class="btn btn-outline btn-sm" onclick="removeEmailAttachment(${i})">✕</button></span>`).join('')}</div></div>
             <div class="outlook-compose-row" style="align-items:start;"><label>Message</label><textarea class="form-control" id="emailComposeBody" rows="14">${pre.body || ''}</textarea></div>
-            <div style="margin-left:70px;font-size:12px;color:var(--text-secondary);">Quick add: ${systemUsersDB.map(u => `<button type="button" class="btn btn-outline btn-sm" style="margin:2px;" onclick="appendEmailRecipient('${u.name}')">${u.name}</button>`).join('')}</div>
+            <div style="margin-left:70px;font-size:12px;color:var(--text-secondary);">Quick add: ${getInternalCommContactList().slice(0, 12).map(u => `<button type="button" class="btn btn-outline btn-sm" style="margin:2px;" onclick="appendEmailRecipient('${(u.username || u.name).replace(/'/g, "\\'")}')" title="${u.email}">${u.name}</button>`).join('')}</div>
         </div>`;
 }
 
-function appendEmailRecipient(name) {
+function appendEmailRecipient(token) {
     const el = document.getElementById('emailComposeTo');
     if (!el) return;
     const current = el.value.split(',').map(s => s.trim()).filter(Boolean);
-    if (!current.includes(name)) current.push(name);
+    const value = String(token || '').trim();
+    if (!value) return;
+    if (!current.some(v => v.toLowerCase() === value.toLowerCase())) current.push(value);
     el.value = current.join(', ');
 }
 
@@ -7143,14 +7171,27 @@ function sendWaMessage() {
         roomId, sender: getCurrentCommUserName(), message: text, type: 'text', fileName: null,
         status: 'delivered', replyTo: chatReplyToId, sentAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
     };
-    chatMessagesDB.push(msg);
-    const room = chatRoomsDB.find(r => r.id === roomId);
-    if (room) { room.lastMessage = text; room.lastAt = msg.sentAt; }
-    chatReplyToId = null;
-    if (typeof persistInternalComm === 'function') persistInternalComm();
-    if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
-    renderInternalCommunication(document.getElementById('contentArea'));
-    setTimeout(() => { const pane = document.getElementById('waMessagesPane'); if (pane) pane.scrollTop = pane.scrollHeight; }, 50);
+    (async () => {
+        if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof sendInternalChatMessageApi === 'function') {
+            try {
+                await sendInternalChatMessageApi({ id: msg.id, roomId, message: text, replyTo: chatReplyToId });
+                if (typeof syncInternalCommFromApi === 'function') await syncInternalCommFromApi();
+            } catch (e) {
+                showToast(e.message || 'Failed to send message', 'warning');
+                return;
+            }
+        } else {
+            chatMessagesDB.push(msg);
+            const room = chatRoomsDB.find(r => r.id === roomId);
+            if (room) { room.lastMessage = text; room.lastAt = msg.sentAt; }
+        }
+        chatReplyToId = null;
+        if (input) input.value = '';
+        if (typeof persistInternalComm === 'function') persistInternalComm();
+        if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
+        renderInternalCommunication(document.getElementById('contentArea'));
+        setTimeout(() => { const pane = document.getElementById('waMessagesPane'); if (pane) pane.scrollTop = pane.scrollHeight; }, 50);
+    })();
 }
 
 function attachWaFile(input) {
@@ -7171,25 +7212,77 @@ function attachWaFile(input) {
     showToast(`File ${file.name} sent`, 'success');
 }
 
-function openNewDirectChatPicker() {
-    const name = prompt('Start chat with:\n' + systemUsersDB.filter(u => u.name !== getCurrentCommUserName()).map(u => u.name).join('\n'));
-    if (!name) return;
-    startDirectChat(name.trim());
+function getInternalCommContactList() {
+    if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
+    const currentEmail = (typeof getCurrentCommUserEmail === 'function' ? getCurrentCommUserEmail() : '').toLowerCase();
+    const fromAdmin = (adminUsersDB || []).filter(u => u.status === 'active' && u.email).map(u => ({
+        name: u.username.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        email: u.email,
+        username: u.username,
+        area: u.area,
+        initials: u.username.replace(/_/g, ' ').replace(/\b\w/g, c => c[0]).join('').slice(0, 2).toUpperCase()
+    }));
+    const merged = [...fromAdmin];
+    (systemUsersDB || []).forEach(u => {
+        if (!u.email || u.email.toLowerCase() === currentEmail) return;
+        if (!merged.some(m => m.email.toLowerCase() === u.email.toLowerCase())) merged.push(u);
+    });
+    return merged.filter(u => u.email.toLowerCase() !== currentEmail);
 }
 
-function startDirectChat(userName) {
-    let room = chatRoomsDB.find(r => r.type === 'direct' && r.memberNames.includes(userName) && r.memberNames.includes(getCurrentCommUserName()));
-    if (!room) {
-        room = {
-            id: `ROOM-${String(nextChatRoomId++).padStart(3, '0')}`, name: userName, type: 'direct',
-            memberNames: [userName, getCurrentCommUserName()], avatar: systemUsersDB.find(u => u.name === userName)?.initials || '?',
-            relatedType: 'user', relatedRef: 'Direct', pinned: false, muted: false, unreadCount: 0,
-            lastMessage: 'Chat started', lastAt: new Date().toISOString().slice(0, 16).replace('T', ' '), createdBy: getCurrentCommUserName()
-        };
-        chatRoomsDB.unshift(room);
-        if (typeof persistInternalComm === 'function') persistInternalComm();
+function openNewDirectChatPicker() {
+    const list = document.getElementById('chatContactPickerList');
+    const contacts = getInternalCommContactList();
+    if (!list) {
+        const name = prompt('Start chat with:\n' + contacts.map(u => `${u.name} (${u.email})`).join('\n'));
+        if (name) startDirectChat(name.trim());
+        return;
     }
-    selectChatRoom(room.id);
+    list.innerHTML = contacts.length
+        ? contacts.map(u => `
+            <button type="button" class="btn btn-outline" style="width:100%;justify-content:flex-start;margin-bottom:8px;text-align:left;" onclick="startDirectChatByEmail('${u.email.replace(/'/g, "\\'")}')">
+                <span class="wa-avatar" style="width:36px;height:36px;font-size:12px;margin-right:10px;">${u.initials || '??'}</span>
+                <span><strong>${u.name}</strong><br><small style="color:var(--text-secondary);">${u.email}${u.area ? ' · ' + u.area : ''}</small></span>
+            </button>`).join('')
+        : '<p style="color:var(--text-secondary);">No other users available. Add users in Admin → Manage Users.</p>';
+    openModal('chatContactPickerModal');
+}
+
+function startDirectChatByEmail(email) {
+    closeModal('chatContactPickerModal');
+    const contact = getInternalCommContactList().find(u => u.email.toLowerCase() === email.toLowerCase());
+    startDirectChat(contact?.name || email, email);
+}
+
+function startDirectChat(userName, userEmail) {
+    (async () => {
+        let room = null;
+        if (userEmail && typeof isApiAvailable === 'function' && isApiAvailable() && typeof createInternalDirectChatApi === 'function') {
+            try {
+                room = await createInternalDirectChatApi(userEmail);
+                if (typeof syncInternalCommFromApi === 'function') await syncInternalCommFromApi();
+            } catch (e) {
+                showToast(e.message || 'Could not start chat', 'warning');
+                return;
+            }
+        } else {
+            room = chatRoomsDB.find(r => r.type === 'direct' && r.memberNames.includes(userName) && r.memberNames.includes(getCurrentCommUserName()));
+            if (!room) {
+                const contact = getInternalCommContactList().find(u => u.name === userName || u.email === userEmail);
+                room = {
+                    id: `ROOM-${String(nextChatRoomId++).padStart(3, '0')}`, name: userName, type: 'direct',
+                    memberNames: [userName, getCurrentCommUserName()],
+                    memberEmails: [contact?.email || userEmail, getCurrentCommUserEmail()].filter(Boolean),
+                    avatar: contact?.initials || systemUsersDB.find(u => u.name === userName)?.initials || '?',
+                    relatedType: 'user', relatedRef: 'Direct', pinned: false, muted: false, unreadCount: 0,
+                    lastMessage: 'Chat started', lastAt: new Date().toISOString().slice(0, 16).replace('T', ' '), createdBy: getCurrentCommUserName()
+                };
+                chatRoomsDB.unshift(room);
+                if (typeof persistInternalComm === 'function') persistInternalComm();
+            }
+        }
+        if (room) selectChatRoom(room.id);
+    })();
 }
 
 function openNewGroupChatForm() {
@@ -7256,6 +7349,10 @@ function getInternalCommExportData() {
 }
 
 function renderInternalCommunication(container) {
+    if (typeof initInternalComm === 'function') initInternalComm();
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        Notification.requestPermission().catch(() => {});
+    }
     const stats = getInternalCommStats();
     container.innerHTML = `
         <div class="page-header">
@@ -7270,7 +7367,7 @@ function renderInternalCommunication(container) {
         </div>
         <div class="comm-app-tabs">
             <button class="comm-app-tab${internalCommFilter === 'email' ? ' active' : ''}" onclick="chatTypeFilter='all';chatShowUnreadOnly=false;navigateToInternalComm('email')">📧 Email (Outlook)</button>
-            <button class="comm-app-tab${internalCommFilter === 'chat' ? ' active' : ''}" onclick="emailShowUnreadOnly=false;navigateToInternalComm('chat')">💬 Chat (WhatsApp)</button>
+            <button class="comm-app-tab${internalCommFilter === 'chat' ? ' active' : ''}" onclick="emailShowUnreadOnly=false;navigateToInternalComm('chat')">💬 Chat</button>
         </div>
         ${typeof renderCommRibbon === 'function' ? renderCommRibbon() : ''}
         ${emailShowUnreadOnly ? `<div style="background:#fffaf0;border:1px solid #f6ad55;padding:10px 16px;margin-bottom:12px;border-radius:8px;font-size:13px;">Showing <strong>unread emails only</strong> in Inbox. <button class="btn btn-outline btn-sm" onclick="emailShowUnreadOnly=false;renderInternalCommunication(document.getElementById('contentArea'))">Show all</button></div>` : ''}

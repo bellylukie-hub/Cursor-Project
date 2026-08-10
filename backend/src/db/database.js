@@ -491,6 +491,63 @@ function migrateHelpdeskSchema() {
     CREATE INDEX IF NOT EXISTS idx_helpdesk_tickets_status ON helpdesk_tickets(status);
     CREATE INDEX IF NOT EXISTS idx_helpdesk_tickets_reporter ON helpdesk_tickets(reporter_user_id);
     CREATE INDEX IF NOT EXISTS idx_helpdesk_tickets_target ON helpdesk_tickets(target_resolve_at);
+
+    CREATE TABLE IF NOT EXISTS internal_emails (
+      id TEXT PRIMARY KEY,
+      from_email TEXT NOT NULL,
+      from_name TEXT,
+      to_emails TEXT,
+      to_names TEXT,
+      cc_emails TEXT,
+      bcc_emails TEXT,
+      for_user_email TEXT NOT NULL,
+      owner_email TEXT,
+      folder TEXT NOT NULL DEFAULT 'inbox',
+      subject TEXT,
+      body TEXT,
+      sent_at TEXT DEFAULT (datetime('now')),
+      read_flag INTEGER DEFAULT 0,
+      starred INTEGER DEFAULT 0,
+      important INTEGER DEFAULT 0,
+      attachments TEXT,
+      related_type TEXT,
+      related_ref TEXT,
+      related_label TEXT,
+      thread_id TEXT,
+      mirror_of TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS internal_chat_rooms (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'direct',
+      member_emails TEXT NOT NULL,
+      member_names TEXT,
+      avatar TEXT,
+      last_message TEXT,
+      last_at TEXT DEFAULT (datetime('now')),
+      pinned INTEGER DEFAULT 0,
+      muted INTEGER DEFAULT 0,
+      related_type TEXT,
+      related_ref TEXT,
+      created_by_email TEXT,
+      created_by_name TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS internal_chat_messages (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL,
+      sender_email TEXT NOT NULL,
+      sender_name TEXT,
+      message TEXT,
+      sent_at TEXT DEFAULT (datetime('now')),
+      status TEXT DEFAULT 'delivered',
+      reply_to TEXT,
+      attachment_name TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_internal_emails_for_user ON internal_emails(for_user_email);
+    CREATE INDEX IF NOT EXISTS idx_internal_chat_messages_room ON internal_chat_messages(room_id);
   `);
   const cols = db.prepare('PRAGMA table_info(helpdesk_tickets)').all().map(c => c.name);
   if (!cols.includes('target_first_response_at')) {
