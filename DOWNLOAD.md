@@ -1,12 +1,12 @@
-# Download & Deploy — TruckControl v2.5.5 (Full Production)
+# Download & Deploy — TruckControl v2.5.7 (Full Production)
 
 This is the **complete** Truck Turnaround & Operations Control System with **all development features merged** into one package — operations, FMS, admin tools, internal communication, and the **illustrated User Manual**.
 
 ### Direct download (latest)
 
-**GitHub release:** [v2.5.5-full-production](https://github.com/bellylukie-hub/Cursor-Project/releases/tag/v2.5.5-full-production)
+**GitHub release:** [v2.5.7-full-production](https://github.com/bellylukie-hub/Cursor-Project/releases/tag/v2.5.7-full-production)
 
-File: `TruckControl-Production-v2.5.5-full-production.zip`
+File: `TruckControl-Production-v2.5.7-full-production.zip`
 
 ### Docker deploy (important)
 
@@ -22,8 +22,8 @@ docker compose up -d --build
 ## Option 1 — Use the ZIP download
 
 ```bash
-unzip TruckControl-Production-v2.5.5-full-production.zip
-cd TruckControl-Production-v2.5.5-full-production
+unzip TruckControl-Production-v2.5.7-full-production.zip
+cd TruckControl-Production-v2.5.7-full-production
 cp .env.example .env
 # Edit .env — set JWT_SECRET (32+ random characters), RUN_SEED=true first time only
 docker compose up -d --build
@@ -45,8 +45,8 @@ cd Cursor-Project
 git checkout cursor/full-production-release-42ca   # or main when merged
 
 chmod +x scripts/build-production-zip.sh scripts/verify-production-package.sh
-./scripts/build-production-zip.sh v2.5.5-full-production
-# Output: dist/TruckControl-Production-v2.5.5-full-production.zip
+./scripts/build-production-zip.sh v2.5.7-full-production
+# Output: dist/TruckControl-Production-v2.5.7-full-production.zip
 ```
 
 ---
@@ -74,7 +74,7 @@ See `docs/images/domain-deployment.svg` and **docs/INSTALLATION.md §12**.
 
 ---
 
-## What's included in v2.5.5
+## What's included in v2.5.7
 
 | Module | Features |
 |--------|----------|
@@ -87,7 +87,7 @@ See `docs/images/domain-deployment.svg` and **docs/INSTALLATION.md §12**.
 | **Communication** | Driver registry, matrix, **internal email/chat** (server delivery + notifications), helpdesk |
 | **Admin** | Users, roles, KPI, themes, Freight & FMS Settings, login by username or email |
 | **Database tools** | **Database Browser** + **Query Developer** + **Development** menu (Super Admin) |
-| **UI / UX** | Favicon, dynamic tab titles, logo → Dashboard, draggable chatbot |
+| **UI / UX** | Control Room Black login, theme picker, auto-hide menu, **working global search** |
 | **Help** | In-app assistant, **COMPLETE-MANUAL** with 17 SVG illustrations |
 
 ---
