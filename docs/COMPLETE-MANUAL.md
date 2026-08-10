@@ -24,6 +24,23 @@
 - [USER-GUIDE.md](USER-GUIDE.md) — shorter operating directive
 - [PRODUCTION.md](../PRODUCTION.md) — environment variables & security
 
+### Illustration index
+
+| Figure | File | Shows |
+|--------|------|-------|
+| App overview | `images/app-overview.svg` | All major modules |
+| Login screen | `images/login-screen.svg` | How to sign in |
+| Screen layout | `images/screen-layout.svg` | Sidebar, top bar, content, help |
+| KPI legend | `images/kpi-legend.svg` | Green / orange / red meanings |
+| NB workflow | `images/nb-workflow.svg` | Northbound steps |
+| SB workflow | `images/sb-workflow.svg` | Southbound steps |
+| FMS workflow | `images/fms-workflow.svg` | Orders → trips → fleet |
+| Fleet map | `images/fleet-map.svg` | GPS pins and popups |
+| Helpdesk | `images/helpdesk-workflow.svg` | Issue logging and SLA |
+| Help assistant | `images/help-assistant.svg` | Chatbot usage |
+| Admin setup | `images/admin-setup-order.svg` | Recommended config order |
+| Module permissions | `images/module-permissions.svg` | View / edit / delete matrix |
+
 ---
 
 # Part I — Introduction
