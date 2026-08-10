@@ -2271,7 +2271,7 @@ const borderPerformanceData = {
     }
 };
 
-const tripsDB = {
+const DEMO_TRIPS_DB = {
     'NB-2024-001': { tripNumber:'NB-2024-001',truck:'ABC123DRC',driver:'John Doe',direction:'NB',area:'Kasumbalesa',owner:'Transport Co A',orderNo:'ORD-1001',transporter:'Transport Co A',fleetNr:'FLT-042',trailer1:'TRL-456',customer:'Mining Corp',consignee:'Kolwezi Mine',commodity:'Copper Cathodes',cargoType:'Bulk',customerRef:'CUST-7788',clearingAgent:'Jean Kalenga',entryBorder:'Kasumbalesa',offloadingPoint:'Kolwezi Mine',fromStation:'Kasumbalesa',toStation:'Kolwezi Mine',status:'KBP Process',daysInDRC:5,kpi:'orange',borderProcess:'KBP',workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'},workflowDates:{border:'2026-07-23T08:00'},areaStatus:'KBP Parking',areaStatusDates:{'Entry on DRC':'2026-07-23T08:00','BAE Submitted':'2026-07-24T14:00','KBP Parking':'2026-07-25T09:15'},workflowStatusLog:{border:{status:'KBP Parking',statusDate:'2026-07-25T09:15',updatedBy:'border_moderator',updatedAt:'2026-07-25 09:15:00',area:'Kasumbalesa'}},positions:{},lastUpdatedBy:'border_moderator',lastUpdatedAt:'2026-07-25 09:15:00'},
     'NB-2024-008': { tripNumber:'NB-2024-008',truck:'JKL012DRC',driver:'Peter Mwansa',direction:'NB',area:'Kasumbalesa',owner:'Transport Co D',entryBorder:'Kasumbalesa',offloadingPoint:'KCC Mine',status:'Whisky Process',daysInDRC:3,kpi:'orange',borderProcess:'Whisky',workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}},
     'NB-2024-015': { tripNumber:'NB-2024-015',truck:'XYZ789DRC',driver:'Sarah Smith',direction:'NB',area:'Kolwezi',owner:'Transport Co B',entryBorder:'Sakania',offloadingPoint:'Kolwezi Mine',status:'Offloading',daysInDRC:12,kpi:'orange',workflow:{border:'completed',kanyaka:'completed',offloading:'current',pod:'pending'},workflowDates:{border:'2026-07-18T10:00',kanyaka:'2026-07-20T14:00',offloading:'2026-07-24T09:00'},workflowStatusLog:{border:{status:'Border Clearance Complete',statusDate:'2026-07-18T10:00',updatedBy:'border_moderator',updatedAt:'2026-07-18 10:30:00',area:'Sakania'},kanyaka:{status:'Transit Complete',statusDate:'2026-07-20T14:00',updatedBy:'ops_manager',updatedAt:'2026-07-20 14:45:00',area:'Kanyaka'},offloading:{status:'Offloading',statusDate:'2026-07-24T09:00',updatedBy:'ops_manager',updatedAt:'2026-07-24 09:30:00',area:'Kolwezi'}}},
@@ -2291,7 +2291,12 @@ const tripsDB = {
     'NB-2024-047': { tripNumber:'NB-2024-047',truck:'PQR852DRC',driver:'Emma Zulu',direction:'NB',area:'Kolwezi',owner:'Transport Co B',entryBorder:'Sakania',offloadingPoint:'Kolwezi Mine',status:'Border Clearance',daysInDRC:2,kpi:'green',addedToday:true,workflow:{border:'current',kanyaka:'pending',offloading:'pending',pod:'pending'}}
 };
 
-(function enrichTripsRunnerDates() {
+const tripsDB = {};
+window.tripsDB = tripsDB;
+
+function loadOfflineDemoTrips() {
+    Object.keys(tripsDB).forEach(k => { delete tripsDB[k]; });
+    Object.assign(tripsDB, DEMO_TRIPS_DB);
     const patches = {
         'NB-2024-001': { workflowDates: { border: '2026-07-20T08:00', kanyaka: '2026-07-22T10:00' } },
         'NB-2024-008': { workflowDates: { border: '2026-07-21T09:00', kanyaka: '2026-07-25T14:00' } },
@@ -2314,7 +2319,7 @@ const tripsDB = {
             if (patch.workflowDates.kanyaka) tripsDB[id].workflow = { ...tripsDB[id].workflow, border: tripsDB[id].workflow?.border || 'completed', kanyaka: 'completed' };
         }
     });
-})();
+}
 
 // ============================================
 // KPI TARGETS BANNERS
@@ -9889,6 +9894,11 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     const connected = typeof checkApiHealth === 'function' && await checkApiHealth();
 
+    if (!connected) {
+        loadOfflineDemoTrips();
+        console.log('ℹ️ Backend offline — using local demo trip data. Run: cd backend && npm start');
+    }
+
     if (connected && typeof isAuthRequired === 'function' && isAuthRequired()) {
         if (typeof getAuthToken === 'function' && getAuthToken()) {
             const user = typeof fetchCurrentUser === 'function' ? await fetchCurrentUser() : null;
@@ -9906,10 +9916,8 @@ document.addEventListener('DOMContentLoaded', async function () {
         updateTopBarUser();
         populateRoleSwitcher();
         if (connected) {
-            await syncTripsFromApi(false);
+            await syncTripsFromApi(true);
             console.log('✅ Backend connected — trips synced from API');
-        } else {
-            console.log('ℹ️ Backend offline — using local demo data. Run: cd backend && npm start');
         }
         await bootApplication();
     }

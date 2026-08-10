@@ -93,6 +93,13 @@ function seed() {
   } catch (e) {
     console.log(`  Fleet orders seed: ${e.message}`);
   }
+  try {
+    const { seedRouteCatalog } = require('./services/routeCatalogService');
+    const rc = seedRouteCatalog();
+    if (rc.seeded) console.log('  Route catalog demo data seeded');
+  } catch (e) {
+    console.log(`  Route catalog seed: ${e.message}`);
+  }
 }
 
 seed();
