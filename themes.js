@@ -169,17 +169,24 @@
         </svg>`;
     };
 
-    window.getAppLogoBlockHtml = function (variant) {
+    window.getAppLogoBlockHtml = function (variant, options) {
         const compact = variant === 'compact';
+        const clickable = options?.clickable !== false && !compact;
         const title = (window.systemSettingsDB?.appName || 'TruckControl DRC').replace(/Truck Turnaround.*Control System/i, 'TruckControl DRC');
         const shortTitle = title.length > 22 ? 'TruckControl' : title.split(' ')[0] || 'TruckControl';
-        return `<div class="app-logo ${compact ? 'app-logo-compact' : ''}">
+        const inner = `<div class="app-logo ${compact ? 'app-logo-compact' : ''}">
             ${getAppLogoSvgHtml(compact ? 40 : 48)}
             <div class="app-logo-text">
                 <span class="app-logo-title logo-text">${shortTitle}</span>
                 <span class="app-logo-subtitle">DRC Operations</span>
             </div>
         </div>`;
+        if (!clickable) return inner;
+        return `<button type="button" class="app-logo-home-btn" onclick="goToAppHome()" title="Go to Dashboard" aria-label="Go to Dashboard — ${shortTitle}">${inner}</button>`;
+    };
+
+    window.goToAppHome = function () {
+        if (typeof navigateTo === 'function') navigateTo('dashboard');
     };
 
     window.applyAppTheme = function (themeId) {
@@ -236,7 +243,7 @@
             sidebar.innerHTML = getAppLogoBlockHtml();
         }
         if (login && typeof getAppLogoBlockHtml === 'function') {
-            login.innerHTML = getAppLogoBlockHtml('compact');
+            login.innerHTML = getAppLogoBlockHtml('compact', { clickable: false });
         }
         const s = window.systemSettingsDB;
         if (s?.appName) {

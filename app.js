@@ -1575,6 +1575,7 @@ function showLoginScreen(message) {
     const app = document.querySelector('.app-container');
     if (el) el.classList.add('show');
     if (app) app.style.display = 'none';
+    document.title = `Sign in — ${APP_BRAND_NAME}`;
     if (message) {
         const msg = document.getElementById('loginError');
         if (msg) { msg.textContent = message; msg.style.display = 'block'; }
@@ -2008,6 +2009,82 @@ function navigateToAdmin(page) {
     navigateTo(page);
 }
 
+const APP_BRAND_NAME = 'TruckControl';
+
+const PAGE_DISPLAY_TITLES = {
+    dashboard: 'Dashboard',
+    'nb-operations': 'NB Operations',
+    'sb-operations': 'SB Operations',
+    'border-clearance': 'Border Clearance',
+    'pod-management': 'POD Management',
+    'area-browser': 'Area Trucks',
+    'communication-matrix': 'Communication Matrix',
+    'driver-registry': 'Driver Registry',
+    'internal-communication': 'Internal Communication',
+    helpdesk: 'Helpdesk',
+    assets: 'Assets & Equipment',
+    'client-orders': 'Client Orders',
+    clients: 'Clients',
+    'route-catalog': 'Route Catalog',
+    'trip-scheduler': 'Trip Scheduler',
+    'fleet-registry': 'Fleet Registry',
+    'runner-fees': 'Runner Fees',
+    reports: 'Reports',
+    turnarounds: 'Turnarounds',
+    'fleet-map': 'Fleet Map',
+    'position-live': 'Position Live',
+    'trip-list': 'Trip List',
+    'document-alerts': 'Document Alerts',
+    'document-detail': 'Document Detail',
+    kanyaka: 'Kanyaka',
+    kolwezi: 'Kolwezi',
+    'kasumbalesa-detail': 'Kasumbalesa KBP',
+    'kasumbalesa-direct': 'Kasumbalesa Direct',
+    'kasumbalesa-whisky': 'Kasumbalesa Whisky',
+    'sakania-nb': 'Sakania NB',
+    'mokambo-nb': 'Mokambo NB',
+    sakania: 'Sakania',
+    mokambo: 'Mokambo',
+    'sb-kasumbalesa': 'SB Kasumbalesa',
+    'sb-sakania': 'SB Sakania',
+    'sb-mokambo': 'SB Mokambo',
+    'report-detail': 'Report Detail',
+    'admin-users': 'Manage Users',
+    'admin-roles': 'Role Manager',
+    'admin-settings': 'System Settings',
+    'admin-themes': 'Themes',
+    'admin-kpi-settings': 'KPI Settings',
+    'admin-audit-logs': 'Audit Logs',
+    'admin-area-statuses': 'Area Status Lists',
+    'admin-area-assignments': 'Area Assignments',
+    'admin-module-permissions': 'Module Permissions',
+    'admin-fleet-settings': 'Fleet Settings',
+    'admin-freight-settings': 'Freight & FMS Settings',
+    'admin-helpdesk-settings': 'Helpdesk Settings',
+    'admin-upload-templates': 'Upload Templates',
+    'admin-database-browser': 'Database Browser',
+    'admin-query-developer': 'Query Developer',
+    'custom-sql-page': 'Custom SQL Page'
+};
+
+function getPageDisplayTitle(page) {
+    if (PAGE_DISPLAY_TITLES[page]) return PAGE_DISPLAY_TITLES[page];
+    const navItem = document.querySelector(`.nav-item[data-page="${page}"]`);
+    if (navItem) {
+        const text = navItem.textContent.replace(/\d+/g, '').trim();
+        if (text) return text;
+    }
+    return page
+        .replace(/^admin-/, '')
+        .replace(/-/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function updateDocumentTitle(page) {
+    const menuName = getPageDisplayTitle(page || currentPage || 'dashboard');
+    document.title = `${menuName} — ${APP_BRAND_NAME}`;
+}
+
 const emailsDB = [];
 const chatRoomsDB = [];
 const chatMessagesDB = [];
@@ -2298,6 +2375,7 @@ function navigateTo(page) {
     if (!canAccessPage(page)) {
         ca.innerHTML = `<div class="access-denied"><h2>Access Denied</h2><p>You do not have permission to view this module. Contact an administrator to assign module access per area.</p></div>`;
         updateAdminNavVisibility();
+        updateDocumentTitle(page);
         return;
     }
     switch(page){
@@ -2376,6 +2454,7 @@ function navigateTo(page) {
     }
     updateSidebarBadges();
     updateTopBarUser();
+    updateDocumentTitle(page);
 }
 
 function navigateToPOD(filter) {

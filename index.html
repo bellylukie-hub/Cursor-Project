@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Truck Turnaround & Operations Control System - Complete Demo</title>
+    <title>TruckControl</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="apple-touch-icon" href="favicon.svg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <script src="themes.js"></script>
@@ -54,6 +56,25 @@
 
         /* APP LOGO */
         .app-logo { display: flex; align-items: center; gap: 12px; text-align: left; }
+        .app-logo-home-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            padding: 0;
+            margin: 0;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            text-align: left;
+            color: inherit;
+        }
+        .app-logo-home-btn:hover .app-logo-title { color: var(--sidebar-accent, #90cdf4); }
+        .app-logo-home-btn:focus-visible {
+            outline: 2px solid var(--sidebar-accent, #90cdf4);
+            outline-offset: 3px;
+            border-radius: 6px;
+        }
         .app-logo-compact { justify-content: center; }
         .app-logo-svg { flex-shrink: 0; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.2)); }
         .app-logo-text { display: flex; flex-direction: column; min-width: 0; }
