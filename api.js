@@ -571,4 +571,25 @@ async function saveHelpdeskSettingsApi(patch) {
   return data.settings;
 }
 
+async function fetchDbTables() {
+  const data = await apiRequest('/admin/db/tables');
+  return data.tables || [];
+}
+
+async function fetchDbTableSchema(tableName) {
+  return apiRequest(`/admin/db/tables/${encodeURIComponent(tableName)}/schema`);
+}
+
+async function fetchDbTableRows(tableName, { limit = 50, offset = 0 } = {}) {
+  const qs = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  return apiRequest(`/admin/db/tables/${encodeURIComponent(tableName)}/rows?${qs}`);
+}
+
+async function runDbQueryApi(sql, maxRows) {
+  return apiRequest('/admin/db/query', {
+    method: 'POST',
+    body: JSON.stringify({ sql, maxRows })
+  });
+}
+
 loadStoredAuth();

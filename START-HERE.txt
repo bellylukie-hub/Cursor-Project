@@ -1,92 +1,77 @@
 ================================================================================
-  TruckControl — FULL PRODUCTION PACKAGE  (v2.4.0-production)
+  TruckControl — FULL PRODUCTION PACKAGE  (v2.5.0-full-production)
+  ALL DEVELOPMENT FEATURES INCLUDED
 ================================================================================
 
-This ZIP is the COMPLETE production web application — all FMS features included.
+This ZIP contains EVERY module developed to date — merged into one deployable app.
 
-QUICK START (Docker — recommended on Windows, Linux, macOS)
-------------------------------------------------------------
-1. Install Docker Desktop (Windows/Mac) or Docker Engine (Linux) and start it
-2. Open a terminal in this folder:
+QUICK START (Docker — recommended)
+----------------------------------
+1. Install Docker and start it
+2. In this folder:
 
-   cp .env.example .env          (Windows: copy .env.example .env)
-   Edit .env — set JWT_SECRET (required, 32+ random characters)
+   cp .env.example .env
+   Edit .env — set JWT_SECRET (32+ random characters)
    RUN_SEED=true for first install only
 
+   docker compose down
    docker compose up -d --build
 
 3. Open: http://localhost:3001
    Login: super_admin / ChangeMe123!
 
-4. After first login, edit .env → RUN_SEED=false → docker compose up -d
+4. After first login: RUN_SEED=false in .env → docker compose up -d --build
 
-DEPLOY ON YOUR DOMAIN (worldwide HTTPS)
----------------------------------------
-1. Run on a cloud VPS (Ubuntu + Docker) using steps above
-2. Point your domain A record to the server IP
-3. Put Caddy or nginx in front for HTTPS (port 443 → localhost:3001)
-4. Set CORS_ORIGIN=https://your-domain.com in .env
+IMPORTANT — AFTER ANY UPDATE
+----------------------------
+Always rebuild Docker or you will NOT see new features:
 
-See: docs/images/domain-deployment.svg
-     docs/INSTALLATION.md §12 (nginx / Caddy)
-     docs/COMPLETE-MANUAL.md Part V §5.4
+   docker compose down
+   docker compose up -d --build
 
-DOCUMENTATION (read these)
---------------------------
-  docs/COMPLETE-MANUAL.md  *** FULL BOOK — user + admin + chatbot + bulk actions ***
-  docs/README.md           Documentation index — start here for all guides
-  docs/USER-GUIDE.md       Shorter user directive (menus, workflows, daily ops)
-  docs/INSTALLATION.md     Master install guide (Docker, WAMP, Linux, PM2, domain)
-
-  INSTALL-WAMP-DOCKER.md   Windows + WAMP + Docker (detailed)
-  INSTALL-SERVER.md        Linux server quick install
-  PRODUCTION.md            Environment variables, PM2, security, API
-  DOWNLOAD.md              Download and deploy options
-  README.md                Project overview
-
-NEW IN v2.4.0
--------------
-  - Bulk actions toolbar (Send SMS, tags, tasks, comments, delete, etc.)
-  - Soft delete + restore (Manager delete, Super Admin restore)
-  - TruckControl favicon + dynamic browser tab titles
-  - Click sidebar logo to return to Dashboard
-  - Updated manual and illustrations (bulk toolbar, domain deploy, soft delete)
-
-INSTALL OPTIONS
----------------
-  Docker          — easiest; works on Windows, Linux, macOS
-  WAMP + Docker   — Windows: run app in Docker; optional Apache proxy on :80
-  Linux manual    — ./install-linux.sh  then  cd backend && npm start
-  PM2 (24/7)      — pm2 start ecosystem.config.cjs  (see PRODUCTION.md)
-  XAMPP / LAMP    — reverse proxy to port 3001 only (see docs/INSTALLATION.md)
-
-WHAT IS INCLUDED (FULL WEB APP)
+FEATURES IN THIS BUILD (v2.5.0)
 -------------------------------
-  OPERATIONS — NB/SB/Border/POD/Position Live, bulk toolbar, soft delete
-  FMS — Client Orders, Clients, Route Catalog, Trip Scheduler, Fleet Registry
-  ADMIN — Users, roles, KPI, themes, Freight & FMS Settings
-  SUPPORT — Help assistant, process guide, driver registry, Docker + PM2
+  OPERATIONS
+  - NB / SB / Border / POD / Position Live tables
+  - Bulk actions toolbar (SMS, tags, tasks, comments, delete, etc.)
+  - Soft delete + restore (Manager delete, Super Admin restore)
+  - Live column manager, KPI colours, upload templates
 
-DEFAULT USERS (after seed)
---------------------------
-  super_admin      Super Admin
-  ops_manager      Manager
-  border_moderator Moderator
-  driver_user      User
-  Password: ChangeMe123!  (change after first login)
+  FREIGHT MANAGEMENT (FMS)
+  - Client Orders, Clients, Route Catalog, Trip Scheduler, Fleet Registry
 
-TEST UPLOAD
------------
-  samples/NB_Live_Template.csv
-  samples/SB_Live_Template.csv
+  COMMUNICATION
+  - Driver Registry, Communication Matrix, Internal Email/Chat, Helpdesk
 
-REBUILD ZIP FROM SOURCE
------------------------
-  chmod +x scripts/build-production-zip.sh
-  ./scripts/build-production-zip.sh v2.4.0-production
+  ADMIN
+  - Users, roles, KPI settings, themes, Freight & FMS Settings
+  - Database Browser + Query Developer (Super Admin)
+  - Upload Templates, Module Permissions, Area Assignments
 
-GITHUB
-------
-  git clone https://github.com/bellylukie-hub/Cursor-Project.git
+  UI / UX
+  - TruckControl favicon + dynamic browser tab titles
+  - Click sidebar logo → Dashboard
+  - Draggable help assistant chatbot
+  - Document print links, aligned sidebar badges
+
+VERIFY PACKAGE (optional)
+-------------------------
+  chmod +x scripts/verify-production-package.sh
+  ./scripts/verify-production-package.sh
+
+DOCUMENTATION
+-------------
+  docs/COMPLETE-MANUAL.md   Full illustrated manual
+  docs/USER-GUIDE.md        Daily operations guide
+  docs/INSTALLATION.md      Docker, domain, HTTPS, PM2
+  DOWNLOAD.md               Download and deploy guide
+
+DEPLOY ON DOMAIN
+----------------
+  See docs/images/domain-deployment.svg and docs/INSTALLATION.md §12
+
+DEFAULT USERS
+-------------
+  super_admin / ChangeMe123!  (change after first login)
 
 ================================================================================

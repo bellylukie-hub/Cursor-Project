@@ -1687,6 +1687,7 @@ async function bootApplication() {
     navigateTo('dashboard');
     updateSidebarBadges();
     updateAdminNavVisibility();
+    if (typeof initCustomSqlNav === 'function') initCustomSqlNav();
 }
 
 function updateAdminNavVisibility() {
@@ -1742,6 +1743,8 @@ function canAccessAdminPage(page) {
         case 'admin-freight-settings': return canUser('manage_settings') || canUser('manage_users');
         case 'admin-helpdesk-settings': return canUser('manage_settings') || canUser('manage_users') || (typeof canManageHelpdesk === 'function' && canManageHelpdesk());
         case 'admin-upload-templates': return getCurrentRole()?.name === 'Super Admin';
+        case 'admin-database-browser': return userIsSuperAdmin();
+        case 'admin-query-developer': return userIsSuperAdmin();
         default: return false;
     }
 }
@@ -1966,6 +1969,9 @@ function canAccessModule(moduleId) {
 }
 
 function canAccessPage(page) {
+    if (page === 'custom-sql-page') {
+        return userIsSuperAdmin() || canUser('manage_settings') || canUser('read_all');
+    }
     if (page && page.startsWith('admin-')) return canAccessAdminPage(page);
     const moduleId = getPageModule(page);
     if (!moduleId) return true;
@@ -2450,6 +2456,9 @@ function navigateTo(page) {
         case 'admin-freight-settings': renderAdminFreightSettings(ca); break;
         case 'admin-helpdesk-settings': if (typeof renderAdminHelpdeskSettings === 'function') renderAdminHelpdeskSettings(ca); break;
         case 'admin-upload-templates': renderAdminUploadTemplates(ca); break;
+        case 'admin-database-browser': if (typeof renderDatabaseBrowser === 'function') renderDatabaseBrowser(ca); break;
+        case 'admin-query-developer': if (typeof renderQueryDeveloper === 'function') renderQueryDeveloper(ca); break;
+        case 'custom-sql-page': if (typeof renderCustomSqlPage === 'function') renderCustomSqlPage(ca); break;
         case 'position-live': renderPositionLive(ca); break;
         case 'fleet-map':
             if (typeof renderFleetMap === 'function') renderFleetMap(ca);

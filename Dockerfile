@@ -11,9 +11,12 @@ RUN cd backend && npm ci --omit=dev
 
 COPY backend/ ./backend/
 
-# Full frontend — all JS modules required for Management menu (Client Orders, Route Catalog, etc.)
-COPY index.html ./
-COPY *.js ./
+# Full frontend — all JS modules (explicit list ensures nothing is missed in Docker builds)
+COPY index.html favicon.svg ./
+COPY admin-persistence.js api.js app.js bulk-actions.js custom-reports.js database-tools.js ./
+COPY fleet-map.js fleet-orders.js fleet-vehicle-spec.js freight-admin-settings.js help-assistant.js ./
+COPY helpdesk.js internal-communication.js live-operations.js process-guide.js route-catalog.js ./
+COPY soft-delete.js themes.js trip-scheduler.js ./
 COPY docs/ ./docs/
 COPY samples/ ./samples/
 

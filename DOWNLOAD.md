@@ -1,6 +1,6 @@
-# Download & Deploy — TruckControl v2.4.0 (Full Production)
+# Download & Deploy — TruckControl v2.5.0 (Full Production)
 
-This is the **complete** Truck Turnaround & Operations Control System with all FMS features, bulk actions toolbar, and soft delete.
+This is the **complete** Truck Turnaround & Operations Control System with **all development features merged** — bulk actions, soft delete, database tools, internal communication, and more.
 
 ### Docker deploy (important)
 
@@ -15,11 +15,11 @@ docker compose up -d --build
 
 ## Option 1 — Use the ZIP in this package
 
-If you received `TruckControl-Production-v2.4.0-production.zip`:
+If you received `TruckControl-Production-v2.5.0-full-production.zip`:
 
 ```bash
-unzip TruckControl-Production-v2.4.0-production.zip
-cd TruckControl-Production-v2.4.0-production
+unzip TruckControl-Production-v2.5.0-full-production.zip
+cd TruckControl-Production-v2.5.0-full-production
 cp .env.example .env
 # Edit .env — set JWT_SECRET (32+ random characters), RUN_SEED=true first time only
 docker compose up -d --build
@@ -36,11 +36,11 @@ Set `RUN_SEED=false` in `.env` and restart after first deploy.
 ```bash
 git clone https://github.com/bellylukie-hub/Cursor-Project.git
 cd Cursor-Project
-git checkout cursor/bulk-delete-toolbar-42ca   # or main when merged
+git checkout cursor/full-production-release-42ca   # or main when merged
 
-chmod +x scripts/build-production-zip.sh
-./scripts/build-production-zip.sh v2.4.0-production
-# Output: dist/TruckControl-Production-v2.4.0-production.zip
+chmod +x scripts/build-production-zip.sh scripts/verify-production-package.sh
+./scripts/build-production-zip.sh v2.5.0-full-production
+# Output: dist/TruckControl-Production-v2.5.0-full-production.zip
 ```
 
 ---
@@ -67,7 +67,7 @@ See `docs/images/domain-deployment.svg` and **docs/INSTALLATION.md §12**.
 
 ---
 
-## What's included in v2.4.0
+## What's included in v2.5.0
 
 | Module | Features |
 |--------|----------|
@@ -77,7 +77,10 @@ See `docs/images/domain-deployment.svg` and **docs/INSTALLATION.md §12**.
 | **Route Catalog** | Stations, routes, templates |
 | **Trip Scheduler** | Fleet set + client orders |
 | **Fleet Registry** | Trucks, trailers, drivers, superlink |
+| **Communication** | Driver registry, matrix, **internal email/chat**, helpdesk |
 | **Admin** | Users, roles, KPI, themes, Freight & FMS Settings |
+| **Database tools** | **Database Browser** + **Query Developer** (Super Admin) |
+| **UI / UX** | Favicon, dynamic tab titles, logo → Dashboard, draggable chatbot |
 | **Help** | In-app assistant, **COMPLETE-MANUAL** with illustrations |
 
 ---

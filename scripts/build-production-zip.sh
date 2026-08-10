@@ -2,7 +2,7 @@
 # Build TruckControl production ZIP (full app + documentation)
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${1:-v2.4.0-production}"
+VERSION="${1:-v2.5.0-full-production}"
 OUT_DIR="$ROOT/dist"
 FOLDER="TruckControl-Production-${VERSION}"
 ZIP_NAME="${FOLDER}.zip"
@@ -20,14 +20,14 @@ copy_item() {
 copy_item \
   index.html app.js api.js live-operations.js admin-persistence.js \
   fleet-orders.js fleet-vehicle-spec.js route-catalog.js trip-scheduler.js freight-admin-settings.js helpdesk.js fleet-map.js \
-  custom-reports.js themes.js process-guide.js help-assistant.js soft-delete.js bulk-actions.js favicon.svg \
+  custom-reports.js themes.js process-guide.js help-assistant.js internal-communication.js soft-delete.js bulk-actions.js database-tools.js favicon.svg \
   Dockerfile docker-compose.yml .dockerignore .env.example \
   README.md PRODUCTION.md DEPLOY.md DOWNLOAD.md INSTALL-SERVER.md INSTALL-WAMP-DOCKER.md START-HERE.txt \
   ecosystem.config.cjs pm2-start.sh install-docker.sh install-linux.sh \
   docs samples scripts backend
 
 chmod +x "$STAGE/install-docker.sh" "$STAGE/install-linux.sh" "$STAGE/pm2-start.sh" 2>/dev/null || true
-chmod +x "$STAGE/scripts/build-production-zip.sh" 2>/dev/null || true
+chmod +x "$STAGE/scripts/build-production-zip.sh" "$STAGE/scripts/verify-production-package.sh" 2>/dev/null || true
 chmod +x "$STAGE/backend/docker-entrypoint.sh" 2>/dev/null || true
 
 # Exclude runtime / dev artifacts
@@ -38,6 +38,8 @@ rm -rf \
   "$STAGE/dist" \
   "$STAGE/node_modules" \
   2>/dev/null || true
+
+"$ROOT/scripts/verify-production-package.sh"
 
 cd "$OUT_DIR"
 zip -rq "$ZIP_NAME" "$FOLDER"

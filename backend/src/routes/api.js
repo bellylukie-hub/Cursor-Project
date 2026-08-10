@@ -767,4 +767,45 @@ router.get('/helpdesk/stats', (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Database explorer — Super Admin only (SELECT queries + table browser)
+const dbExplorerSvc = () => require('../services/databaseExplorerService');
+
+function requireSuperAdmin(req, res, next) {
+  try {
+    dbExplorerSvc().assertSuperAdmin(getUser(req));
+    next();
+  } catch (e) {
+    res.status(403).json({ error: e.message });
+  }
+}
+
+router.get('/admin/db/tables', requireSuperAdmin, (_req, res) => {
+  try {
+    res.json({ tables: dbExplorerSvc().listTables() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/admin/db/tables/:tableName/schema', requireSuperAdmin, (req, res) => {
+  try {
+    res.json(dbExplorerSvc().getTableSchema(req.params.tableName));
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.get('/admin/db/tables/:tableName/rows', requireSuperAdmin, (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const offset = parseInt(req.query.offset, 10) || 0;
+    res.json(dbExplorerSvc().browseTable(req.params.tableName, { limit, offset }));
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.post('/admin/db/query', requireSuperAdmin, (req, res) => {
+  try {
+    const sql = req.body?.sql || '';
+    const maxRows = Math.min(parseInt(req.body?.maxRows, 10) || dbExplorerSvc().MAX_ROWS, dbExplorerSvc().MAX_ROWS);
+    const result = dbExplorerSvc().runSelectQuery(sql, getUser(req), { maxRows });
+    res.json(result);
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
 module.exports = router;
