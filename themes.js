@@ -3,6 +3,7 @@
  */
 (function () {
     const STORAGE_KEY = 'truckcontrol_system_settings';
+    const USER_THEME_KEY = 'truckcontrol_user_theme';
 
     const APP_THEMES = [
         {
@@ -214,6 +215,14 @@
         if (typeof navigateTo === 'function') navigateTo('dashboard');
     };
 
+    window.getUserThemeId = function () {
+        try {
+            const userTheme = localStorage.getItem(USER_THEME_KEY);
+            if (userTheme && APP_THEMES.some(t => t.id === userTheme)) return userTheme;
+        } catch (_) {}
+        return window.systemSettingsDB?.activeTheme || 'control-room-black';
+    };
+
     window.applyAppTheme = function (themeId) {
         const theme = getAppThemeById(themeId);
         const root = document.documentElement;
@@ -224,12 +233,22 @@
         return theme;
     };
 
+    window.setUserAppTheme = function (themeId) {
+        const theme = applyAppTheme(themeId);
+        try { localStorage.setItem(USER_THEME_KEY, theme.id); } catch (_) {}
+        if (typeof onAppThemeApplied === 'function') onAppThemeApplied(theme);
+        if (typeof showToast === 'function') showToast(`Theme: ${theme.name}`, 'success');
+        if (typeof closeModal === 'function') closeModal('themePickerModal');
+        if (typeof initSidebarAutoHide === 'function') initSidebarAutoHide();
+        return theme;
+    };
+
     window.setAppTheme = function (themeId) {
         if (typeof canUser === 'function' && !canUser('manage_settings') && !(typeof userIsSuperAdmin === 'function' && userIsSuperAdmin())) {
-            if (typeof showToast === 'function') showToast('Only administrators can change themes. Please check with your Admin.', 'warning');
-            return null;
+            return setUserAppTheme(themeId);
         }
         const theme = applyAppTheme(themeId);
+        try { localStorage.setItem(USER_THEME_KEY, theme.id); } catch (_) {}
         if (window.systemSettingsDB) {
             window.systemSettingsDB.activeTheme = theme.id;
             if (typeof persistSystemSettings === 'function') persistSystemSettings();
@@ -241,6 +260,8 @@
             }
         }
         if (typeof showToast === 'function') showToast(`Theme applied: ${theme.name}`, 'success');
+        if (typeof onAppThemeApplied === 'function') onAppThemeApplied(theme);
+        if (typeof initSidebarAutoHide === 'function') initSidebarAutoHide();
         if (currentPage === 'admin-themes' && typeof renderAdminThemes === 'function') {
             const ca = document.getElementById('contentArea');
             if (ca) renderAdminThemes(ca);
@@ -250,16 +271,36 @@
 
     window.hydrateAppThemeFromStorage = function () {
         try {
+            const userTheme = localStorage.getItem(USER_THEME_KEY);
             const raw = localStorage.getItem(STORAGE_KEY);
             const stored = raw ? JSON.parse(raw) : null;
-            const id = stored?.activeTheme || window.systemSettingsDB?.activeTheme || 'control-room-black';
-            applyAppTheme(id);
+            const id = (userTheme && APP_THEMES.some(t => t.id === userTheme))
+                ? userTheme
+                : (stored?.activeTheme || window.systemSettingsDB?.activeTheme || 'control-room-black');
+            const theme = applyAppTheme(id);
+            if (typeof onAppThemeApplied === 'function') onAppThemeApplied(theme);
             if (window.systemSettingsDB && !window.systemSettingsDB.activeTheme) {
                 window.systemSettingsDB.activeTheme = id;
             }
         } catch {
-            applyAppTheme('control-room-black');
+            const theme = applyAppTheme('control-room-black');
+            if (typeof onAppThemeApplied === 'function') onAppThemeApplied(theme);
         }
+    };
+
+    window.openThemePicker = function () {
+        const grid = document.getElementById('themePickerGrid');
+        if (!grid) return;
+        const activeId = getUserThemeId();
+        grid.innerHTML = (APP_THEMES || []).map(t => `
+            <button type="button" class="theme-picker-card${t.id === activeId ? ' active' : ''}" onclick="setUserAppTheme('${t.id}')">
+                <div class="theme-picker-preview">${t.preview.map(c => `<span style="background:${c}"></span>`).join('')}</div>
+                <span class="theme-picker-icon">${t.icon}</span>
+                <strong>${t.name}</strong>
+                ${t.id === activeId ? '<span class="theme-picker-active">Active</span>' : ''}
+            </button>
+        `).join('');
+        if (typeof openModal === 'function') openModal('themePickerModal');
     };
 
     window.refreshAppLogo = function () {

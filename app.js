@@ -1528,7 +1528,7 @@ const systemSettingsDB = {
     backupRetentionDays: 30,
     appName: 'Truck Turnaround & Operations Control System',
     supportEmail: 'support@truckcontrol.local',
-    activeTheme: 'ocean-blue'
+    activeTheme: 'control-room-black'
 };
 
 const auditLogsDB = [
@@ -2612,6 +2612,7 @@ function navigateTo(page) {
     updateTopBarUser();
     updateDocumentTitle(page);
     if (typeof syncControlRoomModuleForPage === 'function') syncControlRoomModuleForPage(page);
+    if (typeof onSidebarNavigate === 'function') onSidebarNavigate();
 }
 
 function navigateToPOD(filter) {
@@ -10147,7 +10148,10 @@ function closeModal(modalId) {
     const anyModalOpen = document.querySelector('.modal-overlay.show');
     if (!anyModalOpen) setHelpAssistantVisible(true);
 }
-function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('mobile-open'); }
+function toggleSidebar() {
+    if (typeof toggleAppSidebar === 'function') toggleAppSidebar();
+    else document.getElementById('sidebar')?.classList.toggle('mobile-open');
+}
 function showToast(message,type='success'){ const toast=document.getElementById('toast'); toast.textContent=message; toast.className=`toast ${type} show`; setTimeout(()=>toast.classList.remove('show'),3000); }
 
 // ============================================

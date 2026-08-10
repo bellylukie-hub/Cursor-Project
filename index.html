@@ -2304,6 +2304,106 @@
         .module-rail-item .module-icon { width: 20px; text-align: center; font-size: 16px; }
         body.layout-control-room ::-webkit-scrollbar-track { background: #121218; }
         body.layout-control-room ::-webkit-scrollbar-thumb { background: #3f3f46; }
+
+        /* Auto-hide sidebar */
+        body.sidebar-auto-hide .app-container { position: relative; }
+        body.sidebar-auto-hide .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            z-index: 300;
+            transform: translateX(-100%);
+            transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 8px 0 32px rgba(0, 0, 0, 0.45);
+        }
+        body.sidebar-auto-hide.sidebar-peek .sidebar,
+        body.sidebar-auto-hide.sidebar-open .sidebar,
+        body.sidebar-auto-hide.sidebar-pinned .sidebar {
+            transform: translateX(0);
+        }
+        body.sidebar-auto-hide .main-content { width: 100%; }
+        .sidebar-trigger-zone {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 16px;
+            height: 100vh;
+            z-index: 299;
+            background: transparent;
+        }
+        body.sidebar-pinned .sidebar-trigger-zone,
+        body.sidebar-open .sidebar-trigger-zone { width: 0; pointer-events: none; }
+        .sidebar-pin-btn {
+            margin-left: auto;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #d1d5db;
+            border-radius: 8px;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .sidebar-pin-btn:hover { border-color: #f97316; color: #fb923c; }
+        .sidebar-header-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .sidebar-header-row .app-logo-home-btn { flex: 1; min-width: 0; }
+        .top-bar-theme-btn {
+            font-size: 18px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-card, #fff);
+            cursor: pointer;
+            line-height: 1;
+        }
+        body.layout-control-room .top-bar-theme-btn {
+            background: var(--input-bg);
+            border-color: var(--input-border);
+            color: var(--text-secondary);
+        }
+        .top-bar-theme-btn:hover { border-color: #f97316; }
+        .theme-picker-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+        }
+        .theme-picker-card {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            background: var(--bg-card);
+            cursor: pointer;
+            text-align: left;
+            position: relative;
+            transition: border-color 0.15s, transform 0.15s;
+        }
+        .theme-picker-card:hover { transform: translateY(-2px); border-color: var(--primary-light); }
+        .theme-picker-card.active { border-color: #f97316; box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.25); }
+        .theme-picker-preview { display: flex; width: 100%; height: 36px; border-radius: 8px; overflow: hidden; }
+        .theme-picker-preview span { flex: 1; }
+        .theme-picker-icon { font-size: 20px; }
+        .theme-picker-card strong { font-size: 13px; color: var(--text-primary); }
+        .theme-picker-active {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 10px;
+            font-weight: 700;
+            color: #ea580c;
+            background: rgba(249, 115, 22, 0.12);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
     </style>
 </head>
 <body>
@@ -2336,10 +2436,14 @@
             </div>
         </div>
     </div>
+    <div class="sidebar-trigger-zone" id="sidebarTriggerZone" aria-hidden="true" title="Show menu"></div>
     <div class="app-container">
         <!-- SIDEBAR -->
         <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header" id="sidebarLogoWrap"></div>
+            <div class="sidebar-header sidebar-header-row">
+                <div id="sidebarLogoWrap" style="flex:1;min-width:0;"></div>
+                <button type="button" class="sidebar-pin-btn" id="sidebarPinBtn" onclick="toggleSidebarPin()" title="Pin menu open" aria-pressed="false">📍</button>
+            </div>
             <div class="module-rail" id="moduleRail" aria-label="Application modules">
                 <div class="module-rail-title">Modules</div>
                 <button type="button" class="module-rail-item active" data-module="main" onclick="setControlRoomModule('main')"><span class="module-icon">📊</span> Dashboard</button>
@@ -2496,6 +2600,7 @@
                     <input type="text" placeholder="Search trucks, trips, orders..." id="globalSearch" onkeyup="handleGlobalSearch()">
                 </div>
                 <div class="top-bar-actions">
+                    <button type="button" class="top-bar-theme-btn" title="Change theme" onclick="openThemePicker()" aria-label="Change theme">🎨</button>
                     <button type="button" class="top-bar-help-btn" title="Help & procedures" onclick="toggleHelpAssistant(true)" aria-label="Open help assistant">❓</button>
                     <button type="button" class="notification-btn" id="notificationBellBtn" onclick="toggleAlerts()" title="System alerts and notifications">
                         🔔 <span class="count" id="alertCount">0</span>
@@ -2826,6 +2931,17 @@
                 <button class="btn btn-outline" onclick="copyAdminPasswordReset()">📋 Copy</button>
                 <button class="btn btn-primary" onclick="closeModal('adminPasswordResetModal')">Done</button>
             </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="themePickerModal">
+        <div class="modal" style="max-width:640px;">
+            <div class="modal-header"><h3>🎨 Choose theme</h3><button class="btn btn-outline" onclick="closeModal('themePickerModal')">✕</button></div>
+            <div class="modal-body">
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Your theme choice is saved on this device. Admins can also set the default under Admin → Themes.</p>
+                <div class="theme-picker-grid" id="themePickerGrid"></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('themePickerModal')">Close</button></div>
         </div>
     </div>
 
