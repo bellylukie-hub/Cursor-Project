@@ -214,9 +214,9 @@
         });
         registerSoftDeleteModule('border-clearance', {
             label: 'border trip',
-            refreshName: 'refreshBorderClearanceTable',
+            refreshName: 'refreshBorderTable',
             findById: id => (window.tripsDB || {})[id],
-            refresh: () => { if (typeof refreshBorderClearancePanels === 'function') refreshBorderClearancePanels(); }
+            refresh: () => { if (typeof refreshBorderTable === 'function') refreshBorderTable(); }
         });
         registerSoftDeleteModule('area-browser', {
             label: 'area trip',
@@ -242,5 +242,84 @@
             findById: id => (typeof findHelpdeskTicketById === 'function' ? findHelpdeskTicketById(id) : null),
             refresh: () => { if (typeof refreshHelpdeskPage === 'function') refreshHelpdeskPage(); }
         });
+    };
+
+    window.bulkSoftDeleteListSelection = function (listKey) {
+        const cfg = window.LIST_BULK_DELETE_CONFIG?.[listKey];
+        const selections = window.listRowSelections;
+        if (!cfg || !selections) return;
+        const selected = (selections[listKey] || []).slice();
+        if (!selected.length) return;
+
+        const reason = prompt(
+            `Delete ${selected.length} selected record(s)? They will be hidden from lists but can be restored by Super Admin.\n\nReason (optional):`,
+            ''
+        );
+        if (reason === null) return;
+
+        let deleted = 0;
+        let skipped = 0;
+        selected.forEach(id => {
+            const area = cfg.getArea(id);
+            if (!canSoftDeleteRecord(cfg.moduleId, area)) {
+                skipped++;
+                return;
+            }
+            const mod = registry[cfg.moduleId];
+            const record = mod?.findById?.(id);
+            if (!record || isRecordDeleted(record)) {
+                skipped++;
+                return;
+            }
+            if (softDeleteRecord(cfg.moduleId, id, area, reason, null)) deleted++;
+            else skipped++;
+        });
+
+        selections[listKey] = [];
+        if (cfg.refreshFn && typeof window[cfg.refreshFn] === 'function') window[cfg.refreshFn]();
+        if (typeof updateListSelectionUI === 'function') updateListSelectionUI(listKey);
+
+        const parts = [];
+        if (deleted) parts.push(`${deleted} deleted`);
+        if (skipped) parts.push(`${skipped} skipped`);
+        const msg = parts.length ? parts.join(', ') : 'No records deleted';
+        if (typeof showToast === 'function') showToast(msg, deleted ? 'success' : 'warning');
+    };
+
+    window.bulkRestoreListSelection = function (listKey) {
+        if (!canRestoreRecords()) {
+            if (typeof showToast === 'function') showToast('Only Super Admin can restore deleted records.', 'warning');
+            return;
+        }
+        const cfg = window.LIST_BULK_DELETE_CONFIG?.[listKey];
+        const selections = window.listRowSelections;
+        if (!cfg || !selections) return;
+        const selected = (selections[listKey] || []).slice();
+        if (!selected.length) return;
+
+        if (!confirm(`Restore ${selected.length} selected record(s)?`)) return;
+
+        let restored = 0;
+        let skipped = 0;
+        selected.forEach(id => {
+            const mod = registry[cfg.moduleId];
+            const record = mod?.findById?.(id);
+            if (!record || !isRecordDeleted(record)) {
+                skipped++;
+                return;
+            }
+            if (restoreSoftDeletedRecord(cfg.moduleId, id, null)) restored++;
+            else skipped++;
+        });
+
+        selections[listKey] = [];
+        if (cfg.refreshFn && typeof window[cfg.refreshFn] === 'function') window[cfg.refreshFn]();
+        if (typeof updateListSelectionUI === 'function') updateListSelectionUI(listKey);
+
+        const parts = [];
+        if (restored) parts.push(`${restored} restored`);
+        if (skipped) parts.push(`${skipped} skipped`);
+        const msg = parts.length ? parts.join(', ') : 'No records restored';
+        if (typeof showToast === 'function') showToast(msg, restored ? 'success' : 'warning');
     };
 })();

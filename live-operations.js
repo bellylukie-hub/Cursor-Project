@@ -1121,20 +1121,20 @@
                 `<td class="live-border-status-col">${renderBorderStatusColumnCell(trip, s)}</td>`
             ).join('');
             const kpi = normalizeKpi(trip.kpi);
-            const commentBtn = canEdit
+            const commentBtn = canEdit && !isRecordDeleted(trip)
                 ? `<button class="btn btn-sm kpi-comment-btn kpi-${kpi}" onclick="openCommentModal('${borderRow.trip}', '${statusCtx}')">💬</button>`
                 : '';
             const viewBtn = `<button class="btn btn-outline btn-sm" onclick="navigateToTripView('${borderRow.trip}')">👁️</button>`;
-            return `<tr class="${getKpiRowClass(trip)}">
+            return `<tr class="${getKpiRowClass(trip)} ${typeof softDeleteRowClass === 'function' ? softDeleteRowClass(trip) : ''}">
                 <td style="width:36px;text-align:center;" class="live-col-checkbox">${typeof renderListRowCheckbox === 'function' ? renderListRowCheckbox(listKey, borderRow.trip) : ''}</td>
-                <td><strong>${borderRow.trip}</strong></td>
+                <td><strong>${borderRow.trip}</strong>${typeof renderSoftDeleteBadge === 'function' ? renderSoftDeleteBadge(trip) : ''}</td>
                 <td>${renderKpiTruckCell(trip)}</td>
                 <td>${typeof renderDriverLink === 'function' ? renderDriverLink(trip.driver, borderRow.trip) : trip.driver}</td>
                 <td>${borderRow.border}</td>
                 <td>${borderRow.processHtml || borderRow.process || '—'}</td>
                 <td>${renderKpiPill(trip, borderRow)}</td>
                 ${statusCells}
-                <td class="live-actions-col">${commentBtn}${viewBtn}</td>
+                <td class="live-actions-col">${commentBtn}${viewBtn}${typeof renderSoftDeleteActions === 'function' ? renderSoftDeleteActions('border-clearance', borderRow.trip, borderRow.border, 'refreshBorderTable') : ''}</td>
             </tr>`;
         }).join('');
     };

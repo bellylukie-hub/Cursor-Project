@@ -80,6 +80,66 @@ let areaDropdownOpen = true;
 let areaSelectorHidden = false;
 
 const listRowSelections = { nb: [], sb: [], border: [], borderNb: [], borderSb: [], pod: [], assets: [], commMatrix: [], internalComm: [], areaNb: [], areaSb: [] };
+window.listRowSelections = listRowSelections;
+
+const LIST_BULK_DELETE_CONFIG = {
+    nb: {
+        moduleId: 'nb-operations',
+        refreshFn: 'refreshNBTable',
+        getData: () => getNBOperationsFilteredTrips(),
+        getRowId: t => t.tripNumber,
+        getArea: id => {
+            const t = tripsDB[id];
+            return t?.area || t?.entryBorder || '_global';
+        }
+    },
+    sb: {
+        moduleId: 'sb-operations',
+        refreshFn: 'refreshSBTable',
+        getData: () => getSBOperationsFilteredTrips(),
+        getRowId: t => t.tripNumber,
+        getArea: id => {
+            const t = tripsDB[id];
+            return t?.area || t?.exitBorder || '_global';
+        }
+    },
+    border: {
+        moduleId: 'border-clearance',
+        refreshFn: 'refreshBorderTable',
+        getData: () => filterBorderClearanceTrucks(),
+        getRowId: t => t.trip,
+        getArea: id => getBorderTripArea(id)
+    },
+    borderNb: {
+        moduleId: 'border-clearance',
+        refreshFn: 'refreshBorderTable',
+        getData: () => getBorderNbFilteredRows(),
+        getRowId: t => t.trip,
+        getArea: id => getBorderTripArea(id)
+    },
+    borderSb: {
+        moduleId: 'border-clearance',
+        refreshFn: 'refreshBorderTable',
+        getData: () => getBorderSbFilteredRows(),
+        getRowId: t => t.trip,
+        getArea: id => getBorderTripArea(id)
+    },
+    pod: {
+        moduleId: 'pod-management',
+        refreshFn: 'refreshPODTable',
+        getData: () => getFilteredPODItems(),
+        getRowId: p => p.trip,
+        getArea: id => (podDB.find(p => p.trip === id)?.area || '_global')
+    },
+    assets: {
+        moduleId: 'assets',
+        refreshFn: 'refreshAssetsTable',
+        getData: () => getFilteredAssetsRegistry(),
+        getRowId: a => a.id,
+        getArea: () => '_global'
+    }
+};
+window.LIST_BULK_DELETE_CONFIG = LIST_BULK_DELETE_CONFIG;
 
 const areasDB = [
     { id: 'kanyaka', name: 'Kanyaka', icon: '🏗️', offloadingPoints: ['Kanyaka', 'Kanyaka Depot', 'Kanyaka Mine'], loadingPoints: ['Kanyaka', 'Kanyaka Depot', 'Kanyaka Mine'] },
@@ -3007,8 +3067,27 @@ function toggleListRowSelection(listKey, rowId, checked) {
     updateListSelectionUI(listKey);
 }
 
+function getListSelectionDataConfig(listKey) {
+    return LIST_EXPORT_CONFIG[listKey] || LIST_BULK_DELETE_CONFIG[listKey] || null;
+}
+
+function getBorderTripArea(tripId) {
+    const trip = tripsDB[tripId];
+    if (trip) return trip.entryBorder || trip.exitBorder || trip.area || '_global';
+    const borderRow = borderClearanceTrucks.find(b => b.trip === tripId);
+    return borderRow?.border || '_global';
+}
+
+function getBorderNbFilteredRows() {
+    return filterBorderClearanceTrucks().filter(t => t.direction === 'NB');
+}
+
+function getBorderSbFilteredRows() {
+    return filterBorderClearanceTrucks().filter(t => t.direction === 'SB');
+}
+
 function toggleAllListRows(listKey, checked) {
-    const config = LIST_EXPORT_CONFIG[listKey];
+    const config = getListSelectionDataConfig(listKey);
     if (!config) return;
     const ids = config.getData().map(config.getRowId);
     listRowSelections[listKey] = checked ? [...ids] : [];
@@ -3018,12 +3097,60 @@ function toggleAllListRows(listKey, checked) {
     updateListSelectionUI(listKey);
 }
 
+function clearListSelection(listKey) {
+    listRowSelections[listKey] = [];
+    document.querySelectorAll(`input.list-row-checkbox[data-list="${listKey}"]`).forEach(cb => {
+        cb.checked = false;
+    });
+    const selectAll = document.querySelector(`input[onchange*="toggleAllListRows('${listKey}'"]`);
+    if (selectAll) selectAll.checked = false;
+    updateListSelectionUI(listKey);
+}
+
 function updateListSelectionUI(listKey) {
     const count = listRowSelections[listKey]?.length || 0;
     const countEl = document.getElementById(`${listKey}SelectionCount`);
     const selectedBtn = document.getElementById(`${listKey}ExportSelectedBtn`);
+    const bulkBar = document.getElementById(`${listKey}BulkActions`);
     if (countEl) countEl.textContent = count ? `${count} selected` : '';
     if (selectedBtn) selectedBtn.disabled = count === 0;
+    if (bulkBar) {
+        bulkBar.style.display = count > 0 ? 'flex' : 'none';
+        const bulkCount = bulkBar.querySelector('.list-bulk-actions-count');
+        if (bulkCount) bulkCount.textContent = `${count} selected`;
+    }
+}
+
+function renderListBulkActionBar(listKey) {
+    const cfg = LIST_BULK_DELETE_CONFIG[listKey];
+    if (!cfg) return '';
+    const count = listRowSelections[listKey]?.length || 0;
+    const canDelete = typeof canSoftDeleteRecord === 'function' && canSoftDeleteRecord(cfg.moduleId, '_global');
+    const canRestore = typeof canRestoreRecords === 'function' && canRestoreRecords();
+    const buttons = [
+        canDelete ? `<button type="button" class="btn btn-outline btn-sm list-bulk-action-btn" data-action="delete" onclick="bulkSoftDeleteSelected('${listKey}')"><span class="list-bulk-action-icon">🗑️</span> Delete</button>` : '',
+        canRestore ? `<button type="button" class="btn btn-outline btn-sm list-bulk-action-btn soft-delete-restore" data-action="restore" onclick="bulkRestoreSelected('${listKey}')"><span class="list-bulk-action-icon">♻️</span> Restore</button>` : ''
+    ].filter(Boolean).join('');
+    if (!buttons) return '';
+    return `
+        <div id="${listKey}BulkActions" class="list-bulk-actions" style="display:${count > 0 ? 'flex' : 'none'};" role="toolbar" aria-label="Bulk actions for selected rows">
+            <span class="list-bulk-actions-count">${count ? `${count} selected` : ''}</span>
+            <div class="list-bulk-actions-buttons">${buttons}</div>
+            <button type="button" class="btn btn-outline btn-sm list-bulk-action-clear" onclick="clearListSelection('${listKey}')" title="Clear selection" aria-label="Clear selection">✕</button>
+        </div>
+    `;
+}
+
+function bulkSoftDeleteSelected(listKey) {
+    if (typeof bulkSoftDeleteListSelection === 'function') {
+        bulkSoftDeleteListSelection(listKey);
+    }
+}
+
+function bulkRestoreSelected(listKey) {
+    if (typeof bulkRestoreListSelection === 'function') {
+        bulkRestoreListSelection(listKey);
+    }
 }
 
 function renderExportToolbar(listKey) {
@@ -3105,6 +3232,28 @@ const LIST_EXPORT_CONFIG = {
         title: 'Border Clearance',
         filenamePrefix: 'Border_Clearance',
         getData: filterBorderClearanceTrucks,
+        getRowId: t => t.trip,
+        headers: ['Trip #', 'Truck', 'Driver', 'Direction', 'Border', 'Process', 'Status', 'Hours', 'Target', 'KPI'],
+        mapRow: t => [
+            t.trip, t.truck, t.driver, t.direction, t.border, t.process,
+            t.status, t.hours, t.target, t.kpiLabel
+        ]
+    },
+    borderNb: {
+        title: 'Border Clearance NB',
+        filenamePrefix: 'Border_Clearance_NB',
+        getData: getBorderNbFilteredRows,
+        getRowId: t => t.trip,
+        headers: ['Trip #', 'Truck', 'Driver', 'Direction', 'Border', 'Process', 'Status', 'Hours', 'Target', 'KPI'],
+        mapRow: t => [
+            t.trip, t.truck, t.driver, t.direction, t.border, t.process,
+            t.status, t.hours, t.target, t.kpiLabel
+        ]
+    },
+    borderSb: {
+        title: 'Border Clearance SB',
+        filenamePrefix: 'Border_Clearance_SB',
+        getData: getBorderSbFilteredRows,
         getRowId: t => t.trip,
         headers: ['Trip #', 'Truck', 'Driver', 'Direction', 'Border', 'Process', 'Status', 'Hours', 'Target', 'KPI'],
         mapRow: t => [
@@ -4194,6 +4343,7 @@ function renderNBOperations(container) {
             ${canAccessModule('fleet-map') ? `<button class="btn btn-outline" onclick="openFleetMapModal()">🗺️ Fleet Map</button>` : ''}
             ${canAccessModule('position-live') ? `<button class="btn btn-outline" onclick="navigateTo('position-live')">📍 Position Live</button>` : ''}
         </div>
+        ${renderListBulkActionBar('nb')}
         <div class="table-container">
             <div class="table-header">
                 <h3>Active NB Trucks</h3>
@@ -4265,6 +4415,7 @@ function renderSBOperations(container) {
             ${canAccessModule('fleet-map') ? `<button class="btn btn-outline" onclick="openFleetMapModal()">🗺️ Fleet Map</button>` : ''}
             ${canAccessModule('position-live') ? `<button class="btn btn-outline" onclick="navigateTo('position-live')">📍 Position Live</button>` : ''}
         </div>
+        ${renderListBulkActionBar('sb')}
         <div class="table-container">
             <div class="table-header">
                 <h3>Active SB Trucks</h3>
@@ -4362,6 +4513,20 @@ function filterBorderClearanceTrucks() {
     }
     if (!userIsSuperAdmin()) {
         rows = rows.filter(t => canModuleAction('border-clearance', 'view', t.border));
+    }
+    if (typeof filterTripsForSoftDelete === 'function') {
+        const ui = typeof getSoftDeleteUi === 'function' ? getSoftDeleteUi('border-clearance') : { showDeleted: false };
+        if (!ui.showDeleted) {
+            rows = rows.filter(t => {
+                const trip = tripsDB[t.trip];
+                return !trip || !isRecordDeleted(trip);
+            });
+        }
+    } else if (typeof isRecordDeleted === 'function') {
+        rows = rows.filter(t => {
+            const trip = tripsDB[t.trip];
+            return !trip || !isRecordDeleted(trip);
+        });
     }
     return rows;
 }
@@ -4473,12 +4638,13 @@ function renderBorderClearanceOverview(container) {
             ${canEditInModule('border-clearance') ? `<button class="btn btn-primary btn-sm" onclick="openDriverRegistrationModal()">📱 Register NB Driver</button>` : ''}
         </div>
 
+        ${renderListBulkActionBar('borderNb')}
         <div class="table-container border-clearance-table-section">
             <div class="table-header">
                 <h3><i class="fas fa-arrow-up" style="color:var(--green);"></i> NB Border Trucks</h3>
                 <div class="table-header-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                     <span id="borderNbTableCount" style="color:var(--text-secondary);">${nbCount} truck${nbCount !== 1 ? 's' : ''}</span>
-                    ${renderExportToolbar('border')}
+                    ${renderExportToolbar('borderNb')}
                 </div>
             </div>
             <div style="overflow-x:auto;">
@@ -4487,11 +4653,13 @@ function renderBorderClearanceOverview(container) {
             </div>
         </div>
 
+        ${renderListBulkActionBar('borderSb')}
         <div class="table-container border-clearance-table-section">
             <div class="table-header">
                 <h3><i class="fas fa-arrow-down" style="color:var(--orange);"></i> SB Border Trucks</h3>
                 <div class="table-header-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                     <span id="borderSbTableCount" style="color:var(--text-secondary);">${sbCount} truck${sbCount !== 1 ? 's' : ''}</span>
+                    ${renderExportToolbar('borderSb')}
                 </div>
             </div>
             <div style="overflow-x:auto;">
@@ -5220,6 +5388,7 @@ function renderPODManagement(container) {
 
         ${renderPODFilterPanels()}
 
+        ${renderListBulkActionBar('pod')}
         <div class="table-container">
             <div class="table-header">
                 <h3>${getPODFilterLabel(filter)}</h3>
@@ -5837,6 +6006,7 @@ function renderAssets(container) {
             <button class="btn btn-outline btn-sm" onclick="clearAssetsFilters()">Clear</button>
         </div>
 
+        ${renderListBulkActionBar('assets')}
         <div class="table-container">
             <div class="table-header">
                 <h3>Assets & Equipment Registry</h3>
