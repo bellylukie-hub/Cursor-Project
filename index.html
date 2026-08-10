@@ -913,43 +913,75 @@
         }
         .list-bulk-actions {
             display: none;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-            padding: 10px 14px;
+            align-items: stretch;
+            gap: 0;
+            flex-wrap: nowrap;
+            padding: 0;
             margin-bottom: 12px;
             background: #fff;
             border: 1px solid var(--border);
             border-radius: 8px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            overflow-x: auto;
         }
         .list-bulk-actions-count {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
-            color: var(--text-primary);
-            min-width: 88px;
+            color: var(--text-secondary);
+            min-width: 96px;
+            padding: 10px 14px;
+            border-right: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+            background: #f7fafc;
         }
         .list-bulk-actions-buttons {
             display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
+            align-items: stretch;
+            gap: 0;
             flex: 1;
+            flex-wrap: nowrap;
         }
         .list-bulk-action-btn {
             display: inline-flex;
             align-items: center;
             gap: 6px;
+            padding: 10px 14px;
+            border: none;
+            border-right: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-primary);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            border-radius: 0;
+            transition: background 0.15s;
         }
+        .list-bulk-action-btn:hover { background: #f7fafc; }
+        .list-bulk-action-btn.bulk-action-danger:hover { background: #fff5f5; color: var(--danger); }
         .list-bulk-action-icon {
             font-size: 14px;
             line-height: 1;
+            opacity: 0.85;
         }
+        .list-bulk-action-label { line-height: 1.2; }
         .list-bulk-action-clear {
             margin-left: auto;
-            min-width: 32px;
-            padding: 4px 8px;
+            min-width: 40px;
+            padding: 10px 12px;
+            border: none;
+            border-left: 1px solid var(--border);
+            border-radius: 0;
+            flex-shrink: 0;
         }
+        .bulk-action-summary { font-size: 13px; color: var(--text-secondary); margin: 0 0 16px; }
+        .bulk-history-section { margin-bottom: 20px; }
+        .bulk-history-section h4 { font-size: 14px; margin: 0 0 8px; }
+        .bulk-history-report { max-height: 60vh; overflow-y: auto; }
+        .bulk-sms-table { width: 100%; font-size: 13px; }
+        .bulk-sms-table th, .bulk-sms-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
         .list-row-checkbox {
             width: 16px;
             height: 16px;
@@ -2838,6 +2870,18 @@
         </div>
     </div>
 
+    <!-- BULK ACTIONS MODAL -->
+    <div class="modal-overlay" id="bulkActionModal">
+        <div class="modal" style="max-width:720px;max-height:90vh;overflow-y:auto;">
+            <div class="modal-header"><h3 id="bulkActionModalTitle">Bulk Action</h3><button class="btn btn-outline" onclick="closeModal('bulkActionModal')">✕</button></div>
+            <div class="modal-body" id="bulkActionModalBody"></div>
+            <div class="modal-footer" id="bulkActionModalFooter">
+                <button class="btn btn-outline" onclick="closeModal('bulkActionModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitBulkActionModal()">Apply</button>
+            </div>
+        </div>
+    </div>
+
     <!-- HELPDESK MODAL -->
     <div class="modal-overlay" id="helpdeskModal">
         <div class="modal" style="max-width:720px;max-height:90vh;overflow-y:auto;">
@@ -2890,6 +2934,7 @@
     <script src="trip-scheduler.js"></script>
     <script src="helpdesk.js"></script>
     <script src="soft-delete.js"></script>
+    <script src="bulk-actions.js"></script>
     <script src="app.js"></script>
     <script src="internal-communication.js"></script>
     <script src="custom-reports.js"></script>

@@ -84,6 +84,7 @@ window.listRowSelections = listRowSelections;
 
 const LIST_BULK_DELETE_CONFIG = {
     nb: {
+        entityType: 'trip',
         moduleId: 'nb-operations',
         refreshFn: 'refreshNBTable',
         getData: () => getNBOperationsFilteredTrips(),
@@ -94,6 +95,7 @@ const LIST_BULK_DELETE_CONFIG = {
         }
     },
     sb: {
+        entityType: 'trip',
         moduleId: 'sb-operations',
         refreshFn: 'refreshSBTable',
         getData: () => getSBOperationsFilteredTrips(),
@@ -104,6 +106,7 @@ const LIST_BULK_DELETE_CONFIG = {
         }
     },
     border: {
+        entityType: 'trip',
         moduleId: 'border-clearance',
         refreshFn: 'refreshBorderTable',
         getData: () => filterBorderClearanceTrucks(),
@@ -111,6 +114,7 @@ const LIST_BULK_DELETE_CONFIG = {
         getArea: id => getBorderTripArea(id)
     },
     borderNb: {
+        entityType: 'trip',
         moduleId: 'border-clearance',
         refreshFn: 'refreshBorderTable',
         getData: () => getBorderNbFilteredRows(),
@@ -118,6 +122,7 @@ const LIST_BULK_DELETE_CONFIG = {
         getArea: id => getBorderTripArea(id)
     },
     borderSb: {
+        entityType: 'trip',
         moduleId: 'border-clearance',
         refreshFn: 'refreshBorderTable',
         getData: () => getBorderSbFilteredRows(),
@@ -125,6 +130,7 @@ const LIST_BULK_DELETE_CONFIG = {
         getArea: id => getBorderTripArea(id)
     },
     pod: {
+        entityType: 'trip',
         moduleId: 'pod-management',
         refreshFn: 'refreshPODTable',
         getData: () => getFilteredPODItems(),
@@ -132,6 +138,7 @@ const LIST_BULK_DELETE_CONFIG = {
         getArea: id => (podDB.find(p => p.trip === id)?.area || '_global')
     },
     assets: {
+        entityType: 'asset',
         moduleId: 'assets',
         refreshFn: 'refreshAssetsTable',
         getData: () => getFilteredAssetsRegistry(),
@@ -3198,26 +3205,6 @@ function updateListSelectionUI(listKey) {
         const bulkCount = bulkBar.querySelector('.list-bulk-actions-count');
         if (bulkCount) bulkCount.textContent = `${count} selected`;
     }
-}
-
-function renderListBulkActionBar(listKey) {
-    const cfg = LIST_BULK_DELETE_CONFIG[listKey];
-    if (!cfg) return '';
-    const count = listRowSelections[listKey]?.length || 0;
-    const canDelete = typeof canSoftDeleteRecord === 'function' && canSoftDeleteRecord(cfg.moduleId, '_global');
-    const canRestore = typeof canRestoreRecords === 'function' && canRestoreRecords();
-    const buttons = [
-        canDelete ? `<button type="button" class="btn btn-outline btn-sm list-bulk-action-btn" data-action="delete" onclick="bulkSoftDeleteSelected('${listKey}')"><span class="list-bulk-action-icon">🗑️</span> Delete</button>` : '',
-        canRestore ? `<button type="button" class="btn btn-outline btn-sm list-bulk-action-btn soft-delete-restore" data-action="restore" onclick="bulkRestoreSelected('${listKey}')"><span class="list-bulk-action-icon">♻️</span> Restore</button>` : ''
-    ].filter(Boolean).join('');
-    if (!buttons) return '';
-    return `
-        <div id="${listKey}BulkActions" class="list-bulk-actions" style="display:${count > 0 ? 'flex' : 'none'};" role="toolbar" aria-label="Bulk actions for selected rows">
-            <span class="list-bulk-actions-count">${count ? `${count} selected` : ''}</span>
-            <div class="list-bulk-actions-buttons">${buttons}</div>
-            <button type="button" class="btn btn-outline btn-sm list-bulk-action-clear" onclick="clearListSelection('${listKey}')" title="Clear selection" aria-label="Clear selection">✕</button>
-        </div>
-    `;
 }
 
 function bulkSoftDeleteSelected(listKey) {
