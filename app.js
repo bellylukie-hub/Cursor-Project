@@ -1711,7 +1711,7 @@ function applyAuthUserToSession(apiUser) {
 function showLoginScreen(message) {
     const el = document.getElementById('loginScreen');
     const app = document.querySelector('.app-container');
-    if (el) el.classList.add('show');
+    if (el) el.classList.add('show', 'login-screen-v2');
     if (app) app.style.display = 'none';
     document.title = `Sign in — ${APP_BRAND_NAME}`;
     if (message) {
@@ -10423,6 +10423,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     adminUsersDB.forEach(u => ensureUserModulePermissions(u));
     initMatrixModalSelects();
 
+    const awaitingAuth = typeof getAuthToken === 'function' && !getAuthToken();
+    if (awaitingAuth) showLoginScreen();
+
     const connected = typeof checkApiHealth === 'function' && await checkApiHealth();
 
     if (!connected) {
@@ -10444,6 +10447,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             showLoginScreen();
         }
     } else {
+        if (awaitingAuth) hideLoginScreen();
         updateTopBarUser();
         populateRoleSwitcher();
         if (connected) {
@@ -10463,6 +10467,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             ap.classList.remove('show');
             alertPanelMenuFilter = null;
         }
+        if (!event.target.closest('.search-box')) closeGlobalSearchDropdown();
     });
     console.log('🚛 TruckControl DRC — Production Ready');
 });

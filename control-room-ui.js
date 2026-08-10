@@ -179,6 +179,11 @@
     };
 
     window.toggleAppSidebar = function () {
+        const sidebar = document.getElementById('sidebar');
+        if (window.innerWidth <= 768 && sidebar) {
+            sidebar.classList.toggle('mobile-open');
+            return;
+        }
         if (isSidebarPinned() || isSidebarExpanded()) {
             setSidebarPinned(false);
             closeSidebar();
@@ -198,8 +203,8 @@
         updateSidebarPinButton();
         filterSidebarByModule(getActiveModule());
         const login = document.getElementById('loginScreen');
-        if (login && isControlRoomTheme()) login.classList.add('login-screen-v2');
-        else login?.classList.remove('login-screen-v2');
+        // Split login layout is the only markup in index.html — never strip login-screen-v2.
+        if (login) login.classList.add('login-screen-v2');
         if (isSidebarPinned()) openSidebar(true);
         else closeSidebar();
         if (typeof currentPage !== 'undefined' && currentPage) {
@@ -215,11 +220,7 @@
     window.onAppThemeApplied = function (theme) {
         setBodyLayoutClass();
         const login = document.getElementById('loginScreen');
-        if (theme?.id === THEME_ID) {
-            if (login) login.classList.add('login-screen-v2');
-        } else if (login) {
-            login.classList.remove('login-screen-v2');
-        }
+        if (login) login.classList.add('login-screen-v2');
         showAllNavSections(isSidebarExpanded());
         filterSidebarByModule(getActiveModule());
     };

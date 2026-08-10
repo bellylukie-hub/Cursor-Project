@@ -86,8 +86,15 @@ async function apiRequest(path, options = {}) {
 
 async function checkApiHealth() {
   try {
-    const res = await fetch(`${API_BASE}/health`);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(`${API_BASE}/health`, { signal: controller.signal });
+    clearTimeout(timeout);
     const data = await res.json();
+    if (!data || data.status !== 'ok') {
+      apiAvailable = false;
+      return false;
+    }
     authRequired = !!data.requireAuth;
     apiAvailable = true;
     return true;

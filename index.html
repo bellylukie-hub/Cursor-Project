@@ -2217,8 +2217,10 @@
             justify-content: center;
             padding: 20px;
         }
+        /* login-screen-v2 is the only login markup — keep hero/panel visible if class is ever missing */
         #loginScreen:not(.login-screen-v2) .login-hero,
-        #loginScreen:not(.login-screen-v2) .login-panel { display: none; }
+        #loginScreen:not(.login-screen-v2) .login-panel { display: flex; }
+        #loginScreen:not(.login-screen-v2) .login-panel { flex-direction: column; }
         .login-card {
             background: white;
             border-radius: 12px;
