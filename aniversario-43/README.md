@@ -1,37 +1,37 @@
-# Aniversário 43 — Webapp em português
+# Nilsa Lina Obobo — 43 Anos
 
-História em capítulos (capa → casamento → beleza/luta → comédia → guerreira → família → carta → brinde → final), com tons diferentes entre páginas.
+Webapp de aniversário em português: uma história em capítulos (capa com slideshow → nome → amor → beleza/luta → comédia → guerreira → diagnóstico do coração → família → carta → vídeo → brinde → final).
+
+Tons diferentes entre páginas: amor, memória, luta e comédia — misturados de propósito.
 
 ## Abrir o demo
-
-No computador:
 
 ```bash
 cd aniversario-43
 python3 -m http.server 8080
 ```
 
-Depois abra: [http://localhost:8080](http://localhost:8080)
+Abra: [http://localhost:8080](http://localhost:8080)
 
-Ou abra `index.html` diretamente no navegador.
+Ou abra `index.html` no navegador.
 
-## Colocar as fotos dela nos capítulos
+## Fotos e vídeos (dentro dos capítulos)
 
-As fotos **fazem parte de cada capítulo** (não vão num zip separado). Substitua os blocos “Foto dela aqui” em `index.html` por:
+As imagens **fazem parte de cada capítulo** (não vão num zip separado). Já estão embutidas em `media/`:
 
-```html
-<img src="media/nome-da-foto.jpg" alt="Descrição" />
+| Ficheiro | Uso |
+|----------|-----|
+| `capa.jpg` | Capa, beleza, carta, final |
+| `memoria.jpg` | Memória, amor, família |
+| `guerreira.jpg` | Beleza interior, lutadora, carta |
+| `comedia.jpg` | Comédia, brinde, celebração |
+
+Para acrescentar **vídeo** no Capítulo 9, coloque o ficheiro aqui:
+
+```text
+aniversario-43/media/nilsa-historia.mp4
 ```
 
-Sugestão de ficheiros em `media/`:
+(opcional: também `nilsa-historia.webm`)
 
-| Ficheiro | Capítulo |
-|----------|----------|
-| `casamento.jpg` | Capítulo 1 — slideshow |
-| `retrato.jpg` | Capítulo 2 — beleza |
-| `risa.jpg` | Capítulo 3 — comédia |
-| `familia.jpg` | Capítulo 5 — família |
-| `intima.jpg` | Capítulo 6 — carta |
-| `festa.jpg` | Capítulo 7 — brinde |
-
-As imagens de atmosfera já incluídas (`capa.jpg`, `memoria.jpg`, `guerreira.jpg`, `comedia.jpg`) são fundos artísticos dos capítulos.
+Para trocar fotos pessoais, substitua os ficheiros em `media/` ou edite os `src` / `background-image` em `index.html` — sempre dentro da página do capítulo.
