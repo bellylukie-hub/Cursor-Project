@@ -155,6 +155,72 @@ const areasDB = [
     { id: 'likasi', name: 'Likasi', icon: '⛏️', offloadingPoints: ['Likasi', 'Likasi Mine'], loadingPoints: ['Likasi', 'Likasi Mine'] },
     { id: 'kasumbalesa', name: 'Kasumbalesa', icon: '🛂', offloadingPoints: ['Kasumbalesa'], loadingPoints: ['Kasumbalesa'] }
 ];
+const BORDER_OPERATIONAL_AREAS = ['Kasumbalesa', 'Sakania', 'Mokambo'];
+
+function pointMatchesList(point, points) {
+    if (!point || !points?.length) return false;
+    const p = String(point).toLowerCase();
+    return points.some(op => {
+        const o = String(op).toLowerCase();
+        return p.includes(o) || o.includes(p);
+    });
+}
+
+function tripMatchesNBArea(trip, areaConfig) {
+    return pointMatchesList(trip.offloadingPoint, areaConfig.offloadingPoints);
+}
+
+function tripMatchesSBArea(trip, areaConfig) {
+    return pointMatchesList(trip.loadingPoint, areaConfig.loadingPoints);
+}
+
+/** Resolve the mine/area a trip belongs to — NB uses offloading destination, SB uses DRC loading point. */
+function resolveTripOperationalArea(trip, direction) {
+    if (!trip) return null;
+    const dir = direction || trip.direction || 'NB';
+    const configs = typeof areasDB !== 'undefined' ? areasDB : [];
+    if (dir === 'SB') {
+        for (const area of configs) {
+            if (tripMatchesSBArea(trip, area)) return area.name;
+        }
+    } else {
+        for (const area of configs) {
+            if (tripMatchesNBArea(trip, area)) return area.name;
+        }
+    }
+    return null;
+}
+
+function getOperationalAreaNames() {
+    return (typeof areasDB !== 'undefined' ? areasDB : []).map(a => a.name);
+}
+
+function tripMatchesAssignedAreaName(trip, areaName, direction) {
+    if (!trip || !areaName) return false;
+    const dir = direction || trip.direction || 'NB';
+    const target = String(areaName).toLowerCase();
+    const opArea = resolveTripOperationalArea(trip, dir);
+    if (opArea && opArea.toLowerCase() === target) return true;
+    if (BORDER_OPERATIONAL_AREAS.includes(areaName)) {
+        const border = dir === 'SB' ? trip.exitBorder : trip.entryBorder;
+        return border && border.toLowerCase() === target;
+    }
+    return false;
+}
+
+function getPodOperationalArea(pod) {
+    if (!pod) return null;
+    const trip = typeof tripsDB !== 'undefined' ? tripsDB[pod.trip] : null;
+    if (trip) {
+        const resolved = resolveTripOperationalArea(trip, 'NB');
+        if (resolved) return resolved;
+    }
+    if (pod.offloadingPoint) {
+        return resolveTripOperationalArea({ direction: 'NB', offloadingPoint: pod.offloadingPoint }, 'NB');
+    }
+    return pod.area || null;
+}
+
 selectedAreaIds = areasDB.map(a => a.id);
 pendingAreaIds = [...selectedAreaIds];
 
@@ -782,6 +848,21 @@ function getTripKpiSetting(trip) {
         const wfSetting = getKpiSetting(`wf-${String(trip.direction).toLowerCase()}-${currentKey}`);
         if (wfSetting?.enabled) return wfSetting;
     }
+    const opArea = resolveTripOperationalArea(trip);
+    if (opArea) {
+        const dir = trip.direction === 'SB' ? 'sb' : 'nb';
+        const areaKeys = [
+            `area-${opArea.toLowerCase()}`,
+            opArea.toLowerCase() === 'kanyaka' ? `area-kanyaka-${dir}` : null,
+            opArea.toLowerCase() === 'kolwezi' ? 'area-kolwezi' : null,
+            opArea.toLowerCase() === 'likasi' ? 'area-likasi' : null,
+            opArea.toLowerCase() === 'kasumbalesa' ? 'area-kasumbalesa' : null
+        ].filter(Boolean);
+        for (const key of areaKeys) {
+            const areaSetting = getKpiSetting(key);
+            if (areaSetting?.enabled) return areaSetting;
+        }
+    }
     const stale = getKpiSetting('mod-dashboard-stale');
     if (stale?.enabled) return stale;
     const turnaround = getKpiSetting('turnaround-nb-to-sb');
@@ -1241,9 +1322,8 @@ function userSeesAllTrucks() {
 
 function tripMatchesUserArea(trip) {
     if (userSeesAllTrucks()) return true;
-    const areas = getUserAssignedAreas().map(a => a.toLowerCase());
-    const fields = [trip.area, trip.offloadingPoint, trip.loadingPoint, trip.entryBorder, trip.exitBorder].filter(Boolean).map(s => s.toLowerCase());
-    return areas.some(a => fields.some(f => f.includes(a) || a.includes(f.split(' ')[0])));
+    const assigned = getUserAssignedAreas();
+    return assigned.some(area => tripMatchesAssignedAreaName(trip, area));
 }
 
 function filterTripsByUserArea(trips) {
@@ -1256,7 +1336,7 @@ function getAreaFilterBanner() {
     if (userSeesAllTrucks()) {
         return `<div class="rbac-info-banner"><strong>View:</strong> All trucks visible${areas.includes('Kanyaka') ? ' (Kanyaka team — full visibility)' : ''} — logged in as <em>${user?.username}</em></div>`;
     }
-    return `<div class="rbac-info-banner"><strong>Area filter active:</strong> Showing trucks for <em>${areas.join(', ')}</em> only — logged in as <em>${user?.username}</em></div>`;
+    return `<div class="rbac-info-banner"><strong>Area filter active:</strong> Showing trucks for <em>${areas.join(', ')}</em> — <strong>NB</strong> by offloading destination, <strong>SB</strong> by DRC loading point, <strong>borders</strong> by entry/exit border — logged in as <em>${user?.username}</em></div>`;
 }
 
 function resolveWorkflowKeyForTripStatus(trip, statusUpdate, statusContext) {
@@ -1892,14 +1972,9 @@ function getModuleDef(moduleId) {
 }
 
 function getTripPermissionAreas(trip) {
-    return [...new Set([
-        trip.area,
-        trip.entryBorder,
-        trip.exitBorder,
-        trip.offloadingPoint?.split(' ')[0],
-        trip.loadingPoint?.split(' ')[0],
-        trip.driverExitBorder
-    ].filter(Boolean))];
+    const opArea = resolveTripOperationalArea(trip);
+    const border = trip.direction === 'SB' ? trip.exitBorder : trip.entryBorder;
+    return [...new Set([opArea, border, trip.area, trip.entryBorder, trip.exitBorder].filter(Boolean))];
 }
 
 function buildDefaultModulePermissions(user) {
@@ -2787,25 +2862,6 @@ function getSelectedAreas() {
     return areasDB.filter(a => selectedAreaIds.includes(a.id));
 }
 
-function pointMatchesList(point, points) {
-    if (!point) return false;
-    const p = point.toLowerCase();
-    return points.some(op => {
-        const o = op.toLowerCase();
-        return p.includes(o) || o.includes(p);
-    });
-}
-
-function tripMatchesNBArea(trip, areaConfig) {
-    return pointMatchesList(trip.offloadingPoint, areaConfig.offloadingPoints);
-}
-
-function tripMatchesSBArea(trip, areaConfig) {
-    const loadMatch = pointMatchesList(trip.loadingPoint, areaConfig.loadingPoints);
-    const areaMatch = trip.area && trip.area.toLowerCase() === areaConfig.name.toLowerCase();
-    return loadMatch || areaMatch;
-}
-
 function filterNBTrucksByAreas(searchTerm) {
     const areas = getSelectedAreas();
     if (!areas.length) return [];
@@ -3315,7 +3371,7 @@ function getNBOperationsFilteredTrips() {
     const kpi = document.getElementById('nbKPIFilter')?.value || 'all';
     const search = document.getElementById('nbSearchInput')?.value || '';
     let trips = filterTrips('NB', search);
-    if (area !== 'all') trips = trips.filter(t => t.area === area);
+    if (area !== 'all') trips = trips.filter(t => resolveTripOperationalArea(t, 'NB') === area);
     if (border !== 'all') trips = trips.filter(t => t.entryBorder === border);
     if (kpi !== 'all') trips = trips.filter(t => t.kpi === kpi);
     return trips;
@@ -3327,7 +3383,7 @@ function getSBOperationsFilteredTrips() {
     const kpi = document.getElementById('sbKPIFilter')?.value || 'all';
     const search = document.getElementById('sbSearchInput')?.value || '';
     let trips = filterTrips('SB', search);
-    if (area !== 'all') trips = trips.filter(t => t.area === area);
+    if (area !== 'all') trips = trips.filter(t => resolveTripOperationalArea(t, 'SB') === area);
     if (border !== 'all') trips = trips.filter(t => t.exitBorder === border);
     if (kpi !== 'all') trips = trips.filter(t => t.kpi === kpi);
     return trips;
@@ -3352,7 +3408,7 @@ const LIST_EXPORT_CONFIG = {
         },
         mapRow: t => typeof getTemplateExportConfig === 'function'
             ? getTemplateExportConfig('NB').mapRow(t)
-            : [t.tripNumber, t.truck, t.owner, t.driver, t.entryBorder || '-', t.offloadingPoint || '-', t.area || '-', t.status, t.daysInDRC, getKPILabel(t.kpi)]
+            : [t.tripNumber, t.truck, t.owner, t.driver, t.entryBorder || '-', t.offloadingPoint || '-', resolveTripOperationalArea(t, 'NB') || t.area || '-', t.status, t.daysInDRC, getKPILabel(t.kpi)]
     },
     sb: {
         title: 'SB Operations',
@@ -3366,7 +3422,7 @@ const LIST_EXPORT_CONFIG = {
         },
         mapRow: t => typeof getTemplateExportConfig === 'function'
             ? getTemplateExportConfig('SB').mapRow(t)
-            : [t.tripNumber, t.truck, t.owner, t.driver, t.loadingPoint || '-', t.exitBorder || '-', t.area || '-', t.status, t.daysInDRC, getKPILabel(t.kpi)]
+            : [t.tripNumber, t.truck, t.owner, t.driver, t.loadingPoint || '-', t.exitBorder || '-', resolveTripOperationalArea(t, 'SB') || t.area || '-', t.status, t.daysInDRC, getKPILabel(t.kpi)]
     },
     border: {
         title: 'Border Clearance',
@@ -3599,6 +3655,59 @@ function renderUserPerfRows(users, direction) {
     `).join('');
 }
 
+function computeLiveAreaPerformanceData(direction) {
+    const dir = direction === 'SB' ? 'SB' : 'NB';
+    let trips = Object.values(tripsDB).filter(t => t.direction === dir);
+    trips = filterTripsByUserArea(trips);
+
+    const areaStats = {};
+    getOperationalAreaNames().forEach(name => {
+        areaStats[name] = { name, trucks: 0, green: 0, orange: 0, red: 0 };
+    });
+    trips.forEach(t => {
+        const area = resolveTripOperationalArea(t, dir);
+        if (!area || !areaStats[area]) return;
+        areaStats[area].trucks++;
+        const kpi = t.kpi || 'green';
+        if (areaStats[area][kpi] != null) areaStats[area][kpi]++;
+    });
+    const areas = Object.values(areaStats)
+        .filter(a => a.trucks > 0)
+        .map(a => {
+            const onTime = a.green + (a.orange * 0.5);
+            const pct = a.trucks ? Math.round((onTime / a.trucks) * 100) : 0;
+            const kpi = a.red > a.orange ? 'red' : a.orange > 0 ? 'orange' : 'green';
+            return { name: a.name, pct, kpi, trucks: a.trucks };
+        });
+
+    const userMap = {};
+    trips.forEach(t => {
+        const area = resolveTripOperationalArea(t, dir) || '—';
+        const user = t.lastUpdatedBy || 'Unassigned';
+        const key = `${user}|${area}`;
+        if (!userMap[key]) userMap[key] = { name: user, area, trucks: 0, green: 0, totalDays: 0 };
+        userMap[key].trucks++;
+        if (t.kpi === 'green') userMap[key].green++;
+        userMap[key].totalDays += Number(t.daysInDRC) || 0;
+    });
+    const users = Object.values(userMap).map(u => ({
+        name: u.name,
+        initials: u.name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase(),
+        area: u.area,
+        trucks: u.trucks,
+        avgTime: u.trucks ? `${Math.round(u.totalDays / u.trucks)}d` : '—',
+        onTime: u.trucks ? Math.round((u.green / u.trucks) * 100) : 0,
+        kpi: u.trucks && u.green / u.trucks >= 0.8 ? 'green' : u.trucks && u.green / u.trucks >= 0.5 ? 'orange' : 'red'
+    })).sort((a, b) => b.trucks - a.trucks).slice(0, 8);
+
+    const fallback = borderPerformanceData[dir] || { borders: [], areas: [], users: [] };
+    return {
+        borders: fallback.borders,
+        areas: areas.length ? areas : fallback.areas,
+        users: users.length ? users : fallback.users
+    };
+}
+
 function renderBorderPerformanceCard(direction, data) {
     const isNB = direction === 'NB';
     const icon = isNB ? 'fa-arrow-up' : 'fa-arrow-down';
@@ -3673,7 +3782,7 @@ function getPODSidebarStats() {
     if (typeof canAccessModule === 'function' && !canAccessModule('pod-management')) {
         return { total: 0, pending: 0, overdue: 0, actionNeeded: 0 };
     }
-    const items = podDB.filter(p => userIsSuperAdmin() || canModuleAction('pod-management', 'view', p.area));
+    const items = podDB.filter(p => userIsSuperAdmin() || canModuleAction('pod-management', 'view', getPodOperationalArea(p) || p.area));
     const pending = items.filter(p => !p.collected).length;
     const overdue = items.filter(p => p.overdue).length;
     return {
@@ -3878,7 +3987,7 @@ function collectSystemAlerts() {
     });
 
     podDB.filter(p => p.overdue || (!p.collected && (p.kpi === 'red' || p.kpi === 'orange'))).forEach(p => {
-        if (!userIsSuperAdmin() && !canModuleAction('pod-management', 'view', p.area)) return;
+        if (!userIsSuperAdmin() && !canModuleAction('pod-management', 'view', getPodOperationalArea(p) || p.area)) return;
         alerts.push({
             id: `pod-${p.trip}`, menuKey: 'pod-management', category: 'POD', level: p.overdue ? 'red' : 'orange', icon: '📋',
             title: `POD ${p.overdue ? 'Overdue' : 'Pending'} — ${p.trip}`,
@@ -4338,8 +4447,8 @@ function renderDashboard(container) {
                     <button class="card-action" onclick="navigateTo('border-clearance')">Full Border Report →</button>
                 </div>
                 <div class="row">
-                    ${renderBorderPerformanceCard('NB', borderPerformanceData.NB)}
-                    ${renderBorderPerformanceCard('SB', borderPerformanceData.SB)}
+                    ${renderBorderPerformanceCard('NB', computeLiveAreaPerformanceData('NB'))}
+                    ${renderBorderPerformanceCard('SB', computeLiveAreaPerformanceData('SB'))}
                 </div>
 
                 ${renderPODDashboardSection()}
@@ -4469,7 +4578,7 @@ function renderNBOperations(container) {
             <div class="kpi-card red"><div class="kpi-header"><span class="kpi-title">Overdue</span></div><div class="kpi-value">${trips.filter(t=>t.kpi==='red').length}</div></div>
         </div>
         <div class="filters-bar">
-            <div class="filter-group"><label>Area:</label><select id="nbAreaFilter" onchange="refreshNBTable()"><option value="all">All</option><option>Kasumbalesa</option><option>Kanyaka</option><option>Kolwezi</option><option>Lubumbashi</option></select></div>
+            <div class="filter-group"><label>Destination Area:</label><select id="nbAreaFilter" onchange="refreshNBTable()"><option value="all">All</option>${getOperationalAreaNames().map(a => `<option>${a}</option>`).join('')}</select></div>
             <div class="filter-group"><label>Border:</label><select id="nbBorderFilter" onchange="refreshNBTable()"><option value="all">All</option><option>Kasumbalesa</option><option>Sakania</option><option>Mokambo</option></select></div>
             <div class="filter-group"><label>KPI:</label><select id="nbKPIFilter" onchange="refreshNBTable()"><option value="all">All</option><option value="green">🟢 On Track</option><option value="orange">🟠 Priority</option><option value="red">🔴 Overdue</option></select></div>
             <div class="search-filter"><span>🔍</span><input type="text" id="nbSearchInput" placeholder="Search by Trip#, Truck, Driver..." onkeyup="refreshNBTable()"></div>
@@ -4542,7 +4651,7 @@ function renderSBOperations(container) {
             <div class="kpi-card red"><div class="kpi-header"><span class="kpi-title">Overdue</span></div><div class="kpi-value">${trips.filter(t=>t.kpi==='red').length}</div></div>
         </div>
         <div class="filters-bar">
-            <div class="filter-group"><label>Area:</label><select id="sbAreaFilter" onchange="refreshSBTable()"><option value="all">All</option><option>Kanyaka</option><option>Kolwezi</option></select></div>
+            <div class="filter-group"><label>Loading Area:</label><select id="sbAreaFilter" onchange="refreshSBTable()"><option value="all">All</option>${getOperationalAreaNames().map(a => `<option>${a}</option>`).join('')}</select></div>
             <div class="filter-group"><label>Exit Border:</label><select id="sbBorderFilter" onchange="refreshSBTable()"><option value="all">All</option><option>Kasumbalesa</option><option>Sakania</option><option>Mokambo</option></select></div>
             <div class="filter-group"><label>KPI:</label><select id="sbKPIFilter" onchange="refreshSBTable()"><option value="all">All</option><option value="green">🟢 On Track</option><option value="orange">🟠 Priority</option><option value="red">🔴 Overdue</option></select></div>
             <div class="search-filter"><span>🔍</span><input type="text" id="sbSearchInput" placeholder="Search by Trip#, Truck, Driver..." onkeyup="refreshSBTable()"></div>
@@ -5276,12 +5385,12 @@ function renderPODTableRows(items) {
             <td>${p.collected && p.hoursToCollect ? p.hoursToCollect + 'h' : '—'}</td>
             <td><span class="status-badge ${p.kpi}"><span class="dot"></span> ${p.kpi === 'green' ? 'On Track' : p.kpi === 'orange' ? 'Priority' : 'Overdue'}</span></td>
             <td>
-                ${!isRecordDeleted(p) && canEditInModule('pod-management', p.area) ? `<button class="btn btn-primary btn-sm" onclick="openCommentModal('${p.trip}', 'pod')">💬</button>` : ''}
-                ${!isRecordDeleted(p) && canEditInModule('pod-management', p.area) && !p.collected ? `<button class="btn btn-outline btn-sm" onclick="openPodActionModal('${p.trip}','collected')">📋 Collect</button>` : ''}
-                ${!isRecordDeleted(p) && canEditInModule('pod-management', p.area) && p.collected && !p.scanned ? `<button class="btn btn-outline btn-sm" onclick="openPodActionModal('${p.trip}','scanned')">🔍 Scan</button>` : ''}
-                ${!isRecordDeleted(p) && canEditInModule('pod-management', p.area) && p.scanned && !p.uploaded ? `<button class="btn btn-outline btn-sm" onclick="openPodActionModal('${p.trip}','uploaded')">📤 Upload</button>` : ''}
-                ${!isRecordDeleted(p) && canEditInModule('pod-management', p.area) && p.uploaded && !p.sentToInvoicing ? `<button class="btn btn-outline btn-sm" onclick="openPodActionModal('${p.trip}','sent_to_invoicing')">💰 Invoice</button>` : ''}
-                ${typeof renderSoftDeleteActions === 'function' ? renderSoftDeleteActions('pod-management', p.trip, p.area, 'refreshPODTable') : ''}
+                ${!isRecordDeleted(p) && canEditInModule('pod-management', getPodOperationalArea(p) || p.area) ? `<button class="btn btn-primary btn-sm" onclick="openCommentModal('${p.trip}', 'pod')">💬</button>` : ''}
+                ${!isRecordDeleted(p) && canEditInModule('pod-management', getPodOperationalArea(p) || p.area) && !p.collected ? `<button class="btn btn-outline btn-sm" onclick="openPodActionModal('${p.trip}','collected')">📋 Collect</button>` : ''}
+                ${!isRecordDeleted(p) && canEditInModule('pod-management', getPodOperationalArea(p) || p.area) && p.collected && !p.scanned ? `<button class="btn btn-outline btn-sm" onclick="openPodActionModal('${p.trip}','scanned')">🔍 Scan</button>` : ''}
+                ${!isRecordDeleted(p) && canEditInModule('pod-management', getPodOperationalArea(p) || p.area) && p.scanned && !p.uploaded ? `<button class="btn btn-outline btn-sm" onclick="openPodActionModal('${p.trip}','uploaded')">📤 Upload</button>` : ''}
+                ${!isRecordDeleted(p) && canEditInModule('pod-management', getPodOperationalArea(p) || p.area) && p.uploaded && !p.sentToInvoicing ? `<button class="btn btn-outline btn-sm" onclick="openPodActionModal('${p.trip}','sent_to_invoicing')">💰 Invoice</button>` : ''}
+                ${typeof renderSoftDeleteActions === 'function' ? renderSoftDeleteActions('pod-management', p.trip, getPodOperationalArea(p) || p.area, 'refreshPODTable') : ''}
             </td>
         </tr>
     `).join('');
@@ -5429,7 +5538,7 @@ function getFilteredPODItems() {
     }
 
     if (!search) {
-        return items.filter(p => userIsSuperAdmin() || canModuleAction('pod-management', 'view', p.area));
+        return items.filter(p => userIsSuperAdmin() || canModuleAction('pod-management', 'view', getPodOperationalArea(p) || p.area));
     }
     const term = search.toLowerCase();
     return items.filter(p =>
@@ -5440,7 +5549,7 @@ function getFilteredPODItems() {
         p.offloadingPoint.toLowerCase().includes(term) ||
         (p.owner && p.owner.toLowerCase().includes(term)) ||
         (p.scannedBy && p.scannedBy.toLowerCase().includes(term))) &&
-        (userIsSuperAdmin() || canModuleAction('pod-management', 'view', p.area))
+        (userIsSuperAdmin() || canModuleAction('pod-management', 'view', getPodOperationalArea(p) || p.area))
     );
 }
 
@@ -9127,9 +9236,9 @@ function renderAdminAreaAssignments(container) {
     container.innerHTML = `
         ${renderAdminBreadcrumb('Area Assignments')}
         <div class="page-header admin-page-header">
-            <div><h1>🗺️ User Area Assignments</h1><p class="page-subtitle">Assign users to operational areas. Kanyaka team sees all trucks. Other users see only their area.</p></div>
+            <div><h1>🗺️ User Area Assignments</h1><p class="page-subtitle">Assign users to operational areas. Trucks are matched by <strong>NB offloading destination</strong> and <strong>SB DRC loading point</strong>. Border staff match on entry/exit border.</p></div>
         </div>
-        <div class="rbac-info-banner"><strong>Rule:</strong> Users assigned to <em>Kanyaka</em> or <em>All Areas</em> see every truck. All other users only see trucks in their assigned area(s) on NB, SB, Area, and Report pages.</div>
+        <div class="rbac-info-banner"><strong>Matching rules:</strong> <em>NB</em> → offloading point vs destination list (Kolwezi Mine, KCC Mine, Kanyaka Depot, etc.). <em>SB</em> → loading point vs DRC mine list. <em>Borders</em> (Kasumbalesa, Sakania, Mokambo) → entry/exit border. Kanyaka / All Areas = full visibility.</div>
         <div class="admin-toolbar">
             <input type="text" class="form-control admin-search" placeholder="Search users or areas..." value="${areaAssignmentFilter}" onkeyup="areaAssignmentFilter=this.value; renderAdminAreaAssignments(document.getElementById('contentArea'))">
         </div>
