@@ -1224,6 +1224,10 @@
         .soft-delete-show-checkbox input { cursor: pointer; }
         .soft-delete-locked { opacity: 0.5; font-size: 14px; }
         .soft-delete-restore { border-color: var(--success) !important; color: var(--success) !important; }
+
+        .db-sql-editor { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 13px; line-height: 1.45; min-height: 160px; }
+        .db-table-pick:hover { background: #f7fafc !important; }
+        .db-table-pick.active { background: #ebf8ff !important; font-weight: 600; }
         .admin-stats-row { display: flex; gap: 20px; margin-top: 12px; font-size: 13px; color: var(--text-secondary); }
         .status-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
         .status-badge.green { background: #c6f6d5; color: #22543d; }
@@ -2131,6 +2135,16 @@
                     <a class="nav-item" onclick="navigateToAdmin('admin-upload-templates')" data-page="admin-upload-templates">
                         <span class="icon">📤</span> Upload Templates
                     </a>
+                    <a class="nav-item" onclick="navigateToAdmin('admin-database-browser')" data-page="admin-database-browser">
+                        <span class="icon">🗄️</span> Database Browser
+                    </a>
+                    <a class="nav-item" onclick="navigateToAdmin('admin-query-developer')" data-page="admin-query-developer">
+                        <span class="icon">🧪</span> Query Developer
+                    </a>
+                </div>
+                <div class="nav-section" id="customSqlNavSection" style="display:none;">
+                    <div class="nav-section-title">Development</div>
+                    <div id="customSqlNavList"></div>
                 </div>
             </nav>
         </aside>
@@ -2830,6 +2844,7 @@
     <script src="trip-scheduler.js"></script>
     <script src="helpdesk.js"></script>
     <script src="soft-delete.js"></script>
+    <script src="database-tools.js"></script>
     <script src="app.js"></script>
     <script src="internal-communication.js"></script>
     <script src="custom-reports.js"></script>
