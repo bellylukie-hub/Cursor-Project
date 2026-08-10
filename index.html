@@ -1354,7 +1354,7 @@
         .sb-kanyaka-required h4 { margin-bottom: 10px; color: #c05621; }
 
         /* MODAL */
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 10050; }
         .modal-overlay.show { display: flex; }
         .modal { background: white; border-radius: 12px; width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
         .modal.modal-lg { max-width: 920px; }
@@ -1860,7 +1860,17 @@
         }
 
         /* TOAST */
-        .toast { position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 12px 20px; border-radius: 8px; box-shadow: var(--shadow-lg); z-index: 3000; animation: slideUp 0.3s ease; display: none; }
+        .toast { position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 12px 20px; border-radius: 8px; box-shadow: var(--shadow-lg); z-index: 10100; animation: slideUp 0.3s ease; display: none; }
+        .help-assistant-fab.help-assistant-hidden,
+        .help-assistant-panel.help-assistant-hidden { visibility: hidden; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; }
+        .password-field-row { display: flex; gap: 8px; align-items: stretch; }
+        .password-field-row .form-control { flex: 1; }
+        .password-reset-display {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 18px; letter-spacing: 0.05em; padding: 14px 16px;
+            background: #f7fafc; border: 2px dashed #4299e1; border-radius: 8px;
+            text-align: center; word-break: break-all; user-select: all;
+        }
         .toast.show { display: block; }
         .toast.success { background: var(--success); }
         .toast.error { background: var(--danger); }
@@ -2386,9 +2396,33 @@
                     <div class="form-group"><label>Area</label><input type="text" class="form-control" id="adminUserArea" placeholder="Kasumbalesa"></div>
                 </div>
                 <div class="form-group"><label>Role</label><select class="form-control" id="adminUserRole"></select></div>
-                <div class="form-group" id="adminUserPasswordGroup"><label>Initial Password</label><input type="password" class="form-control" placeholder="Set via env var in production" disabled><small style="color:var(--text-secondary);">In production, credentials are created via .env — never hard-coded.</small></div>
+                <div class="form-group" id="adminUserPasswordGroup">
+                    <label id="adminUserPasswordLabel">Password <span class="required" id="adminUserPasswordRequired">*</span></label>
+                    <div class="password-field-row">
+                        <input type="password" class="form-control" id="adminUserPassword" autocomplete="new-password" placeholder="Enter password">
+                        <button type="button" class="btn btn-outline" onclick="toggleAdminUserPasswordVisibility()" title="Show/hide password">👁️</button>
+                        <button type="button" class="btn btn-outline" onclick="generateAdminUserPassword()" title="Generate random password">🎲</button>
+                    </div>
+                    <small id="adminUserPasswordHint" style="color:var(--text-secondary);">Set the login password for this user. Use Generate for a secure random password.</small>
+                </div>
             </div>
             <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('adminUserModal')">Cancel</button><button class="btn btn-primary" onclick="submitAdminUser()">💾 Save User</button></div>
+        </div>
+    </div>
+
+    <!-- ADMIN PASSWORD RESET MODAL -->
+    <div class="modal-overlay" id="adminPasswordResetModal">
+        <div class="modal" style="max-width:480px;">
+            <div class="modal-header"><h3>🔑 Password Reset</h3><button class="btn btn-outline" onclick="closeModal('adminPasswordResetModal')">✕</button></div>
+            <div class="modal-body">
+                <p>A new temporary password was generated for <strong id="adminPasswordResetUsername"></strong>.</p>
+                <p style="font-size:13px;color:var(--text-secondary);margin:12px 0;">Share this password securely with the user. They should change it after first login.</p>
+                <div class="password-reset-display" id="adminPasswordResetValue"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="copyAdminPasswordReset()">📋 Copy</button>
+                <button class="btn btn-primary" onclick="closeModal('adminPasswordResetModal')">Done</button>
+            </div>
         </div>
     </div>
 

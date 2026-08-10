@@ -110,9 +110,9 @@ function formatUserRow(u) {
 
 function createUser(payload, actor) {
   const id = payload.id || `ADM-${Date.now()}`;
-  const passwordHash = payload.password
-    ? hashPassword(payload.password)
-    : hashPassword(crypto.randomBytes(8).toString('hex'));
+  const password = payload.password || crypto.randomBytes(8).toString('hex');
+  if (String(password).length < 8) throw new Error('Password must be at least 8 characters');
+  const passwordHash = hashPassword(password);
   db.prepare(`
     INSERT INTO users (id, username, email, password_hash, role_id, status, area, assigned_areas, module_permissions, phone)
     VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)
@@ -128,12 +128,16 @@ function createUser(payload, actor) {
     payload.phone || ''
   );
   logAuditEntry(`Created User ${id}`, id, 'user', `Role: ${payload.roleId}`, actor);
-  return formatUserRow(getUserById(id));
+  const user = formatUserRow(getUserById(id));
+  if (!payload.password) user.temporaryPassword = password;
+  return user;
 }
 
 function updateUser(userId, payload, actor) {
   const user = getUserById(userId);
   if (!user) throw new Error('User not found');
+  const auditPayload = { ...payload };
+  if (auditPayload.password) delete auditPayload.password;
   db.prepare(`
     UPDATE users SET
       username = COALESCE(?, username),
@@ -154,7 +158,12 @@ function updateUser(userId, payload, actor) {
     payload.phone ?? null,
     userId
   );
-  logAuditEntry(`Updated User ${userId}`, userId, 'user', JSON.stringify(payload), actor);
+  if (payload.password) {
+    if (String(payload.password).length < 8) throw new Error('Password must be at least 8 characters');
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(payload.password), userId);
+    logAuditEntry(`Changed password for User ${userId}`, userId, 'user', 'Password updated via admin panel', actor);
+  }
+  logAuditEntry(`Updated User ${userId}`, userId, 'user', JSON.stringify(auditPayload), actor);
   return formatUserRow(getUserById(userId));
 }
 

@@ -8100,8 +8100,54 @@ function openAdminUserModal(userId) {
     document.getElementById('adminUserArea').value = user?.area || '';
     const roleSelect = document.getElementById('adminUserRole');
     roleSelect.innerHTML = rolesDB.map(r => `<option value="${r.id}" ${user?.roleId === r.id ? 'selected' : ''}>${r.name}</option>`).join('');
-    document.getElementById('adminUserPasswordGroup').style.display = user ? 'none' : 'block';
+    const passwordInput = document.getElementById('adminUserPassword');
+    const passwordRequired = document.getElementById('adminUserPasswordRequired');
+    const passwordHint = document.getElementById('adminUserPasswordHint');
+    const passwordLabel = document.getElementById('adminUserPasswordLabel');
+    passwordInput.value = '';
+    passwordInput.type = 'password';
+    if (user) {
+        passwordLabel.textContent = 'Password';
+        passwordRequired.style.display = 'none';
+        passwordInput.placeholder = 'Leave blank to keep current password';
+        passwordHint.textContent = 'Enter a new password only if you want to change it. Existing passwords cannot be displayed for security reasons.';
+    } else {
+        passwordLabel.textContent = 'Password';
+        passwordRequired.style.display = '';
+        passwordInput.placeholder = 'Enter password (min. 8 characters)';
+        passwordHint.textContent = 'Set the login password for this user. Use Generate for a secure random password.';
+    }
     openModal('adminUserModal');
+}
+
+function toggleAdminUserPasswordVisibility() {
+    const input = document.getElementById('adminUserPassword');
+    if (!input) return;
+    input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+function generateAdminUserPassword() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+    let pwd = '';
+    for (let i = 0; i < 12; i++) pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    const input = document.getElementById('adminUserPassword');
+    if (input) {
+        input.value = pwd;
+        input.type = 'text';
+    }
+}
+
+function showAdminPasswordResetModal(username, password) {
+    document.getElementById('adminPasswordResetUsername').textContent = username;
+    document.getElementById('adminPasswordResetValue').textContent = password;
+    window.__lastAdminPasswordReset = password;
+    openModal('adminPasswordResetModal');
+}
+
+function copyAdminPasswordReset() {
+    const value = window.__lastAdminPasswordReset || document.getElementById('adminPasswordResetValue')?.textContent || '';
+    if (!value) return;
+    navigator.clipboard.writeText(value).then(() => showToast('Password copied to clipboard', 'success')).catch(() => showToast('Copy failed — select and copy manually', 'warning'));
 }
 
 function submitAdminUser() {
@@ -8110,7 +8156,16 @@ function submitAdminUser() {
     const phone = document.getElementById('adminUserPhone').value.trim();
     const area = document.getElementById('adminUserArea').value.trim();
     const roleId = document.getElementById('adminUserRole').value;
+    const password = document.getElementById('adminUserPassword').value;
     if (!username || !email) { showToast('Username and email are required.', 'warning'); return; }
+    if (!editingAdminUserId && (!password || password.length < 8)) {
+        showToast('Password is required for new users (minimum 8 characters).', 'warning');
+        return;
+    }
+    if (password && password.length < 8) {
+        showToast('Password must be at least 8 characters.', 'warning');
+        return;
+    }
     (async () => {
         try {
             if (editingAdminUserId) {
@@ -8118,22 +8173,24 @@ function submitAdminUser() {
                 const user = adminUsersDB.find(u => u.id === editingAdminUserId);
                 if (!user) return;
                 const payload = { username, email, phone, area, roleId, assignedAreas: user.assignedAreas || [area] };
+                if (password) payload.password = password;
                 if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof updateAdminUserApi === 'function') {
                     const apiUser = await updateAdminUserApi(editingAdminUserId, payload);
                     Object.assign(user, apiUser, { passwordHash: user.passwordHash });
                 } else {
                     Object.assign(user, payload);
                 }
-                logAuditEvent(`Updated User ${user.id}`, user.id, 'user', `Role: ${getRoleById(roleId)?.name}, Area: ${area}`);
-                showToast(`User ${username} updated.`, 'success');
+                logAuditEvent(`Updated User ${user.id}`, user.id, 'user', `Role: ${getRoleById(roleId)?.name}, Area: ${area}${password ? ', password changed' : ''}`);
+                showToast(`User ${username} updated.${password ? ' Password changed.' : ''}`, 'success');
             } else {
                 if (!apiMiddleware('/api/users/create', 'manage_users')) return;
                 const id = 'ADM-' + String(nextAdminUserId++).padStart(3, '0');
-                const payload = { id, username, email, phone, area, roleId, assignedAreas: [area] };
+                const payload = { id, username, email, phone, area, roleId, assignedAreas: [area], password };
                 let user;
                 if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof createAdminUserApi === 'function') {
                     user = await createAdminUserApi(payload);
                     user.passwordHash = '[server]';
+                    if (user.temporaryPassword) showAdminPasswordResetModal(username, user.temporaryPassword);
                 } else {
                     user = { ...payload, passwordHash: '[bcrypt-hash]', status: 'active', createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16), lastLogin: null, bannedAt: null, bannedReason: '' };
                 }
@@ -8157,15 +8214,17 @@ function resetAdminUserPassword(userId) {
     if (!user) return;
     (async () => {
         try {
-            let msg = `Password reset for ${user.username}. New credentials sent to ${user.email}.`;
+            let tempPassword = null;
             if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof resetAdminUserPasswordApi === 'function') {
                 const result = await resetAdminUserPasswordApi(userId);
-                if (result.temporaryPassword) msg = `Temporary password for ${user.username}: ${result.temporaryPassword}`;
+                tempPassword = result.temporaryPassword || null;
             } else {
+                tempPassword = Math.random().toString(36).slice(-10);
                 user.passwordHash = '[bcrypt-hash-reset-' + Date.now() + ']';
             }
             logAuditEvent(`Reset Password for ${userId}`, userId, 'user', 'Password reset via admin panel');
-            showToast(msg, 'success');
+            if (tempPassword) showAdminPasswordResetModal(user.username, tempPassword);
+            else showToast(`Password reset for ${user.username}.`, 'success');
             if (typeof persistAdminUsers === 'function') persistAdminUsers();
         } catch (e) {
             showToast(e.message, 'warning');
@@ -9379,9 +9438,17 @@ function toggleAlerts(menuFilter) {
         alertPanelMenuFilter = null;
     }
 }
+function setHelpAssistantVisible(visible) {
+    document.querySelectorAll('.help-assistant-fab, .help-assistant-panel').forEach(el => {
+        el.classList.toggle('help-assistant-hidden', !visible);
+    });
+    if (!visible && typeof toggleHelpAssistant === 'function') toggleHelpAssistant(false);
+}
+
 function openModal(modalId) {
     const el = document.getElementById(modalId);
     if (!el) return;
+    setHelpAssistantVisible(false);
     if (el.classList.contains('modal-overlay')) {
         el.classList.add('show');
         return;
@@ -9392,7 +9459,7 @@ function openModal(modalId) {
     el.style.background = 'rgba(0,0,0,0.5)';
     el.style.alignItems = 'center';
     el.style.justifyContent = 'center';
-    el.style.zIndex = '2000';
+    el.style.zIndex = '10050';
     el.classList.add('show');
 }
 function closeModal(modalId) {
@@ -9402,6 +9469,8 @@ function closeModal(modalId) {
     if (!el.classList.contains('modal-overlay')) {
         el.style.display = 'none';
     }
+    const anyModalOpen = document.querySelector('.modal-overlay.show');
+    if (!anyModalOpen) setHelpAssistantVisible(true);
 }
 function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('mobile-open'); }
 function showToast(message,type='success'){ const toast=document.getElementById('toast'); toast.textContent=message; toast.className=`toast ${type} show`; setTimeout(()=>toast.classList.remove('show'),3000); }
