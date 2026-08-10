@@ -492,6 +492,20 @@ function migrateHelpdeskSchema() {
     CREATE INDEX IF NOT EXISTS idx_helpdesk_tickets_reporter ON helpdesk_tickets(reporter_user_id);
     CREATE INDEX IF NOT EXISTS idx_helpdesk_tickets_target ON helpdesk_tickets(target_resolve_at);
   `);
+  const cols = db.prepare('PRAGMA table_info(helpdesk_tickets)').all().map(c => c.name);
+  if (!cols.includes('target_first_response_at')) {
+    db.exec('ALTER TABLE helpdesk_tickets ADD COLUMN target_first_response_at TEXT');
+    db.prepare(`
+      UPDATE helpdesk_tickets
+      SET target_first_response_at = datetime(created_at, '+' || CASE priority
+        WHEN 'urgent' THEN '1 hours'
+        WHEN 'high' THEN '2 hours'
+        WHEN 'low' THEN '8 hours'
+        ELSE '4 hours'
+      END)
+      WHERE target_first_response_at IS NULL
+    `).run();
+  }
 }
 
 function migrateFleetUnitsSchema() {

@@ -446,7 +446,7 @@
             if (!ctx.modules.some(m => m.id === 'helpdesk') && !ctx.isSuperAdmin) {
                 return adminAccessDenied(ctx, 'Helpdesk');
             }
-            return '**Helpdesk workflow:**\n1. Open **Communication → Helpdesk**\n2. Click **Report Issue** — describe the problem, pick category and priority\n3. The system sets a **target resolve time** based on SLA (Admin → Helpdesk SLA Settings)\n4. Technical team (Super Admin / Manager) sees the **Team Queue**, assigns tickets, and adds comments\n5. KPI badge: **green** = on track · **orange** = approaching deadline · **red** = overdue\n\nAdmins configure SLA hours per priority under **Admin → Helpdesk SLA Settings**.';
+            return '**Helpdesk workflow:**\n1. Open **Communication → Helpdesk**\n2. Click **Report Issue** — describe the problem, pick category and priority\n3. Each ticket records **logged date**, **target resolve time**, and **first response due** from SLA settings\n4. Technical team (Super Admin / Manager) uses **Team Queue** to assign, comment, and resolve\n5. KPI badges: **green** = on track · **orange** = approaching deadline · **red** = overdue (first response + resolution)\n\nAdmins configure SLA hours per priority under **Admin → Helpdesk SLA Settings**.';
         }
 
         if (matchQuery(q, ['sequence', 'next step', 'what comes after', 'process order', 'current area'])) {

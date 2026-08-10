@@ -1677,7 +1677,7 @@ function canAccessAdminPage(page) {
         case 'admin-module-permissions': return canUser('manage_users');
         case 'admin-fleet-settings': return canUser('manage_settings') || canUser('manage_users');
         case 'admin-freight-settings': return canUser('manage_settings') || canUser('manage_users');
-        case 'admin-helpdesk-settings': return canUser('manage_settings') || canUser('manage_users');
+        case 'admin-helpdesk-settings': return canUser('manage_settings') || canUser('manage_users') || (typeof canManageHelpdesk === 'function' && canManageHelpdesk());
         case 'admin-upload-templates': return getCurrentRole()?.name === 'Super Admin';
         default: return false;
     }

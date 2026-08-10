@@ -26,6 +26,15 @@ const DEFAULT_SETTINGS = {
   notifyOnOverdue: true
 };
 
+function isTechTeamUser(user) {
+  const role = user?.roleName || user?.role || '';
+  const perms = user?.permissions || [];
+  return role === 'Super Admin' || role === 'Manager'
+    || perms.includes('*')
+    || perms.includes('manage_settings')
+    || perms.includes('manage_users');
+}
+
 function getSettings() {
   return { ...DEFAULT_SETTINGS, ...getJsonSetting('helpdesk_settings', {}) };
 }
@@ -53,7 +62,9 @@ function rowToTicket(r, comments) {
     reporterUserId: r.reporter_user_id, reporterUsername: r.reporter_username,
     assigneeUserId: r.assignee_user_id, assigneeUsername: r.assignee_username,
     area: r.area, relatedType: r.related_type, relatedRef: r.related_ref,
-    targetResolveAt: r.target_resolve_at, firstResponseAt: r.first_response_at,
+    targetResolveAt: r.target_resolve_at,
+    targetFirstResponseAt: r.target_first_response_at,
+    firstResponseAt: r.first_response_at,
     resolvedAt: r.resolved_at, closedAt: r.closed_at,
     createdAt: r.created_at, updatedAt: r.updated_at,
     comments: comments || []
@@ -65,6 +76,14 @@ function computeTargetResolveAt(priority, createdAt) {
   const sla = settings.slaByPriority[priority] || settings.slaByPriority.normal;
   const base = createdAt ? new Date(createdAt.replace(' ', 'T')) : new Date();
   const target = new Date(base.getTime() + (sla.resolutionHours || 24) * 3600000);
+  return target.toISOString().slice(0, 19).replace('T', ' ');
+}
+
+function computeTargetFirstResponseAt(priority, createdAt) {
+  const settings = getSettings();
+  const sla = settings.slaByPriority[priority] || settings.slaByPriority.normal;
+  const base = createdAt ? new Date(createdAt.replace(' ', 'T')) : new Date();
+  const target = new Date(base.getTime() + (sla.firstResponseHours || 4) * 3600000);
   return target.toISOString().slice(0, 19).replace('T', ' ');
 }
 
@@ -99,62 +118,116 @@ function nextTicketNumber() {
   return `HD-${(n + 1) || 10001}`;
 }
 
+function canUserAccessTicket(ticket, user) {
+  if (!ticket || !user) return false;
+  if (isTechTeamUser(user)) return true;
+  const userId = user.id || user.userId;
+  return ticket.reporterUserId === userId || ticket.reporterUsername === user.username;
+}
+
 function upsertTicket(body, user) {
   const id = body.id || `HDT-${Date.now()}`;
   const existing = db.prepare('SELECT * FROM helpdesk_tickets WHERE id = ?').get(id);
-  const ticketNumber = body.ticketNumber || existing?.ticket_number || nextTicketNumber();
+
+  if (existing) {
+    if (!canUserAccessTicket(rowToTicket(existing, []), user)) {
+      throw new Error('Not authorized to update this ticket');
+    }
+    const isTech = isTechTeamUser(user);
+    const priority = body.priority !== undefined ? body.priority : existing.priority;
+    const priorityChanged = body.priority !== undefined && body.priority !== existing.priority;
+    const createdAt = existing.created_at;
+    let targetResolveAt = existing.target_resolve_at;
+    let targetFirstResponseAt = existing.target_first_response_at;
+    if (body.targetResolveAt !== undefined) targetResolveAt = body.targetResolveAt;
+    else if (priorityChanged) targetResolveAt = computeTargetResolveAt(priority, createdAt);
+    if (body.targetFirstResponseAt !== undefined) targetFirstResponseAt = body.targetFirstResponseAt;
+    else if (priorityChanged) targetFirstResponseAt = computeTargetFirstResponseAt(priority, createdAt);
+
+    const status = body.status !== undefined ? body.status : existing.status;
+    const resolvedAt = status === 'resolved'
+      ? (body.resolvedAt || existing.resolved_at || new Date().toISOString().slice(0, 19).replace('T', ' '))
+      : (body.resolvedAt !== undefined ? body.resolvedAt : existing.resolved_at);
+    const closedAt = status === 'closed'
+      ? (body.closedAt || existing.closed_at || new Date().toISOString().slice(0, 19).replace('T', ' '))
+      : (body.closedAt !== undefined ? body.closedAt : existing.closed_at);
+
+    const subject = body.subject !== undefined ? (String(body.subject).trim() || existing.subject) : existing.subject;
+    const description = body.description !== undefined ? body.description : existing.description;
+    const category = body.category !== undefined ? body.category : existing.category;
+    const modulePage = body.modulePage !== undefined ? body.modulePage : existing.module_page;
+    const browserInfo = body.browserInfo !== undefined ? body.browserInfo : existing.browser_info;
+    const area = body.area !== undefined ? body.area : existing.area;
+    const relatedType = body.relatedType !== undefined ? body.relatedType : existing.related_type;
+    const relatedRef = body.relatedRef !== undefined ? body.relatedRef : existing.related_ref;
+    const assigneeUserId = isTech && body.assigneeUserId !== undefined ? body.assigneeUserId : existing.assignee_user_id;
+    const assigneeUsername = isTech && body.assigneeUsername !== undefined ? body.assigneeUsername : existing.assignee_username;
+    const firstResponseAt = body.firstResponseAt !== undefined ? body.firstResponseAt : existing.first_response_at;
+
+    db.prepare(`
+      UPDATE helpdesk_tickets SET
+        subject = ?, description = ?, category = ?, priority = ?, status = ?,
+        module_page = ?, browser_info = ?, assignee_user_id = ?, assignee_username = ?,
+        area = ?, related_type = ?, related_ref = ?,
+        target_resolve_at = ?, target_first_response_at = ?,
+        first_response_at = ?, resolved_at = ?, closed_at = ?,
+        updated_at = datetime('now')
+      WHERE id = ?
+    `).run(
+      subject, description, category, priority, status,
+      modulePage, browserInfo, assigneeUserId, assigneeUsername,
+      area, relatedType, relatedRef,
+      targetResolveAt, targetFirstResponseAt,
+      firstResponseAt, resolvedAt, closedAt,
+      id
+    );
+
+    adminService.logAuditEntry(`Updated helpdesk ticket ${existing.ticket_number}`, id, 'helpdesk', subject, user);
+    return getTicketById(id);
+  }
+
+  const subject = (body.subject || '').trim();
+  if (!subject) throw new Error('Subject is required');
   const priority = body.priority || 'normal';
-  const createdAt = existing?.created_at || new Date().toISOString().slice(0, 19).replace('T', ' ');
-  const targetResolveAt = body.targetResolveAt || existing?.target_resolve_at || computeTargetResolveAt(priority, createdAt);
-  const status = body.status || existing?.status || 'open';
+  const createdAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const ticketNumber = body.ticketNumber || nextTicketNumber();
+  const targetResolveAt = body.targetResolveAt || computeTargetResolveAt(priority, createdAt);
+  const targetFirstResponseAt = body.targetFirstResponseAt || computeTargetFirstResponseAt(priority, createdAt);
+  const status = body.status || 'open';
 
   db.prepare(`
     INSERT INTO helpdesk_tickets (
       id, ticket_number, subject, description, category, priority, status,
       module_page, browser_info, reporter_user_id, reporter_username,
       assignee_user_id, assignee_username, area, related_type, related_ref,
-      target_resolve_at, first_response_at, resolved_at, closed_at, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-    ON CONFLICT(id) DO UPDATE SET
-      subject = excluded.subject, description = excluded.description,
-      category = excluded.category, priority = excluded.priority, status = excluded.status,
-      module_page = excluded.module_page, browser_info = excluded.browser_info,
-      assignee_user_id = excluded.assignee_user_id, assignee_username = excluded.assignee_username,
-      area = excluded.area, related_type = excluded.related_type, related_ref = excluded.related_ref,
-      target_resolve_at = excluded.target_resolve_at,
-      first_response_at = COALESCE(excluded.first_response_at, helpdesk_tickets.first_response_at),
-      resolved_at = excluded.resolved_at, closed_at = excluded.closed_at,
-      updated_at = datetime('now')
+      target_resolve_at, target_first_response_at, first_response_at, resolved_at, closed_at, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
   `).run(
-    id, ticketNumber,
-    (body.subject || '').trim() || 'Untitled issue',
+    id, ticketNumber, subject,
     body.description || '',
     body.category || 'Other',
     priority, status,
     body.modulePage || '', body.browserInfo || '',
     body.reporterUserId || user?.id || user?.userId || null,
     body.reporterUsername || user?.username || 'user',
-    body.assigneeUserId || existing?.assignee_user_id || null,
-    body.assigneeUsername || existing?.assignee_username || null,
+    body.assigneeUserId || null, body.assigneeUsername || null,
     body.area || '', body.relatedType || '', body.relatedRef || '',
-    targetResolveAt,
-    body.firstResponseAt || existing?.first_response_at || null,
-    status === 'resolved' ? (body.resolvedAt || new Date().toISOString().slice(0, 19).replace('T', ' ')) : (body.resolvedAt || existing?.resolved_at || null),
-    status === 'closed' ? (body.closedAt || new Date().toISOString().slice(0, 19).replace('T', ' ')) : (body.closedAt || existing?.closed_at || null),
+    targetResolveAt, targetFirstResponseAt, null, null, null,
     createdAt
   );
 
-  adminService.logAuditEntry(
-    existing ? `Updated helpdesk ticket ${ticketNumber}` : `Created helpdesk ticket ${ticketNumber}`,
-    id, 'helpdesk', body.subject || '', user
-  );
+  adminService.logAuditEntry(`Created helpdesk ticket ${ticketNumber}`, id, 'helpdesk', subject, user);
   return getTicketById(id);
 }
 
 function addComment(ticketId, body, user) {
   const ticket = getTicketById(ticketId);
   if (!ticket) throw new Error('Ticket not found');
+  if (!canUserAccessTicket(ticket, user)) throw new Error('Not authorized to comment on this ticket');
+
   const isInternal = !!body.isInternal;
+  if (isInternal && !isTechTeamUser(user)) throw new Error('Only the technical team can post internal notes');
+
   const authorId = user?.id || user?.userId || null;
   const authorName = user?.username || 'user';
   const result = db.prepare(`
@@ -167,7 +240,7 @@ function addComment(ticketId, body, user) {
       .run(ticketId);
   }
 
-  if (body.status) {
+  if (body.status && isTechTeamUser(user)) {
     db.prepare(`UPDATE helpdesk_tickets SET status = ?, updated_at = datetime('now') WHERE id = ?`).run(body.status, ticketId);
   }
 
@@ -177,11 +250,14 @@ function addComment(ticketId, body, user) {
 function getStats(filters = {}) {
   const tickets = listTickets({ ...filters, limit: 1000 });
   const open = tickets.filter(t => !['resolved', 'closed'].includes(t.status));
-  const overdue = open.filter(t => t.targetResolveAt && new Date(t.targetResolveAt.replace(' ', 'T')) < new Date());
+  const now = new Date();
+  const overdue = open.filter(t => t.targetResolveAt && new Date(t.targetResolveAt.replace(' ', 'T')) < now);
+  const responseOverdue = open.filter(t => !t.firstResponseAt && t.targetFirstResponseAt && new Date(t.targetFirstResponseAt.replace(' ', 'T')) < now);
   const byStatus = {};
   tickets.forEach(t => { byStatus[t.status] = (byStatus[t.status] || 0) + 1; });
   return {
     total: tickets.length, open: open.length, overdue: overdue.length,
+    responseOverdue: responseOverdue.length,
     resolved: tickets.filter(t => t.status === 'resolved' || t.status === 'closed').length,
     byStatus
   };
@@ -189,16 +265,18 @@ function getStats(filters = {}) {
 
 function getBundle(user, options = {}) {
   const isTech = options.isTechTeam;
-  const filters = isTech ? { limit: 500 } : { reporterUserId: user?.id || user?.userId, limit: 200 };
+  const userId = user?.id || user?.userId;
+  const filters = isTech ? { limit: 500 } : { reporterUserId: userId, limit: 200 };
   return {
     tickets: listTickets(filters),
     allTickets: isTech ? listTickets({ limit: 500 }) : undefined,
     settings: getSettings(),
-    stats: getStats(isTech ? {} : { reporterUserId: user?.id || user?.userId })
+    stats: getStats(isTech ? {} : { reporterUserId: userId })
   };
 }
 
 module.exports = {
   getSettings, saveSettings, listTickets, getTicketById, upsertTicket,
-  addComment, getStats, getBundle, computeTargetResolveAt, DEFAULT_SETTINGS
+  addComment, getStats, getBundle, computeTargetResolveAt, computeTargetFirstResponseAt,
+  isTechTeamUser, canUserAccessTicket, DEFAULT_SETTINGS
 };

@@ -704,9 +704,7 @@ const helpdeskSvc = () => require('../services/helpdeskService');
 router.get('/helpdesk/bundle', (req, res) => {
   try {
     const user = getUser(req);
-    const role = user?.roleName || user?.role || '';
-    const perms = user?.permissions || [];
-    const isTechTeam = role === 'Super Admin' || role === 'Manager' || perms.includes('*') || perms.includes('manage_settings') || perms.includes('manage_users');
+    const isTechTeam = helpdeskSvc().isTechTeamUser(user);
     res.json(helpdeskSvc().getBundle(user, { isTechTeam }));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -714,10 +712,9 @@ router.get('/helpdesk/bundle', (req, res) => {
 router.get('/helpdesk/tickets', (req, res) => {
   try {
     const user = getUser(req);
-    const role = user?.roleName || user?.role || '';
-    const isTech = role === 'Super Admin' || role === 'Manager' || (user?.permissions || []).includes('manage_settings');
+    const isTech = helpdeskSvc().isTechTeamUser(user);
     const filters = { ...req.query };
-    if (!isTech && !filters.all) filters.reporterUserId = user?.id || user?.userId;
+    if (!isTech) filters.reporterUserId = user?.id || user?.userId;
     res.json({ tickets: helpdeskSvc().listTickets(filters) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -733,14 +730,20 @@ router.patch('/helpdesk/tickets/:id', (req, res) => {
   try {
     const ticket = helpdeskSvc().upsertTicket({ ...req.body, id: req.params.id }, getUser(req));
     res.json({ ticket });
-  } catch (e) { res.status(400).json({ error: e.message }); }
+  } catch (e) {
+    const code = e.message.includes('Not authorized') ? 403 : 400;
+    res.status(code).json({ error: e.message });
+  }
 });
 
 router.post('/helpdesk/tickets/:id/comments', (req, res) => {
   try {
     const comment = helpdeskSvc().addComment(req.params.id, req.body, getUser(req));
     res.status(201).json({ comment, ticket: helpdeskSvc().getTicketById(req.params.id) });
-  } catch (e) { res.status(400).json({ error: e.message }); }
+  } catch (e) {
+    const code = e.message.includes('Not authorized') ? 403 : 400;
+    res.status(code).json({ error: e.message });
+  }
 });
 
 router.get('/helpdesk/settings', (_req, res) => {
@@ -750,7 +753,11 @@ router.get('/helpdesk/settings', (_req, res) => {
 
 router.patch('/helpdesk/settings', (req, res) => {
   try {
-    const settings = helpdeskSvc().saveSettings(req.body, getUser(req));
+    const user = getUser(req);
+    if (!helpdeskSvc().isTechTeamUser(user)) {
+      return res.status(403).json({ error: 'Not authorized to change helpdesk settings' });
+    }
+    const settings = helpdeskSvc().saveSettings(req.body, user);
     res.json({ settings });
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
