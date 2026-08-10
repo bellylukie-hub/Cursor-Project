@@ -1,7 +1,7 @@
 # TruckControl — Complete User & Administrator Manual
 
 **Product:** Truck Turnaround & Operations Control System  
-**Manual version:** v2.2.1-production  
+**Manual version:** v2.4.0-production  
 **Audience:** Operations staff, dispatchers, border moderators, FMS users, managers, and system administrators
 
 > **Illustrations:** This manual includes diagrams in `docs/images/`. View on GitHub, VS Code, or any Markdown viewer that supports SVG images.
@@ -40,6 +40,9 @@
 | Help assistant | `images/help-assistant.svg` | Chatbot usage |
 | Admin setup | `images/admin-setup-order.svg` | Recommended config order |
 | Module permissions | `images/module-permissions.svg` | View / edit / delete matrix |
+| Bulk actions toolbar | `images/bulk-actions-toolbar.svg` | Checkbox selection actions |
+| Soft delete & restore | `images/soft-delete-rbac.svg` | RBAC for delete/restore |
+| Domain deployment | `images/domain-deployment.svg` | HTTPS + DNS architecture |
 
 ---
 
@@ -100,6 +103,8 @@ Default password: `ChangeMe123!` (unless changed in server `.env`).
 - **Sidebar badges** (red/orange numbers) — counts of items needing attention.
 - **Notification bell** — system alerts grouped by menu.
 - **Help assistant** — chat panel (usually bottom-right) for guided help.
+- **Browser tab** — shows current menu name (e.g. `NB Operations — TruckControl`) and the TruckControl favicon.
+- **Sidebar logo** — click **TruckControl** to return to the Dashboard.
 
 ## 1.4 Roles and access
 
@@ -172,6 +177,37 @@ If a menu is missing, ask your Super Admin to check **Module Permissions** and *
 ### Open truck on map
 
 - If the truck has GPS and a position cell shows **📍**, click it to open the truck position map.
+
+### Bulk actions (checkbox toolbar)
+
+When you select one or more rows using the checkboxes, a **bulk actions toolbar** appears above the table.
+
+![Bulk actions toolbar — appears when rows are selected via checkbox](images/bulk-actions-toolbar.svg)
+
+**Available actions (trip tables):**
+
+| Action | Purpose |
+|--------|---------|
+| Send Sms | Open SMS to driver contacts (from Driver Registry) |
+| Set trip details | Bulk update status, area, border, location point |
+| Assign Tags / Replace Tags | Add or replace tags on selected trips |
+| Create Task | Create a linked task for each selected trip |
+| Clear DN | Clear delivery note on selected trips |
+| Unplug Trailer | Clear trailer assignment |
+| Create Area Notification | Log area alert on trip history |
+| Bulk Comments | Apply one comment (and optional status) to all |
+| Request Update | Request status/position update from drivers |
+| Set Location | Set current location / GPS link |
+| Upload Files | Attach files to all selected trips |
+| Show History Report | View history and export CSV |
+| Delete | Soft-delete (Manager / Super Admin) |
+| Restore | Restore deleted rows (Super Admin only) |
+
+**Steps:**
+1. Tick checkboxes on the rows you need (or **Select all** in the header).
+2. Use an action from the toolbar.
+3. Complete the modal or confirm the prompt.
+4. Use **Show deleted** (filter bar) to see faded deleted rows; Super Admin can **Restore**.
 
 ---
 
@@ -964,6 +1000,30 @@ See [INSTALLATION.md](INSTALLATION.md) for full platform guides.
 - [ ] `CORS_ORIGIN` set to your domain
 - [ ] Regular database backups
 - [ ] Audit logs reviewed weekly
+
+## 5.4 Deploy on a public domain (HTTPS)
+
+To make TruckControl available worldwide at e.g. `https://truckcontrol.yourcompany.com`:
+
+![Domain deployment architecture — DNS, VPS, HTTPS proxy, Docker](images/domain-deployment.svg)
+
+1. **Server** — Rent a VPS (Ubuntu 22.04+), install Docker.
+2. **Deploy app** — Extract this ZIP, configure `.env`, run `docker compose up -d --build`.
+3. **DNS** — Create an **A record** pointing your domain to the server public IP.
+4. **HTTPS** — Install **Caddy** or **nginx + Certbot** as reverse proxy to `localhost:3001`.
+5. **Security** — Set `CORS_ORIGIN=https://your-domain.com` in `.env`, open ports 80/443 only (not 3001 publicly).
+
+Full step-by-step: [INSTALLATION.md §12](INSTALLATION.md#12-nginx--caddy--https)
+
+## 5.5 Soft delete permissions
+
+![Soft delete and restore — role-based access](images/soft-delete-rbac.svg)
+
+| Action | Super Admin | Manager | Other roles |
+|--------|-------------|---------|-------------|
+| Delete rows (soft) | Yes | Yes (assigned modules) | Per module permission |
+| Restore deleted | Yes | No | No |
+| Show deleted filter | Yes | Yes | Yes (view faded rows) |
 
 ---
 

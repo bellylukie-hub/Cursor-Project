@@ -2,7 +2,7 @@
 # Build TruckControl production ZIP (full app + documentation)
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${1:-v2.2.0-production}"
+VERSION="${1:-v2.4.0-production}"
 OUT_DIR="$ROOT/dist"
 FOLDER="TruckControl-Production-${VERSION}"
 ZIP_NAME="${FOLDER}.zip"

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 420" role="img" aria-label="Production domain deployment architecture">
+  <rect width="920" height="420" fill="#edf2f7"/>
+  <text x="460" y="34" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#1a365d">Deploy on Your Domain (worldwide HTTPS access)</text>
+  <g font-family="Segoe UI, Arial, sans-serif">
+    <rect x="60" y="70" width="160" height="70" rx="10" fill="#fff" stroke="#2b6cb0" stroke-width="2"/>
+    <text x="140" y="100" text-anchor="middle" font-size="13" font-weight="700" fill="#1a365d">Users worldwide</text>
+    <text x="140" y="122" text-anchor="middle" font-size="11" fill="#718096">Browsers / mobile</text>
+    <path d="M220 105 L280 105" stroke="#2b6cb0" stroke-width="2" marker-end="url(#arr)"/>
+    <rect x="280" y="70" width="160" height="70" rx="10" fill="#fff" stroke="#805ad5" stroke-width="2"/>
+    <text x="360" y="98" text-anchor="middle" font-size="13" font-weight="700" fill="#1a365d">DNS</text>
+    <text x="360" y="118" text-anchor="middle" font-size="11" fill="#718096">A record ’ server IP</text>
+    <text x="360" y="134" text-anchor="middle" font-size="10" fill="#718096">truckcontrol.company.com</text>
+    <path d="M440 105 L500 105" stroke="#2b6cb0" stroke-width="2" marker-end="url(#arr)"/>
+    <rect x="500" y="55" width="180" height="100" rx="10" fill="#1e2a3a"/>
+    <text x="590" y="88" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">Cloud VPS</text>
+    <text x="590" y="110" text-anchor="middle" font-size="11" fill="#bee3f8">Ubuntu + Docker</text>
+    <text x="590" y="130" text-anchor="middle" font-size="11" fill="#bee3f8">Ports 80 / 443 open</text>
+    <rect x="520" y="175" width="140" height="52" rx="8" fill="#2b6cb0"/>
+    <text x="590" y="198" text-anchor="middle" font-size="12" font-weight="600" fill="#fff">Caddy / nginx</text>
+    <text x="590" y="216" text-anchor="middle" font-size="10" fill="#ebf8ff">HTTPS :443 + Let's Encrypt</text>
+    <path d="M590 155 L590 175" stroke="#bee3f8" stroke-width="2"/>
+    <rect x="520" y="245" width="140" height="52" rx="8" fill="#38a169"/>
+    <text x="590" y="268" text-anchor="middle" font-size="12" font-weight="600" fill="#fff">TruckControl</text>
+    <text x="590" y="286" text-anchor="middle" font-size="10" fill="#fff">Docker :3001</text>
+    <path d="M590 227 L590 245" stroke="#c6f6d5" stroke-width="2"/>
+    <rect x="700" y="245" width="120" height="52" rx="8" fill="#fff" stroke="#cbd5e0"/>
+    <text x="760" y="268" text-anchor="middle" font-size="11" font-weight="600" fill="#2d3748">SQLite + uploads</text>
+    <text x="760" y="286" text-anchor="middle" font-size="10" fill="#718096">Docker volumes</text>
+    <path d="M660 271 L700 271" stroke="#a0aec0" stroke-width="2" marker-end="url(#arr)"/>
+  </g>
+  <defs><marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#2b6cb0"/></marker></defs>
+  <rect x="60" y="320" width="800" height="80" rx="8" fill="#fff" stroke="#e2e8f0"/>
+  <text x="80" y="346" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="700" fill="#1a365d">Quick deploy steps</text>
+  <text x="80" y="368" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#4a5568">1. Extract ZIP ’ cp .env.example .env ’ set JWT_SECRET ’ docker compose up -d --build</text>
+  <text x="80" y="388" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#4a5568">2. Point domain A record to server IP ’ install Caddy reverse_proxy localhost:3001 ’ set CORS_ORIGIN in .env</text>
+</svg>

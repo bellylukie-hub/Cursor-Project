@@ -1,98 +1,104 @@
-# Download & Deploy — TruckControl v2.0.0 (Full Production)
+# Download & Deploy — TruckControl v2.4.0 (Full Production)
 
-This is the **complete** Truck Turnaround & Operations Control System with all FMS features.
+This is the **complete** Truck Turnaround & Operations Control System with all FMS features, bulk actions toolbar, and soft delete.
 
 ### Docker deploy (important)
 
-After updating the ZIP or pulling from GitHub, **rebuild** the Docker image so all Management modules are included:
+After updating the ZIP or pulling from GitHub, **rebuild** the Docker image:
 
 ```bash
 docker compose down
 docker compose up -d --build
 ```
 
-If Management menu pages (Client Orders, Route Catalog, Trip Scheduler, etc.) do nothing or show the dashboard, the Docker image was built from an old Dockerfile that omitted frontend scripts. Rebuild with v2.0.1 or later.
+---
 
-## Option 1 — Download ZIP (fastest)
+## Option 1 — Use the ZIP in this package
 
-1. Go to GitHub Releases:  
-   **https://github.com/bellylukie-hub/Cursor-Project/releases/tag/v2.0.0-production**
-
-2. Download **`TruckControl-Production-v2.0.0-production.zip`**
-
-3. Extract on your server or PC, then:
+If you received `TruckControl-Production-v2.4.0-production.zip`:
 
 ```bash
-cd TruckControl-Production-v2.0.0-production
+unzip TruckControl-Production-v2.4.0-production.zip
+cd TruckControl-Production-v2.4.0-production
 cp .env.example .env
 # Edit .env — set JWT_SECRET (32+ random characters), RUN_SEED=true first time only
 docker compose up -d --build
 ```
 
-4. Open **http://your-server:3001**  
-   Login: `super_admin` / `ChangeMe123!`
+Open **http://your-server:3001** — Login: `super_admin` / `ChangeMe123!`
 
-5. Set `RUN_SEED=false` in `.env` and restart after first deploy.
+Set `RUN_SEED=false` in `.env` and restart after first deploy.
 
 ---
 
-## Option 2 — Clone from GitHub
+## Option 2 — Build ZIP from source
 
 ```bash
 git clone https://github.com/bellylukie-hub/Cursor-Project.git
 cd Cursor-Project
-git checkout v2.0.0-production
+git checkout cursor/bulk-delete-toolbar-42ca   # or main when merged
 
+chmod +x scripts/build-production-zip.sh
+./scripts/build-production-zip.sh v2.4.0-production
+# Output: dist/TruckControl-Production-v2.4.0-production.zip
+```
+
+---
+
+## Option 3 — Clone and run without ZIP
+
+```bash
+git clone https://github.com/bellylukie-hub/Cursor-Project.git
+cd Cursor-Project
 cp .env.example .env
-# Edit JWT_SECRET in .env
-
-cd backend && npm ci && cd ..
 docker compose up -d --build
 ```
 
-Or without Docker:
+---
 
-```bash
-cd backend
-npm ci
-npm run seed    # first time only
-npm start
-```
+## Deploy on a public domain (HTTPS)
+
+1. Run the app on a VPS with Docker (steps above).
+2. Point your domain **A record** to the server IP.
+3. Install **Caddy** or **nginx + Certbot** reverse proxy to `localhost:3001`.
+4. Set `CORS_ORIGIN=https://your-domain.com` in `.env`.
+
+See `docs/images/domain-deployment.svg` and **docs/INSTALLATION.md §12**.
 
 ---
 
-## Option 3 — Build ZIP yourself from source
-
-```bash
-git clone https://github.com/bellylukie-hub/Cursor-Project.git
-cd Cursor-Project
-chmod +x scripts/build-production-zip.sh
-./scripts/build-production-zip.sh v2.0.0-production
-# Output: dist/TruckControl-Production-v2.0.0-production.zip
-```
-
----
-
-## What's included in v2.0.0
+## What's included in v2.4.0
 
 | Module | Features |
 |--------|----------|
-| **Operations** | NB/SB, Border, POD, Position Live, Turnarounds, Reports |
+| **Operations** | NB/SB, Border, POD, Position Live, **bulk actions toolbar**, **soft delete** |
 | **Client Orders** | Full FMS order form, filters, allocation |
 | **Clients** | Client register (CRM) |
-| **Route Catalog** | Stations, loading/offloading points, route templates |
-| **Trip Scheduler** | Fleet set + client orders linked with auto-fill |
-| **Fleet Registry** | Trucks, trailers, drivers, superlink, FMS register |
+| **Route Catalog** | Stations, routes, templates |
+| **Trip Scheduler** | Fleet set + client orders |
+| **Fleet Registry** | Trucks, trailers, drivers, superlink |
 | **Admin** | Users, roles, KPI, themes, Freight & FMS Settings |
-| **Help** | In-app assistant for all workflows |
+| **Help** | In-app assistant, **COMPLETE-MANUAL** with illustrations |
 
 ---
 
 ## Server requirements
 
-- **Docker:** Docker Engine 20+ or Docker Desktop (recommended)
-- **Manual:** Node.js 18+ or 20+, npm
-- **Port:** 3001 (configurable in `.env`)
-- **Disk:** ~200 MB + SQLite data growth
+- **Docker:** Docker Engine 24+ or Docker Desktop (recommended)
+- **Manual:** Node.js 20+, npm
+- **Port:** 3001 internal (use 80/443 via reverse proxy for domain)
+- **Disk:** ~500 MB + database growth
 
-See **PRODUCTION.md** and **docs/INSTALLATION.md** for Linux server, PM2, WAMP, and security hardening.
+See **PRODUCTION.md** and **docs/INSTALLATION.md** for Linux server, PM2, WAMP, and security.
+
+---
+
+## Documentation in the ZIP
+
+| File | Purpose |
+|------|---------|
+| `docs/COMPLETE-MANUAL.md` | Full illustrated user + admin book |
+| `docs/USER-GUIDE.md` | Shorter daily operations guide |
+| `docs/INSTALLATION.md` | Docker, domain, HTTPS, PM2 |
+| `docs/images/*.svg` | Workflow and UI illustrations |
+| `START-HERE.txt` | One-page quick start |

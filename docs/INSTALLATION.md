@@ -1,6 +1,6 @@
 # TruckControl — Master Installation Guide
 
-**Version:** v1.2.0-production  
+**Version:** v2.4.0-production  
 **Default port:** `3001` (web UI + REST API on one port)
 
 This guide covers every supported way to install and run TruckControl: Docker, WAMP (Windows), Linux server, manual Node.js, PM2, XAMPP/LAMP as reverse proxy, and nginx/Caddy for HTTPS.
@@ -436,6 +436,16 @@ truckcontrol.example.com {
 ```
 
 Caddy obtains Let's Encrypt certificates automatically.
+
+### Deploy on your own domain (summary)
+
+1. Extract the production ZIP on a VPS with a public IP.
+2. Run `docker compose up -d --build` (see §4).
+3. Point your domain **A record** to the server IP.
+4. Configure Caddy or nginx as above with your domain name.
+5. Set `CORS_ORIGIN=https://your-domain.com` in `.env` and restart.
+
+See illustration: `docs/images/domain-deployment.svg` and [COMPLETE-MANUAL §5.4](COMPLETE-MANUAL.md#54-deploy-on-a-public-domain-https).
 
 ---
 

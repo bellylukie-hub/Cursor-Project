@@ -1,5 +1,5 @@
 ================================================================================
-  TruckControl — FULL PRODUCTION PACKAGE  (v2.2.0-production)
+  TruckControl — FULL PRODUCTION PACKAGE  (v2.4.0-production)
 ================================================================================
 
 This ZIP is the COMPLETE production web application — all FMS features included.
@@ -20,17 +20,37 @@ QUICK START (Docker — recommended on Windows, Linux, macOS)
 
 4. After first login, edit .env → RUN_SEED=false → docker compose up -d
 
+DEPLOY ON YOUR DOMAIN (worldwide HTTPS)
+---------------------------------------
+1. Run on a cloud VPS (Ubuntu + Docker) using steps above
+2. Point your domain A record to the server IP
+3. Put Caddy or nginx in front for HTTPS (port 443 → localhost:3001)
+4. Set CORS_ORIGIN=https://your-domain.com in .env
+
+See: docs/images/domain-deployment.svg
+     docs/INSTALLATION.md §12 (nginx / Caddy)
+     docs/COMPLETE-MANUAL.md Part V §5.4
+
 DOCUMENTATION (read these)
 --------------------------
-  docs/COMPLETE-MANUAL.md  *** FULL BOOK — step-by-step user + admin + chatbot guide ***
+  docs/COMPLETE-MANUAL.md  *** FULL BOOK — user + admin + chatbot + bulk actions ***
   docs/README.md           Documentation index — start here for all guides
   docs/USER-GUIDE.md       Shorter user directive (menus, workflows, daily ops)
-  docs/INSTALLATION.md     Master install guide (Docker, WAMP, Linux, PM2, etc.)
+  docs/INSTALLATION.md     Master install guide (Docker, WAMP, Linux, PM2, domain)
 
   INSTALL-WAMP-DOCKER.md   Windows + WAMP + Docker (detailed)
   INSTALL-SERVER.md        Linux server quick install
   PRODUCTION.md            Environment variables, PM2, security, API
+  DOWNLOAD.md              Download and deploy options
   README.md                Project overview
+
+NEW IN v2.4.0
+-------------
+  - Bulk actions toolbar (Send SMS, tags, tasks, comments, delete, etc.)
+  - Soft delete + restore (Manager delete, Super Admin restore)
+  - TruckControl favicon + dynamic browser tab titles
+  - Click sidebar logo to return to Dashboard
+  - Updated manual and illustrations (bulk toolbar, domain deploy, soft delete)
 
 INSTALL OPTIONS
 ---------------
@@ -40,31 +60,12 @@ INSTALL OPTIONS
   PM2 (24/7)      — pm2 start ecosystem.config.cjs  (see PRODUCTION.md)
   XAMPP / LAMP    — reverse proxy to port 3001 only (see docs/INSTALLATION.md)
 
-WHAT IS INCLUDED (FULL WEB APP — v2.0.0)
------------------------------------------
-  OPERATIONS
-  - JWT login and RBAC (users, roles, module permissions, area assignments)
-  - NB / SB / Border / POD / Position Live operations tables
-  - Live column manager, KPI colours, upload templates
-  - Turnarounds, runner fees, customizable reports
-
-  FREIGHT MANAGEMENT (FMS)
-  - Client Orders — full FMS order form (route, borders, cargo, container/OOG)
-  - Clients — dedicated client register (CRM)
-  - Route Catalog — countries, stations, loading/offloading points, route templates
-  - Trip Scheduler — assign fleet sets to client orders with auto-fill dropdown
-  - Fleet Registry — trucks, trailers, drivers, fleet sets, superlink pairing
-  - Full FMS vehicle register (~87 columns)
-
-  ADMIN
-  - Users, roles, KPI settings, audit logs, themes, upload templates
-  - Freight & FMS Settings — configure trip scheduler, orders, routes, fleet policies
-  - Fleet — Same Truck for SB turnaround policy
-
-  SUPPORT
-  - Help assistant (chatbot) with guides for all menus and FMS workflows
-  - Process guide in comment modal, driver registry, communication matrix
-  - Docker + PM2 deployment files, sample CSV templates in samples/
+WHAT IS INCLUDED (FULL WEB APP)
+-------------------------------
+  OPERATIONS — NB/SB/Border/POD/Position Live, bulk toolbar, soft delete
+  FMS — Client Orders, Clients, Route Catalog, Trip Scheduler, Fleet Registry
+  ADMIN — Users, roles, KPI, themes, Freight & FMS Settings
+  SUPPORT — Help assistant, process guide, driver registry, Docker + PM2
 
 DEFAULT USERS (after seed)
 --------------------------
@@ -82,12 +83,10 @@ TEST UPLOAD
 REBUILD ZIP FROM SOURCE
 -----------------------
   chmod +x scripts/build-production-zip.sh
-  ./scripts/build-production-zip.sh v2.0.1-production
+  ./scripts/build-production-zip.sh v2.4.0-production
 
-GITHUB (clone latest)
----------------------
+GITHUB
+------
   git clone https://github.com/bellylukie-hub/Cursor-Project.git
-  cd Cursor-Project
-  git checkout v2.0.1-production
 
 ================================================================================

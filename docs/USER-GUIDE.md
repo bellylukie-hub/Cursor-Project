@@ -1,6 +1,6 @@
 # TruckControl — User Guide & Operating Directive
 
-**Version:** v1.2.0-production  
+**Version:** v2.4.0-production  
 **Audience:** Operations staff, border moderators, area supervisors, managers, and administrators
 
 This document explains how to use TruckControl day to day: what each menu does, how workflows move trucks from border entry to POD and southbound exit, and how to upload live files, run reports, and manage users.
@@ -25,6 +25,7 @@ This document explains how to use TruckControl day to day: what each menu does, 
 14. [Reports](#14-reports)
 15. [Notifications and sidebar badges](#15-notifications-and-sidebar-badges)
 16. [Troubleshooting for users](#16-troubleshooting-for-users)
+17. [Bulk actions and soft delete](#17-bulk-actions-and-soft-delete)
 
 ---
 
@@ -55,6 +56,8 @@ Default demo accounts (change after first deploy):
 
 - **Left sidebar** — main navigation; badge numbers show live counts where applicable.
 - **Top bar** — page title, notification bell, theme, and user menu.
+- **Browser tab** — shows the current page name and TruckControl favicon (e.g. `NB Operations — TruckControl`).
+- **Sidebar logo** — click **TruckControl** to go back to the Dashboard.
 - **Main content** — tables, filters, KPI cards, and action buttons for the current page.
 
 ---
@@ -358,10 +361,31 @@ For server installation issues, see [INSTALLATION.md](INSTALLATION.md).
 
 ---
 
+## 17. Bulk actions and soft delete
+
+### Bulk actions toolbar
+
+On **NB Operations**, **SB Operations**, **Border Clearance**, **POD Management**, and **Assets**:
+
+1. Select rows using the **checkbox** column (or **Select all** in the header).
+2. A toolbar appears with actions: **Send Sms**, **Set trip details**, **Assign Tags**, **Bulk Comments**, **Delete**, and more.
+3. Choose an action and complete the modal or confirmation.
+
+See illustration: [COMPLETE-MANUAL §2.2](COMPLETE-MANUAL.md#22-nb-operations-northbound) and `docs/images/bulk-actions-toolbar.svg`.
+
+### Soft delete
+
+- **Delete** hides the row from normal lists (not permanent erase).
+- Tick **Show deleted** in the filter bar to see faded deleted rows.
+- **Super Admin** can **Restore** via the row button or bulk **Restore** in the toolbar.
+- **Managers** can delete but cannot restore.
+
+---
+
 ## Document control
 
 | Field | Value |
 |-------|-------|
 | Product | TruckControl — Truck Turnaround & Operations Control System |
-| Guide version | v1.2.0-production |
+| Guide version | v2.4.0-production |
 | Related docs | [INSTALLATION.md](INSTALLATION.md), [README.md](README.md), [PRODUCTION.md](../PRODUCTION.md) |

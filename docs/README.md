@@ -1,6 +1,6 @@
 # TruckControl Documentation
 
-**Package version:** v2.2.0-production
+**Package version:** v2.4.0-production
 
 Welcome to the TruckControl documentation set included in the production ZIP.
 
@@ -11,11 +11,28 @@ Welcome to the TruckControl documentation set included in the production ZIP.
 | Document | Who it's for | Description |
 |----------|--------------|-------------|
 | [../START-HERE.txt](../START-HERE.txt) | Everyone | One-page quick start after extracting the ZIP |
-| **[COMPLETE-MANUAL.md](COMPLETE-MANUAL.md)** | **Everyone** | **Full book with illustrations — step-by-step app use, chatbot, and every admin setting** |
-| [INSTALLATION.md](INSTALLATION.md) | IT / server admins | **Master install guide** — Docker, WAMP, Linux, Windows, PM2, Apache, nginx |
+| **[COMPLETE-MANUAL.md](COMPLETE-MANUAL.md)** | **Everyone** | **Full book with illustrations — step-by-step app use, chatbot, bulk actions, admin** |
+| [INSTALLATION.md](INSTALLATION.md) | IT / server admins | **Master install guide** — Docker, WAMP, Linux, Windows, PM2, domain, HTTPS |
 | [USER-GUIDE.md](USER-GUIDE.md) | Operations users | Shorter operating directive — menus, workflows, uploads |
 | [../PRODUCTION.md](../PRODUCTION.md) | DevOps | Environment variables, PM2, security checklist, API auth |
+| [../DOWNLOAD.md](../DOWNLOAD.md) | Everyone | Download, build ZIP, deploy on domain |
 | [../README.md](../README.md) | Developers | Project overview and quick start from source |
+
+---
+
+## Illustrations (`docs/images/`)
+
+| Image | Topic |
+|-------|--------|
+| `app-overview.svg` | All major modules |
+| `screen-layout.svg` | Sidebar, top bar, content, help |
+| `bulk-actions-toolbar.svg` | **Checkbox bulk actions toolbar** |
+| `soft-delete-rbac.svg` | **Delete / restore permissions** |
+| `domain-deployment.svg` | **HTTPS domain deployment** |
+| `nb-workflow.svg` / `sb-workflow.svg` | Operations workflows |
+| `fms-workflow.svg` | Orders → trips → fleet |
+| `help-assistant.svg` | Chatbot usage |
+| `admin-setup-order.svg` | Recommended admin setup order |
 
 ---
 
@@ -23,14 +40,11 @@ Welcome to the TruckControl documentation set included in the production ZIP.
 
 | Platform | Primary guide | Section |
 |----------|---------------|---------|
-| **Docker (any OS)** | [INSTALLATION.md §4](INSTALLATION.md#4-docker--all-platforms) | Recommended for all environments |
+| **Docker (any OS)** | [INSTALLATION.md §4](INSTALLATION.md#4-docker--all-platforms) | Recommended |
+| **Public domain + HTTPS** | [INSTALLATION.md §12](INSTALLATION.md#12-nginx--caddy--https) | Caddy / nginx |
 | **Windows + WAMP** | [INSTALLATION.md §5](INSTALLATION.md#5-windows--wamp--docker) | Also [INSTALL-WAMP-DOCKER.md](../INSTALL-WAMP-DOCKER.md) |
 | **Linux server** | [INSTALLATION.md §6–7](INSTALLATION.md#6-linux-server-docker) | Also [INSTALL-SERVER.md](../INSTALL-SERVER.md) |
-| **Windows manual** | [INSTALLATION.md §8](INSTALLATION.md#8-windows-manual-no-docker) | Node.js without Docker |
-| **macOS** | [INSTALLATION.md §9](INSTALLATION.md#9-macos) | Docker or Homebrew Node |
 | **PM2 (24/7)** | [INSTALLATION.md §10](INSTALLATION.md#10-pm2--run-247) | Also [PRODUCTION.md](../PRODUCTION.md) |
-| **XAMPP / LAMP / Apache** | [INSTALLATION.md §11](INSTALLATION.md#11-xampp--lamp--apache-reverse-proxy) | Reverse proxy only |
-| **HTTPS (nginx / Caddy)** | [INSTALLATION.md §12](INSTALLATION.md#12-nginx--caddy--https) | Production TLS |
 
 ---
 
@@ -38,25 +52,12 @@ Welcome to the TruckControl documentation set included in the production ZIP.
 
 | Topic | Location |
 |-------|----------|
-| Sign in and roles | [COMPLETE-MANUAL §1](COMPLETE-MANUAL.md#part-i--introduction) or [USER-GUIDE §1–2](USER-GUIDE.md#1-getting-started) |
-| NB / SB / Border / POD workflows | [COMPLETE-MANUAL §2.2–2.5](COMPLETE-MANUAL.md#22-nb-operations-northbound) |
-| Help assistant (chatbot) | [COMPLETE-MANUAL Part III](COMPLETE-MANUAL.md#part-iii--help-assistant-chatbot) + `images/help-assistant.svg` |
-| Admin setup (every option) | [COMPLETE-MANUAL Part IV](COMPLETE-MANUAL.md#part-iv--administrator-guide-step-by-step) |
-| Daily operating checklist | [COMPLETE-MANUAL §6.1](COMPLETE-MANUAL.md#61-morning-checklist-operations-desk) |
-| CSV uploads and templates | [USER-GUIDE §12](USER-GUIDE.md#12-uploads-and-templates) |
-| Custom and cross-menu reports | [COMPLETE-MANUAL §2.20](COMPLETE-MANUAL.md#220-reports) |
-| FMS (orders, trips, fleet) | [COMPLETE-MANUAL §2.11–2.17](COMPLETE-MANUAL.md#211-clients) |
-| Helpdesk | [COMPLETE-MANUAL §2.10](COMPLETE-MANUAL.md#210-helpdesk) |
-| Fleet Map | [COMPLETE-MANUAL §2.16](COMPLETE-MANUAL.md#216-fleet-map) |
-
----
-
-## Sample files
-
-Located in `samples/` at the package root:
-
-- `NB_Live_Template.csv` — northbound live file template
-- `SB_Live_Template.csv` — southbound live file template
+| Bulk actions toolbar | [COMPLETE-MANUAL §2.2](COMPLETE-MANUAL.md#bulk-actions-checkbox-toolbar) |
+| Soft delete & restore | [COMPLETE-MANUAL §5.5](COMPLETE-MANUAL.md#55-soft-delete-permissions) |
+| Domain deployment | [COMPLETE-MANUAL §5.4](COMPLETE-MANUAL.md#54-deploy-on-a-public-domain-https) |
+| NB / SB / Border / POD | [COMPLETE-MANUAL §2.2–2.5](COMPLETE-MANUAL.md#22-nb-operations-northbound) |
+| Help assistant (chatbot) | [COMPLETE-MANUAL Part III](COMPLETE-MANUAL.md#part-iii--help-assistant-chatbot) |
+| Admin setup | [COMPLETE-MANUAL Part IV](COMPLETE-MANUAL.md#part-iv--administrator-guide-step-by-step) |
 
 ---
 
@@ -64,10 +65,10 @@ Located in `samples/` at the package root:
 
 ```bash
 chmod +x scripts/build-production-zip.sh
-./scripts/build-production-zip.sh v1.2.0-production
+./scripts/build-production-zip.sh v2.4.0-production
 ```
 
-Output: `dist/TruckControl-Production-v1.2.0-production.zip`
+Output: `dist/TruckControl-Production-v2.4.0-production.zip`
 
 ---
 
@@ -76,6 +77,6 @@ Output: `dist/TruckControl-Production-v1.2.0-production.zip`
 1. Set strong `JWT_SECRET` in `.env`
 2. Set `RUN_SEED=false` after first deploy
 3. Change default user passwords
-4. Open firewall port 3001 (or your `PORT`)
-5. Back up `truckcontrol.db` and `uploads/` regularly
-6. Put HTTPS in front for internet-facing deployments
+4. Put HTTPS (Caddy/nginx) in front for internet-facing domain
+5. Set `CORS_ORIGIN` to your HTTPS domain
+6. Back up `truckcontrol.db` and `uploads/` regularly
