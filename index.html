@@ -477,9 +477,47 @@
             justify-content: space-between; border-bottom: 1px solid var(--border);
             box-shadow: var(--shadow); z-index: 10;
         }
-        .search-box { display: flex; align-items: center; background: var(--bg-main); border-radius: 25px; padding: 8px 20px; width: 400px; }
-        .search-box input { border: none; background: transparent; outline: none; flex: 1; font-size: 14px; }
-        .search-box .search-icon { color: var(--text-secondary); margin-right: 10px; }
+        .search-box { display: flex; align-items: center; background: var(--bg-main); border-radius: 25px; padding: 8px 20px; width: 400px; position: relative; }
+        .search-box input { border: none; background: transparent; outline: none; flex: 1; font-size: 14px; min-width: 0; }
+        .search-box .search-icon { color: var(--text-secondary); margin-right: 10px; flex-shrink: 0; }
+        .global-search-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            max-height: 360px;
+            overflow-y: auto;
+            background: var(--bg-card, #fff);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+            z-index: 500;
+        }
+        .global-search-dropdown.show { display: block; }
+        .global-search-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            width: 100%;
+            padding: 12px 14px;
+            border: none;
+            border-bottom: 1px solid var(--border);
+            background: transparent;
+            cursor: pointer;
+            text-align: left;
+            color: var(--text-primary);
+        }
+        .global-search-item:last-child { border-bottom: none; }
+        .global-search-item:hover,
+        .global-search-item.active { background: rgba(249, 115, 22, 0.1); }
+        .global-search-item .gsi-icon { font-size: 18px; width: 24px; text-align: center; flex-shrink: 0; }
+        .global-search-item .gsi-body { flex: 1; min-width: 0; }
+        .global-search-item .gsi-label { font-size: 14px; font-weight: 600; display: block; }
+        .global-search-item .gsi-sub { font-size: 12px; color: var(--text-secondary); display: block; margin-top: 2px; }
+        .global-search-item .gsi-type { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); flex-shrink: 0; }
+        .global-search-empty { padding: 16px; font-size: 13px; color: var(--text-secondary); text-align: center; }
+        .global-search-hint { padding: 10px 14px; font-size: 11px; color: var(--text-secondary); border-bottom: 1px solid var(--border); }
         .top-bar-actions { display: flex; align-items: center; gap: 20px; }
         .notification-btn { position: relative; background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-secondary); }
         .notification-btn .count {
@@ -2331,9 +2369,34 @@
             height: 100vh;
             z-index: 299;
             background: transparent;
+            cursor: pointer;
         }
+        .sidebar-trigger-zone::after {
+            content: '›';
+            position: absolute;
+            left: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 12px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(249, 115, 22, 0.85);
+            color: #0a0a0c;
+            border-radius: 0 8px 8px 0;
+            font-size: 16px;
+            font-weight: 700;
+            opacity: 0.85;
+            transition: opacity 0.2s;
+        }
+        .sidebar-trigger-zone:hover::after { opacity: 1; }
         body.sidebar-pinned .sidebar-trigger-zone,
-        body.sidebar-open .sidebar-trigger-zone { width: 0; pointer-events: none; }
+        body.sidebar-open .sidebar-trigger-zone,
+        body.sidebar-peek .sidebar-trigger-zone { width: 0; pointer-events: none; }
+        body.sidebar-pinned .sidebar-trigger-zone::after,
+        body.sidebar-open .sidebar-trigger-zone::after,
+        body.sidebar-peek .sidebar-trigger-zone::after { display: none; }
         .sidebar-pin-btn {
             margin-left: auto;
             background: transparent;
@@ -2597,7 +2660,11 @@
                 <button class="btn btn-outline" onclick="toggleSidebar()" style="margin-right:15px;">☰</button>
                 <div class="search-box">
                     <span class="search-icon">🔍</span>
-                    <input type="text" placeholder="Search trucks, trips, orders..." id="globalSearch" onkeyup="handleGlobalSearch()">
+                    <input type="text" placeholder="Search trucks, trips, orders..." id="globalSearch" autocomplete="off"
+                        oninput="handleGlobalSearch()"
+                        onkeydown="handleGlobalSearchKeydown(event)"
+                        onfocus="handleGlobalSearch()">
+                    <div class="global-search-dropdown" id="globalSearchDropdown" role="listbox" aria-label="Search results"></div>
                 </div>
                 <div class="top-bar-actions">
                     <button type="button" class="top-bar-theme-btn" title="Change theme" onclick="openThemePicker()" aria-label="Change theme">🎨</button>

@@ -10092,7 +10092,263 @@ function handleUpload() {
     showToast('✅ Upload complete!', 'success');
     closeModal('uploadModal');
 }
-function handleGlobalSearch(){ const term=document.getElementById('globalSearch').value.toLowerCase(); if(!term)return; for(const[key,trip]of Object.entries(tripsDB)){ if(trip.tripNumber.toLowerCase().includes(term)||trip.truck.toLowerCase().includes(term)||trip.driver.toLowerCase().includes(term)){ showToast(`Found: ${trip.tripNumber} - ${trip.truck}`,'success'); return; } } showToast('No matching trucks found','warning'); }
+
+let globalSearchResults = [];
+let globalSearchActiveIndex = -1;
+let globalSearchDebounce = null;
+
+const GLOBAL_MENU_PAGES = [
+    { page: 'dashboard', label: 'Dashboard', icon: '📊', keywords: 'home overview' },
+    { page: 'nb-operations', label: 'NB Operations', icon: '🚛', keywords: 'northbound trucks' },
+    { page: 'sb-operations', label: 'SB Operations', icon: '🚛', keywords: 'southbound trucks' },
+    { page: 'border-clearance', label: 'Border Clearance', icon: '🛂', keywords: 'border kasumbalesa sakania' },
+    { page: 'pod-management', label: 'POD Management', icon: '📋', keywords: 'proof delivery pod' },
+    { page: 'client-orders', label: 'Client Orders', icon: '📦', keywords: 'orders fms freight' },
+    { page: 'fleet-registry', label: 'Fleet Registry', icon: '🚛', keywords: 'trucks trailers drivers fleet' },
+    { page: 'internal-communication', label: 'Internal Communication', icon: '✉️', keywords: 'email chat message' },
+    { page: 'helpdesk', label: 'Helpdesk', icon: '🎫', keywords: 'support issue ticket' },
+    { page: 'assets', label: 'Assets & Equipment', icon: '🚗', keywords: 'vehicles equipment documents' },
+    { page: 'communication-matrix', label: 'Communication Matrix', icon: '📇', keywords: 'contacts agents' },
+    { page: 'driver-registry', label: 'Driver Registry', icon: '📱', keywords: 'drivers whatsapp drc' },
+    { page: 'position-live', label: 'Position Live', icon: '📍', keywords: 'gps location tracking' },
+    { page: 'reports', label: 'Reports', icon: '📈', keywords: 'export report' },
+    { page: 'admin-users', label: 'Manage Users', icon: '👥', keywords: 'admin users accounts' }
+];
+
+function normalizeSearchText(val) {
+    return String(val || '').toLowerCase().trim();
+}
+
+function haystackIncludes(hay, term) {
+    return normalizeSearchText(hay).includes(term);
+}
+
+function collectGlobalSearchResults(term) {
+    const t = normalizeSearchText(term);
+    if (!t || t.length < 2) return [];
+    const results = [];
+    const seen = new Set();
+    const push = (item) => {
+        const key = `${item.type}:${item.label}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        results.push(item);
+    };
+
+    Object.values(tripsDB || {}).forEach(trip => {
+        const hay = [trip.tripNumber, trip.truck, trip.driver, trip.owner, trip.area, trip.status,
+            trip.loadingPoint, trip.offloadingPoint, trip.entryBorder, trip.exitBorder, trip.commodity].join(' ');
+        if (!haystackIncludes(hay, t)) return;
+        const isSb = trip.direction === 'SB';
+        push({
+            type: 'Trip',
+            icon: isSb ? '⬇️' : '⬆️',
+            label: `${trip.tripNumber} — ${trip.truck}`,
+            sublabel: `${trip.direction} · ${trip.driver || '—'} · ${trip.area || '—'}`,
+            action: { kind: 'trip', direction: trip.direction, tripNumber: trip.tripNumber, term: t }
+        });
+    });
+
+    const orders = typeof getFleetOrders === 'function' ? getFleetOrders() : [];
+    orders.forEach(o => {
+        const hay = [o.id, o.orderRef, o.customerRef, o.shipper, o.consignee, o.containerNo, o.commodity, o.truck, o.status].join(' ');
+        if (!haystackIncludes(hay, t)) return;
+        push({
+            type: 'Order',
+            icon: '📦',
+            label: o.orderRef || o.id,
+            sublabel: `${o.shipper || '—'} · ${o.status || '—'}`,
+            action: { kind: 'order', orderRef: o.orderRef || o.id, term: t }
+        });
+    });
+
+    (communicationMatrixDB || []).forEach(c => {
+        const hay = [c.id, c.name, c.company, c.function, c.email, c.phone, c.area, c.placeOfWork].join(' ');
+        if (!haystackIncludes(hay, t)) return;
+        push({
+            type: 'Contact',
+            icon: '📇',
+            label: c.name,
+            sublabel: `${c.function || '—'} · ${c.area || '—'}`,
+            action: { kind: 'page', page: 'communication-matrix', term: t }
+        });
+    });
+
+    (driverContactsDB || []).forEach(d => {
+        const hay = [d.tripNumber, d.driverName, d.truck, d.drcNumber, d.whatsapp, d.border, d.owner].join(' ');
+        if (!haystackIncludes(hay, t)) return;
+        push({
+            type: 'Driver',
+            icon: '📱',
+            label: `${d.driverName} (${d.truck})`,
+            sublabel: `${d.tripNumber} · ${d.border || '—'}`,
+            action: { kind: 'page', page: 'driver-registry', term: t }
+        });
+    });
+
+    (assetsRegistryDB || []).forEach(a => {
+        const hay = [a.id, a.name, a.registration, a.type, a.category, a.status, a.assignedTo].join(' ');
+        if (!haystackIncludes(hay, t)) return;
+        push({
+            type: 'Asset',
+            icon: '🚗',
+            label: `${a.id} — ${a.name || a.registration || 'Asset'}`,
+            sublabel: `${a.category || '—'} · ${a.status || '—'}`,
+            action: { kind: 'page', page: 'assets', term: t }
+        });
+    });
+
+    GLOBAL_MENU_PAGES.forEach(p => {
+        const hay = `${p.label} ${p.keywords} ${p.page}`;
+        if (!haystackIncludes(hay, t)) return;
+        if (typeof canAccessPage === 'function' && !canAccessPage(p.page)) return;
+        push({
+            type: 'Menu',
+            icon: p.icon,
+            label: p.label,
+            sublabel: 'Open page',
+            action: { kind: 'page', page: p.page, term: t }
+        });
+    });
+
+    return results.slice(0, 14);
+}
+
+function closeGlobalSearchDropdown() {
+    const dd = document.getElementById('globalSearchDropdown');
+    if (dd) {
+        dd.classList.remove('show');
+        dd.innerHTML = '';
+    }
+    globalSearchActiveIndex = -1;
+    globalSearchResults = [];
+}
+
+function renderGlobalSearchDropdown(results) {
+    const dd = document.getElementById('globalSearchDropdown');
+    if (!dd) return;
+    globalSearchResults = results;
+    globalSearchActiveIndex = results.length ? 0 : -1;
+    if (!results.length) {
+        dd.innerHTML = '<div class="global-search-empty">No matches — try trip #, truck plate, order ref, or menu name</div>';
+        dd.classList.add('show');
+        return;
+    }
+    dd.innerHTML = `<div class="global-search-hint">${results.length} result(s) — ↑↓ navigate, Enter open</div>` +
+        results.map((r, i) => `
+            <button type="button" class="global-search-item${i === 0 ? ' active' : ''}" data-idx="${i}" onclick="openGlobalSearchResult(${i})">
+                <span class="gsi-icon">${r.icon}</span>
+                <span class="gsi-body"><span class="gsi-label">${r.label}</span><span class="gsi-sub">${r.sublabel}</span></span>
+                <span class="gsi-type">${r.type}</span>
+            </button>
+        `).join('');
+    dd.classList.add('show');
+}
+
+function highlightGlobalSearchItem(index) {
+    globalSearchActiveIndex = index;
+    document.querySelectorAll('.global-search-item').forEach((el, i) => {
+        el.classList.toggle('active', i === index);
+    });
+}
+
+function openGlobalSearchResult(index) {
+    const item = globalSearchResults[index];
+    if (!item?.action) return;
+    const input = document.getElementById('globalSearch');
+    if (input) input.blur();
+    closeGlobalSearchDropdown();
+    applyGlobalSearchAction(item.action);
+}
+
+function applyGlobalSearchAction(action) {
+    if (!action) return;
+    switch (action.kind) {
+        case 'trip': {
+            const page = action.direction === 'SB' ? 'sb-operations' : 'nb-operations';
+            const searchId = action.direction === 'SB' ? 'sbSearchInput' : 'nbSearchInput';
+            const refreshFn = action.direction === 'SB' ? 'refreshSBTable' : 'refreshNBTable';
+            navigateTo(page);
+            setTimeout(() => {
+                const el = document.getElementById(searchId);
+                if (el) {
+                    el.value = action.tripNumber || action.term || '';
+                    if (typeof window[refreshFn] === 'function') window[refreshFn]();
+                }
+            }, 120);
+            showToast(`Opened ${action.tripNumber}`, 'success');
+            break;
+        }
+        case 'order':
+            navigateTo('client-orders');
+            setTimeout(() => {
+                const el = document.getElementById('coFiltOrderRef');
+                if (el) {
+                    el.value = action.orderRef || action.term || '';
+                    if (typeof fleetOrderFetch === 'function') fleetOrderFetch();
+                }
+            }, 150);
+            showToast('Opened Client Orders', 'success');
+            break;
+        case 'page':
+            if (action.page?.startsWith('admin-')) navigateToAdmin(action.page);
+            else navigateTo(action.page);
+            if (action.term) {
+                setTimeout(() => {
+                    const pageSearch = document.querySelector('#contentArea input[type="text"][placeholder*="Search" i]');
+                    if (pageSearch && !pageSearch.id?.includes('global')) {
+                        pageSearch.value = action.term;
+                        pageSearch.dispatchEvent(new Event('input', { bubbles: true }));
+                        pageSearch.dispatchEvent(new Event('keyup', { bubbles: true }));
+                    }
+                }, 200);
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+function handleGlobalSearch() {
+    clearTimeout(globalSearchDebounce);
+    globalSearchDebounce = setTimeout(() => {
+        const term = document.getElementById('globalSearch')?.value || '';
+        if (!normalizeSearchText(term)) {
+            closeGlobalSearchDropdown();
+            return;
+        }
+        renderGlobalSearchDropdown(collectGlobalSearchResults(term));
+    }, 180);
+}
+
+function handleGlobalSearchKeydown(event) {
+    const dd = document.getElementById('globalSearchDropdown');
+    const open = dd?.classList.contains('show');
+    if (event.key === 'Escape') {
+        closeGlobalSearchDropdown();
+        return;
+    }
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        if (open && globalSearchResults.length) {
+            openGlobalSearchResult(globalSearchActiveIndex >= 0 ? globalSearchActiveIndex : 0);
+        } else {
+            const results = collectGlobalSearchResults(document.getElementById('globalSearch')?.value || '');
+            if (results.length) openGlobalSearchResult(0);
+            else showToast('No matches found', 'warning');
+        }
+        return;
+    }
+    if (!open || !globalSearchResults.length) return;
+    if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        highlightGlobalSearchItem(Math.min(globalSearchActiveIndex + 1, globalSearchResults.length - 1));
+    } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        highlightGlobalSearchItem(Math.max(globalSearchActiveIndex - 1, 0));
+    }
+}
+
 function openNavAlerts(menuKey) {
     const panel = document.getElementById('alertPanel');
     if (!panel) return;
