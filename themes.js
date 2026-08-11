@@ -9,7 +9,7 @@
         {
             id: 'control-room-black',
             name: 'Control Room Black',
-            description: 'Special black operations console — dark UI with orange accents (default).',
+            description: 'Special black operations console — dark UI with orange accents.',
             icon: '🖥️',
             preview: ['#0a0a0c', '#f97316', '#16161c'],
             vars: {
@@ -34,7 +34,7 @@
         {
             id: 'ocean-blue',
             name: 'Ocean Blue',
-            description: 'Classic professional blue — the default TruckControl look.',
+            description: 'Classic professional blue — the default TruckControl look (default).',
             icon: '🌊',
             preview: ['#1a365d', '#2b6cb0', '#1e2a3a'],
             vars: {
@@ -220,7 +220,7 @@
             const userTheme = localStorage.getItem(USER_THEME_KEY);
             if (userTheme && APP_THEMES.some(t => t.id === userTheme)) return userTheme;
         } catch (_) {}
-        return window.systemSettingsDB?.activeTheme || 'control-room-black';
+        return window.systemSettingsDB?.activeTheme || 'ocean-blue';
     };
 
     window.applyAppTheme = function (themeId) {
@@ -276,14 +276,14 @@
             const stored = raw ? JSON.parse(raw) : null;
             const id = (userTheme && APP_THEMES.some(t => t.id === userTheme))
                 ? userTheme
-                : (stored?.activeTheme || window.systemSettingsDB?.activeTheme || 'control-room-black');
+                : (stored?.activeTheme || window.systemSettingsDB?.activeTheme || 'ocean-blue');
             const theme = applyAppTheme(id);
             if (typeof onAppThemeApplied === 'function') onAppThemeApplied(theme);
             if (window.systemSettingsDB && !window.systemSettingsDB.activeTheme) {
                 window.systemSettingsDB.activeTheme = id;
             }
         } catch {
-            const theme = applyAppTheme('control-room-black');
+            const theme = applyAppTheme('ocean-blue');
             if (typeof onAppThemeApplied === 'function') onAppThemeApplied(theme);
         }
     };

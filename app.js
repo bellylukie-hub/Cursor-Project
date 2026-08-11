@@ -62,7 +62,7 @@ let emailView = 'list';
 let emailComposeData = null;
 let emailSearchTerm = '';
 let emailAttachments = [];
-let activeChatRoomId = 'ROOM-004';
+let activeChatRoomId = null;
 let chatListSearch = '';
 let chatReplyToId = null;
 let chatPendingFile = null;
@@ -1431,7 +1431,7 @@ function getTripAreaHistory(tripNumber) {
 }
 
 const MATRIX_FUNCTIONS = ['Clearing Agent', 'Border Officer', 'Customs Inspector', 'Runner', 'Driver', 'Dispatcher', 'Area Supervisor', 'POD Officer', 'Asset Controller', 'Management'];
-const INTERNAL_LINK_TYPES = ['trip', 'truck', 'car', 'asset', 'equipment', 'area', 'user'];
+const INTERNAL_LINK_TYPES = ['trip', 'truck', 'trailer', 'car', 'asset', 'equipment', 'area', 'user'];
 
 const communicationMatrixDB = [
     { id: 'CM-001', name: 'Jean Kalenga', company: 'Clearing Agent Services', function: 'Clearing Agent', email: 'jean.kalenga@cas.com', placeOfWork: 'Kasumbalesa KBP Brigade Office', phone: '+260 977 111222', whatsapp: '+260 977 111222', area: 'Kasumbalesa', active: true, notes: 'Primary KBP clearing contact' },
@@ -1528,7 +1528,7 @@ const systemSettingsDB = {
     backupRetentionDays: 30,
     appName: 'Truck Turnaround & Operations Control System',
     supportEmail: 'support@truckcontrol.local',
-    activeTheme: 'control-room-black'
+    activeTheme: 'ocean-blue'
 };
 
 const auditLogsDB = [
@@ -1854,6 +1854,8 @@ function switchSessionUser(userId) {
     }
     CURRENT_SESSION_USER_ID = userId;
     updateTopBarUser();
+    if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
+    if (typeof initInternalComm === 'function') initInternalComm(true);
     logAuditEvent(`Switched session to ${user.username}`, userId, 'session', 'Demo role switch');
     showToast(`Now logged in as ${user.username} (${getRoleById(user.roleId)?.name})`, 'success');
     updateAdminNavVisibility();
@@ -7338,7 +7340,12 @@ function selectEmail(id) {
     emailView = 'read';
     emailComposeData = null;
     const email = getEmailById(id);
-    if (email && !email.read) email.read = true;
+    if (email && !email.read) {
+        email.read = true;
+        if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof updateInternalEmailApi === 'function') {
+            updateInternalEmailApi(id, { read: true }).catch(() => {});
+        }
+    }
     if (typeof persistInternalComm === 'function') persistInternalComm();
     if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
     renderInternalCommunication(document.getElementById('contentArea'));
@@ -7419,6 +7426,19 @@ function removeEmailAttachment(index) {
     if (list) list.innerHTML = emailAttachments.map((a, i) => `<span class="outlook-attach-chip">📎 ${a.name} <button type="button" class="btn btn-outline btn-sm" onclick="removeEmailAttachment(${i})">✕</button></span>`).join('');
 }
 
+function resolveEmailTokens(tokens) {
+    return (tokens || []).map(token => {
+        const t = String(token || '').trim();
+        if (!t) return '';
+        const contact = getInternalCommContactList().find(c =>
+            c.email.toLowerCase() === t.toLowerCase()
+            || c.username.toLowerCase() === t.toLowerCase()
+            || c.name.toLowerCase() === t.toLowerCase()
+        );
+        return contact ? contact.email : t;
+    }).filter(Boolean);
+}
+
 function sendEmailFromCompose(saveAsDraft) {
     const to = (document.getElementById('emailComposeTo')?.value || '').split(',').map(s => s.trim()).filter(Boolean);
     const cc = (document.getElementById('emailComposeCc')?.value || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -7446,11 +7466,14 @@ function sendEmailFromCompose(saveAsDraft) {
     };
 
     (async () => {
+        const resolvedTo = resolveEmailTokens(to);
+        const resolvedCc = resolveEmailTokens(cc);
+        const resolvedBcc = resolveEmailTokens(bcc);
         if (!saveAsDraft && typeof isApiAvailable === 'function' && isApiAvailable() && typeof sendInternalEmailApi === 'function') {
             try {
                 await sendInternalEmailApi({
                     id: `EM-${Date.now()}`,
-                    to, cc, bcc, subject, body,
+                    to: resolvedTo, cc: resolvedCc, bcc: resolvedBcc, subject, body,
                     attachments: [...emailAttachments],
                     relatedType: linkType, relatedRef: linkRef, relatedLabel
                 });
@@ -7485,7 +7508,7 @@ function sendEmailFromCompose(saveAsDraft) {
             if (!saveAsDraft) {
                 email.ownerEmail = getCurrentCommUserEmail();
                 if (typeof deliverInternalEmailCopies === 'function') {
-                    deliverInternalEmailCopies(email, [...to, ...cc]);
+                    deliverInternalEmailCopies(email, [...resolvedTo, ...resolvedCc, ...resolvedBcc]);
                 }
             }
         }
@@ -7557,6 +7580,8 @@ function renderEmailReadPane(email) {
 
 function renderEmailComposePane() {
     const pre = emailComposeData?.prefill || {};
+    const contacts = getInternalCommContactList();
+    const datalistOptions = contacts.map(u => `<option value="${u.email}">${u.name} (${u.username})</option>`).join('');
     return `
         <div class="outlook-read-toolbar">
             <button class="btn btn-primary btn-sm" onclick="sendEmailFromCompose(false)">📤 Send</button>
@@ -7564,38 +7589,55 @@ function renderEmailComposePane() {
             <button class="btn btn-outline btn-sm" onclick="emailView='list';emailComposeData=null;renderInternalCommunication(document.getElementById('contentArea'))">✕ Discard</button>
         </div>
         <div class="outlook-compose-pane">
-            <div class="outlook-compose-row"><label>To</label><input type="text" class="form-control" id="emailComposeTo" value="${(pre.to || []).join(', ')}" placeholder="Select system users, comma-separated"></div>
-            <div class="outlook-compose-row"><label>CC</label><input type="text" class="form-control" id="emailComposeCc" value="${(pre.cc || []).join(', ')}" placeholder="CC recipients"></div>
-            <div class="outlook-compose-row"><label>BCC</label><input type="text" class="form-control" id="emailComposeBcc" value="${(pre.bcc || []).join(', ')}" placeholder="BCC recipients"></div>
+            <datalist id="internalCommUserList">${datalistOptions}</datalist>
+            <div class="outlook-compose-row"><label>To</label><input type="text" class="form-control" id="emailComposeTo" list="internalCommUserList" value="${(pre.to || []).join(', ')}" placeholder="Select colleagues — use email or name"></div>
+            <div class="outlook-compose-row"><label>CC</label><input type="text" class="form-control" id="emailComposeCc" list="internalCommUserList" value="${(pre.cc || []).join(', ')}" placeholder="CC recipients"></div>
+            <div class="outlook-compose-row"><label>BCC</label><input type="text" class="form-control" id="emailComposeBcc" list="internalCommUserList" value="${(pre.bcc || []).join(', ')}" placeholder="BCC recipients"></div>
             <div class="outlook-compose-row"><label>Subject</label><input type="text" class="form-control" id="emailComposeSubject" value="${pre.subject || ''}"></div>
-            <div class="outlook-compose-row"><label>Link</label><div style="display:flex;gap:8px;"><select class="form-control" id="emailComposeLinkType" onchange="populateEmailLinkSelect()" style="max-width:140px;"><option value="">None</option>${INTERNAL_LINK_TYPES.map(t => `<option value="${t}" ${pre.relatedType === t ? 'selected' : ''}>${t}</option>`).join('')}</select><select class="form-control" id="emailComposeLinkRef" style="flex:1;"><option value="">Reference</option></select></div></div>
+            <div class="outlook-compose-row"><label>Link</label><div style="display:flex;gap:8px;"><select class="form-control" id="emailComposeLinkType" onchange="populateInternalLinkSelect('emailComposeLinkRef')" style="max-width:140px;"><option value="">None</option>${INTERNAL_LINK_TYPES.map(t => `<option value="${t}" ${pre.relatedType === t ? 'selected' : ''}>${t}</option>`).join('')}</select><select class="form-control" id="emailComposeLinkRef" style="flex:1;"><option value="">Reference</option></select></div></div>
             <div style="margin:12px 0 8px 70px;"><label class="btn btn-outline btn-sm" style="cursor:pointer;">📎 Attach<input type="file" hidden onchange="handleEmailAttachmentSelect(this)"></label><div id="emailAttachList" class="outlook-attach-list">${emailAttachments.map((a, i) => `<span class="outlook-attach-chip">📎 ${a.name} <button type="button" class="btn btn-outline btn-sm" onclick="removeEmailAttachment(${i})">✕</button></span>`).join('')}</div></div>
             <div class="outlook-compose-row" style="align-items:start;"><label>Message</label><textarea class="form-control" id="emailComposeBody" rows="14">${pre.body || ''}</textarea></div>
-            <div style="margin-left:70px;font-size:12px;color:var(--text-secondary);">Quick add: ${getInternalCommContactList().slice(0, 12).map(u => `<button type="button" class="btn btn-outline btn-sm" style="margin:2px;" onclick="appendEmailRecipient('${(u.username || u.name).replace(/'/g, "\\'")}')" title="${u.email}">${u.name}</button>`).join('')}</div>
+            <div style="margin-left:70px;">
+                <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">System users (${contacts.length}) — click to add to To:</div>
+                <div class="internal-comm-contact-pick">${contacts.map(u => `<button type="button" class="btn btn-outline btn-sm" style="margin:2px;" onclick="appendEmailRecipient('${u.email.replace(/'/g, "\\'")}', true)" title="${u.email}">${u.name}</button>`).join('') || '<span style="color:var(--text-secondary);">No other users — add users in Admin → Manage Users</span>'}</div>
+            </div>
         </div>`;
 }
 
-function appendEmailRecipient(token) {
+function appendEmailRecipient(token, useEmail) {
     const el = document.getElementById('emailComposeTo');
     if (!el) return;
     const current = el.value.split(',').map(s => s.trim()).filter(Boolean);
-    const value = String(token || '').trim();
+    const contact = getInternalCommContactList().find(u =>
+        u.email.toLowerCase() === String(token).toLowerCase()
+        || u.username.toLowerCase() === String(token).toLowerCase()
+        || u.name.toLowerCase() === String(token).toLowerCase()
+    );
+    const value = (useEmail !== false && contact?.email) ? contact.email : (contact?.email || String(token || '').trim());
     if (!value) return;
     if (!current.some(v => v.toLowerCase() === value.toLowerCase())) current.push(value);
     el.value = current.join(', ');
 }
 
-function populateEmailLinkSelect() {
-    const type = document.getElementById('emailComposeLinkType')?.value;
-    const select = document.getElementById('emailComposeLinkRef');
+function populateInternalLinkSelect(selectId) {
+    const typeEl = selectId === 'emailComposeLinkRef'
+        ? document.getElementById('emailComposeLinkType')
+        : document.getElementById('chatComposeLinkType');
+    const type = typeEl?.value;
+    const select = document.getElementById(selectId);
     if (!select) return;
     let options = '<option value="">— Select —</option>';
     if (type === 'trip') options += Object.values(tripsDB).map(t => `<option value="${t.tripNumber}">${t.tripNumber} — ${t.truck}</option>`).join('');
     else if (type === 'area') options += MATRIX_AREAS.map(a => `<option value="${a}">${a}</option>`).join('');
-    else if (type === 'asset' || type === 'equipment') options += assetsRegistryDB.map(a => `<option value="${a.id}">${a.id}</option>`).join('');
-    else if (type === 'truck' || type === 'car') options += Object.values(tripsDB).map(t => `<option value="${t.truck}">${t.truck}</option>`).join('');
-    else if (type === 'user') options += systemUsersDB.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
+    else if (type === 'asset' || type === 'equipment') options += assetsRegistryDB.map(a => `<option value="${a.id}">${a.id} — ${a.name || a.registration || ''}</option>`).join('');
+    else if (type === 'trailer') options += assetsRegistryDB.filter(a => /trailer/i.test(a.category || '') || /trailer/i.test(a.assetType || '') || /trailer/i.test(a.name || '')).map(a => `<option value="${a.id}">${a.id} — ${a.name || a.registration || 'Trailer'}</option>`).join('');
+    else if (type === 'truck' || type === 'car') options += Object.values(tripsDB).map(t => `<option value="${t.truck}">${t.truck} (${t.tripNumber})</option>`).join('');
+    else if (type === 'user') options += getInternalCommContactList().map(u => `<option value="${u.email}">${u.name} — ${u.email}</option>`).join('');
     select.innerHTML = options;
+}
+
+function populateEmailLinkSelect() {
+    populateInternalLinkSelect('emailComposeLinkRef');
 }
 
 function renderOutlookClient() {
@@ -7672,6 +7714,17 @@ function renderWaTicks(status) {
 
 function renderWaMessages(roomId) {
     const messages = getChatMessages(roomId);
+    const formatBody = m => {
+        if (m.type === 'file' || (m.attachmentName && !m.message.startsWith('🔗'))) {
+            return `<div class="wa-file">📎 ${m.fileName || m.attachmentName || m.message}</div>`;
+        }
+        if (m.message.startsWith('🔗')) {
+            const lines = m.message.split('\n');
+            const body = lines.slice(1).join('\n');
+            return `<div class="wa-tag-line">${lines[0]}</div>${body ? body : ''}`;
+        }
+        return m.message;
+    };
     return messages.map(m => {
         const isSent = m.sender === getCurrentCommUserName();
         const reply = m.replyTo ? chatMessagesDB.find(x => x.id === m.replyTo) : null;
@@ -7679,7 +7732,7 @@ function renderWaMessages(roomId) {
         <div class="wa-msg-row ${isSent ? 'sent' : 'received'}">
             <div class="wa-bubble ${isSent ? 'sent' : 'received'}" ondblclick="setChatReply('${m.id}')" title="Double-click to reply">
                 ${reply ? `<div class="wa-reply">${reply.sender}: ${reply.message.slice(0, 60)}</div>` : ''}
-                ${m.type === 'file' ? `<div class="wa-file">📎 ${m.fileName || m.message}</div>` : m.message}
+                ${formatBody(m)}
                 <div class="wa-bubble-footer"><span>${m.sentAt.split(' ')[1] || m.sentAt}</span>${isSent ? renderWaTicks(m.status) : `<button type="button" class="btn btn-outline btn-sm" style="padding:0 6px;font-size:10px;margin-left:6px;" onclick="event.stopPropagation();setChatReply('${m.id}')">↩</button>`}</div>
             </div>
         </div>`;
@@ -7702,6 +7755,12 @@ function renderWaConversation() {
             <button class="btn btn-outline btn-sm" onclick="toggleChatMute('${room.id}')">${room.muted ? '🔔' : '🔇'}</button>
         </div>
         ${replyMsg ? `<div class="wa-reply-bar"><span>Replying to <strong>${replyMsg.sender}</strong>: ${replyMsg.message.slice(0, 50)}</span><button class="btn btn-outline btn-sm" onclick="chatReplyToId=null;renderInternalCommunication(document.getElementById('contentArea'))">✕</button></div>` : ''}
+        <div class="wa-tag-bar">
+            <select class="form-control" id="chatComposeLinkType" onchange="populateInternalLinkSelect('chatComposeLinkRef')" style="max-width:120px;font-size:12px;">
+                <option value="">Tag…</option>${INTERNAL_LINK_TYPES.map(t => `<option value="${t}">${t}</option>`).join('')}
+            </select>
+            <select class="form-control" id="chatComposeLinkRef" style="flex:1;font-size:12px;"><option value="">Reference</option></select>
+        </div>
         <div class="wa-messages" id="waMessagesPane">${renderWaMessages(room.id)}</div>
         <div class="wa-input-bar">
             <button class="wa-icon-btn" title="Attach" onclick="document.getElementById('waFileInput').click()">📎</button>
@@ -7729,8 +7788,12 @@ function renderWhatsAppClient() {
 function sendWaMessage() {
     const roomId = activeChatRoomId;
     const input = document.getElementById('waMessageInput');
-    const text = input?.value.trim();
-    if (!roomId || !text) return;
+    const rawText = input?.value.trim();
+    if (!roomId || !rawText) return;
+    const tagPrefix = buildChatTagPrefix();
+    const text = tagPrefix ? `${tagPrefix}${rawText}` : rawText;
+    const linkType = document.getElementById('chatComposeLinkType')?.value || '';
+    const linkRef = document.getElementById('chatComposeLinkRef')?.value || '';
     const msg = {
         id: `CHAT-${String(nextChatMessageId++).padStart(3, '0')}`,
         roomId, sender: getCurrentCommUserName(), message: text, type: 'text', fileName: null,
@@ -7740,6 +7803,10 @@ function sendWaMessage() {
         if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof sendInternalChatMessageApi === 'function') {
             try {
                 await sendInternalChatMessageApi({ id: msg.id, roomId, message: text, replyTo: chatReplyToId });
+                if (linkType && linkRef) {
+                    const room = chatRoomsDB.find(r => r.id === roomId);
+                    if (room) { room.relatedType = linkType; room.relatedRef = linkRef; }
+                }
                 if (typeof syncInternalCommFromApi === 'function') await syncInternalCommFromApi();
             } catch (e) {
                 showToast(e.message || 'Failed to send message', 'warning');
@@ -7748,7 +7815,11 @@ function sendWaMessage() {
         } else {
             chatMessagesDB.push(msg);
             const room = chatRoomsDB.find(r => r.id === roomId);
-            if (room) { room.lastMessage = text; room.lastAt = msg.sentAt; }
+            if (room) {
+                room.lastMessage = text;
+                room.lastAt = msg.sentAt;
+                if (linkType && linkRef) { room.relatedType = linkType; room.relatedRef = linkRef; }
+            }
         }
         chatReplyToId = null;
         if (input) input.value = '';
@@ -7762,37 +7833,69 @@ function sendWaMessage() {
 function attachWaFile(input) {
     const file = input.files?.[0];
     if (!file || !activeChatRoomId) return;
+    const tagPrefix = buildChatTagPrefix();
+    const messageText = tagPrefix ? `${tagPrefix}📎 ${file.name}` : `📎 ${file.name}`;
     const msg = {
         id: `CHAT-${String(nextChatMessageId++).padStart(3, '0')}`,
-        roomId: activeChatRoomId, sender: getCurrentCommUserName(), message: file.name, type: 'file', fileName: file.name,
+        roomId: activeChatRoomId, sender: getCurrentCommUserName(), message: messageText, type: 'file', fileName: file.name,
         status: 'delivered', replyTo: null, sentAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
     };
-    chatMessagesDB.push(msg);
-    const room = chatRoomsDB.find(r => r.id === activeChatRoomId);
-    if (room) { room.lastMessage = `📎 ${file.name}`; room.lastAt = msg.sentAt; }
-    input.value = '';
-    if (typeof persistInternalComm === 'function') persistInternalComm();
-    if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
-    renderInternalCommunication(document.getElementById('contentArea'));
-    showToast(`File ${file.name} sent`, 'success');
+    (async () => {
+        if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof sendInternalChatMessageApi === 'function') {
+            try {
+                await sendInternalChatMessageApi({
+                    id: msg.id, roomId: activeChatRoomId, message: messageText,
+                    attachmentName: file.name, replyTo: null
+                });
+                if (typeof syncInternalCommFromApi === 'function') await syncInternalCommFromApi();
+            } catch (e) {
+                showToast(e.message || 'Failed to send file', 'warning');
+                return;
+            }
+        } else {
+            chatMessagesDB.push(msg);
+            const room = chatRoomsDB.find(r => r.id === activeChatRoomId);
+            if (room) { room.lastMessage = `📎 ${file.name}`; room.lastAt = msg.sentAt; }
+        }
+        input.value = '';
+        if (typeof persistInternalComm === 'function') persistInternalComm();
+        if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
+        renderInternalCommunication(document.getElementById('contentArea'));
+        showToast(`File ${file.name} sent`, 'success');
+    })();
 }
 
 function getInternalCommContactList() {
     if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
     const currentEmail = (typeof getCurrentCommUserEmail === 'function' ? getCurrentCommUserEmail() : '').toLowerCase();
-    const fromAdmin = (adminUsersDB || []).filter(u => u.status === 'active' && u.email).map(u => ({
-        name: u.username.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-        email: u.email,
-        username: u.username,
-        area: u.area,
-        initials: u.username.replace(/_/g, ' ').replace(/\b\w/g, c => c[0]).join('').slice(0, 2).toUpperCase()
-    }));
+    const fromAdmin = (adminUsersDB || []).filter(u => u.status === 'active').map(u => {
+        const email = (u.email || `${u.username}@truckcontrol.local`).toLowerCase();
+        return {
+            name: u.username.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+            email,
+            username: u.username,
+            area: u.area,
+            role: getRoleById(u.roleId)?.name || 'User',
+            initials: u.username.replace(/_/g, ' ').replace(/\b\w/g, c => c[0]).join('').slice(0, 2).toUpperCase()
+        };
+    });
     const merged = [...fromAdmin];
     (systemUsersDB || []).forEach(u => {
-        if (!u.email || u.email.toLowerCase() === currentEmail) return;
-        if (!merged.some(m => m.email.toLowerCase() === u.email.toLowerCase())) merged.push(u);
+        const email = (u.email || '').toLowerCase();
+        if (!email || email === currentEmail) return;
+        if (!merged.some(m => m.email.toLowerCase() === email)) merged.push(u);
     });
-    return merged.filter(u => u.email.toLowerCase() !== currentEmail);
+    return merged.filter(u => u.email && u.email.toLowerCase() !== currentEmail)
+        .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function buildChatTagPrefix() {
+    const linkType = document.getElementById('chatComposeLinkType')?.value || '';
+    const linkRef = document.getElementById('chatComposeLinkRef')?.value || '';
+    if (!linkType || !linkRef) return '';
+    let label = linkRef;
+    if (linkType === 'trip' && tripsDB[linkRef]) label = `${linkRef} / ${tripsDB[linkRef].truck}`;
+    return `🔗 ${linkType}: ${label}\n`;
 }
 
 function openNewDirectChatPicker() {
@@ -7804,13 +7907,22 @@ function openNewDirectChatPicker() {
         return;
     }
     list.innerHTML = contacts.length
-        ? contacts.map(u => `
-            <button type="button" class="btn btn-outline" style="width:100%;justify-content:flex-start;margin-bottom:8px;text-align:left;" onclick="startDirectChatByEmail('${u.email.replace(/'/g, "\\'")}')">
+        ? `<div class="search-filter" style="margin-bottom:10px;"><span>🔍</span><input type="text" class="form-control" id="chatContactSearch" placeholder="Search users..." oninput="filterChatContactPicker(this.value)"></div>
+           <div id="chatContactPickerItems">${contacts.map(u => `
+            <button type="button" class="comm-contact-row" data-name="${u.name.toLowerCase()}" data-email="${u.email.toLowerCase()}" onclick="startDirectChatByEmail('${u.email.replace(/'/g, "\\'")}')">
                 <span class="wa-avatar" style="width:36px;height:36px;font-size:12px;margin-right:10px;">${u.initials || '??'}</span>
-                <span><strong>${u.name}</strong><br><small style="color:var(--text-secondary);">${u.email}${u.area ? ' · ' + u.area : ''}</small></span>
-            </button>`).join('')
+                <span><strong>${u.name}</strong><br><small style="color:var(--text-secondary);">${u.email}${u.area ? ' · ' + u.area : ''}${u.role ? ' · ' + u.role : ''}</small></span>
+            </button>`).join('')}</div>`
         : '<p style="color:var(--text-secondary);">No other users available. Add users in Admin → Manage Users.</p>';
     openModal('chatContactPickerModal');
+}
+
+function filterChatContactPicker(term) {
+    const t = String(term || '').toLowerCase();
+    document.querySelectorAll('#chatContactPickerItems .comm-contact-row').forEach(row => {
+        const hay = `${row.dataset.name} ${row.dataset.email}`;
+        row.style.display = !t || hay.includes(t) ? '' : 'none';
+    });
 }
 
 function startDirectChatByEmail(email) {
@@ -7831,13 +7943,20 @@ function startDirectChat(userName, userEmail) {
                 return;
             }
         } else {
-            room = chatRoomsDB.find(r => r.type === 'direct' && r.memberNames.includes(userName) && r.memberNames.includes(getCurrentCommUserName()));
+            const me = getCurrentCommUserName();
+            const myEmail = getCurrentCommUserEmail();
+            room = chatRoomsDB.find(r => {
+                if (r.type !== 'direct') return false;
+                const emails = (r.memberEmails || []).map(e => String(e).toLowerCase());
+                const targetEmail = (userEmail || contact?.email || '').toLowerCase();
+                return emails.includes(myEmail.toLowerCase()) && emails.includes(targetEmail);
+            });
             if (!room) {
                 const contact = getInternalCommContactList().find(u => u.name === userName || u.email === userEmail);
                 room = {
-                    id: `ROOM-${String(nextChatRoomId++).padStart(3, '0')}`, name: userName, type: 'direct',
-                    memberNames: [userName, getCurrentCommUserName()],
-                    memberEmails: [contact?.email || userEmail, getCurrentCommUserEmail()].filter(Boolean),
+                    id: `ROOM-${String(nextChatRoomId++).padStart(3, '0')}`, name: contact?.name || userName, type: 'direct',
+                    memberNames: [contact?.name || userName, me],
+                    memberEmails: [contact?.email || userEmail, myEmail].filter(Boolean).map(e => e.toLowerCase()),
                     avatar: contact?.initials || systemUsersDB.find(u => u.name === userName)?.initials || '?',
                     relatedType: 'user', relatedRef: 'Direct', pinned: false, muted: false, unreadCount: 0,
                     lastMessage: 'Chat started', lastAt: new Date().toISOString().slice(0, 16).replace('T', ' '), createdBy: getCurrentCommUserName()
@@ -7851,22 +7970,81 @@ function startDirectChat(userName, userEmail) {
 }
 
 function openNewGroupChatForm() {
-    const name = prompt('Group name:');
-    if (!name) return;
-    const members = prompt('Members (comma-separated):', 'Jean Kalenga, Ruth Mwansa, Current User');
-    const memberNames = (members || getCurrentCommUserName()).split(',').map(s => s.trim()).filter(Boolean);
-    if (!memberNames.includes(getCurrentCommUserName())) memberNames.push(getCurrentCommUserName());
-    const room = {
-        id: `ROOM-${String(nextChatRoomId++).padStart(3, '0')}`, name: name.trim(), type: 'group',
-        memberNames, avatar: '👥', relatedType: 'area', relatedRef: 'Custom Group',
-        pinned: false, muted: false, unreadCount: 0,
-        lastMessage: 'Group created', lastAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-        createdBy: getCurrentCommUserName()
-    };
-    chatRoomsDB.unshift(room);
-    selectChatRoom(room.id);
-    if (typeof persistInternalComm === 'function') persistInternalComm();
-    showToast(`Group "${name}" created`, 'success');
+    const list = document.getElementById('groupChatMemberList');
+    const nameInput = document.getElementById('groupChatNameInput');
+    const contacts = getInternalCommContactList();
+    if (!list) {
+        const name = prompt('Group name:');
+        if (!name) return;
+        openNewGroupChatForm();
+        return;
+    }
+    if (nameInput) nameInput.value = '';
+    list.innerHTML = contacts.length
+        ? contacts.map(u => `
+            <label class="comm-member-check">
+                <input type="checkbox" class="group-chat-member-cb" value="${u.email.replace(/"/g, '&quot;')}" data-name="${u.name.replace(/"/g, '&quot;')}">
+                <span class="wa-avatar" style="width:32px;height:32px;font-size:11px;">${u.initials || '??'}</span>
+                <span><strong>${u.name}</strong><br><small style="color:var(--text-secondary);">${u.email}</small></span>
+            </label>`).join('')
+        : '<p style="color:var(--text-secondary);">No other users to add. Create users in Admin first.</p>';
+    openModal('groupChatPickerModal');
+}
+
+function createGroupChatFromPicker() {
+    const name = document.getElementById('groupChatNameInput')?.value?.trim();
+    const checked = [...document.querySelectorAll('.group-chat-member-cb:checked')];
+    const memberEmails = checked.map(cb => cb.value.toLowerCase());
+    const memberNames = checked.map(cb => cb.dataset.name);
+    if (!name) { showToast('Enter a group name', 'warning'); return; }
+    if (!memberEmails.length) { showToast('Select at least one member', 'warning'); return; }
+    const linkType = document.getElementById('groupChatLinkType')?.value || 'user';
+    const linkRef = document.getElementById('groupChatLinkRef')?.value || 'Team';
+    (async () => {
+        let room = null;
+        if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof createInternalChatRoomApi === 'function') {
+            try {
+                room = await createInternalChatRoomApi({
+                    name,
+                    type: 'group',
+                    memberEmails,
+                    memberNames,
+                    avatar: '👥',
+                    relatedType: linkType,
+                    relatedRef: linkRef,
+                    lastMessage: 'Group created'
+                });
+                if (typeof syncInternalCommFromApi === 'function') await syncInternalCommFromApi();
+            } catch (e) {
+                showToast(e.message || 'Could not create group', 'warning');
+                return;
+            }
+        } else {
+            const me = getCurrentCommUserName();
+            const myEmail = getCurrentCommUserEmail();
+            room = {
+                id: `ROOM-${String(nextChatRoomId++).padStart(3, '0')}`,
+                name,
+                type: 'group',
+                memberNames: [...new Set([me, ...memberNames])],
+                memberEmails: [...new Set([myEmail.toLowerCase(), ...memberEmails])],
+                avatar: '👥',
+                relatedType: linkType,
+                relatedRef: linkRef,
+                pinned: false,
+                muted: false,
+                unreadCount: 0,
+                lastMessage: 'Group created',
+                lastAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+                createdBy: me
+            };
+            chatRoomsDB.unshift(room);
+            if (typeof persistInternalComm === 'function') persistInternalComm();
+        }
+        closeModal('groupChatPickerModal');
+        if (room) selectChatRoom(room.id);
+        showToast(`Group "${name}" created`, 'success');
+    })();
 }
 
 function toggleChatPin(roomId) {
@@ -7914,7 +8092,11 @@ function getInternalCommExportData() {
 }
 
 function renderInternalCommunication(container) {
+    if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
     if (typeof initInternalComm === 'function') initInternalComm();
+    if (internalCommFilter === 'chat' && (!activeChatRoomId || !chatRoomsDB.find(r => r.id === activeChatRoomId))) {
+        activeChatRoomId = getFilteredChatRooms()[0]?.id || null;
+    }
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
         Notification.requestPermission().catch(() => {});
     }

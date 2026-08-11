@@ -110,17 +110,18 @@
 
     function getRoomUnreadCount(room) {
         if (!room) return 0;
-        const userEmail = getCurrentCommUserEmail();
+        const userEmail = getCurrentCommUserEmail().toLowerCase();
         const lastRead = (window.__commLastReadByRoom || {})[room.id]?.[userEmail];
         const messages = (chatMessagesDB || []).filter(m => m.roomId === room.id);
         const name = getCurrentCommUserName();
+        const isMine = m => m.sender === name || (m.senderEmail || '').toLowerCase() === userEmail;
         if (!lastRead) {
-            return messages.filter(m => m.sender !== name).length;
+            return messages.filter(m => !isMine(m)).length;
         }
         const idx = messages.findIndex(m => m.id === lastRead);
         const unread = idx < 0
-            ? messages.filter(m => m.sender !== name)
-            : messages.slice(idx + 1).filter(m => m.sender !== name);
+            ? messages.filter(m => !isMine(m))
+            : messages.slice(idx + 1).filter(m => !isMine(m));
         return unread.length;
     }
 
@@ -131,7 +132,7 @@
     }
 
     function markRoomRead(roomId) {
-        const userEmail = getCurrentCommUserEmail();
+        const userEmail = getCurrentCommUserEmail().toLowerCase();
         if (!window.__commLastReadByRoom) window.__commLastReadByRoom = {};
         if (!window.__commLastReadByRoom[roomId]) window.__commLastReadByRoom[roomId] = {};
         const messages = (chatMessagesDB || []).filter(m => m.roomId === roomId);
@@ -146,12 +147,21 @@
         if (!t) return null;
         const norm = s => String(s || '').toLowerCase();
         const displayFromUsername = u => u.username.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        if (t.includes('@')) {
+            const fromAdminEmail = (adminUsersDB || []).find(u => norm(u.email) === norm(t));
+            if (fromAdminEmail) {
+                return { name: displayFromUsername(fromAdminEmail), email: fromAdminEmail.email || t, username: fromAdminEmail.username };
+            }
+            const fromSystem = (systemUsersDB || []).find(u => norm(u.email) === norm(t));
+            if (fromSystem) return fromSystem;
+        }
         const fromAdmin = (adminUsersDB || []).find(u =>
             norm(u.username) === norm(t) || norm(u.email) === norm(t)
             || norm(displayFromUsername(u)) === norm(t)
         );
         if (fromAdmin) {
-            return { name: displayFromUsername(fromAdmin), email: fromAdmin.email, username: fromAdmin.username };
+            const email = fromAdmin.email || `${fromAdmin.username}@truckcontrol.local`;
+            return { name: displayFromUsername(fromAdmin), email, username: fromAdmin.username };
         }
         return (systemUsersDB || []).find(u =>
             u.name === t || norm(u.email) === norm(t) || norm(u.email?.split('@')[0]) === norm(t)

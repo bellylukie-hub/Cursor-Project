@@ -1,12 +1,12 @@
-# Download & Deploy — TruckControl v2.5.8 (Full Production)
+# Download & Deploy — TruckControl v2.5.9 (Full Production)
 
 This is the **complete** Truck Turnaround & Operations Control System with **all development features merged** into one package — operations, FMS, admin tools, internal communication, and the **illustrated User Manual**.
 
 ### Direct download (latest)
 
-**GitHub release:** [v2.5.8-full-production](https://github.com/bellylukie-hub/Cursor-Project/releases/tag/v2.5.8-full-production)
+**GitHub release:** [v2.5.9-full-production](https://github.com/bellylukie-hub/Cursor-Project/releases/tag/v2.5.9-full-production)
 
-File: `TruckControl-Production-v2.5.8-full-production.zip`
+File: `TruckControl-Production-v2.5.9-full-production.zip`
 
 ### Docker deploy (important)
 
@@ -22,8 +22,8 @@ docker compose up -d --build
 ## Option 1 — Use the ZIP download
 
 ```bash
-unzip TruckControl-Production-v2.5.8-full-production.zip
-cd TruckControl-Production-v2.5.8-full-production
+unzip TruckControl-Production-v2.5.9-full-production.zip
+cd TruckControl-Production-v2.5.9-full-production
 cp .env.example .env
 # Edit .env — set JWT_SECRET (32+ random characters), RUN_SEED=true first time only
 docker compose up -d --build
@@ -45,7 +45,7 @@ cd Cursor-Project
 git checkout cursor/full-production-release-42ca   # or main when merged
 
 chmod +x scripts/build-production-zip.sh scripts/verify-production-package.sh
-./scripts/build-production-zip.sh v2.5.8-full-production
+./scripts/build-production-zip.sh v2.5.9-full-production
 # Output: dist/TruckControl-Production-v2.5.8-full-production.zip
 ```
 
@@ -74,7 +74,12 @@ See `docs/images/domain-deployment.svg` and **docs/INSTALLATION.md §12**.
 
 ---
 
-## What's included in v2.5.8
+## What's included in v2.5.9
+
+| Module | Features |
+|--------|----------|
+| **Internal comm** | **Working email** to all system users; **chat user picker**; **group chat with checkboxes**; trip/truck/trailer tags |
+| **Theme** | **Ocean Blue** default (no forced black theme) |
 
 | Module | Features |
 |--------|----------|

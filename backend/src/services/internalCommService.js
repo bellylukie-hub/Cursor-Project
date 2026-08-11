@@ -69,9 +69,28 @@ function rowToMessage(row) {
   };
 }
 
+function displayNameFromUsername(username) {
+  return String(username || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 function resolveRecipient(token) {
   const t = String(token || '').trim();
   if (!t) return null;
+  if (t.includes('@')) {
+    let user = getUserByEmail(t);
+    if (!user) {
+      user = db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(t);
+    }
+    if (user) {
+      return { email: user.email, name: displayNameFromUsername(user.username), username: user.username };
+    }
+    if (t.toLowerCase().endsWith('@truckcontrol.local')) {
+      const localUser = getUserByLoginIdentifier(t.split('@')[0]);
+      if (localUser) {
+        return { email: localUser.email, name: displayNameFromUsername(localUser.username), username: localUser.username };
+      }
+    }
+  }
   let user = getUserByLoginIdentifier(t);
   if (!user) {
     user = db.prepare(`
@@ -81,8 +100,7 @@ function resolveRecipient(token) {
     `).get(t, t, t);
   }
   if (!user) return null;
-  const displayName = user.username.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-  return { email: user.email, name: displayName, username: user.username };
+  return { email: user.email, name: displayNameFromUsername(user.username), username: user.username };
 }
 
 function insertEmailRecord(record) {
@@ -137,8 +155,9 @@ function sendEmail(payload, sender) {
   const baseId = payload.id || `EM-${Date.now()}`;
   const threadId = payload.threadId || `TH-${Date.now()}`;
 
+  const bccTokens = (payload.bcc || []).map(String);
   const recipients = [];
-  [...toTokens, ...ccTokens].forEach(token => {
+  [...toTokens, ...ccTokens, ...bccTokens].forEach(token => {
     const r = resolveRecipient(token);
     if (r && !recipients.find(x => x.email.toLowerCase() === r.email.toLowerCase())) {
       recipients.push(r);
@@ -283,7 +302,7 @@ function findOrCreateDirectRoom(otherEmail, sender) {
   }
   const otherUser = getUserByEmail(other) || db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get(other);
   const otherName = otherUser
-    ? otherUser.username.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    ? displayNameFromUsername(otherUser.username)
     : other;
   return createChatRoom({
     name: otherName,

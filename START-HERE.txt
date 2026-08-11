@@ -1,97 +1,24 @@
 ================================================================================
-  TruckControl — FULL PRODUCTION PACKAGE  (v2.5.8-full-production)
-  ALL DEVELOPMENT FEATURES + ILLUSTRATED USER MANUAL
+  TruckControl — FULL PRODUCTION PACKAGE  (v2.5.9-full-production)
 ================================================================================
-
-This ZIP contains EVERY module developed to date — merged into one deployable app.
 
 DOWNLOAD
 --------
-  Latest release ZIP:
-  https://github.com/bellylukie-hub/Cursor-Project/releases/tag/v2.5.8-full-production
+  https://github.com/bellylukie-hub/Cursor-Project/releases/tag/v2.5.9-full-production
+  File: TruckControl-Production-v2.5.9-full-production.zip
 
-  File: TruckControl-Production-v2.5.8-full-production.zip
+QUICK START
+-----------
+  cp .env.example .env
+  # Set JWT_SECRET, RUN_SEED=true first time only
+  docker compose down && docker compose up -d --build
+  Open http://localhost:3001 — super_admin / ChangeMe123!
 
-QUICK START (Docker — recommended)
-----------------------------------
-1. Install Docker and start it
-2. In this folder:
-
-   cp .env.example .env
-   Edit .env — set JWT_SECRET (32+ random characters)
-   RUN_SEED=true for first install only
-
-   docker compose down
-   docker compose up -d --build
-
-3. Open: http://localhost:3001
-   Login: super_admin / ChangeMe123!
-
-4. After first login: RUN_SEED=false in .env → docker compose up -d --build
-
-IMPORTANT — AFTER ANY UPDATE
-----------------------------
-Always rebuild Docker or you will NOT see new features:
-
-   docker compose down
-   docker compose up -d --build
-
-FEATURES IN THIS BUILD (v2.5.8)
--------------------------------
-  OPERATIONS
-  - NB / SB / Border / POD / Position Live tables
-  - Bulk actions toolbar (SMS, tags, tasks, comments, delete, etc.)
-  - Soft delete + restore (Manager delete, Super Admin restore)
-  - Area assignment: NB by offloading point, SB by DRC loading point
-  - Live column manager, KPI colours, upload templates
-
-  FREIGHT MANAGEMENT (FMS)
-  - Client Orders, Clients, Route Catalog, Trip Scheduler, Fleet Registry
-
-  COMMUNICATION
-  - Driver Registry, Communication Matrix
-  - Internal Email + Chat (server delivery, notifications, contact picker)
-  - Helpdesk with SLA
-
-  ADMIN
-  - Users, roles, KPI settings, themes, Freight & FMS Settings
-  - Login with username or email; password reset preserved on restart
-  - Database Browser + Query Developer (Super Admin)
-  - Development menu — custom SQL pages published from Query Developer
-  - Upload Templates, Module Permissions, Area Assignments
-
-  UI / UX
-  - Control Room Black login, theme picker, auto-hide menu
-  - Working global top-bar search
-  - Fix: blank screen after deploy when a non-default theme was saved
-
-VERIFY PACKAGE (optional)
--------------------------
-  chmod +x scripts/verify-production-package.sh
-  ./scripts/verify-production-package.sh
-
-DOCUMENTATION (USER MANUAL INCLUDED)
-------------------------------------
-  docs/COMPLETE-MANUAL.md   Full illustrated manual (17 diagrams)
-  docs/USER-GUIDE.md        Daily operations guide
-  docs/INSTALLATION.md      Docker, domain, HTTPS, PM2
-  docs/images/              SVG illustrations (workflows, internal comm, etc.)
-  DOWNLOAD.md               Download and deploy guide
-
-  Internal Communication help: docs/COMPLETE-MANUAL.md §2.9
-  Illustrations: docs/images/internal-comm-email.svg
-                 docs/images/internal-comm-chat.svg
-
-DEPLOY ON DOMAIN
-----------------
-  See docs/images/domain-deployment.svg and docs/INSTALLATION.md §12
-
-DEFAULT USERS
+NEW IN v2.5.9
 -------------
-  super_admin / ChangeMe123!  (change after first login)
-  kanyaka_dispatcher / ChangeMe123!  (Kanyaka area dispatcher)
-
-  Database Browser, Query Developer, and the Development menu are visible
-  only when logged in as Super Admin (super_admin).
+  - Internal email lists all system users and delivers cross-user via API
+  - Chat lists all users for direct messaging; group chat with member checkboxes
+  - Tag trips, trucks, trailers, assets in chat messages
+  - Ocean Blue is the default theme (not forced black)
 
 ================================================================================

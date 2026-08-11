@@ -2007,6 +2007,20 @@
         .comm-ribbon-tab { border: none; background: transparent; padding: 8px 14px; border-radius: 6px 6px 0 0; cursor: pointer; font-weight: 600; color: var(--text-secondary); }
         .comm-ribbon-tab.active { background: #f3f4f6; color: var(--primary); border: 1px solid var(--border); border-bottom-color: #f3f4f6; margin-bottom: -1px; }
         .comm-ribbon-body { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px 14px; min-height: 72px; align-items: flex-start; }
+        .internal-comm-contact-pick { max-height: 140px; overflow-y: auto; padding: 6px 0; }
+        .comm-contact-row {
+            display: flex; align-items: center; width: 100%; text-align: left;
+            padding: 10px 12px; margin-bottom: 6px; border: 1px solid var(--border);
+            border-radius: 8px; background: var(--bg-card, #fff); cursor: pointer;
+        }
+        .comm-contact-row:hover { background: var(--bg-main, #f7fafc); }
+        .comm-member-check {
+            display: flex; align-items: center; gap: 10px; padding: 10px 8px;
+            border-bottom: 1px solid var(--border); cursor: pointer;
+        }
+        .comm-member-check input { width: 18px; height: 18px; flex-shrink: 0; }
+        .wa-tag-bar { display: flex; gap: 8px; padding: 8px 12px; background: #f0f4f8; border-top: 1px solid #e2e8f0; }
+        .wa-tag-line { font-size: 11px; color: #2b6cb0; font-weight: 600; margin-bottom: 4px; }
         .comm-ribbon-group { border-right: 1px solid #d1d5db; padding-right: 12px; }
         .comm-ribbon-group:last-child { border-right: none; }
         .comm-ribbon-group-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 6px; }
@@ -3018,10 +3032,33 @@
         <div class="modal" style="max-width:520px;">
             <div class="modal-header"><h3>💬 Start Chat</h3><button class="btn btn-outline" onclick="closeModal('chatContactPickerModal')">✕</button></div>
             <div class="modal-body">
-                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Select a colleague to message:</p>
-                <div id="chatContactPickerList" style="max-height:320px;overflow-y:auto;"></div>
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Select a colleague to message (all system users):</p>
+                <div id="chatContactPickerList" style="max-height:400px;overflow-y:auto;"></div>
             </div>
             <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('chatContactPickerModal')">Cancel</button></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="groupChatPickerModal">
+        <div class="modal" style="max-width:560px;">
+            <div class="modal-header"><h3>👥 New Group Chat</h3><button class="btn btn-outline" onclick="closeModal('groupChatPickerModal')">✕</button></div>
+            <div class="modal-body">
+                <div class="form-group"><label>Group name</label><input type="text" class="form-control" id="groupChatNameInput" placeholder="e.g. Kanyaka Dispatch"></div>
+                <div class="form-group" style="display:flex;gap:8px;">
+                    <select class="form-control" id="groupChatLinkType" onchange="populateInternalLinkSelect('groupChatLinkRef')" style="max-width:140px;">
+                        <option value="user">Link type</option>
+                        <option value="trip">trip</option><option value="truck">truck</option><option value="trailer">trailer</option>
+                        <option value="area">area</option><option value="asset">asset</option>
+                    </select>
+                    <select class="form-control" id="groupChatLinkRef" style="flex:1;"><option value="Team">Reference</option></select>
+                </div>
+                <p style="font-size:13px;color:var(--text-secondary);margin:12px 0 8px;">Select members (checkboxes):</p>
+                <div id="groupChatMemberList" style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('groupChatPickerModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="createGroupChatFromPicker()">Create group</button>
+            </div>
         </div>
     </div>
 

@@ -1472,15 +1472,16 @@
         window.adminUsersDB.filter(u => u.status === 'active').forEach(au => {
             const displayName = au.username.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
             const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-            const existing = window.systemUsersDB.find(s => s.email === au.email);
+            const email = au.email || `${au.username}@truckcontrol.local`;
+            const existing = window.systemUsersDB.find(s => s.email === email || s.email === au.email);
             if (existing) {
                 existing.name = displayName;
-                existing.email = au.email;
+                existing.email = email;
                 existing.initials = initials;
                 existing.area = au.area;
             } else {
                 window.systemUsersDB.push({
-                    id: 'U-' + au.id, name: displayName, email: au.email,
+                    id: 'U-' + au.id, name: displayName, email,
                     role: window.getRoleById ? (window.getRoleById(au.roleId)?.name || 'User') : 'User',
                     area: au.area, initials, online: false, lastSeen: '—'
                 });
