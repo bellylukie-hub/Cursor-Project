@@ -588,6 +588,11 @@ async function runDbQueryApi(sql, maxRows) {
   });
 }
 
+async function fetchInternalCommContactsApi() {
+  const data = await apiRequest('/internal-comm/contacts');
+  return data.contacts || [];
+}
+
 async function fetchInternalMailboxApi() {
   const data = await apiRequest('/internal-comm/mailbox');
   return data.emails || [];

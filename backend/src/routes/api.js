@@ -823,6 +823,15 @@ function commSender(req) {
   };
 }
 
+router.get('/internal-comm/contacts', (req, res) => {
+  try {
+    const sender = commSender(req);
+    const contacts = internalCommSvc().listContacts()
+      .filter(c => c.email.toLowerCase() !== String(sender.email || '').toLowerCase());
+    res.json({ contacts });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/internal-comm/mailbox', (req, res) => {
   try {
     const sender = commSender(req);

@@ -1706,6 +1706,7 @@ function applyAuthUserToSession(apiUser) {
     if (typeof initCustomSqlNav === 'function') initCustomSqlNav();
     if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
     if (typeof initInternalComm === 'function') initInternalComm(true);
+    internalCommContactsCache = null;
 }
 
 function showLoginScreen(message) {
@@ -7865,12 +7866,17 @@ function attachWaFile(input) {
     })();
 }
 
-function getInternalCommContactList() {
+let internalCommContactsCache = null;
+let internalCommContactsRefreshGen = 0;
+
+function buildInternalCommContactsFromLocal() {
     if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
     const currentEmail = (typeof getCurrentCommUserEmail === 'function' ? getCurrentCommUserEmail() : '').toLowerCase();
-    const fromAdmin = (adminUsersDB || []).filter(u => u.status === 'active').map(u => {
+    const normStatus = s => String(s || 'active').toLowerCase();
+    const fromAdmin = (adminUsersDB || []).filter(u => normStatus(u.status) === 'active').map(u => {
         const email = (u.email || `${u.username}@truckcontrol.local`).toLowerCase();
         return {
+            id: u.id,
             name: u.username.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
             email,
             username: u.username,
@@ -7883,10 +7889,60 @@ function getInternalCommContactList() {
     (systemUsersDB || []).forEach(u => {
         const email = (u.email || '').toLowerCase();
         if (!email || email === currentEmail) return;
-        if (!merged.some(m => m.email.toLowerCase() === email)) merged.push(u);
+        if (!merged.some(m => m.email.toLowerCase() === email)) {
+            merged.push({
+                id: u.id || u.email,
+                name: u.name,
+                email,
+                username: u.email?.split('@')[0] || u.name,
+                area: u.area,
+                role: u.role || 'User',
+                initials: u.initials || '??'
+            });
+        }
+    });
+    (communicationMatrixDB || []).forEach(c => {
+        if (!c.active || !c.email) return;
+        const email = String(c.email).toLowerCase();
+        if (!email || email === currentEmail) return;
+        if (merged.some(m => m.email.toLowerCase() === email)) return;
+        merged.push({
+            id: c.id,
+            name: c.name || c.email,
+            email,
+            username: email.split('@')[0],
+            area: c.area || '',
+            role: c.function || 'Contact',
+            initials: (c.name || '??').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+        });
     });
     return merged.filter(u => u.email && u.email.toLowerCase() !== currentEmail)
         .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+async function refreshInternalCommContacts() {
+    if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
+    if (typeof syncAdminFromApi === 'function' && typeof isApiAvailable === 'function' && isApiAvailable()) {
+        try { await syncAdminFromApi(); } catch (_) {}
+    }
+    if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof fetchInternalCommContactsApi === 'function') {
+        try {
+            const contacts = await fetchInternalCommContactsApi();
+            if (contacts?.length) {
+                internalCommContactsCache = contacts;
+                return contacts;
+            }
+        } catch (e) {
+            console.warn('Internal comm contacts API:', e.message);
+        }
+    }
+    internalCommContactsCache = buildInternalCommContactsFromLocal();
+    return internalCommContactsCache;
+}
+
+function getInternalCommContactList() {
+    if (internalCommContactsCache?.length) return internalCommContactsCache;
+    return buildInternalCommContactsFromLocal();
 }
 
 function buildChatTagPrefix() {
@@ -7900,21 +7956,28 @@ function buildChatTagPrefix() {
 
 function openNewDirectChatPicker() {
     const list = document.getElementById('chatContactPickerList');
-    const contacts = getInternalCommContactList();
-    if (!list) {
-        const name = prompt('Start chat with:\n' + contacts.map(u => `${u.name} (${u.email})`).join('\n'));
-        if (name) startDirectChat(name.trim());
-        return;
+    if (list) {
+        list.innerHTML = '<p style="padding:12px;color:var(--text-secondary);">Loading system users…</p>';
+        openModal('chatContactPickerModal');
     }
-    list.innerHTML = contacts.length
-        ? `<div class="search-filter" style="margin-bottom:10px;"><span>🔍</span><input type="text" class="form-control" id="chatContactSearch" placeholder="Search users..." oninput="filterChatContactPicker(this.value)"></div>
-           <div id="chatContactPickerItems">${contacts.map(u => `
-            <button type="button" class="comm-contact-row" data-name="${u.name.toLowerCase()}" data-email="${u.email.toLowerCase()}" onclick="startDirectChatByEmail('${u.email.replace(/'/g, "\\'")}')">
-                <span class="wa-avatar" style="width:36px;height:36px;font-size:12px;margin-right:10px;">${u.initials || '??'}</span>
-                <span><strong>${u.name}</strong><br><small style="color:var(--text-secondary);">${u.email}${u.area ? ' · ' + u.area : ''}${u.role ? ' · ' + u.role : ''}</small></span>
-            </button>`).join('')}</div>`
-        : '<p style="color:var(--text-secondary);">No other users available. Add users in Admin → Manage Users.</p>';
-    openModal('chatContactPickerModal');
+    (async () => {
+        await refreshInternalCommContacts();
+        const contacts = getInternalCommContactList();
+        if (!list) {
+            const name = prompt('Start chat with:\n' + contacts.map(u => `${u.name} (${u.email})`).join('\n'));
+            if (name) startDirectChat(name.trim());
+            return;
+        }
+        list.innerHTML = contacts.length
+            ? `<div class="search-filter" style="margin-bottom:10px;"><span>🔍</span><input type="text" class="form-control" id="chatContactSearch" placeholder="Search users..." oninput="filterChatContactPicker(this.value)"></div>
+               <div id="chatContactPickerItems">${contacts.map(u => `
+                <button type="button" class="comm-contact-row" data-name="${u.name.toLowerCase()}" data-email="${u.email.toLowerCase()}" onclick="startDirectChatByEmail('${u.email.replace(/'/g, "\\'")}')">
+                    <span class="wa-avatar" style="width:36px;height:36px;font-size:12px;margin-right:10px;">${u.initials || '??'}</span>
+                    <span><strong>${u.name}</strong><br><small style="color:var(--text-secondary);">${u.email}${u.area ? ' · ' + u.area : ''}${u.role ? ' · ' + u.role : ''}</small></span>
+                </button>`).join('')}</div>`
+            : '<p style="color:var(--text-secondary);">No other users found. Add users in <strong>Admin → Manage Users</strong>, then click Sync on the View ribbon.</p>';
+        if (!document.getElementById('chatContactPickerModal')?.classList.contains('show')) openModal('chatContactPickerModal');
+    })();
 }
 
 function filterChatContactPicker(term) {
@@ -7972,23 +8035,22 @@ function startDirectChat(userName, userEmail) {
 function openNewGroupChatForm() {
     const list = document.getElementById('groupChatMemberList');
     const nameInput = document.getElementById('groupChatNameInput');
-    const contacts = getInternalCommContactList();
-    if (!list) {
-        const name = prompt('Group name:');
-        if (!name) return;
-        openNewGroupChatForm();
-        return;
-    }
-    if (nameInput) nameInput.value = '';
-    list.innerHTML = contacts.length
-        ? contacts.map(u => `
-            <label class="comm-member-check">
-                <input type="checkbox" class="group-chat-member-cb" value="${u.email.replace(/"/g, '&quot;')}" data-name="${u.name.replace(/"/g, '&quot;')}">
-                <span class="wa-avatar" style="width:32px;height:32px;font-size:11px;">${u.initials || '??'}</span>
-                <span><strong>${u.name}</strong><br><small style="color:var(--text-secondary);">${u.email}</small></span>
-            </label>`).join('')
-        : '<p style="color:var(--text-secondary);">No other users to add. Create users in Admin first.</p>';
+    if (list) list.innerHTML = '<p style="padding:12px;color:var(--text-secondary);">Loading system users…</p>';
     openModal('groupChatPickerModal');
+    (async () => {
+        await refreshInternalCommContacts();
+        const contacts = getInternalCommContactList();
+        if (!list) return;
+        if (nameInput) nameInput.value = '';
+        list.innerHTML = contacts.length
+            ? contacts.map(u => `
+                <label class="comm-member-check">
+                    <input type="checkbox" class="group-chat-member-cb" value="${u.email.replace(/"/g, '&quot;')}" data-name="${u.name.replace(/"/g, '&quot;')}">
+                    <span class="wa-avatar" style="width:32px;height:32px;font-size:11px;">${u.initials || '??'}</span>
+                    <span><strong>${u.name}</strong><br><small style="color:var(--text-secondary);">${u.email}</small></span>
+                </label>`).join('')
+            : '<p style="color:var(--text-secondary);">No other users found. Add users in Admin → Manage Users.</p>';
+    })();
 }
 
 function createGroupChatFromPicker() {
@@ -8091,7 +8153,7 @@ function getInternalCommExportData() {
     return getEmailsForFolder(emailFolder).map(e => ({ id: e.id, recordType: 'Email', subject: e.subject, body: e.body, sender: e.from, recipients: e.to, relatedLabel: e.relatedLabel || '', sentAt: e.sentAt, status: e.read ? 'read' : 'unread', attachments: e.attachments?.length || 0 }));
 }
 
-function renderInternalCommunication(container) {
+function renderInternalCommunication(container, skipContactRefresh) {
     if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
     if (typeof initInternalComm === 'function') initInternalComm();
     if (internalCommFilter === 'chat' && (!activeChatRoomId || !chatRoomsDB.find(r => r.id === activeChatRoomId))) {
@@ -8101,6 +8163,7 @@ function renderInternalCommunication(container) {
         Notification.requestPermission().catch(() => {});
     }
     const stats = getInternalCommStats();
+    const contactCount = getInternalCommContactList().length;
     container.innerHTML = `
         <div class="page-header">
             <h1>✉️ Internal Communication</h1>
@@ -8116,6 +8179,7 @@ function renderInternalCommunication(container) {
             <button class="comm-app-tab${internalCommFilter === 'email' ? ' active' : ''}" onclick="chatTypeFilter='all';chatShowUnreadOnly=false;navigateToInternalComm('email')">📧 Email (Outlook)</button>
             <button class="comm-app-tab${internalCommFilter === 'chat' ? ' active' : ''}" onclick="emailShowUnreadOnly=false;navigateToInternalComm('chat')">💬 Chat</button>
         </div>
+        <div style="font-size:12px;color:var(--text-secondary);margin:0 0 8px;">${contactCount} colleague(s) available for email &amp; chat · <button type="button" class="btn btn-outline btn-sm" onclick="refreshInternalCommContacts().then(()=>renderInternalCommunication(document.getElementById('contentArea'),true))">🔄 Refresh contacts</button></div>
         ${typeof renderCommRibbon === 'function' ? renderCommRibbon() : ''}
         ${emailShowUnreadOnly ? `<div style="background:#fffaf0;border:1px solid #f6ad55;padding:10px 16px;margin-bottom:12px;border-radius:8px;font-size:13px;">Showing <strong>unread emails only</strong> in Inbox. <button class="btn btn-outline btn-sm" onclick="emailShowUnreadOnly=false;renderInternalCommunication(document.getElementById('contentArea'))">Show all</button></div>` : ''}
         ${chatShowUnreadOnly ? `<div style="background:#fffaf0;border:1px solid #f6ad55;padding:10px 16px;margin-bottom:12px;border-radius:8px;font-size:13px;">Showing <strong>chats with unread messages</strong>. <button class="btn btn-outline btn-sm" onclick="chatShowUnreadOnly=false;renderInternalCommunication(document.getElementById('contentArea'))">Show all chats</button></div>` : ''}
@@ -8126,6 +8190,14 @@ function renderInternalCommunication(container) {
     if (emailView === 'compose') populateEmailLinkSelect();
     if (internalCommFilter === 'chat') setTimeout(() => { const pane = document.getElementById('waMessagesPane'); if (pane) pane.scrollTop = pane.scrollHeight; }, 50);
     updateSidebarBadges();
+    if (!skipContactRefresh) {
+        const gen = ++internalCommContactsRefreshGen;
+        refreshInternalCommContacts().then(() => {
+            if (gen === internalCommContactsRefreshGen && currentPage === 'internal-communication') {
+                renderInternalCommunication(container, true);
+            }
+        });
+    }
 }
 
 // Reports — see custom-reports.js (renderReports, renderReportDetail, openModuleReport)

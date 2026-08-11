@@ -24,7 +24,11 @@
 
     function getCurrentCommUserEmail() {
         const cu = typeof getCurrentAdminUser === 'function' ? getCurrentAdminUser() : null;
-        return cu?.email || window.CURRENT_USER_EMAIL || LEGACY_EMAIL;
+        const email = cu?.email || window.CURRENT_USER_EMAIL || LEGACY_EMAIL;
+        if (email && email.includes('@')) return email;
+        const uname = cu?.username || window.CURRENT_USER;
+        if (uname) return `${String(uname).toLowerCase().replace(/\s+/g, '_')}@truckcontrol.local`;
+        return LEGACY_EMAIL;
     }
 
     function isProductionSession() {
@@ -448,16 +452,19 @@
     };
 
     window.refreshInternalComm = function () {
+        internalCommContactsCache = null;
         initInternalComm(true);
         if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
-        syncInternalCommFromApi().then(() => {
+        refreshInternalCommContacts().then(() => {
+            syncInternalCommFromApi().then(() => {
             syncRoomUnreadCounts();
             writeStore();
             if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
             if (typeof renderInternalCommunication === 'function' && currentPage === 'internal-communication') {
-                renderInternalCommunication(document.getElementById('contentArea'));
+                renderInternalCommunication(document.getElementById('contentArea'), true);
             }
             showToast('Mailbox synced', 'success');
+            });
         });
     };
 

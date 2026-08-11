@@ -136,6 +136,29 @@ function insertEmailRecord(record) {
   );
 }
 
+function listContacts() {
+  const rows = db.prepare(`
+    SELECT id, username, email, role_id, status, area, phone
+    FROM users
+    WHERE LOWER(status) = 'active'
+    ORDER BY username
+  `).all();
+  return rows.map(u => {
+    const email = (u.email || `${u.username}@truckcontrol.local`).toLowerCase();
+    return {
+      id: u.id,
+      username: u.username,
+      email,
+      name: displayNameFromUsername(u.username),
+      area: u.area || '',
+      roleId: u.role_id,
+      status: u.status,
+      phone: u.phone || '',
+      initials: displayNameFromUsername(u.username).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+    };
+  });
+}
+
 function listMailbox(userEmail) {
   const email = String(userEmail || '').toLowerCase();
   const rows = db.prepare(`
@@ -319,6 +342,7 @@ function findOrCreateDirectRoom(otherEmail, sender) {
 
 module.exports = {
   listMailbox,
+  listContacts,
   sendEmail,
   updateEmail,
   listChatData,

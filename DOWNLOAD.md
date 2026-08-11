@@ -78,22 +78,13 @@ See `docs/images/domain-deployment.svg` and **docs/INSTALLATION.md §12**.
 
 | Module | Features |
 |--------|----------|
-| **Internal comm** | **Working email** to all system users; **chat user picker**; **group chat with checkboxes**; trip/truck/trailer tags |
-| **Theme** | **Ocean Blue** default (no forced black theme) |
-
-| Module | Features |
-|--------|----------|
-| **Operations** | NB/SB, Border, POD, Position Live, **bulk actions toolbar**, **soft delete**, **area assignment** (NB=offload, SB=load) |
-| **Client Orders** | Full FMS order form, filters, allocation |
-| **Clients** | Client register (CRM) |
-| **Route Catalog** | Stations, routes, templates |
-| **Trip Scheduler** | Fleet set + client orders |
-| **Fleet Registry** | Trucks, trailers, drivers, superlink |
-| **Communication** | Driver registry, matrix, **internal email/chat** (server delivery + notifications), helpdesk |
-| **Admin** | Users, roles, KPI, themes, Freight & FMS Settings, login by username or email |
-| **Database tools** | **Database Browser** + **Query Developer** + **Development** menu (Super Admin) |
-| **UI / UX** | Control Room Black login, theme picker, auto-hide menu, **working global search**, **blank-screen login fix** |
-| **Help** | In-app assistant, **COMPLETE-MANUAL** with 17 SVG illustrations |
+| **Internal comm** | **Email to all system users**; **chat user list**; **group chat with checkboxes**; trip/truck/trailer tags in chat |
+| **Theme** | **Ocean Blue** default (not forced black) |
+| **Operations** | NB/SB, Border, POD, Position Live, bulk actions, soft delete, area assignment |
+| **FMS** | Client Orders, Clients, Route Catalog, Trip Scheduler, Fleet Registry |
+| **Communication** | Driver registry, matrix, internal email/chat (server delivery), helpdesk |
+| **Admin** | Users, roles, KPI, themes, Database Browser, Query Developer |
+| **UI / UX** | Theme picker, auto-hide menu, global search, blank-screen login fix |
 
 ---
 
