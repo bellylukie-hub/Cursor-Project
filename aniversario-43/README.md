@@ -1,37 +1,37 @@
 # Nilsa Lina Obobo — 43 Anos
 
-Webapp de aniversário em português: uma história em capítulos (capa com slideshow → nome → amor → beleza/luta → comédia → guerreira → diagnóstico do coração → família → carta → vídeo → brinde → final).
+Webapp de aniversário em português (12 capítulos).  
+Nome completo: **Nilsa Lina Obobo** · Nome curto: **Nilsa**
 
-Tons diferentes entre páginas: amor, memória, luta e comédia — misturados de propósito.
+## Abrir
 
-## Abrir o demo
+1. Extraia o ZIP
+2. Abra `index.html` no navegador  
+   ou:
 
 ```bash
 cd aniversario-43
 python3 -m http.server 8080
 ```
 
-Abra: [http://localhost:8080](http://localhost:8080)
+Depois: http://localhost:8080
 
-Ou abra `index.html` no navegador.
+## Como pôr as fotos dela
 
-## Fotos e vídeos (dentro dos capítulos)
+Leia o ficheiro **`COMO-POR-AS-FOTOS.txt`**.
 
-As imagens **fazem parte de cada capítulo** (não vão num zip separado). Já estão embutidas em `media/`:
+Resumo: copie as fotos para a pasta `media/` com estes nomes:
 
-| Ficheiro | Uso |
-|----------|-----|
-| `capa.jpg` | Capa, beleza, carta, final |
-| `memoria.jpg` | Memória, amor, família |
-| `guerreira.jpg` | Beleza interior, lutadora, carta |
-| `comedia.jpg` | Comédia, brinde, celebração |
+| Ficheiro | Conteúdo |
+|----------|----------|
+| `nilsa-casamento.jpg` | Casamento |
+| `nilsa-retrato.jpg` | Retrato belo |
+| `nilsa-elegante.jpg` | Foto elegante |
+| `nilsa-riso.jpg` | Ela a rir |
+| `nilsa-guerreira.jpg` | Pose forte |
+| `nilsa-familia.jpg` | Família / amigas |
+| `nilsa-juntos.jpg` | Vocês dois |
+| `nilsa-festa.jpg` | Festa / grupo |
+| `nilsa-historia.mp4` | Vídeo (opcional) |
 
-Para acrescentar **vídeo** no Capítulo 9, coloque o ficheiro aqui:
-
-```text
-aniversario-43/media/nilsa-historia.mp4
-```
-
-(opcional: também `nilsa-historia.webm`)
-
-Para trocar fotos pessoais, substitua os ficheiros em `media/` ou edite os `src` / `background-image` em `index.html` — sempre dentro da página do capítulo.
+As fotos ficam **dentro** dos capítulos (pasta `media/`), não num zip separado.

@@ -1,0 +1,49 @@
+========================================================
+  NILSA LINA OBOBO — Como pôr as fotos e o vídeo
+========================================================
+
+1) Abra a pasta do ZIP
+   aniversario-43/
+     index.html
+     media/          <-- AQUI entram as fotos dela
+     README.md
+     COMO-POR-AS-FOTOS.txt
+
+2) Copie as fotos da Nilsa para a pasta media/
+   (substitua os ficheiros com EXACTAMENTE estes nomes)
+
+--------------------------------------------------------
+  NOME DO FICHEIRO              QUE FOTO USAR
+--------------------------------------------------------
+  nilsa-casamento.jpg           Foto do casamento / noiva
+  nilsa-retrato.jpg             Retrato belo (sorriso / studio)
+  nilsa-elegante.jpg            Foto elegante (vestido / festa)
+  nilsa-riso.jpg                Ela a rir (comédia / alegria)
+  nilsa-guerreira.jpg           Pose forte / energia lutadora
+  nilsa-familia.jpg             Com família / filha / amigos
+  nilsa-juntos.jpg              Vocês dois juntos
+  nilsa-festa.jpg               Celebração / grupo / sábado
+  nilsa-historia.mp4            (opcional) vídeo dela
+--------------------------------------------------------
+
+3) Pode manter também os fundos artísticos já incluídos:
+   capa.jpg, memoria.jpg, guerreira.jpg, comedia.jpg
+
+4) Abrir o presente no computador
+   - Duplo clique em index.html
+   OU no Terminal:
+
+     cd aniversario-43
+     python3 -m http.server 8080
+
+   Depois abra: http://localhost:8080
+
+5) Dica
+   - Formato: .jpg / .jpeg / .png / .webp / .mp4
+   - Se a foto tiver outro nome, RENOMEIE para um dos nomes da tabela
+   - Não precisa de zip separado das fotos: elas ficam DENTRO de media/
+
+Nome na história:
+  Completo = Nilsa Lina Obobo
+  Curto    = Nilsa
+========================================================
