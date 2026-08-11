@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nilsa Lina Obobo — 43 Anos</title>
+  <meta name="description" content="Uma história de aniversário para Nilsa Lina Obobo — bela por fora, guerreira por dentro." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #0f1c22;
+      --ink-soft: #1a3038;
+      --foam: #f8f3ec;
+      --champagne: #e8d5b5;
+      --gold: #c9a06a;
+      --rose: #d4a0a8;
+      --blush: #f0c9ce;
+      --teal: #3d7a82;
+      --teal-deep: #1e4a52;
+      --comedy: #e8a06a;
+      --shadow: 0 28px 70px rgba(8, 16, 20, 0.45);
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: "Outfit", sans-serif;
+      color: var(--foam);
+      background: var(--ink);
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .story {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .page {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(22px) scale(0.98);
+      transition: opacity 0.75s ease, transform 0.75s ease;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    .page.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: none;
+      z-index: 2;
+    }
+
+    .bg {
+      position: fixed;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      transform: scale(1.08);
+      transition: transform 9s ease, opacity 0.8s ease;
+      z-index: 0;
+      opacity: 0;
+    }
+    .page.active .bg {
+      position: absolute;
+      opacity: 1;
+      transform: scale(1);
+    }
+    .bg::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 30% 20%, rgba(201,160,106,0.18), transparent 45%),
+        linear-gradient(180deg, rgba(15,28,34,0.25) 0%, rgba(15,28,34,0.55) 40%, rgba(15,28,34,0.92) 100%);
+    }
+    .tone-comedy .bg::after {
+      background:
+        radial-gradient(ellipse at 70% 10%, rgba(232,160,106,0.22), transparent 40%),
+        linear-gradient(180deg, rgba(48,28,18,0.2) 0%, rgba(30,20,16,0.55) 45%, rgba(18,12,10,0.93) 100%);
+    }
+    .tone-fighter .bg::after {
+      background:
+        radial-gradient(ellipse at 50% 30%, rgba(61,122,130,0.28), transparent 50%),
+        linear-gradient(180deg, rgba(20,40,46,0.3) 0%, rgba(14,28,32,0.6) 48%, rgba(8,16,20,0.94) 100%);
+    }
+    .tone-love .bg::after {
+      background:
+        radial-gradient(ellipse at 40% 15%, rgba(212,160,168,0.22), transparent 42%),
+        linear-gradient(180deg, rgba(40,22,28,0.28) 0%, rgba(22,14,18,0.58) 45%, rgba(12,8,12,0.94) 100%);
+    }
+    .tone-memory .bg::after {
+      background:
+        radial-gradient(ellipse at 60% 20%, rgba(232,213,181,0.2), transparent 45%),
+        linear-gradient(180deg, rgba(36,28,18,0.25) 0%, rgba(22,18,12,0.55) 42%, rgba(12,10,8,0.93) 100%);
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: clamp(72px, 10vh, 100px) clamp(18px, 4vw, 48px) 120px;
+      max-width: 840px;
+      margin: 0 auto;
+    }
+
+    .hero-content {
+      justify-content: flex-end;
+      align-items: stretch;
+      text-align: left;
+      padding-bottom: 128px;
+    }
+
+    .capitulo {
+      font-size: 0.72rem;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 12px;
+      font-weight: 600;
+      animation: fadeUp 0.9s ease both;
+    }
+
+    .brand {
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(3.6rem, 12vw, 6.8rem);
+      line-height: 0.9;
+      color: var(--foam);
+      font-weight: 600;
+      text-shadow: 0 12px 48px rgba(0,0,0,0.4);
+      animation: fadeUp 1s 0.08s ease both;
+    }
+    .brand .full-name {
+      display: block;
+      font-size: 0.28em;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      font-family: "Outfit", sans-serif;
+      font-weight: 500;
+      color: var(--champagne);
+      margin-bottom: 10px;
+      opacity: 0.9;
+    }
+    .brand em {
+      font-style: italic;
+      color: var(--blush);
+      display: block;
+      font-weight: 400;
+      margin-top: 4px;
+    }
+
+    h2 {
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(2.05rem, 6vw, 3.35rem);
+      line-height: 1.05;
+      color: var(--foam);
+      margin-bottom: 14px;
+      font-weight: 600;
+      animation: fadeUp 0.85s ease both;
+    }
+    h2 span { color: var(--blush); font-style: italic; font-weight: 400; }
+
+    .lead, .texto {
+      color: rgba(248,243,236,0.92);
+      font-size: clamp(1rem, 2.3vw, 1.14rem);
+      line-height: 1.72;
+      max-width: 62ch;
+      font-weight: 300;
+      animation: fadeUp 0.95s 0.08s ease both;
+    }
+    .texto + .texto { margin-top: 14px; }
+    .texto strong { color: var(--champagne); font-weight: 600; }
+    .texto em { color: var(--blush); font-style: italic; }
+
+    .cta-hint {
+      margin-top: 22px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--champagne);
+      font-size: 0.88rem;
+      letter-spacing: 0.04em;
+      animation: fadeUp 1s 0.2s ease both;
+    }
+    .cta-hint .arrow {
+      display: inline-block;
+      animation: nudge 1.6s ease-in-out infinite;
+    }
+
+    .photo-stage {
+      margin: 18px 0 10px;
+      animation: fadeUp 1s 0.1s ease both;
+      width: 100%;
+    }
+
+    .slideshow-container {
+      position: relative;
+      width: min(100%, 540px);
+      aspect-ratio: 4 / 5;
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(248,243,236,0.16);
+      background: rgba(0,0,0,0.28);
+    }
+    .hero-content .slideshow-container {
+      width: min(100%, 420px);
+      aspect-ratio: 3 / 4;
+      margin-bottom: 22px;
+      animation: fadeUp 1s 0.05s ease both;
+    }
+    .slide {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.9s ease;
+      background-size: cover;
+      background-position: center;
+    }
+    .slide.active { opacity: 1; }
+    .slide-caption {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      padding: 22px 16px 14px;
+      background: linear-gradient(transparent, rgba(0,0,0,0.78));
+      color: var(--foam);
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1.2rem;
+      font-style: italic;
+    }
+    .slide-dots {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .slide-dots button {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      border: 0;
+      background: rgba(255,255,255,0.32);
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+    .slide-dots button.on {
+      background: var(--gold);
+      transform: scale(1.25);
+    }
+
+    .photo-frame {
+      width: min(100%, 440px);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(248,243,236,0.18);
+      background: rgba(255,255,255,0.04);
+      position: relative;
+    }
+    .photo-frame img,
+    .photo-frame video {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      animation: softZoom 14s ease-in-out infinite alternate;
+    }
+    .photo-frame.portrait img,
+    .photo-frame.portrait video { aspect-ratio: 3 / 4; }
+    .photo-frame.wide { width: min(100%, 560px); }
+    .photo-frame.wide img,
+    .photo-frame.wide video { aspect-ratio: 16 / 10; }
+    .photo-note {
+      padding: 11px 14px 13px;
+      font-size: 0.84rem;
+      color: rgba(248,243,236,0.78);
+      background: rgba(0,0,0,0.32);
+      line-height: 1.45;
+    }
+
+    .media-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 12px;
+      width: min(100%, 560px);
+    }
+    .media-grid .photo-frame { width: 100%; }
+    .media-grid .photo-frame img { aspect-ratio: 1 / 1; height: 100%; }
+    @media (max-width: 640px) {
+      .media-grid { grid-template-columns: 1fr; }
+    }
+
+    .quote {
+      margin-top: 18px;
+      padding-left: 16px;
+      border-left: 3px solid var(--gold);
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(1.35rem, 3.4vw, 1.85rem);
+      font-style: italic;
+      color: var(--foam);
+      line-height: 1.3;
+      animation: fadeUp 1s 0.16s ease both;
+    }
+
+    .list-soft {
+      margin-top: 8px;
+      display: grid;
+      gap: 8px;
+    }
+    .list-soft div {
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(248,243,236,0.06);
+      border: 1px solid rgba(248,243,236,0.08);
+      font-size: 0.95rem;
+      line-height: 1.5;
+      color: rgba(248,243,236,0.9);
+    }
+
+    .nav-bar {
+      position: fixed;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      background: rgba(15,28,34,0.55);
+      border: 1px solid rgba(248,243,236,0.16);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 14px 40px rgba(0,0,0,0.35);
+      width: min(520px, calc(100% - 20px));
+      justify-content: space-between;
+    }
+    .nav-bar button {
+      border: 0;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 0.9rem;
+      border-radius: 999px;
+      padding: 12px 16px;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+    .nav-bar button:active { transform: scale(0.97); }
+    .btn-prev {
+      background: transparent;
+      color: var(--foam);
+      border: 1px solid rgba(255,255,255,0.18) !important;
+    }
+    .btn-next {
+      background: linear-gradient(135deg, #c97b84, #8f4f5a);
+      color: white;
+      box-shadow: 0 8px 24px rgba(160,80,95,0.35);
+    }
+    .progress {
+      color: rgba(248,243,236,0.72);
+      font-size: 0.76rem;
+      letter-spacing: 0.1em;
+      white-space: nowrap;
+    }
+
+    .spark {
+      position: absolute;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--gold);
+      opacity: 0;
+      z-index: 3;
+      pointer-events: none;
+      animation: sparkle 3.8s ease-in-out infinite;
+    }
+
+    .chapter-rail {
+      position: fixed;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 30;
+      display: flex;
+      gap: 5px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: rgba(8,16,20,0.42);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.1);
+      max-width: calc(100% - 24px);
+      overflow-x: auto;
+    }
+    .chapter-rail button {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      border: 0;
+      background: rgba(255,255,255,0.28);
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+    .chapter-rail button.on {
+      background: var(--gold);
+      box-shadow: 0 0 0 3px rgba(201,160,106,0.22);
+    }
+
+    .laugh {
+      display: inline-block;
+      animation: wobble 2.8s ease-in-out infinite;
+      transform-origin: center;
+    }
+
+    .name-chip {
+      display: inline-block;
+      color: var(--champagne);
+      font-weight: 600;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes softZoom {
+      from { transform: scale(1); }
+      to { transform: scale(1.05); }
+    }
+    @keyframes sparkle {
+      0%, 100% { opacity: 0; transform: translateY(0) scale(0.6); }
+      40% { opacity: 0.95; transform: translateY(-20px) scale(1); }
+      70% { opacity: 0.15; }
+    }
+    @keyframes wobble {
+      0%, 100% { transform: rotate(-2deg); }
+      50% { transform: rotate(2.6deg); }
+    }
+    @keyframes nudge {
+      0%, 100% { transform: translateX(0); }
+      50% { transform: translateX(6px); }
+    }
+
+    @media (max-width: 640px) {
+      .content { padding: 68px 16px 126px; }
+      .nav-bar { bottom: 12px; }
+      .hero-content .slideshow-container { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="story" id="story">
+    <nav class="chapter-rail" id="rail" aria-label="Capítulos"></nav>
+
+    <!-- PÁGINA 1: CAPA -->
+    <section id="page-1" class="page active tone-love" data-title="Capa">
+      <div class="bg" style="background-image:url('media/capa.jpg')"></div>
+      <div class="spark" style="top:16%; left:18%; animation-delay:0.2s"></div>
+      <div class="spark" style="top:26%; right:16%; animation-delay:1.1s; background:#f0c9ce"></div>
+      <div class="spark" style="top:58%; left:12%; animation-delay:2s"></div>
+      <div class="content hero-content">
+        <div class="capitulo" style="text-align:left; margin-top:5px;">Capítulo Especial</div>
+        <div class="photo-stage" style="margin-top:0;">
+          <div class="slideshow-container" data-slideshow>
+            <!-- 1: CASAMENTO / MEMÓRIA -->
+            <div class="slide active" style="background-image:url('media/nilsa-casamento.jpg'), url('media/memoria.jpg')">
+              <div class="slide-caption">1 · Casamento — Nilsa Lina Obobo</div>
+            </div>
+            <div class="slide" style="background-image:url('media/nilsa-retrato.jpg'), url('media/capa.jpg')">
+              <div class="slide-caption">2 · Nilsa — luz no fim do dia</div>
+            </div>
+            <div class="slide" style="background-image:url('media/nilsa-guerreira.jpg'), url('media/guerreira.jpg')">
+              <div class="slide-caption">3 · Coração que não se rende</div>
+            </div>
+            <div class="slide" style="background-image:url('media/nilsa-riso.jpg'), url('media/comedia.jpg')">
+              <div class="slide-caption">4 · E ainda sobra bolo… e charme</div>
+            </div>
+          </div>
+          <div class="slide-dots" data-dots></div>
+        </div>
+        <h1 class="brand">
+          <span class="full-name">Nilsa Lina Obobo</span>
+          Nilsa
+          <em>43 anos de luz própria</em>
+        </h1>
+        <p class="lead" style="margin-top:16px;">
+          Uma história em capítulos — com humor, carinho e a verdade mais linda:
+          mesmo no meio da luta, <span class="name-chip">Nilsa</span> continua bela
+          <strong>por fora</strong> e irresistível <strong>por dentro</strong>.
+        </p>
+        <div class="cta-hint"><span>Toque em continuar e entre na história</span> <span class="arrow">→</span></div>
+      </div>
+    </section>
+
+    <!-- PÁGINA 2: APRESENTAÇÃO -->
+    <section id="page-2" class="page tone-memory" data-title="Nilsa">
+      <div class="bg" style="background-image:url('media/memoria.jpg')"></div>
+      <div class="content">
+        <div class="capitulo">Capítulo 1 — O nome que cabe no peito</div>
+        <h2>Nilsa Lina Obobo — <span>e Nilsa, para quem ama</span></h2>
+        <div class="photo-stage">
+          <figure class="photo-frame wide">
+            <img src="media/nilsa-retrato.jpg" alt="Nilsa Lina Obobo" onerror="this.src='media/memoria.jpg'" />
+            <figcaption class="photo-note">Há nomes que a gente diz baixinho… e o coração já responde.</figcaption>
+          </figure>
+        </div>
+        <p class="texto">
+          <strong>Nilsa Lina Obobo</strong> — nome completo, como quem apresenta uma rainha.
+          <em>Nilsa</em> — o jeito íntimo, o atalho do amor, o nome que a família e os amigos
+          carregam no bolso do dia a dia.
+        </p>
+        <p class="texto">
+          Este webapp não é um cartão. É um livro pequeno, feito página a página,
+          para te lembrar: aos 43 anos, tu não estás “só a completar anos” —
+          estás a continuar a escrever uma vida que nos ensina.
+        </p>
+      </div>
+    </section>
+
+    <!-- PÁGINA 3: CASAMENTO / AMOR -->
+    <section id="page-3" class="page tone-love" data-title="Amor">
+      <div class="bg" style="background-image:url('media/capa.jpg')"></div>
+      <div class="content">
+        <div class="capitulo">Capítulo 2 — O começo do “nós”</div>
+        <h2>O dia em que o mundo <span>ficou mais elegante</span></h2>
+        <div class="photo-stage">
+          <div class="slideshow-container" data-slideshow>
+            <div class="slide active" style="background-image:url('media/nilsa-casamento.jpg'), url('media/memoria.jpg')">
+              <div class="slide-caption">1 · Casamento — Nilsa Lina Obobo</div>
+            </div>
+            <div class="slide" style="background-image:url('media/nilsa-juntos.jpg'), url('media/capa.jpg')">
+              <div class="slide-caption">2 · Olhar de quem ama de verdade</div>
+            </div>
+            <div class="slide" style="background-image:url('media/nilsa-retrato.jpg'), url('media/guerreira.jpg')">
+              <div class="slide-caption">3 · Amor que vira coragem</div>
+            </div>
+          </div>
+          <div class="slide-dots" data-dots></div>
+        </div>
+        <p class="texto">
+          Tem gente que envelhece. A <strong>Nilsa</strong>? Ela <em>coleciona eras</em>.
+          Cada ano novo não apaga o anterior — acrescenta brilho, teimosia boa e aquele jeito
+          de entrar numa sala como se o ar ficasse imediatamente melhor educado.
+        </p>
+        <p class="texto">
+          Este capítulo é pelo amor que se vê nas fotos… e pelo amor que não cabe em nenhuma moldura.
+        </p>
+      </div>
+    </section>
+
+    <!-- PÁGINA 4: BELEZA / RIM -->
+    <section id="page-4" class="page tone-fighter" data-title="Beleza">
+      <div class="bg" style="background-image:url('media/guerreira.jpg')"></div>
+      <div class="content">
+        <div class="capitulo">Capítulo 3 — Beleza sem filtro</div>
+        <h2>Mesmo assim… <span>Nilsa é belíssima</span></h2>
+        <div class="photo-stage">
+          <div class="media-grid">
+            <figure class="photo-frame portrait">
+              <img src="media/nilsa-elegante.jpg" alt="Beleza de Nilsa" onerror="this.src='media/guerreira.jpg'" />
+              <figcaption class="photo-note">Por dentro: um coração que ilumina água escura.</figcaption>
+            </figure>
+            <figure class="photo-frame">
+              <img src="media/nilsa-retrato.jpg" alt="Nilsa belíssima" onerror="this.src='media/capa.jpg'" />
+              <figcaption class="photo-note">Por fora: a mesma graça, a mesma luz.</figcaption>
+            </figure>
+          </div>
+        </div>
+        <p class="texto">
+          Vamos falar sem rodeios e sem pena barata: a insuficiência renal é um capítulo difícil.
+          Mas ela <strong>não é o título do livro</strong>. O título continua sendo
+          <span class="name-chip">Nilsa Lina Obobo</span>.
+        </p>
+        <p class="texto">
+          Por fora, a mesma beleza. Por dentro, uma força que faz a gente se endireitar só de estar perto.
+          Tu não “pareces forte”. Tu <em>és</em> forte — com delicadeza, com humor, com verdade.
+        </p>
+        <p class="quote">“O corpo pode estar em batalha. A alma, porém, continua de vestido de gala.”</p>
+      </div>
+    </section>
+
+    <!-- PÁGINA 5: COMÉDIA -->
+    <section id="page-5" class="page tone-comedy" data-title="Comédia">
+      <div class="bg" style="background-image:url('media/comedia.jpg')"></div>
+      <div class="content">
+        <div class="capitulo">Capítulo 4 — Manual de sobrevivência (junto da Nilsa)</div>
+        <h2>Aviso oficial: <span class="laugh">tempestade de charme</span></h2>
+        <div class="photo-stage">
+          <figure class="photo-frame">
+            <img src="media/nilsa-riso.jpg" alt="Nilsa a rir" onerror="this.src='media/comedia.jpg'" />
+            <figcaption class="photo-note">Prova documental: 43 anos não diminuem o caos adorável.</figcaption>
+          </figure>
+        </div>
+        <p class="texto">Regras da casa quando a Nilsa está por perto:</p>
+        <div class="list-soft">
+          <div>1) Se ela rir, todos riem — mesmo sem entender o porquê.</div>
+          <div>2) Se ela disser “é rapidinho”, prepare o lanche da tarde… e a ceia.</div>
+          <div>3) Se ela olhar com aquela sobrancelha… alguém vai admitir a culpa em 3 segundos.</div>
+          <div>4) Se houver bolo, o “só um pedacinho” é uma ficção científica.</div>
+        </div>
+        <p class="texto" style="margin-top:14px;">
+          Feliz aniversário para a mulher capaz de transformar um dia comum em novela,
+          e uma novela em comédia. <strong>Oscar de Melhor Protagonista da Realidade</strong>, por favor —
+          entregue a <em>Nilsa</em>.
+        </p>
+      </div>
+    </section>
+
+    <!-- PÁGINA 6: GUERREIRA -->
+    <section id="page-6" class="page tone-fighter" data-title="Guerreira">
+      <div class="bg" style="background-image:url('media/guerreira.jpg')"></div>
+      <div class="content">
+        <div class="capitulo">Capítulo 5 — Energia de lutadora</div>
+        <h2>A positividade dela é <span>outro nível</span></h2>
+        <div class="photo-stage">
+          <figure class="photo-frame wide">
+            <img src="media/nilsa-guerreira.jpg" alt="Nilsa — guerreira" onerror="this.src='media/guerreira.jpg'" />
+            <figcaption class="photo-note">Não é motivação de cartão. É atitude de quem já atravessou tempestade e ainda oferece abrigo.</figcaption>
+          </figure>
+        </div>
+        <p class="texto">
+          Tem gente que “passa energia positiva” como quem empresta um carregador.
+          A <strong>Nilsa</strong> transmite uma frequência diferente:
+          <strong>coragem com doçura</strong>, fé com pés no chão,
+          e aquele sorriso que diz “ainda não acabou — e eu ainda estou linda nesta cena”.
+        </p>
+        <p class="texto">
+          Essa energia de lutadora não é barulho. É presença. É o jeito como ela ergue o dia
+          mesmo quando o corpo pede pausa. É outro nível — e quem está perto sente.
+        </p>
+        <p class="quote">Guerreira não é quem nunca cai. É quem levanta com o coração maior do que antes.</p>
+      </div>
+    </section>
+
+    <!-- PÁGINA 7: COMÉDIA + SENTIMENTO -->
+    <section id="page-7" class="page tone-comedy" data-title="Diagnóstico">
+      <div class="bg" style="background-image:url('media/comedia.jpg')"></div>
+      <div class="content">
+        <div class="capitulo">Capítulo 6 — Relatório clínico… do coração</div>
+        <h2>Diagnóstico: <span>mulher indispensável</span></h2>
+        <div class="photo-stage">
+          <figure class="photo-frame">
+            <img src="media/nilsa-elegante.jpg" alt="Nilsa — indispensável" onerror="this.src='media/capa.jpg'" />
+            <figcaption class="photo-note">Sintomas: sorrisos em excesso, falta de ar (de tanto rir), e dependência emocional saudável da família.</figcaption>
+          </figure>
+        </div>
+        <p class="texto">
+          Relatório confidencial sobre a paciente <strong>Nilsa Lina Obobo</strong>:
+        </p>
+        <div class="list-soft">
+          <div><strong>Beleza exterior:</strong> estável, alta, contagiante.</div>
+          <div><strong>Beleza interior:</strong> crítica — no bom sentido. Contamina tudo à volta.</div>
+          <div><strong>Humor:</strong> efeito colateral desejável. Pode causar lágrimas de rir.</div>
+          <div><strong>Tratamento recomendado:</strong> abraços frequentes, bolo, e ouvir o que ela tem para dizer.</div>
+        </div>
+        <p class="texto" style="margin-top:14px;">
+          A sério agora: a luta com os rins é real. Mas a forma como tu continuas a irradiar vida…
+          isso também é real. E é milagre do dia a dia.
+        </p>
+      </div>
+    </section>
+
+    <!-- PÁGINA 8: FAMÍLIA E AMIGOS -->
+    <section id="page-8" class="page tone-love" data-title="Família">
+      <div class="bg" style="background-image:url('media/memoria.jpg')"></div>
+      <div class="content">
+        <div class="capitulo">Capítulo 7 — O círculo que tu seguras</div>
+        <h2>Importante para mim… <span>e para todos nós</span></h2>
+        <div class="photo-stage">
+          <div class="media-grid">
+            <figure class="photo-frame">
+              <img src="media/nilsa-familia.jpg" alt="Nilsa com a família" onerror="this.src='media/memoria.jpg'" />
+              <figcaption class="photo-note">Porque a tua presença organiza o coração da gente.</figcaption>
+            </figure>
+            <figure class="photo-frame">
+              <img src="media/nilsa-festa.jpg" alt="Celebração com Nilsa" onerror="this.src='media/comedia.jpg'" />
+              <figcaption class="photo-note">Amigos, família, festa — e Nilsa no centro.</figcaption>
+            </figure>
+          </div>
+        </div>
+        <p class="texto">
+          Se alguém perguntar “quem é o centro desta família?”, a resposta não precisa de microfone.
+          É <strong>Nilsa</strong>: conselho, café, bronca carinhosa, oração, piada no momento certo.
+        </p>
+        <p class="texto">
+          Eu preciso dizer isto com clareza: <strong>a tua existência muda a nossa</strong>.
+          Amigos voltam a ligar. Família se reúne. Eu fico melhor — mais humano, mais paciente, mais grato —
+          só porque tu insistis em continuar sendo luz.
+        </p>
+        <p class="quote">Nilsa não é “alguém importante”. Nilsa é o ponto onde o amor da gente se encontra.</p>
+      </div>
+    </section>
+
+    <!-- PÁGINA 9: CARTA ÍNTIMA -->
+    <section id="page-9" class="page tone-love" data-title="Carta">
+      <div class="bg" style="background-image:url('media/capa.jpg')"></div>
+      <div class="content">
+        <div class="capitulo">Capítulo 8 — Em voz baixa</div>
+        <h2>O que eu não canso de <span>repetir</span></h2>
+        <div class="photo-stage">
+          <figure class="photo-frame portrait">
+            <img src="media/nilsa-juntos.jpg" alt="Carta para Nilsa" onerror="this.src='media/guerreira.jpg'" />
+            <figcaption class="photo-note">Para guardar no peito, não só no álbum.</figcaption>
+          </figure>
+        </div>
+        <p class="texto">
+          <strong>Nilsa</strong>, obrigado por não deixar a dor roubar o teu brilho.
+          Obrigado por rir mesmo quando o corpo pede silêncio.
+          Obrigado por nos ensinar, sem discurso, que beleza verdadeira é perseverança com graça.
+        </p>
+        <p class="texto">
+          Nestes 43 anos, tu já foste menina, mulher, parceira, amiga, guerreira —
+          e em todas as versões… continuaste sendo <em>inesquecível</em>.
+          Para mim. Para a família. Para os amigos. Para quem teve a sorte de te conhecer.
+        </p>
+        <p class="quote">Se o amor tivesse idade, o teu ainda seria jovem demais para se aposentar.</p>
+      </div>
+    </section>
+
+    <!-- PÁGINA 10: VÍDEO / MEMÓRIA VIVA -->
+    <section id="page-10" class="page tone-memory" data-title="Memória viva">
+      <div class="bg" style="background-image:url('media/memoria.jpg')"></div>
+      <div class="content">
+        <div class="capitulo">Capítulo 9 — Memória que se mexe</div>
+        <h2>Se a vida fosse um filme… <span>Nilsa seria a protagonista</span></h2>
+        <div class="photo-stage">
+          <figure class="photo-frame wide" id="videoFrame">
+            <video id="storyVideo" controls playsinline preload="metadata" poster="media/capa.jpg">
+              <source src="media/nilsa-historia.mp4" type="video/mp4" />
+              <source src="media/nilsa-historia.webm" type="video/webm" />
+            </video>
+            <figcaption class="photo-note">
+              Vídeo embutido neste capítulo (ficheiro em <code>media/nilsa-historia.mp4</code>).
+              Enquanto não houver vídeo, a capa continua a contar a cena.
+            </figcaption>
+          </figure>
+        </div>
+        <p class="texto">
+          Este capítulo é para o movimento: o sorriso, o gesto, a voz.
+          Porque <strong>Nilsa Lina Obobo</strong> não cabe só numa fotografia —
+          cabe numa sequência inteira de momentos que a gente quer rever.
+        </p>
+        <p class="texto">
+          E se o filme tiver comédia? Melhor. Se tiver lágrima? Também.
+          A vida real da Nilsa já tem os dois — e ainda sobra esperança no final de cada cena.
+        </p>
+      </div>
+    </section>
+
+    <!-- PÁGINA 11: BRINDE -->
+    <section id="page-11" class="page tone-comedy" data-title="Brinde">
+      <div class="bg" style="background-image:url('media/comedia.jpg')"></div>
+      <div class="content">
+        <div class="capitulo">Capítulo 10 — Brinde (com bolo e atitude)</div>
+        <h2>43 razões… <span>e mais uma piada</span></h2>
+        <div class="photo-stage">
+          <figure class="photo-frame">
+            <img src="media/nilsa-festa.jpg" alt="Brinde de aniversário da Nilsa" onerror="this.src='media/comedia.jpg'" />
+            <figcaption class="photo-note">Fim do capítulo cômico. Início do abraço sério.</figcaption>
+          </figure>
+        </div>
+        <p class="texto">
+          Razão nº 1: porque a <strong>Nilsa</strong> existe.<br>
+          Razão nº 2 a 42: porque cada dia dela vira história.<br>
+          Razão nº 43: porque mesmo pedindo “só um pedacinho de bolo”, a gente já sabe —
+          vai ser o pedaço com o recheio bom.
+        </p>
+        <p class="texto">
+          Que este ano traga mais dias leves, exames bons, abraços fortes e a mesma energia de lutadora
+          que faz a gente acreditar que o amanhã também merece a tua beleza.
+        </p>
+      </div>
+    </section>
+
+    <!-- PÁGINA 12: FINAL -->
+    <section id="page-12" class="page tone-love" data-title="Final">
+      <div class="bg" style="background-image:url('media/capa.jpg')"></div>
+      <div class="spark" style="top:22%; left:30%;"></div>
+      <div class="spark" style="top:40%; right:24%; animation-delay:1.4s; background:#f0c9ce"></div>
+      <div class="content hero-content">
+        <div class="capitulo">Última página — por enquanto</div>
+        <h1 class="brand">
+          <span class="full-name">Nilsa Lina Obobo</span>
+          Feliz
+          <em>aniversário, Nilsa</em>
+        </h1>
+        <p class="lead" style="margin-top:16px;">
+          43 anos de uma mulher que a doença não define,
+          que o humor não abandona, e que o amor — o meu, o da família, o dos amigos —
+          escolhe todos os dias.
+        </p>
+        <p class="quote" style="max-width:36ch;">
+          Continua bela. Continua guerreira. Continua nossa — Nilsa.
+        </p>
+        <div class="cta-hint" style="margin-top:22px;">Com amor · em português · até ao próximo capítulo</div>
+      </div>
+    </section>
+
+    <div class="nav-bar">
+      <button class="btn-prev" id="prevBtn" type="button">← Anterior</button>
+      <div class="progress" id="progress">1 / 12</div>
+      <button class="btn-next" id="nextBtn" type="button">Continuar a história →</button>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const pages = Array.from(document.querySelectorAll(".page"));
+      const progress = document.getElementById("progress");
+      const prevBtn = document.getElementById("prevBtn");
+      const nextBtn = document.getElementById("nextBtn");
+      const rail = document.getElementById("rail");
+      const storyVideo = document.getElementById("storyVideo");
+      let index = 0;
+
+      pages.forEach((_, i) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.title = pages[i].dataset.title || ("Capítulo " + (i + 1));
+        b.setAttribute("aria-label", b.title);
+        b.addEventListener("click", () => go(i));
+        rail.appendChild(b);
+      });
+
+      function pauseVideo() {
+        if (storyVideo && !storyVideo.paused) storyVideo.pause();
+      }
+
+      function go(i) {
+        index = Math.max(0, Math.min(pages.length - 1, i));
+        pages.forEach((p, n) => p.classList.toggle("active", n === index));
+        Array.from(rail.children).forEach((b, n) => b.classList.toggle("on", n === index));
+        progress.textContent = (index + 1) + " / " + pages.length;
+        prevBtn.style.visibility = index === 0 ? "hidden" : "visible";
+        nextBtn.textContent = index === pages.length - 1 ? "Recomeçar ↻" : "Continuar a história →";
+        if (pages[index].id !== "page-10") pauseVideo();
+        pages[index].scrollTop = 0;
+      }
+
+      prevBtn.addEventListener("click", () => go(index - 1));
+      nextBtn.addEventListener("click", () => {
+        if (index === pages.length - 1) go(0);
+        else go(index + 1);
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight" || e.key === " ") {
+          if (e.target && (e.target.tagName === "VIDEO" || e.target.tagName === "INPUT")) return;
+          e.preventDefault();
+          nextBtn.click();
+        }
+        if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          prevBtn.click();
+        }
+      });
+
+      document.querySelectorAll("[data-slideshow]").forEach((box) => {
+        const slides = Array.from(box.querySelectorAll(".slide"));
+        const dotsWrap = box.parentElement.querySelector("[data-dots]");
+        let s = 0;
+        if (!slides.length || !dotsWrap) return;
+        slides.forEach((_, n) => {
+          const d = document.createElement("button");
+          d.type = "button";
+          d.setAttribute("aria-label", "Foto " + (n + 1));
+          d.addEventListener("click", () => show(n));
+          dotsWrap.appendChild(d);
+        });
+        function show(n) {
+          s = n;
+          slides.forEach((sl, i) => sl.classList.toggle("active", i === s));
+          Array.from(dotsWrap.children).forEach((d, i) => d.classList.toggle("on", i === s));
+        }
+        show(0);
+        setInterval(() => {
+          const page = box.closest(".page");
+          if (page && page.classList.contains("active")) show((s + 1) % slides.length);
+        }, 4200);
+      });
+
+      if (storyVideo) {
+        storyVideo.addEventListener("error", () => {
+          const note = document.querySelector("#videoFrame .photo-note");
+          if (note) {
+            note.innerHTML = "Coloque o vídeo dela em <code>media/nilsa-historia.mp4</code> — fica embutido neste capítulo, não num zip.";
+          }
+        });
+      }
+
+      go(0);
+    })();
+  </script>
+</body>
+</html>
