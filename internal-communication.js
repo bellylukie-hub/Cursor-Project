@@ -452,7 +452,7 @@
     };
 
     window.refreshInternalComm = function () {
-        internalCommContactsCache = null;
+        if (typeof clearInternalCommContactsCache === 'function') clearInternalCommContactsCache();
         initInternalComm(true);
         if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
         refreshInternalCommContacts().then(() => {

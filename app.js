@@ -1706,7 +1706,7 @@ function applyAuthUserToSession(apiUser) {
     if (typeof initCustomSqlNav === 'function') initCustomSqlNav();
     if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
     if (typeof initInternalComm === 'function') initInternalComm(true);
-    internalCommContactsCache = null;
+    clearInternalCommContactsCache();
 }
 
 function showLoginScreen(message) {
@@ -1818,6 +1818,9 @@ async function bootApplication() {
         await syncHelpdeskFromApi();
     }
     if (typeof initInternalComm === 'function') initInternalComm(true);
+    if (typeof refreshInternalCommContacts === 'function') {
+        try { await refreshInternalCommContacts(); } catch (_) {}
+    }
     navigateTo('dashboard');
     updateSidebarBadges();
     updateAdminNavVisibility();
@@ -1857,6 +1860,8 @@ function switchSessionUser(userId) {
     updateTopBarUser();
     if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
     if (typeof initInternalComm === 'function') initInternalComm(true);
+    clearInternalCommContactsCache();
+    if (typeof refreshInternalCommContacts === 'function') refreshInternalCommContacts().catch(() => {});
     logAuditEvent(`Switched session to ${user.username}`, userId, 'session', 'Demo role switch');
     showToast(`Now logged in as ${user.username} (${getRoleById(user.roleId)?.name})`, 'success');
     updateAdminNavVisibility();
@@ -7869,20 +7874,35 @@ function attachWaFile(input) {
 let internalCommContactsCache = null;
 let internalCommContactsRefreshGen = 0;
 
+function usernameToDisplayName(username) {
+    return String(username || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function initialsFromDisplayName(name) {
+    return String(name || '').split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '??';
+}
+
+function clearInternalCommContactsCache() {
+    internalCommContactsCache = null;
+}
+
+if (typeof window !== 'undefined') window.clearInternalCommContactsCache = clearInternalCommContactsCache;
+
 function buildInternalCommContactsFromLocal() {
     if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
     const currentEmail = (typeof getCurrentCommUserEmail === 'function' ? getCurrentCommUserEmail() : '').toLowerCase();
     const normStatus = s => String(s || 'active').toLowerCase();
     const fromAdmin = (adminUsersDB || []).filter(u => normStatus(u.status) === 'active').map(u => {
         const email = (u.email || `${u.username}@truckcontrol.local`).toLowerCase();
+        const name = usernameToDisplayName(u.username);
         return {
             id: u.id,
-            name: u.username.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+            name,
             email,
             username: u.username,
             area: u.area,
             role: getRoleById(u.roleId)?.name || 'User',
-            initials: u.username.replace(/_/g, ' ').replace(/\b\w/g, c => c[0]).join('').slice(0, 2).toUpperCase()
+            initials: initialsFromDisplayName(name)
         };
     });
     const merged = [...fromAdmin];
@@ -7942,7 +7962,12 @@ async function refreshInternalCommContacts() {
 
 function getInternalCommContactList() {
     if (internalCommContactsCache?.length) return internalCommContactsCache;
-    return buildInternalCommContactsFromLocal();
+    try {
+        return buildInternalCommContactsFromLocal();
+    } catch (e) {
+        console.warn('Internal comm contacts (local):', e.message);
+        return [];
+    }
 }
 
 function buildChatTagPrefix() {
