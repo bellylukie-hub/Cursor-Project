@@ -8179,17 +8179,19 @@ function getInternalCommExportData() {
 }
 
 function renderInternalCommunication(container, skipContactRefresh) {
-    if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
-    if (typeof initInternalComm === 'function') initInternalComm();
-    if (internalCommFilter === 'chat' && (!activeChatRoomId || !chatRoomsDB.find(r => r.id === activeChatRoomId))) {
-        activeChatRoomId = getFilteredChatRooms()[0]?.id || null;
-    }
-    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-        Notification.requestPermission().catch(() => {});
-    }
-    const stats = getInternalCommStats();
-    const contactCount = getInternalCommContactList().length;
-    container.innerHTML = `
+    try {
+        if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
+        if (typeof initInternalComm === 'function') initInternalComm();
+        if (internalCommFilter === 'chat' && (!activeChatRoomId || !chatRoomsDB.find(r => r.id === activeChatRoomId))) {
+            activeChatRoomId = getFilteredChatRooms()[0]?.id || null;
+        }
+        if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+            Notification.requestPermission().catch(() => {});
+        }
+        const stats = getInternalCommStats();
+        let contactCount = 0;
+        try { contactCount = getInternalCommContactList().length; } catch (_) {}
+        container.innerHTML = `
         <div class="page-header">
             <h1>✉️ Internal Communication</h1>
             <div class="breadcrumb"><a href="#" onclick="navigateTo('dashboard')">Home</a> <span>›</span> <strong>Internal Communication</strong></div>
@@ -8222,6 +8224,17 @@ function renderInternalCommunication(container, skipContactRefresh) {
                 renderInternalCommunication(container, true);
             }
         });
+    }
+    } catch (e) {
+        console.error('Internal Communication render failed:', e);
+        container.innerHTML = `
+            <div class="page-header"><h1>✉️ Internal Communication</h1></div>
+            <div class="access-denied" style="margin-top:20px;">
+                <h2>Could not load Internal Communication</h2>
+                <p>${e.message || 'Unknown error'}. Try <button type="button" class="btn btn-outline btn-sm" onclick="refreshInternalComm()">Sync mailbox</button> or sign out and sign in again.</p>
+                <button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">⬅️ Back to Dashboard</button>
+            </div>`;
+        if (typeof showToast === 'function') showToast('Internal Communication failed to load', 'warning');
     }
 }
 

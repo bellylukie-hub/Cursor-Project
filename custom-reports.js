@@ -44,6 +44,12 @@
             ]
         },
         {
+            section: 'Performance',
+            items: [
+                { id: 'team-kpi-achievement', icon: '🎯', title: 'Team KPI Achievement', desc: 'Per-area KPI achievement for each team member based on assigned areas and targets' }
+            ]
+        },
+        {
             section: 'Management',
             items: [
                 { id: 'assets', icon: '🚗', title: 'Assets & Equipment', desc: 'Fleet assets, documents, and expiry status' },
@@ -161,7 +167,10 @@
     }
 
     function getReportInternalCommRows() {
-        const emails = emailsDB.filter(e => !e.mirrorOf).map(e => ({
+        const visible = typeof getVisibleEmails === 'function'
+            ? getVisibleEmails()
+            : (emailsDB || []).filter(e => !e.mirrorOf);
+        const emails = visible.map(e => ({
             _id: `email-${e.id}`,
             recordType: 'Email',
             subject: e.subject,
@@ -174,7 +183,7 @@
             status: e.read ? 'Read' : 'Unread',
             important: e.important ? 'Yes' : 'No'
         }));
-        const chats = chatRoomsDB.map(r => ({
+        const chats = (chatRoomsDB || []).map(r => ({
             _id: `chat-${r.id}`,
             recordType: r.type === 'group' ? 'Group Chat' : 'Direct Chat',
             subject: r.name,
@@ -188,6 +197,111 @@
             important: '—'
         }));
         return [...emails, ...chats];
+    }
+
+    function displayUsername(username) {
+        return String(username || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    function getUserReportAreas(user) {
+        const areas = user.assignedAreas || [user.area];
+        if (areas.includes('All Areas')) {
+            const fromTrips = [...new Set(Object.values(tripsDB || {}).map(t =>
+                typeof resolveTripOperationalArea === 'function' ? resolveTripOperationalArea(t) : t.area
+            ).filter(Boolean))];
+            if (typeof getOperationalAreaNames === 'function') {
+                const named = getOperationalAreaNames();
+                return named.length ? named : fromTrips;
+            }
+            return fromTrips.length ? fromTrips : ['All Areas'];
+        }
+        return areas.filter(Boolean);
+    }
+
+    function tripMatchesTeamMember(trip, user) {
+        const by = String(trip.lastUpdatedBy || trip.updatedBy || '').toLowerCase().trim();
+        if (!by) return false;
+        const uname = String(user.username || '').toLowerCase();
+        const display = displayUsername(user.username).toLowerCase();
+        return by === uname || by === display || by.replace(/\s+/g, '_') === uname;
+    }
+
+    function getKpiTargetsForArea(area) {
+        const settings = typeof kpiSettingsDB !== 'undefined' ? kpiSettingsDB : [];
+        const a = String(area || '').toLowerCase();
+        return settings.filter(k => {
+            if (!k.enabled) return false;
+            if (area === 'All Areas') return true;
+            if (k.category === 'areas') {
+                return String(k.process || '').toLowerCase().includes(a) || String(k.pageId || '').toLowerCase().includes(a);
+            }
+            if (k.category === 'border-nb' || k.category === 'border-sb' || k.category?.startsWith('border')) {
+                return ['kasumbalesa', 'sakania', 'mokambo', 'border'].some(b => a.includes(b));
+            }
+            if (k.category === 'pod') return true;
+            if (k.category === 'workflow-nb' || k.category === 'workflow-sb') return true;
+            return k.category === 'modules';
+        });
+    }
+
+    function getTripsForTeamMemberInArea(user, area) {
+        let trips = Object.values(tripsDB || {});
+        if (typeof filterTripsByUserArea === 'function') trips = filterTripsByUserArea(trips);
+        const inArea = trips.filter(t => {
+            const tripArea = typeof resolveTripOperationalArea === 'function'
+                ? resolveTripOperationalArea(t)
+                : (t.area || '');
+            return area === 'All Areas' || tripArea === area;
+        });
+        const personal = inArea.filter(t => tripMatchesTeamMember(t, user));
+        return personal.length ? personal : inArea;
+    }
+
+    function getReportTeamKpiAchievementRows() {
+        const users = (adminUsersDB || []).filter(u => String(u.status || 'active').toLowerCase() === 'active');
+        const rows = [];
+        users.forEach(user => {
+            const areas = getUserReportAreas(user);
+            areas.forEach(area => {
+                const trips = getTripsForTeamMemberInArea(user, area);
+                const green = trips.filter(t => t.kpi === 'green').length;
+                const orange = trips.filter(t => t.kpi === 'orange').length;
+                const red = trips.filter(t => t.kpi === 'red').length;
+                const total = trips.length;
+                const onTrackPct = total ? Math.round((green / total) * 100) : 0;
+                const achievementPct = total ? Math.round(((green + orange * 0.5) / total) * 100) : 0;
+                const targets = getKpiTargetsForArea(area);
+                const personallyUpdated = trips.filter(t => tripMatchesTeamMember(t, user)).length;
+                let rating = 'No Activity';
+                let kpiLevel = 'green';
+                if (total) {
+                    if (achievementPct >= 80) { rating = 'Exceeding'; kpiLevel = 'green'; }
+                    else if (achievementPct >= 50) { rating = 'On Track'; kpiLevel = 'orange'; }
+                    else { rating = 'Needs Attention'; kpiLevel = 'red'; }
+                }
+                rows.push({
+                    teamMember: displayUsername(user.username),
+                    username: user.username,
+                    role: typeof getRoleById === 'function' ? (getRoleById(user.roleId)?.name || '—') : '—',
+                    area,
+                    kpiTargetsCount: targets.length,
+                    kpiTargets: targets.slice(0, 4).map(k => `${k.process} (${k.targetValue}${k.unit === 'days' ? 'd' : 'h'})`).join('; ') || '—',
+                    trucksHandled: total,
+                    personallyUpdated,
+                    onTrackPct,
+                    priorityCount: orange,
+                    overdueCount: red,
+                    achievementPct,
+                    rating,
+                    kpi: kpiLevel
+                });
+            });
+        });
+        if (typeof userIsSuperAdmin === 'function' && userIsSuperAdmin()) return rows;
+        return rows.filter(r => {
+            if (r.area === 'All Areas') return true;
+            return typeof canModuleAction === 'function' ? canModuleAction('reports', 'view', r.area) : true;
+        });
     }
 
     function getReportRunnerFeeRows() {
@@ -539,6 +653,39 @@
                     { label: 'Unread Email', value: stats.unread || 0, color: 'orange' },
                     { label: 'Sent', value: stats.sent || 0 },
                     { label: 'Chats', value: (stats.groupChats || 0) + (stats.directChats || 0) }
+                ]);
+            }
+        },
+        'team-kpi-achievement': {
+            label: 'Team KPI Achievement',
+            filenamePrefix: 'Team_KPI_Achievement',
+            canAccess: () => typeof canAccessModule === 'function' ? canAccessModule('reports') : true,
+            getData: getReportTeamKpiAchievementRows,
+            getColumns: () => [
+                col('teamMember', 'Team Member', r => r.teamMember),
+                col('role', 'Role', r => r.role),
+                col('area', 'Area', r => r.area),
+                col('kpiTargetsCount', 'KPI Targets', r => r.kpiTargetsCount),
+                col('kpiTargets', 'Assigned KPIs (sample)', r => r.kpiTargets),
+                col('trucksHandled', 'Trips in Scope', r => r.trucksHandled),
+                col('personallyUpdated', 'Personally Updated', r => r.personallyUpdated),
+                col('onTrackPct', 'On Track %', r => `${r.onTrackPct}%`),
+                col('priorityCount', 'Priority', r => r.priorityCount),
+                col('overdueCount', 'Overdue', r => r.overdueCount),
+                col('achievementPct', 'Achievement %', r => `${r.achievementPct}%`),
+                col('rating', 'Rating', r => r.rating)
+            ],
+            kpiTypes: ['all', 'green', 'orange', 'red'],
+            renderKpi: (rows) => {
+                const active = rows.filter(r => r.trucksHandled > 0);
+                const avgAch = active.length
+                    ? Math.round(active.reduce((s, r) => s + r.achievementPct, 0) / active.length)
+                    : 0;
+                return renderGenericKpiSummary(rows, [
+                    { label: 'Team Rows', value: rows.length },
+                    { label: 'Exceeding', value: rows.filter(r => r.rating === 'Exceeding').length, color: 'green' },
+                    { label: 'On Track', value: rows.filter(r => r.rating === 'On Track').length, color: 'orange' },
+                    { label: 'Avg Achievement', value: `${avgAch}%` }
                 ]);
             }
         },
@@ -1219,6 +1366,8 @@
                     <button class="btn btn-outline btn-sm" onclick="saveCombinedReportLayout()">💾 Save Layout</button>
                     <button class="btn btn-primary btn-sm" onclick="runCombinedReport()">▶ Generate Report</button>
                     <button class="btn btn-outline btn-sm" onclick="exportCombinedReport()">📥 Export CSV</button>
+                    <button class="btn btn-outline btn-sm" onclick="printCurrentReport()">🖨️ Print</button>
+                    <button class="btn btn-outline btn-sm" onclick="exportCurrentReportPdf()">📄 Export PDF</button>
                 </div>
             </div>`;
     }
@@ -1530,6 +1679,8 @@
                     <button class="btn btn-outline btn-sm" onclick="saveCustomReportLayout()">💾 Save Layout</button>
                     <button class="btn btn-outline btn-sm" onclick="openCombinedReportFromModule('${moduleId}')" title="Add fields from other menus">🔗 Combine menus</button>
                     <button class="btn btn-primary btn-sm" onclick="exportCustomReport()">📥 Export CSV</button>
+                    <button class="btn btn-outline btn-sm" onclick="printCurrentReport()">🖨️ Print</button>
+                    <button class="btn btn-outline btn-sm" onclick="exportCurrentReportPdf()">📄 Export PDF</button>
                     <button class="btn btn-outline btn-sm" onclick="refreshCustomReport()">🔄 Refresh</button>
                 </div>
             </div>`;
@@ -1738,6 +1889,73 @@
         showToast(`Exported ${rows.length} row${rows.length !== 1 ? 's' : ''}`, 'success');
     }
 
+    function getCurrentReportExportPayload() {
+        if (isCombinedReportMode()) {
+            const { tripRows, standaloneSections } = buildCombinedTripRows();
+            const tripFields = combinedReportState.selectedFieldKeys
+                .filter(k => TRIP_JOIN_MODULES.has(k.split(':')[0]))
+                .map(k => getModuleFieldCatalog(k.split(':')[0]).find(f => f.key === k))
+                .filter(Boolean);
+            if (tripFields.length && tripRows.length) {
+                const headers = ['Trip #', ...tripFields.map(f => f.label)];
+                const rows = tripRows.map(row => [
+                    row.tripNumber,
+                    ...tripFields.map(f => f.getValue(row))
+                ]);
+                return {
+                    title: 'Cross-Menu Custom Report',
+                    headers,
+                    rows,
+                    filenamePrefix: 'Cross_Menu_Report'
+                };
+            }
+            const section = standaloneSections[0];
+            if (section?.rows?.length) {
+                const headers = section.fields.map(f => f.label);
+                const rows = section.rows.map(r => section.fields.map(f => f.getValue(r)));
+                return {
+                    title: section.title || 'Combined Report',
+                    headers,
+                    rows,
+                    filenamePrefix: 'Combined_Report'
+                };
+            }
+            return null;
+        }
+        const moduleId = resolveReportModuleId(currentReportModuleId);
+        const def = getReportDefinition(moduleId);
+        let dataRows = getReportRows(moduleId);
+        dataRows = applyAlertOnlyFilter(dataRows, moduleId);
+        const cols = getActiveColumns(moduleId);
+        if (typeof buildReportPrintPayload === 'function') {
+            const payload = buildReportPrintPayload(`${def.label} Report`, cols, dataRows);
+            return { ...payload, filenamePrefix: def.filenamePrefix };
+        }
+        return null;
+    }
+
+    function printCurrentReport() {
+        const payload = getCurrentReportExportPayload();
+        if (!payload?.headers?.length) {
+            showToast('No report data to print', 'warning');
+            return;
+        }
+        if (typeof printReportTable === 'function') {
+            printReportTable(payload.title, payload.headers, payload.rows, 'Report export');
+        }
+    }
+
+    function exportCurrentReportPdf() {
+        const payload = getCurrentReportExportPayload();
+        if (!payload?.headers?.length) {
+            showToast('No report data to export', 'warning');
+            return;
+        }
+        if (typeof exportReportPdf === 'function') {
+            exportReportPdf(payload.title, payload.headers, payload.rows, payload.filenamePrefix);
+        }
+    }
+
     function exportReportCsv() {
         exportCustomReport();
     }
@@ -1776,6 +1994,8 @@
     window.onReportLayoutSelect = onReportLayoutSelect;
     window.exportCustomReport = exportCustomReport;
     window.exportReportCsv = exportReportCsv;
+    window.printCurrentReport = printCurrentReport;
+    window.exportCurrentReportPdf = exportCurrentReportPdf;
     window.getReportConfig = getReportConfig;
     window.currentReportModuleId = currentReportModuleId;
 

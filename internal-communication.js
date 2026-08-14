@@ -275,11 +275,17 @@
         try {
             const prevUnread = countUnreadEmails();
             const mailbox = await fetchInternalMailboxApi();
-            emailsDB.splice(0, emailsDB.length, ...mailbox);
+            if (mailbox?.length) {
+                emailsDB.splice(0, emailsDB.length, ...mailbox);
+            }
             if (typeof fetchInternalChatApi === 'function') {
                 const chat = await fetchInternalChatApi();
-                chatRoomsDB.splice(0, chatRoomsDB.length, ...(chat.rooms || []));
-                chatMessagesDB.splice(0, chatMessagesDB.length, ...(chat.messages || []));
+                if (chat?.rooms?.length) {
+                    chatRoomsDB.splice(0, chatRoomsDB.length, ...chat.rooms);
+                }
+                if (chat?.messages?.length) {
+                    chatMessagesDB.splice(0, chatMessagesDB.length, ...chat.messages);
+                }
             }
             syncRoomUnreadCounts();
             writeStore();
@@ -374,22 +380,32 @@
         commTheme = data.commTheme || commTheme;
     }
 
+    function ensureCommHasContent() {
+        if ((emailsDB || []).length === 0 && (chatRoomsDB || []).length === 0) {
+            seedWelcomeData();
+        }
+    }
+
     function initInternalComm(force) {
         if (typeof emailsDB === 'undefined' || (commDataLoaded && !force)) return;
         const stored = readStore();
         if (stored) {
             applyLoadedData(stored);
-        } else if (isProductionSession()) {
-            seedWelcomeData();
         }
+        ensureCommHasContent();
         replaceLegacyUserRefs(getCurrentCommUserName(), getCurrentCommUserEmail());
         mergeSharedMailboxIntoLocal();
         syncInternalCommFromApi().finally(() => {
+            ensureCommHasContent();
             syncRoomUnreadCounts();
             applyCommTheme(commTheme, true);
             commDataLoaded = true;
             writeStore();
             startCommPolling();
+            if (typeof currentPage !== 'undefined' && currentPage === 'internal-communication'
+                && typeof renderInternalCommunication === 'function') {
+                renderInternalCommunication(document.getElementById('contentArea'), true);
+            }
         });
     }
 
