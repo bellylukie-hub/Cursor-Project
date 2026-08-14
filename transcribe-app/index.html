@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VoiceScript — Transcribe audio & video by speaker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">VoiceScript</p>
+        <h1>Transcribe audio &amp; video into text — with a speaker for every line</h1>
+        <p class="lede">
+          Record live, or upload media. Tag each voice to a person so the transcript reads like a real conversation.
+        </p>
+        <div class="hero-actions">
+          <button type="button" class="btn primary" id="btnScrollWork">Start transcribing</button>
+          <button type="button" class="btn ghost" id="btnDemoSpeakers">Add demo speakers</button>
+        </div>
+      </div>
+      <div class="hero-visual" aria-hidden="true">
+        <div class="wave" id="waveViz"></div>
+      </div>
+    </header>
+
+    <main class="workspace" id="workspace">
+      <aside class="panel speakers-panel">
+        <div class="panel-head">
+          <h2>Speakers</h2>
+          <button type="button" class="btn small" id="btnAddSpeaker">+ Add</button>
+        </div>
+        <p class="hint">Create people first. Then choose who is speaking while you record or assign lines after upload.</p>
+        <ul class="speaker-list" id="speakerList"></ul>
+        <form class="speaker-form" id="speakerForm" hidden>
+          <input type="text" id="speakerName" placeholder="Name (e.g. Nilsa)" maxlength="40" required />
+          <input type="color" id="speakerColor" value="#3d8b7a" title="Color" />
+          <button type="submit" class="btn small primary">Save</button>
+          <button type="button" class="btn small ghost" id="btnCancelSpeaker">Cancel</button>
+        </form>
+        <div class="active-speaker-box">
+          <label for="activeSpeaker">Active voice → person</label>
+          <select id="activeSpeaker"></select>
+          <p class="hint tight">Live mode: every new sentence is linked to this person. Switch anytime.</p>
+        </div>
+      </aside>
+
+      <section class="panel main-panel">
+        <div class="tabs" role="tablist">
+          <button type="button" class="tab active" data-mode="live" role="tab">Live microphone</button>
+          <button type="button" class="tab" data-mode="file" role="tab">Audio / video file</button>
+        </div>
+
+        <div class="mode-pane active" id="modeLive">
+          <div class="controls-row">
+            <label class="field">
+              <span>Language</span>
+              <select id="liveLang">
+                <option value="pt-PT">Portuguese (Portugal)</option>
+                <option value="pt-BR">Portuguese (Brazil)</option>
+                <option value="en-US" selected>English (US)</option>
+                <option value="en-GB">English (UK)</option>
+                <option value="fr-FR">French</option>
+                <option value="es-ES">Spanish</option>
+                <option value="ln-CD">Lingala (if supported)</option>
+              </select>
+            </label>
+            <button type="button" class="btn primary" id="btnMic">Start listening</button>
+            <button type="button" class="btn ghost" id="btnStopMic" disabled>Stop</button>
+          </div>
+          <div class="status-line" id="liveStatus">Microphone idle · choose a speaker, then start</div>
+          <div class="interim" id="interimBox" hidden></div>
+        </div>
+
+        <div class="mode-pane" id="modeFile">
+          <div class="dropzone" id="dropzone">
+            <input type="file" id="fileInput" accept="audio/*,video/*,.mp3,.wav,.m4a,.ogg,.webm,.mp4,.mov,.mkv" hidden />
+            <p><strong>Drop audio or video here</strong> or <button type="button" class="linkish" id="btnBrowse">browse</button></p>
+            <p class="hint">MP3, WAV, M4A, WEBM, MP4, MOV… Transcription runs in your browser (Whisper). Large files take longer.</p>
+          </div>
+          <div class="media-preview" id="mediaPreview" hidden>
+            <video id="mediaPlayer" controls playsinline></video>
+            <div class="controls-row">
+              <label class="field">
+                <span>Whisper model</span>
+                <select id="whisperModel">
+                  <option value="Xenova/whisper-tiny">tiny (fast)</option>
+                  <option value="Xenova/whisper-base" selected>base (balanced)</option>
+                  <option value="Xenova/whisper-small">small (better quality)</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Transcribe language</span>
+                <select id="fileLang">
+                  <option value="">Auto detect</option>
+                  <option value="portuguese">Portuguese</option>
+                  <option value="english" selected>English</option>
+                  <option value="french">French</option>
+                  <option value="spanish">Spanish</option>
+                </select>
+              </label>
+              <button type="button" class="btn primary" id="btnTranscribeFile">Transcribe file</button>
+            </div>
+            <div class="progress" id="fileProgress" hidden>
+              <div class="progress-bar" id="fileProgressBar"></div>
+              <span id="fileProgressText">Loading model…</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="transcript-toolbar">
+          <h2>Transcript</h2>
+          <div class="toolbar-actions">
+            <button type="button" class="btn small ghost" id="btnAssignSelected" disabled>Assign to active speaker</button>
+            <button type="button" class="btn small ghost" id="btnAlternate">Auto-alternate 2 speakers</button>
+            <button type="button" class="btn small ghost" id="btnClear">Clear</button>
+            <button type="button" class="btn small" id="btnExportTxt">Export TXT</button>
+            <button type="button" class="btn small" id="btnExportSrt">Export SRT</button>
+            <button type="button" class="btn small primary" id="btnExportJson">Export JSON</button>
+          </div>
+        </div>
+        <div class="transcript" id="transcript" aria-live="polite"></div>
+        <p class="empty" id="emptyState">No lines yet. Start the mic or upload a file.</p>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <p>Live mode uses the browser Speech Recognition API (Chrome / Edge). File mode uses on-device Whisper via Transformers.js — media stays on your computer.</p>
+    </footer>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
