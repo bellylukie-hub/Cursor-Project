@@ -32,7 +32,12 @@ app.use('/api', authenticate, apiRoutes);
 const frontendDir = path.join(__dirname, '../..');
 app.use(express.static(frontendDir, {
   index: false,
-  maxAge: env.nodeEnv === 'production' ? '1h' : 0
+  maxAge: env.nodeEnv === 'production' ? '1h' : 0,
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  }
 }));
 
 app.get('/', (_req, res) => {

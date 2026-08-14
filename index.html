@@ -2518,7 +2518,7 @@
     </style>
 </head>
 <body>
-    <div id="loginScreen" class="login-screen-v2">
+    <div id="loginScreen" class="login-screen-v2 show">
         <div class="login-hero">
             <div class="login-hero-brand" id="loginHeroBrand"></div>
             <div class="login-hero-copy">
@@ -2543,12 +2543,15 @@
             </form>
             <div class="login-demo-hint">
                 <span>🛡️</span>
-                <span><strong>Use demo credentials</strong> — <code style="color:#e5e7eb;">super_admin</code> / <code style="color:#e5e7eb;">ChangeMe123!</code></span>
+                <span><strong>Demo login</strong> — <code style="color:#e5e7eb;">super_admin</code> / <code style="color:#e5e7eb;">ChangeMe123!</code></span>
             </div>
+            <p style="margin-top:14px;font-size:12px;color:#6b7280;text-align:center;">
+                Or open <a href="?demo=1" style="color:#fb923c;">?demo=1</a> for instant offline preview (no sign-in).
+            </p>
         </div>
     </div>
     <div class="sidebar-trigger-zone" id="sidebarTriggerZone" aria-hidden="true" title="Show menu"></div>
-    <div class="app-container">
+    <div class="app-container" id="appContainer" style="display:none">
         <!-- SIDEBAR -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header sidebar-header-row">
@@ -3448,6 +3451,15 @@
         </div>
     </div>
 
+    <script>
+    (function () {
+        var DEMO_QUERY = /(?:^|[?&])demo=1(?:&|$)/.test(location.search);
+        window.TRUCKCONTROL_DEMO_PREVIEW = DEMO_QUERY;
+        if (DEMO_QUERY) {
+            try { sessionStorage.removeItem('truckcontrol_auth_token'); sessionStorage.removeItem('truckcontrol_auth_user'); } catch (_) {}
+        }
+    })();
+    </script>
     <!-- Optional for Vercel/static hosting: set window.TRUCKCONTROL_API before api.js (see docs/VERCEL-DEPLOY.md) -->
     <script>/* window.TRUCKCONTROL_API = 'https://your-api-server.com/api'; */</script>
     <script src="api.js"></script>

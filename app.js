@@ -1711,7 +1711,7 @@ function applyAuthUserToSession(apiUser) {
 
 function showLoginScreen(message) {
     const el = document.getElementById('loginScreen');
-    const app = document.querySelector('.app-container');
+    const app = document.getElementById('appContainer') || document.querySelector('.app-container');
     if (el) el.classList.add('show', 'login-screen-v2');
     if (app) app.style.display = 'none';
     document.title = `Sign in — ${APP_BRAND_NAME}`;
@@ -1723,7 +1723,7 @@ function showLoginScreen(message) {
 
 function hideLoginScreen() {
     const el = document.getElementById('loginScreen');
-    const app = document.querySelector('.app-container');
+    const app = document.getElementById('appContainer') || document.querySelector('.app-container');
     if (el) el.classList.remove('show');
     if (app) app.style.display = '';
     const msg = document.getElementById('loginError');
@@ -1746,7 +1746,7 @@ async function handleLoginSubmit(event) {
         hideLoginScreen();
         applyAuthUserToSession(data.user);
         await bootApplication();
-        showToast(`Welcome, ${data.user.username}`, 'success');
+        showToast(`Welcome, ${data.user.username}. Menu is pinned — use 📍 to auto-hide.`, 'success');
     } catch (e) {
         const msg = document.getElementById('loginError');
         if (msg) { msg.textContent = e.message; msg.style.display = 'block'; }
@@ -1821,10 +1821,24 @@ async function bootApplication() {
     if (typeof refreshInternalCommContacts === 'function') {
         try { await refreshInternalCommContacts(); } catch (_) {}
     }
+    if (typeof initControlRoomUi === 'function') initControlRoomUi();
+    ensureDemoSidebarVisible();
     navigateTo('dashboard');
     updateSidebarBadges();
     updateAdminNavVisibility();
     if (typeof initCustomSqlNav === 'function') initCustomSqlNav();
+}
+
+function ensureDemoSidebarVisible() {
+    if (typeof setSidebarPinned !== 'function') return;
+    try {
+        const pinned = localStorage.getItem('truckcontrol_sidebar_pinned');
+        if (pinned === null || pinned === '1' || window.TRUCKCONTROL_DEMO_PREVIEW) {
+            setSidebarPinned(true);
+        }
+    } catch (_) {
+        setSidebarPinned(true);
+    }
 }
 
 function updateAdminNavVisibility() {
@@ -10715,38 +10729,47 @@ document.addEventListener('DOMContentLoaded', async function () {
     adminUsersDB.forEach(u => ensureUserModulePermissions(u));
     initMatrixModalSelects();
 
+    const demoPreview = window.TRUCKCONTROL_DEMO_PREVIEW === true;
     const awaitingAuth = typeof getAuthToken === 'function' && !getAuthToken();
-    if (awaitingAuth) showLoginScreen();
 
-    const connected = typeof checkApiHealth === 'function' && await checkApiHealth();
-
-    if (!connected) {
+    if (demoPreview) {
         loadOfflineDemoTrips();
-        console.log('ℹ️ Backend offline — using local demo trip data. Run: cd backend && npm start');
-    }
+        hideLoginScreen();
+        showToast('Demo preview — local sample data (add ?demo=1 to URL anytime)', 'success');
+        await bootApplication();
+    } else {
+        if (awaitingAuth) showLoginScreen();
 
-    if (connected && typeof isAuthRequired === 'function' && isAuthRequired()) {
-        if (typeof getAuthToken === 'function' && getAuthToken()) {
-            const user = typeof fetchCurrentUser === 'function' ? await fetchCurrentUser() : null;
-            if (user) {
-                applyAuthUserToSession(user);
-                hideLoginScreen();
-                await bootApplication();
+        const connected = typeof checkApiHealth === 'function' && await checkApiHealth();
+
+        if (!connected) {
+            loadOfflineDemoTrips();
+            console.log('ℹ️ Backend offline — using local demo trip data. Run: cd backend && npm start');
+        }
+
+        if (connected && typeof isAuthRequired === 'function' && isAuthRequired()) {
+            if (typeof getAuthToken === 'function' && getAuthToken()) {
+                const user = typeof fetchCurrentUser === 'function' ? await fetchCurrentUser() : null;
+                if (user) {
+                    applyAuthUserToSession(user);
+                    hideLoginScreen();
+                    await bootApplication();
+                } else {
+                    showLoginScreen('Session expired. Sign in with super_admin / ChangeMe123!');
+                }
             } else {
                 showLoginScreen();
             }
         } else {
-            showLoginScreen();
+            if (awaitingAuth) hideLoginScreen();
+            updateTopBarUser();
+            populateRoleSwitcher();
+            if (connected) {
+                await syncTripsFromApi(true);
+                console.log('✅ Backend connected — trips synced from API');
+            }
+            await bootApplication();
         }
-    } else {
-        if (awaitingAuth) hideLoginScreen();
-        updateTopBarUser();
-        populateRoleSwitcher();
-        if (connected) {
-            await syncTripsFromApi(true);
-            console.log('✅ Backend connected — trips synced from API');
-        }
-        await bootApplication();
     }
 
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
