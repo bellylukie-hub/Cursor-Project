@@ -113,7 +113,7 @@
         if (!btn) return;
         const pinned = isSidebarPinned();
         btn.textContent = pinned ? '📌' : '📍';
-        btn.title = pinned ? 'Unpin menu (auto-hide)' : 'Pin menu open';
+        btn.title = pinned ? 'Unpin menu (auto-hide overlay)' : 'Pin menu (push content aside)';
         btn.setAttribute('aria-pressed', pinned ? 'true' : 'false');
     }
 
