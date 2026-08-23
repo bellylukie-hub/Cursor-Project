@@ -2,7 +2,7 @@
 # Mobile package (Capacitor + PWA manifest)
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${1:-v2.5.16-mobile}"
+VERSION="${1:-v2.5.18-mobile}"
 OUT_DIR="$ROOT/dist"
 FOLDER="TruckControl-Mobile-${VERSION}"
 ZIP_NAME="${FOLDER}.zip"

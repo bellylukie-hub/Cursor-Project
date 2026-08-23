@@ -87,25 +87,31 @@
     window.renderDatabaseBrowser = async function (container) {
         if (!canUseDatabaseTools()) return renderAccessDenied(container);
 
-        let dbInfoHtml = '';
+        let dbNameHtml = '<p id="dbBrowserDbName" class="page-db-name" style="margin:6px 0 0;font-size:15px;color:var(--text-secondary);">Loading database name…</p>';
+        let dbMetaHtml = '';
         if (apiReady() && typeof fetchDbInfo === 'function') {
             try {
                 const info = await fetchDbInfo();
                 if (info?.name) {
-                    dbInfoHtml = `<div class="rbac-info-banner" style="margin-top:12px;margin-bottom:0;">
-                        <strong>Database:</strong> <code>${escHtml(info.name)}</code>
-                        ${info.engine ? `<span style="margin-left:8px;color:var(--text-secondary);">${escHtml(info.engine)}</span>` : ''}
-                        ${info.path ? `<br><span style="font-size:12px;color:var(--text-secondary);">Path: <code>${escHtml(info.path)}</code></span>` : ''}
-                    </div>`;
+                    dbNameHtml = `<p id="dbBrowserDbName" class="page-db-name" style="margin:6px 0 0;font-size:15px;">
+                        <strong>Database file:</strong> <code style="font-size:15px;">${escHtml(info.name)}</code>
+                        ${info.engine ? `<span style="margin-left:8px;color:var(--text-secondary);">(${escHtml(info.engine)})</span>` : ''}
+                    </p>`;
+                    if (info.path) {
+                        dbMetaHtml = `<p id="dbBrowserDbPath" style="margin:4px 0 0;font-size:12px;color:var(--text-secondary);">Path: <code>${escHtml(info.path)}</code></p>`;
+                    }
                 }
-            } catch (_) { /* shown after tables load */ }
+            } catch (_) {
+                dbNameHtml = '<p id="dbBrowserDbName" class="page-db-name" style="margin:6px 0 0;font-size:13px;color:var(--text-secondary);">Database name unavailable — check API connection.</p>';
+            }
         }
 
         container.innerHTML = `<div class="page-header">
             <h1>🗄️ Database Browser</h1>
             ${typeof renderAdminBreadcrumb === 'function' ? renderAdminBreadcrumb('Database Browser') : ''}
+            ${dbNameHtml}
+            ${dbMetaHtml}
             <p class="page-subtitle" style="margin-top:8px;color:var(--text-secondary);">Browse SQLite tables, columns, and row data from the live database (read-only).</p>
-            ${dbInfoHtml}
         </div>
         <div id="dbBrowserRoot"><p style="padding:24px;color:var(--text-secondary);">Loading tables…</p></div>`;
 

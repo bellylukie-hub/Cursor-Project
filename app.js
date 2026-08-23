@@ -1806,6 +1806,7 @@ async function bootApplication() {
     }
     if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
     if (typeof applySystemSettingsToUi === 'function') applySystemSettingsToUi();
+    if (typeof applyLanguageFromSettings === 'function') applyLanguageFromSettings();
     if (typeof startSessionTimeoutWatcher === 'function') startSessionTimeoutWatcher();
     if (typeof syncTripsFromApi === 'function' && isApiAvailable()) {
         await syncTripsFromApi(true);
