@@ -2001,6 +2001,18 @@
         .wa-bubble .wa-file { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.05); padding: 8px; border-radius: 6px; margin-top: 4px; }
         .wa-bubble-footer { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin-top: 4px; font-size: 11px; color: #667781; }
         .wa-ticks { color: #53bdeb; letter-spacing: -3px; }
+        .wa-read-bar { display: flex; align-items: center; gap: 8px; margin: 8px 0 12px; color: #667781; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+        .wa-read-bar-line { flex: 1; height: 1px; background: rgba(102,119,129,0.35); }
+        .wa-file-link { color: #027eb5; text-decoration: none; font-weight: 600; }
+        .wa-file-link:hover { text-decoration: underline; }
+        .wa-voice-msg { display: flex; flex-direction: column; gap: 6px; min-width: 200px; }
+        .wa-voice-player { width: 100%; max-width: 280px; height: 32px; }
+        .wa-icon-btn.recording { background: #ff6b6b; color: #fff; animation: wa-pulse 1s infinite; }
+        @keyframes wa-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.65; } }
+        .comm-call-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; z-index: 12000; }
+        .comm-call-card { background: var(--card-bg, #fff); border-radius: 16px; padding: 32px 28px; text-align: center; min-width: 280px; box-shadow: 0 12px 40px rgba(0,0,0,0.25); }
+        .comm-call-avatar { width: 72px; height: 72px; border-radius: 50%; background: #25d366; color: #fff; font-size: 28px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+        .comm-call-status { color: var(--text-secondary); margin: 8px 0 16px; }
         .wa-input-bar { padding: 10px 16px; background: #f0f2f5; display: flex; gap: 8px; align-items: flex-end; }
         .wa-input-bar textarea { flex: 1; border: none; border-radius: 8px; padding: 10px 12px; resize: none; min-height: 42px; max-height: 120px; font-family: inherit; }
         .wa-input-bar .wa-icon-btn { width: 42px; height: 42px; border: none; background: transparent; border-radius: 50%; cursor: pointer; font-size: 18px; }

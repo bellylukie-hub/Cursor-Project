@@ -257,7 +257,9 @@ const KPI_CATEGORIES = [
     { id: 'modules', label: 'Module / Page', icon: '📊', banner: null },
     { id: 'assets', label: 'Assets & Equipment', icon: '🚗', banner: 'equipment' },
     { id: 'turnarounds', label: 'Turnarounds', icon: '🔄', banner: null },
-    { id: 'orders-fleet', label: 'Orders & Fleet', icon: '📦', banner: 'equipment' }
+    { id: 'orders-fleet', label: 'Orders & Fleet', icon: '📦', banner: 'equipment' },
+    { id: 'workshop', label: 'Workshop & Parts', icon: '🔧', banner: 'equipment' },
+    { id: 'fuel-control', label: 'Fuel Control', icon: '⛽', banner: 'equipment' }
 ];
 
 /** KPI measurement type per border step */
@@ -534,6 +536,10 @@ function renderKpiSettingRow(s, showStepNum) {
     const labelCell = isTransition
         ? `<td><strong class="kpi-transition-label">↳ ${s.process}</strong><br><small class="kpi-transition-hint">Step-to-step transition</small></td>`
         : `<td><strong>${s.process}</strong></td>`;
+    const activeUsers = (adminUsersDB || []).filter(u => u.status === 'active');
+    const respOpts = `<option value="">— Any —</option>` + activeUsers.map(u =>
+        `<option value="${u.id}" ${s.responsibleUserId === u.id ? 'selected' : ''}>${u.username}</option>`
+    ).join('');
     return `
         <tr class="${s.enabled ? '' : 'kpi-row-disabled'}${isTransition ? ' kpi-transition-row' : ''}">
             ${showStepNum ? `<td><strong>${isTransition ? 'T' + (s.stepOrder || '—') : (s.stepOrder || '—')}</strong></td>` : ''}
@@ -554,6 +560,11 @@ function renderKpiSettingRow(s, showStepNum) {
                 </select>
             </td>
             <td><input type="number" class="form-control kpi-input" min="50" max="99" step="1" value="${s.warningPct ?? 75}" onchange="updateKpiSetting('${s.id}','warningPct',parseInt(this.value)||75)"></td>
+            <td>
+                <select class="form-control kpi-input" onchange="updateKpiSetting('${s.id}','responsibleUserId',this.value||null)" title="User notified on alert">
+                    ${respOpts}
+                </select>
+            </td>
             <td><label class="toggle-switch toggle-sm"><input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="updateKpiSetting('${s.id}','enabled',this.checked)"><span class="toggle-slider"></span></label></td>
             <td><input type="text" class="form-control kpi-notes-input" value="${(s.notes || '').replace(/"/g, '&quot;')}" placeholder="Notes" onchange="updateKpiSetting('${s.id}','notes',this.value)"></td>
         </tr>`;
@@ -568,7 +579,7 @@ function renderBorderKpiTable(title, rows, subtitle) {
             <table class="data-table admin-table kpi-settings-table">
                 <thead><tr>
                     <th>#</th><th>Segment / Step</th><th>KPI Type</th><th>Page</th><th>Key</th><th>Dir.</th>
-                    <th>Target</th><th>Unit</th><th>Warning %</th><th>Active</th><th>Notes</th>
+                    <th>Target</th><th>Unit</th><th>Warning %</th><th>Responsible</th><th>Active</th><th>Notes</th>
                 </tr></thead>
                 <tbody>${rows.map(s => renderKpiSettingRow(s, true)).join('')}</tbody>
             </table>
@@ -760,7 +771,8 @@ function buildDefaultKpiSettings() {
         { id: 'order-allocation-sla', process: 'Order → Fleet Allocation', pageId: 'client-orders', pageLabel: 'Client Orders', targetValue: 48, unit: 'hours', notes: 'Hours from order confirmed to truck allocated' },
         { id: 'order-dispatch-sla', process: 'Allocation → Dispatch', pageId: 'client-orders', pageLabel: 'Client Orders', targetValue: 24, unit: 'hours', notes: 'Hours from allocation to dispatch' },
         { id: 'fleet-gps-update', process: 'GPS Position Update', pageId: 'position-live', pageLabel: 'Position Live', targetValue: 4, unit: 'hours', notes: 'Expected GPS update interval for allocated trucks' },
-        { id: 'fleet-available-idle', process: 'Fleet Unit Idle', pageId: 'fleet-registry', pageLabel: 'Fleet Registry', targetValue: 3, unit: 'days', notes: 'Flag available fleet units idle longer than N days' }
+        { id: 'fleet-available-idle', process: 'Fleet Unit Idle', pageId: 'fleet-registry', pageLabel: 'Fleet Registry', targetValue: 3, unit: 'days', notes: 'Flag available fleet units idle longer than N days' },
+        { id: 'fleet-map-gps-stale', process: 'Fleet Map — GPS freshness', pageId: 'fleet-map', pageLabel: 'Fleet Map', targetValue: 4, unit: 'hours', notes: 'Warn when truck GPS on map is older than this' }
     ].map(o => ({
         ...o,
         category: 'orders-fleet',
@@ -769,7 +781,32 @@ function buildDefaultKpiSettings() {
         warningPct: 75,
         enabled: true
     }));
-    return [...nbWf, ...sbWf, ...borders, ...pod, ...areas, ...modules, ...assets, ...turnarounds, ...ordersFleet];
+    const workshopKpis = [
+        { id: 'workshop-parts-low', process: 'Parts — Low stock alert', pageId: 'workshop', pageLabel: 'Workshop & Parts', targetValue: 0, unit: 'hours', notes: 'Alert when part quantity reaches minimum stock level (minStock)' },
+        { id: 'workshop-parts-critical', process: 'Parts — Critical stock', pageId: 'workshop', pageLabel: 'Workshop & Parts', targetValue: 0, unit: 'hours', notes: 'Alert when quantity falls below 50% of minimum stock' },
+        { id: 'workshop-wo-open-sla', process: 'Open work order SLA', pageId: 'workshop', pageLabel: 'Workshop & Parts', targetValue: 72, unit: 'hours', notes: 'Hours before open work orders are flagged overdue' }
+    ].map(w => ({
+        ...w,
+        category: 'workshop',
+        workflowStep: '',
+        direction: 'Both',
+        warningPct: 75,
+        enabled: true,
+        kpiType: w.id.includes('parts') ? 'completion' : 'time'
+    }));
+    const fuelKpis = [
+        { id: 'fuel-efficiency-high', process: 'Fuel — High L/100km', pageId: 'fuel-control', pageLabel: 'Fuel Control', targetValue: 42, unit: 'hours', notes: 'L/100km threshold — flag trucks above this consumption' },
+        { id: 'fuel-fill-anomaly', process: 'Fuel — Fill volume anomaly', pageId: 'fuel-control', pageLabel: 'Fuel Control', targetValue: 20, unit: 'hours', notes: 'Percent above fleet average fill volume to trigger alert' }
+    ].map(f => ({
+        ...f,
+        category: 'fuel-control',
+        workflowStep: '',
+        direction: 'Both',
+        warningPct: 75,
+        enabled: true,
+        kpiType: 'time'
+    }));
+    return [...nbWf, ...sbWf, ...borders, ...pod, ...areas, ...modules, ...assets, ...turnarounds, ...ordersFleet, ...workshopKpis, ...fuelKpis];
 }
 
 let kpiSettingsDB = buildDefaultKpiSettings();
@@ -777,7 +814,7 @@ let kpiAdminFilter = '';
 let kpiAdminCategory = 'all';
 
 const KPI_STORAGE_KEY = 'truckcontrol_kpi_settings';
-const KPI_SETTINGS_VERSION = 5;
+const KPI_SETTINGS_VERSION = 6;
 
 function initKpiSettings() {
     try {
@@ -820,6 +857,17 @@ function resetKpiSettingsToDefaults() {
 
 function getKpiSetting(id) {
     return kpiSettingsDB.find(s => s.id === id);
+}
+
+function notifyKpiResponsible(kpiId, message, level = 'warning') {
+    const rule = getKpiSetting(kpiId);
+    if (!rule?.enabled) return;
+    const userId = rule.responsibleUserId;
+    const currentId = typeof CURRENT_SESSION_USER_ID !== 'undefined' ? CURRENT_SESSION_USER_ID : null;
+    if (userId && currentId && userId !== currentId) return;
+    const label = rule.process || kpiId;
+    if (typeof showToast === 'function') showToast(`${label}: ${message}`, level);
+    if (typeof logAuditEvent === 'function') logAuditEvent('KPI alert', 'kpi-settings', kpiId, message);
 }
 
 function updateKpiSetting(id, field, value) {
@@ -7455,16 +7503,59 @@ function markEmailAction(id, action) {
 function handleEmailAttachmentSelect(input) {
     const file = input.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { showToast('File must be under 10MB', 'warning'); return; }
-    emailAttachments.push({ name: file.name, size: `${Math.round(file.size / 1024)} KB` });
-    const list = document.getElementById('emailAttachList');
-    if (list) list.innerHTML = emailAttachments.map((a, i) => `<span class="outlook-attach-chip">📎 ${a.name} <button type="button" class="btn btn-outline btn-sm" onclick="removeEmailAttachment(${i})">✕</button></span>`).join('');
+    if (file.size > 25 * 1024 * 1024) { showToast('File must be under 25MB', 'warning'); return; }
+    (async () => {
+        try {
+            let att = { name: file.name, size: `${Math.round(file.size / 1024)} KB`, mime: file.type || '' };
+            if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof uploadInternalCommFileApi === 'function') {
+                const uploaded = await uploadInternalCommFileApi(file);
+                att = {
+                    name: uploaded.name || file.name,
+                    size: `${Math.round((uploaded.size || file.size) / 1024)} KB`,
+                    mime: uploaded.mime || file.type,
+                    url: uploaded.url,
+                    fileId: uploaded.fileId
+                };
+            } else {
+                const reader = new FileReader();
+                const dataUrl = await new Promise((resolve, reject) => {
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+                att.dataUrl = dataUrl;
+            }
+            emailAttachments.push(att);
+            const list = document.getElementById('emailAttachList');
+            if (list) list.innerHTML = renderEmailAttachmentChips();
+            input.value = '';
+        } catch (e) {
+            showToast(e.message || 'Attachment upload failed', 'warning');
+        }
+    })();
+}
+
+function renderEmailAttachmentChips() {
+    return emailAttachments.map((a, i) => {
+        const href = a.url && typeof resolveInternalCommFileUrl === 'function' ? resolveInternalCommFileUrl(a.url) : (a.dataUrl || '');
+        const link = href ? `<a href="${href}" download="${a.name}" target="_blank" rel="noopener">${a.name}</a>` : a.name;
+        return `<span class="outlook-attach-chip">📎 ${link} <button type="button" class="btn btn-outline btn-sm" onclick="removeEmailAttachment(${i})">✕</button></span>`;
+    }).join('');
+}
+
+function renderEmailAttachmentsBlock(attachments) {
+    if (!attachments?.length) return '';
+    return `<div class="outlook-attach-list" style="margin-bottom:16px;">${attachments.map(a => {
+        const href = a.url && typeof resolveInternalCommFileUrl === 'function' ? resolveInternalCommFileUrl(a.url) : (a.dataUrl || '');
+        if (href) return `<a class="outlook-attach-chip" href="${href}" download="${a.name || 'file'}" target="_blank" rel="noopener">📎 ${a.name || 'Attachment'} (${a.size || ''})</a>`;
+        return `<span class="outlook-attach-chip">📎 ${a.name || 'Attachment'} (${a.size || ''})</span>`;
+    }).join('')}</div>`;
 }
 
 function removeEmailAttachment(index) {
     emailAttachments.splice(index, 1);
     const list = document.getElementById('emailAttachList');
-    if (list) list.innerHTML = emailAttachments.map((a, i) => `<span class="outlook-attach-chip">📎 ${a.name} <button type="button" class="btn btn-outline btn-sm" onclick="removeEmailAttachment(${i})">✕</button></span>`).join('');
+    if (list) list.innerHTML = renderEmailAttachmentChips();
 }
 
 function findInternalCommContact(token) {
@@ -7633,7 +7724,7 @@ function renderEmailReadPane(email) {
                     ${email.relatedLabel ? `<div><strong>Linked:</strong> <span class="status-badge blue">${email.relatedType}</span> ${email.relatedLabel}</div>` : ''}
                 </div>
             </div>
-            ${email.attachments?.length ? `<div class="outlook-attach-list" style="margin-bottom:16px;">${email.attachments.map(a => `<span class="outlook-attach-chip">📎 ${a.name} (${a.size})</span>`).join('')}</div>` : ''}
+            ${renderEmailAttachmentsBlock(email.attachments)}
             <div class="outlook-read-content">${email.body}</div>
         </div>`;
 }
@@ -7659,7 +7750,7 @@ function renderEmailComposePane() {
             <div class="outlook-compose-row"><label>${typeof t === 'function' ? t('comm.bcc') : 'BCC'}</label><input type="text" class="form-control" id="emailComposeBcc" list="internalCommUserList" value="${formatRecipientDisplayList(pre.bcc || [])}" placeholder="BCC recipients" oninput="captureInternalCommDrafts()"></div>
             <div class="outlook-compose-row"><label>${typeof t === 'function' ? t('comm.subject') : 'Subject'}</label><input type="text" class="form-control" id="emailComposeSubject" value="${pre.subject || ''}"></div>
             <div class="outlook-compose-row"><label>Link</label><div style="display:flex;gap:8px;"><select class="form-control" id="emailComposeLinkType" onchange="captureInternalCommDrafts();populateInternalLinkSelect('emailComposeLinkRef')" style="max-width:140px;"><option value="">None</option>${INTERNAL_LINK_TYPES.map(t => `<option value="${t}" ${pre.relatedType === t ? 'selected' : ''}>${t}</option>`).join('')}</select><select class="form-control" id="emailComposeLinkRef" onchange="captureInternalCommDrafts()" style="flex:1;"><option value="">Reference</option></select></div></div>
-            <div style="margin:12px 0 8px 70px;"><label class="btn btn-outline btn-sm" style="cursor:pointer;">📎 Attach<input type="file" hidden onchange="handleEmailAttachmentSelect(this)"></label><div id="emailAttachList" class="outlook-attach-list">${emailAttachments.map((a, i) => `<span class="outlook-attach-chip">📎 ${a.name} <button type="button" class="btn btn-outline btn-sm" onclick="removeEmailAttachment(${i})">✕</button></span>`).join('')}</div></div>
+            <div style="margin:12px 0 8px 70px;"><label class="btn btn-outline btn-sm" style="cursor:pointer;">📎 Attach<input type="file" hidden onchange="handleEmailAttachmentSelect(this)"></label><div id="emailAttachList" class="outlook-attach-list">${renderEmailAttachmentChips()}</div></div>
             <div class="outlook-compose-row" style="align-items:start;"><label>${typeof t === 'function' ? t('comm.message') : 'Message'}</label><textarea class="form-control" id="emailComposeBody" rows="14">${pre.body || ''}</textarea></div>
             <div style="margin-left:70px;">
                 <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">${quickLbl} (${contacts.length})</div>
@@ -7800,17 +7891,38 @@ function renderWaChatList() {
 }
 
 function renderWaTicks(status, readAt) {
-    if (status === 'read') return `<span class="wa-ticks read" title="Read ${readAt || ''}">✓✓</span>`;
+    if (readAt || status === 'read') return `<span class="wa-ticks read" title="Read ${readAt || ''}">✓✓</span>`;
     if (status === 'delivered') return '<span class="wa-ticks delivered">✓✓</span>';
     return '<span class="wa-ticks sent">✓</span>';
 }
 
+function renderCommAttachmentBody(m) {
+    const url = m.attachmentUrl && typeof resolveInternalCommFileUrl === 'function'
+        ? resolveInternalCommFileUrl(m.attachmentUrl)
+        : (m.attachmentUrl || '');
+    const name = m.fileName || m.attachmentName || 'file';
+    const isVoice = m.messageType === 'voice' || (m.attachmentMime && String(m.attachmentMime).startsWith('audio/'));
+    if (isVoice) {
+        return `<div class="wa-voice-msg">${url ? `<audio controls preload="metadata" class="wa-voice-player" src="${url}"></audio>` : ''}<span class="wa-voice-label">🎤 Voice message</span></div>`;
+    }
+    if (m.type === 'file' || m.attachmentName || m.attachmentUrl) {
+        if (url) {
+            return `<a class="wa-file wa-file-link" href="${url}" download="${name}" target="_blank" rel="noopener noreferrer">📎 ${name}</a>`;
+        }
+        return `<div class="wa-file">📎 ${name}</div>`;
+    }
+    return null;
+}
+
 function renderWaMessages(roomId) {
     const messages = getChatMessages(roomId);
+    let readBarAfterId = null;
+    messages.forEach(m => {
+        if (isCommMessageFromMe(m) && m.readAt) readBarAfterId = m.id;
+    });
     const formatBody = m => {
-        if (m.type === 'file' || (m.attachmentName && !m.message.startsWith('🔗'))) {
-            return `<div class="wa-file">📎 ${m.fileName || m.attachmentName || m.message}</div>`;
-        }
+        const attachmentHtml = renderCommAttachmentBody(m);
+        if (attachmentHtml) return attachmentHtml;
         if (m.message.startsWith('🔗')) {
             const lines = m.message.split('\n');
             const body = lines.slice(1).join('\n');
@@ -7822,15 +7934,19 @@ function renderWaMessages(roomId) {
         const isSent = isCommMessageFromMe(m);
         const unread = !isSent && isCommMessageUnread(m, roomId);
         const reply = m.replyTo ? chatMessagesDB.find(x => x.id === m.replyTo) : null;
-        const readHint = isSent && m.status === 'read' && m.readAt ? ` · Read ${m.readAt}` : '';
+        const tickStatus = isSent && m.readAt ? 'read' : (m.status || 'delivered');
+        const readHint = isSent && m.readAt ? ` · Read ${m.readAt}` : '';
+        const readBar = readBarAfterId === m.id
+            ? `<div class="wa-read-bar" aria-label="Messages read by recipient"><div class="wa-read-bar-line"></div><span>Read</span><div class="wa-read-bar-line"></div></div>`
+            : '';
         return `
         <div class="wa-msg-row ${isSent ? 'sent' : 'received'}">
             <div class="wa-bubble ${isSent ? 'sent' : 'received'}${unread ? ' unread' : ' read'}" ondblclick="setChatReply('${m.id}')" title="Double-click to reply">
-                ${reply ? `<div class="wa-reply">${reply.sender}: ${reply.message.slice(0, 60)}</div>` : ''}
+                ${reply ? `<div class="wa-reply">${reply.sender}: ${(reply.message || reply.attachmentName || '').slice(0, 60)}</div>` : ''}
                 ${formatBody(m)}
-                <div class="wa-bubble-footer"><span>${m.sentAt.split(' ')[1] || m.sentAt}${readHint}</span>${isSent ? renderWaTicks(m.status, m.readAt) : `<button type="button" class="btn btn-outline btn-sm" style="padding:0 6px;font-size:10px;margin-left:6px;" onclick="event.stopPropagation();setChatReply('${m.id}')">↩</button>`}</div>
+                <div class="wa-bubble-footer"><span>${m.sentAt.split(' ')[1] || m.sentAt}${readHint}</span>${isSent ? renderWaTicks(tickStatus, m.readAt) : `<button type="button" class="btn btn-outline btn-sm" style="padding:0 6px;font-size:10px;margin-left:6px;" onclick="event.stopPropagation();setChatReply('${m.id}')">↩</button>`}</div>
             </div>
-        </div>`;
+        </div>${readBar}`;
     }).join('');
 }
 
@@ -7847,6 +7963,7 @@ function renderWaConversation() {
             <div class="wa-avatar${room.type === 'group' ? ' group' : ''}">${room.type === 'group' ? '👥' : peer.initials}</div>
             <div class="wa-conv-title"><strong>${peer.name}</strong><small>${statusText}</small></div>
             <button class="btn btn-outline btn-sm" onclick="forceRefreshInternalCommMessages()" title="Refresh messages">🔄</button>
+            ${room.type === 'direct' ? `<button class="btn btn-outline btn-sm" onclick="startCommVoiceCall()" title="Voice call">📞</button>` : ''}
             <button class="btn btn-outline btn-sm" onclick="openWaGroupInfo('${room.id}')">ℹ️</button>
             <button class="btn btn-outline btn-sm" onclick="toggleChatPin('${room.id}')">${room.pinned ? '📌' : '📍'}</button>
             <button class="btn btn-outline btn-sm" onclick="toggleChatMute('${room.id}')">${room.muted ? '🔔' : '🔇'}</button>
@@ -7860,7 +7977,8 @@ function renderWaConversation() {
         </div>
         <div class="wa-messages" id="waMessagesPane">${renderWaMessages(room.id)}</div>
         <div class="wa-input-bar">
-            <button class="wa-icon-btn" title="Attach" onclick="document.getElementById('waFileInput').click()">📎</button>
+            <button class="wa-icon-btn" title="Attach file" onclick="document.getElementById('waFileInput').click()">📎</button>
+            <button class="wa-icon-btn" id="waVoiceBtn" title="Voice message" onclick="toggleCommVoiceRecord()">🎤</button>
             <input type="file" id="waFileInput" hidden onchange="attachWaFile(this)">
             <textarea id="waMessageInput" placeholder="${typeof t === 'function' ? t('comm.typeMessage') : 'Type a message'}" rows="1" oninput="captureInternalCommDrafts()" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendWaMessage();}"></textarea>
             <button class="wa-send-btn" onclick="sendWaMessage()" title="Send">➤</button>
@@ -7942,36 +8060,176 @@ function sendWaMessage() {
 function attachWaFile(input) {
     const file = input.files?.[0];
     if (!file || !activeChatRoomId) return;
-    const tagPrefix = buildChatTagPrefix();
-    const messageText = tagPrefix ? `${tagPrefix}📎 ${file.name}` : `📎 ${file.name}`;
+    (async () => {
+        try {
+            await sendCommAttachmentFile(file);
+            input.value = '';
+            if (typeof persistInternalComm === 'function') persistInternalComm();
+            if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
+            refreshInternalCommView(true);
+            showToast(`File ${file.name} sent`, 'success');
+        } catch (e) {
+            showToast(e.message || 'Failed to send file', 'warning');
+        }
+    })();
+}
+
+let commVoiceRecorder = null;
+let commVoiceStream = null;
+let commVoiceChunks = [];
+let commCallState = null;
+
+async function sendCommAttachmentFile(file, opts = {}) {
+    const roomId = activeChatRoomId;
+    if (!roomId || !file) return;
+    const msgType = opts.messageType || ((file.type && file.type.startsWith('audio/')) ? 'voice' : 'file');
+    let attachmentUrl = null;
+    let attachmentMime = file.type || '';
+    if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof uploadInternalCommFileApi === 'function') {
+        const uploaded = await uploadInternalCommFileApi(file);
+        attachmentUrl = uploaded.url;
+        attachmentMime = uploaded.mime || attachmentMime;
+    }
+    const label = msgType === 'voice' ? '🎤 Voice message' : `📎 ${file.name}`;
     const msg = {
         id: `CHAT-${String(nextChatMessageId++).padStart(3, '0')}`,
-        roomId: activeChatRoomId, sender: getCurrentCommUserName(), message: messageText, type: 'file', fileName: file.name,
-        status: 'delivered', replyTo: null, sentAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
+        roomId,
+        sender: getCurrentCommUserName(),
+        senderEmail: getCurrentCommUserEmail().toLowerCase(),
+        message: label,
+        type: msgType,
+        messageType: msgType,
+        fileName: file.name,
+        attachmentName: file.name,
+        attachmentUrl,
+        attachmentMime,
+        status: 'delivered',
+        replyTo: chatReplyToId || null,
+        sentAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
     };
-    (async () => {
-        if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof sendInternalChatMessageApi === 'function') {
-            try {
-                await sendInternalChatMessageApi({
-                    id: msg.id, roomId: activeChatRoomId, message: messageText,
-                    attachmentName: file.name, replyTo: null
-                });
-                if (typeof syncInternalCommFromApi === 'function') await syncInternalCommFromApi();
-            } catch (e) {
-                showToast(e.message || 'Failed to send file', 'warning');
-                return;
-            }
-        } else {
-            chatMessagesDB.push(msg);
-            const room = chatRoomsDB.find(r => r.id === activeChatRoomId);
-            if (room) { room.lastMessage = `📎 ${file.name}`; room.lastAt = msg.sentAt; }
+    const applyLocal = () => {
+        if (!chatMessagesDB.some(m => m.id === msg.id)) chatMessagesDB.push(msg);
+        const room = chatRoomsDB.find(r => r.id === roomId);
+        if (room) {
+            room.lastMessage = label;
+            room.lastAt = msg.sentAt;
         }
-        input.value = '';
-        if (typeof persistInternalComm === 'function') persistInternalComm();
-        if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
-        refreshInternalCommView(true);
-        showToast(`File ${file.name} sent`, 'success');
-    })();
+    };
+    applyLocal();
+    chatReplyToId = null;
+    if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof sendInternalChatMessageApi === 'function') {
+        await sendInternalChatMessageApi({
+            id: msg.id,
+            roomId,
+            message: msg.message,
+            replyTo: msg.replyTo,
+            attachmentName: file.name,
+            attachmentUrl,
+            attachmentMime,
+            messageType: msgType
+        });
+        if (typeof syncInternalCommFromApi === 'function') await syncInternalCommFromApi();
+    } else {
+        applyLocal();
+        if (typeof enqueueOfflineAction === 'function') {
+            enqueueOfflineAction({
+                type: 'chat',
+                payload: {
+                    id: msg.id, roomId, message: msg.message, replyTo: msg.replyTo,
+                    attachmentName: file.name, attachmentUrl, attachmentMime, messageType: msgType
+                }
+            });
+        }
+    }
+}
+
+async function toggleCommVoiceRecord() {
+    const btn = document.getElementById('waVoiceBtn');
+    if (commVoiceRecorder && commVoiceRecorder.state === 'recording') {
+        commVoiceRecorder.stop();
+        if (btn) btn.classList.remove('recording');
+        showToast('Sending voice message…', 'info');
+        return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+        showToast('Microphone not available in this browser', 'warning');
+        return;
+    }
+    try {
+        commVoiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        commVoiceChunks = [];
+        commVoiceRecorder = new MediaRecorder(commVoiceStream);
+        commVoiceRecorder.ondataavailable = e => { if (e.data?.size) commVoiceChunks.push(e.data); };
+        commVoiceRecorder.onstop = async () => {
+            try {
+                commVoiceStream?.getTracks().forEach(t => t.stop());
+                const blob = new Blob(commVoiceChunks, { type: 'audio/webm' });
+                const file = new File([blob], `voice-${Date.now()}.webm`, { type: 'audio/webm' });
+                await sendCommAttachmentFile(file, { messageType: 'voice' });
+                if (typeof persistInternalComm === 'function') persistInternalComm();
+                refreshInternalCommView(true);
+                showToast('Voice message sent', 'success');
+            } catch (e) {
+                showToast(e.message || 'Voice send failed', 'warning');
+            }
+        };
+        commVoiceRecorder.start();
+        if (btn) btn.classList.add('recording');
+        showToast('Recording… tap 🎤 again to send', 'info');
+    } catch (e) {
+        showToast('Microphone access denied', 'warning');
+    }
+}
+
+function ensureCommCallOverlay() {
+    let el = document.getElementById('commCallOverlay');
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = 'commCallOverlay';
+    el.className = 'comm-call-overlay';
+    el.innerHTML = `<div class="comm-call-card">
+        <div class="comm-call-avatar" id="commCallAvatar">📞</div>
+        <h3 id="commCallTitle">Calling…</h3>
+        <p id="commCallStatus" class="comm-call-status">Ringing</p>
+        <div class="comm-call-actions">
+            <button type="button" class="btn btn-danger" onclick="endCommVoiceCall()">End call</button>
+        </div>
+    </div>`;
+    document.body.appendChild(el);
+    return el;
+}
+
+function startCommVoiceCall() {
+    const room = chatRoomsDB.find(r => r.id === activeChatRoomId);
+    if (!room) return;
+    if (room.type === 'group') {
+        showToast('Voice calls are available in direct chats', 'info');
+        return;
+    }
+    const peer = getDirectChatPeerInfo(room);
+    commCallState = { peer, status: 'ringing' };
+    const overlay = ensureCommCallOverlay();
+    overlay.style.display = 'flex';
+    const title = document.getElementById('commCallTitle');
+    const status = document.getElementById('commCallStatus');
+    const avatar = document.getElementById('commCallAvatar');
+    if (title) title.textContent = peer.name;
+    if (avatar) avatar.textContent = peer.initials || '📞';
+    if (status) status.textContent = 'Ringing…';
+    setTimeout(() => {
+        if (commCallState?.status === 'ringing') {
+            commCallState.status = 'connected';
+            if (status) status.textContent = 'Connected — voice call active (demo)';
+            showToast(`Connected to ${peer.name}`, 'success');
+        }
+    }, 2000);
+}
+
+function endCommVoiceCall() {
+    commCallState = null;
+    const overlay = document.getElementById('commCallOverlay');
+    if (overlay) overlay.style.display = 'none';
+    showToast('Call ended', 'info');
 }
 
 let internalCommContactsCache = null;
@@ -9693,7 +9951,7 @@ function renderAdminKpiSettings(container) {
                     <table class="data-table admin-table kpi-settings-table">
                         <thead><tr>
                             <th>Process</th><th>KPI Type</th><th>Page</th><th>Step Key</th><th>Dir.</th>
-                            <th>Target</th><th>Unit</th><th>Warning %</th><th>Active</th><th>Notes</th>
+                            <th>Target</th><th>Unit</th><th>Warning %</th><th>Responsible</th><th>Active</th><th>Notes</th>
                         </tr></thead>
                         <tbody>${grouped[cat.id].map(s => renderKpiSettingRow(s, false)).join('')}</tbody>
                     </table>

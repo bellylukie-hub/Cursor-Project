@@ -638,6 +638,27 @@ async function markInternalChatRoomReadApi(roomId, lastMessageId) {
   return data.room;
 }
 
+async function uploadInternalCommFileApi(file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch(`${API_BASE}/internal-comm/upload`, {
+    method: 'POST',
+    headers: authOnlyHeaders(),
+    body: fd
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Upload failed ${res.status}`);
+  return data;
+}
+
+function resolveInternalCommFileUrl(urlOrPath) {
+  if (!urlOrPath) return '';
+  if (urlOrPath.startsWith('http://') || urlOrPath.startsWith('https://')) return urlOrPath;
+  const origin = typeof location !== 'undefined' ? location.origin : '';
+  if (urlOrPath.startsWith('/api/')) return `${origin}${urlOrPath}`;
+  return `${API_BASE}/internal-comm/files/${encodeURIComponent(urlOrPath)}`;
+}
+
 async function validateOrderAllocationApi(payload) {
   return apiRequest('/order-allocations/validate', { method: 'POST', body: JSON.stringify(payload) });
 }

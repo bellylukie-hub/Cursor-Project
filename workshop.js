@@ -237,6 +237,7 @@
                     saveLocal();
                 }
                 showToast('Part issued to work order', 'success');
+                checkWorkshopStockKpiAlerts(partId);
                 setWorkshopTab('work-orders');
             } catch (e) { showToast(e.message, 'error'); }
         })();
@@ -253,9 +254,25 @@
                 stk.quantity = Math.max(0, (stk.quantity || 0) + delta);
                 saveLocal();
             }
+            checkWorkshopStockKpiAlerts(partId);
             setWorkshopTab('parts');
         } catch (e) { showToast(e.message, 'error'); }
     };
+
+    function checkWorkshopStockKpiAlerts(partId) {
+        const p = partsDB.find(x => x.id === partId);
+        if (!p) return;
+        const stk = stockDB.find(s => s.partId === partId && s.warehouse === 'main');
+        const qty = stk?.quantity || 0;
+        const min = Number(p.minStock) || 0;
+        if (min <= 0) return;
+        const criticalThreshold = Math.floor(min * 0.5);
+        if (qty < criticalThreshold && typeof notifyKpiResponsible === 'function') {
+            notifyKpiResponsible('workshop-parts-critical', `${p.name} (${p.sku}): ${qty} left — below 50% of min (${min})`, 'error');
+        } else if (qty < min && typeof notifyKpiResponsible === 'function') {
+            notifyKpiResponsible('workshop-parts-low', `${p.name} (${p.sku}): ${qty} on hand — minimum is ${min}`, 'warning');
+        }
+    }
 
     window.openNewPartModal = function () {
         const sku = prompt('SKU:', 'PART-NEW');

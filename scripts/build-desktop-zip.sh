@@ -2,7 +2,7 @@
 # Desktop installer source package (Electron — build on Windows/Linux/macOS)
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${1:-v2.5.18-desktop}"
+VERSION="${1:-v2.5.19-desktop}"
 OUT_DIR="$ROOT/dist"
 FOLDER="TruckControl-Desktop-${VERSION}"
 ZIP_NAME="${FOLDER}.zip"

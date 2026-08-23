@@ -9,6 +9,121 @@
     let pageMarkers = [];
     let modalMap = null;
     let modalMarkers = [];
+    let fleetMapStatusTab = 'NB';
+    let fleetMapSearchNb = '';
+    let fleetMapSearchSb = '';
+
+    function getFleetMapTruckPlates() {
+        return new Set(getMappableUnits().map(u => u.truckPlate).filter(Boolean));
+    }
+
+    function getFleetMapTrips(direction) {
+        const plates = getFleetMapTruckPlates();
+        if (!plates.size || !window.tripsDB) return [];
+        return Object.values(window.tripsDB).filter(t => t.direction === direction && plates.has(t.truck));
+    }
+
+    function filterFleetMapTrips(trips, direction) {
+        let list = [...trips];
+        const kpiEl = document.getElementById(direction === 'NB' ? 'fleetMapNbKpiFilter' : 'fleetMapSbKpiFilter');
+        const kpi = kpiEl?.value || 'all';
+        if (kpi !== 'all') list = list.filter(t => (t.kpi || 'green') === kpi);
+        const term = (direction === 'NB' ? fleetMapSearchNb : fleetMapSearchSb).toLowerCase();
+        if (term) {
+            list = list.filter(t =>
+                String(t.tripNumber || t.trip || '').toLowerCase().includes(term)
+                || String(t.truck || '').toLowerCase().includes(term)
+                || String(t.driver || '').toLowerCase().includes(term)
+                || String(t.area || '').toLowerCase().includes(term)
+                || String(t.status || '').toLowerCase().includes(term)
+            );
+        }
+        return list;
+    }
+
+    function renderFleetMapStatusSection() {
+        const nbTrips = filterFleetMapTrips(getFleetMapTrips('NB'), 'NB');
+        const sbTrips = filterFleetMapTrips(getFleetMapTrips('SB'), 'SB');
+        const tab = fleetMapStatusTab;
+        const listKey = tab === 'NB' ? 'fleet-map-nb' : 'fleet-map-sb';
+        const type = tab;
+        const trips = tab === 'NB' ? nbTrips : sbTrips;
+        const tableId = tab === 'NB' ? 'fleetMapNbTable' : 'fleetMapSbTable';
+        const headerHtml = typeof getOperationsTableHeaderHtml === 'function'
+            ? getOperationsTableHeaderHtml(type, listKey)
+            : '<th>Trip #</th><th>Truck</th><th>Driver</th><th>Status</th><th>KPI</th><th>Actions</th>';
+        const bodyHtml = typeof renderOperationsTableRows === 'function'
+            ? renderOperationsTableRows(trips, listKey, type, tab === 'NB' ? 'nb-operations' : 'sb-operations')
+            : '<tr><td colspan="8" style="text-align:center;padding:16px;">No trips</td></tr>';
+        const colToolbar = typeof renderLiveColumnToolbar === 'function'
+            ? renderLiveColumnToolbar(type, tableId, listKey)
+            : '';
+
+        return `
+            <div class="settings-card fleet-map-status-card" style="margin-top:12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+                    <h3 style="margin:0;">Truck operational status (on map)</h3>
+                    <div class="comm-app-tabs" style="margin:0;">
+                        <button type="button" class="comm-app-tab${tab === 'NB' ? ' active' : ''}" onclick="setFleetMapStatusTab('NB')">🚛 NB (${nbTrips.length})</button>
+                        <button type="button" class="comm-app-tab${tab === 'SB' ? ' active' : ''}" onclick="setFleetMapStatusTab('SB')">🚛 SB (${sbTrips.length})</button>
+                    </div>
+                </div>
+                <div class="filters-bar" style="margin-bottom:12px;">
+                    <div class="filter-group"><label>KPI:</label>
+                        <select id="fleetMap${tab}KpiFilter" onchange="refreshFleetMapStatusTables()">
+                            <option value="all">All</option>
+                            <option value="green">🟢 On Track</option>
+                            <option value="orange">🟠 Priority</option>
+                            <option value="red">🔴 Overdue</option>
+                        </select>
+                    </div>
+                    <div class="search-filter"><span>🔍</span>
+                        <input type="text" id="fleetMap${tab}Search" placeholder="Search Trip#, Truck, Driver…" value="${tab === 'NB' ? fleetMapSearchNb : fleetMapSearchSb}" onkeyup="fleetMapSearch${tab === 'NB' ? 'Nb' : 'Sb'}=this.value;refreshFleetMapStatusTables()">
+                    </div>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="clearFleetMapStatusFilters()">Clear</button>
+                </div>
+                <div class="table-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+                    <span style="color:var(--text-secondary);font-size:13px;">${trips.length} truck(s) with GPS on map · ${type} operations view</span>
+                    ${colToolbar}
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="live-page-table operations-live-table" id="${tableId}">
+                        <thead><tr>${headerHtml}</tr></thead>
+                        <tbody>${bodyHtml}</tbody>
+                    </table>
+                </div>
+            </div>`;
+    }
+
+    window.setFleetMapStatusTab = function (tab) {
+        fleetMapStatusTab = tab === 'SB' ? 'SB' : 'NB';
+        refreshFleetMapStatusTables();
+    };
+
+    window.clearFleetMapStatusFilters = function () {
+        fleetMapSearchNb = '';
+        fleetMapSearchSb = '';
+        const nbS = document.getElementById('fleetMapNbSearch');
+        const sbS = document.getElementById('fleetMapSbSearch');
+        const nbK = document.getElementById('fleetMapNbKpiFilter');
+        const sbK = document.getElementById('fleetMapSbKpiFilter');
+        if (nbS) nbS.value = '';
+        if (sbS) sbS.value = '';
+        if (nbK) nbK.value = 'all';
+        if (sbK) sbK.value = 'all';
+        refreshFleetMapStatusTables();
+    };
+
+    window.refreshFleetMapStatusTables = function () {
+        const host = document.getElementById('fleetMapStatusHost');
+        if (!host) return;
+        host.innerHTML = renderFleetMapStatusSection();
+        const tableId = fleetMapStatusTab === 'NB' ? 'fleetMapNbTable' : 'fleetMapSbTable';
+        const ctx = fleetMapStatusTab;
+        setTimeout(() => {
+            if (typeof applyLiveTableLayout === 'function') applyLiveTableLayout(tableId, ctx);
+        }, 0);
+    };
 
     function ensureLeaflet() {
         return typeof L !== 'undefined';
@@ -182,23 +297,7 @@
             <div class="settings-card fleet-map-card">
                 <div id="fleetMapPageContainer" class="fleet-map-container"></div>
             </div>
-            <div class="settings-card" style="margin-top:12px;">
-                <h3 style="margin:0 0 10px;">Trucks with GPS</h3>
-                <div class="table-container" style="max-height:220px;overflow-y:auto;">
-                    <table class="data-table" style="width:100%;font-size:13px;">
-                        <thead><tr><th>Truck</th><th>Driver</th><th>Location</th><th>Status</th><th></th></tr></thead>
-                        <tbody>
-                            ${units.length ? units.map(u => `<tr>
-                                <td><strong>${escapeHtml(u.truckPlate)}</strong>${u.trailerPlate ? ` + ${escapeHtml(u.trailerPlate)}` : ''}</td>
-                                <td>${escapeHtml(getDriverName(u))}</td>
-                                <td>${escapeHtml(u.gpsLabel || `${u.gpsLat.toFixed(3)}, ${u.gpsLng.toFixed(3)}`)}</td>
-                                <td>${escapeHtml(u.status || '—')}</td>
-                                <td><button class="btn btn-sm btn-primary" onclick="focusFleetMapTruck('${escapeHtml(u.id)}')">📍 Pin</button></td>
-                            </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-secondary);">No GPS trucks</td></tr>'}
-                        </tbody>
-                    </table>
-                </div>
-            </div>`;
+            <div id="fleetMapStatusHost">${renderFleetMapStatusSection()}</div>`;
 
         pageMap = destroyMap(pageMap);
         pageMarkers = [];
@@ -211,6 +310,12 @@
         }
 
         pageMap = initMapOnElement(el, units, { markers: pageMarkers });
+        setTimeout(() => {
+            if (typeof applyLiveTableLayout === 'function') {
+                const tableId = fleetMapStatusTab === 'NB' ? 'fleetMapNbTable' : 'fleetMapSbTable';
+                applyLiveTableLayout(tableId, fleetMapStatusTab);
+            }
+        }, 0);
     };
 
     window.refreshFleetMapPage = function () {

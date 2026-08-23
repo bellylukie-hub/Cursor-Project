@@ -42,6 +42,17 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+const commUploadDir = path.join(uploadDir, 'internal-comm');
+if (!fs.existsSync(commUploadDir)) fs.mkdirSync(commUploadDir, { recursive: true });
+const commStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, commUploadDir),
+  filename: (_req, file, cb) => {
+    const safe = String(file.originalname || 'file').replace(/[^\w.\-]+/g, '_');
+    cb(null, `${Date.now()}-${safe}`);
+  }
+});
+const commUpload = multer({ storage: commStorage, limits: { fileSize: 25 * 1024 * 1024 } });
+
 function getUser(req) {
   return req.user || { id: 'ADM-001', username: 'super_admin' };
 }
@@ -1011,5 +1022,28 @@ router.post('/internal-comm/chat/rooms/:roomId/read', (req, res) => {
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
+router.post('/internal-comm/upload', commUpload.single('file'), (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const fileId = req.file.filename;
+    res.status(201).json({
+      fileId,
+      name: req.file.originalname,
+      size: req.file.size,
+      mime: req.file.mimetype,
+      url: `/api/internal-comm/files/${encodeURIComponent(fileId)}`
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/internal-comm/files/:fileId', (req, res) => {
+  try {
+    const safe = String(req.params.fileId || '').replace(/[/\\]/g, '');
+    if (!safe) return res.status(400).json({ error: 'Invalid file id' });
+    const filePath = path.join(commUploadDir, safe);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
+    res.sendFile(filePath);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 module.exports = router;

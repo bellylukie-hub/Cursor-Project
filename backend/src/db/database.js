@@ -561,6 +561,15 @@ function migrateHelpdeskSchema() {
   if (!msgCols.includes('read_at')) {
     db.exec('ALTER TABLE internal_chat_messages ADD COLUMN read_at TEXT');
   }
+  if (!msgCols.includes('attachment_url')) {
+    db.exec('ALTER TABLE internal_chat_messages ADD COLUMN attachment_url TEXT');
+  }
+  if (!msgCols.includes('attachment_mime')) {
+    db.exec('ALTER TABLE internal_chat_messages ADD COLUMN attachment_mime TEXT');
+  }
+  if (!msgCols.includes('message_type')) {
+    db.exec('ALTER TABLE internal_chat_messages ADD COLUMN message_type TEXT DEFAULT \'text\'');
+  }
   const cols = db.prepare('PRAGMA table_info(helpdesk_tickets)').all().map(c => c.name);
   if (!cols.includes('target_first_response_at')) {
     db.exec('ALTER TABLE helpdesk_tickets ADD COLUMN target_first_response_at TEXT');

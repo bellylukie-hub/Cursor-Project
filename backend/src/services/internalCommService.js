@@ -68,6 +68,9 @@ function rowToMessage(row) {
     status: row.status || 'delivered',
     replyTo: row.reply_to || null,
     attachmentName: row.attachment_name || null,
+    attachmentUrl: row.attachment_url || null,
+    attachmentMime: row.attachment_mime || null,
+    messageType: row.message_type || 'text',
     readAt: row.read_at || null
   };
 }
@@ -338,11 +341,17 @@ function sendChatMessage(payload, sender) {
   if (!members.some(e => String(e).toLowerCase() === senderEmail)) {
     throw new Error('Not a member of this chat room');
   }
-  const preview = payload.attachmentName ? `📎 ${payload.attachmentName}` : (payload.message || '').slice(0, 120);
+  const msgType = payload.messageType || (payload.attachmentMime && /^audio\//.test(payload.attachmentMime) ? 'voice' : payload.attachmentUrl ? 'file' : 'text');
+  const preview = payload.attachmentName
+    ? (msgType === 'voice' ? `🎤 ${payload.attachmentName}` : `📎 ${payload.attachmentName}`)
+    : (payload.message || '').slice(0, 120);
   db.prepare(`
-    INSERT INTO internal_chat_messages (id, room_id, sender_email, sender_name, message, sent_at, status, reply_to, attachment_name)
-    VALUES (?, ?, ?, ?, ?, datetime('now'), 'delivered', ?, ?)
-  `).run(id, payload.roomId, senderEmail, senderName, payload.message || '', payload.replyTo || null, payload.attachmentName || null);
+    INSERT INTO internal_chat_messages (id, room_id, sender_email, sender_name, message, sent_at, status, reply_to, attachment_name, attachment_url, attachment_mime, message_type)
+    VALUES (?, ?, ?, ?, ?, datetime('now'), 'delivered', ?, ?, ?, ?, ?)
+  `).run(
+    id, payload.roomId, senderEmail, senderName, payload.message || '', payload.replyTo || null,
+    payload.attachmentName || null, payload.attachmentUrl || null, payload.attachmentMime || null, msgType
+  );
   db.prepare('UPDATE internal_chat_rooms SET last_message = ?, last_at = datetime(\'now\') WHERE id = ?').run(preview, payload.roomId);
   return rowToMessage(db.prepare('SELECT * FROM internal_chat_messages WHERE id = ?').get(id));
 }
