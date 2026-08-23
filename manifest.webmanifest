@@ -1,0 +1,17 @@
+{
+  "name": "TruckControl",
+  "short_name": "TruckControl",
+  "description": "Truck turnaround and operations control",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#1e40af",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

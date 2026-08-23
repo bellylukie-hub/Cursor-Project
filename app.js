@@ -1873,6 +1873,7 @@ function switchSessionUser(userId) {
         return;
     }
     CURRENT_SESSION_USER_ID = userId;
+    if (typeof window.__resetInternalCommSession === 'function') window.__resetInternalCommSession();
     updateTopBarUser();
     if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
     if (typeof initInternalComm === 'function') initInternalComm(true);
@@ -7610,7 +7611,7 @@ function renderEmailReadPane(email) {
                     <div><strong>From:</strong> ${email.from} &lt;${email.fromEmail}&gt;</div>
                     <div><strong>To:</strong> ${email.to.join(', ')}</div>
                     ${email.cc?.length ? `<div><strong>CC:</strong> ${email.cc.join(', ')}</div>` : ''}
-                    <div><strong>Date:</strong> ${email.sentAt}</div>
+                    <div><strong>Date:</strong> ${email.sentAt}${email.read && email.readAt ? ` · <span class="email-read-receipt">Read ${email.readAt}</span>` : ''}</div>
                     ${email.relatedLabel ? `<div><strong>Linked:</strong> <span class="status-badge blue">${email.relatedType}</span> ${email.relatedLabel}</div>` : ''}
                 </div>
             </div>
@@ -7639,7 +7640,7 @@ function renderEmailComposePane() {
             <div class="outlook-compose-row"><label>${typeof t === 'function' ? t('comm.cc') : 'CC'}</label><input type="text" class="form-control" id="emailComposeCc" list="internalCommUserList" value="${formatRecipientDisplayList(pre.cc || [])}" placeholder="CC recipients" oninput="captureInternalCommDrafts()"></div>
             <div class="outlook-compose-row"><label>${typeof t === 'function' ? t('comm.bcc') : 'BCC'}</label><input type="text" class="form-control" id="emailComposeBcc" list="internalCommUserList" value="${formatRecipientDisplayList(pre.bcc || [])}" placeholder="BCC recipients" oninput="captureInternalCommDrafts()"></div>
             <div class="outlook-compose-row"><label>${typeof t === 'function' ? t('comm.subject') : 'Subject'}</label><input type="text" class="form-control" id="emailComposeSubject" value="${pre.subject || ''}"></div>
-            <div class="outlook-compose-row"><label>Link</label><div style="display:flex;gap:8px;"><select class="form-control" id="emailComposeLinkType" onchange="populateInternalLinkSelect('emailComposeLinkRef')" style="max-width:140px;"><option value="">None</option>${INTERNAL_LINK_TYPES.map(t => `<option value="${t}" ${pre.relatedType === t ? 'selected' : ''}>${t}</option>`).join('')}</select><select class="form-control" id="emailComposeLinkRef" style="flex:1;"><option value="">Reference</option></select></div></div>
+            <div class="outlook-compose-row"><label>Link</label><div style="display:flex;gap:8px;"><select class="form-control" id="emailComposeLinkType" onchange="captureInternalCommDrafts();populateInternalLinkSelect('emailComposeLinkRef')" style="max-width:140px;"><option value="">None</option>${INTERNAL_LINK_TYPES.map(t => `<option value="${t}" ${pre.relatedType === t ? 'selected' : ''}>${t}</option>`).join('')}</select><select class="form-control" id="emailComposeLinkRef" onchange="captureInternalCommDrafts()" style="flex:1;"><option value="">Reference</option></select></div></div>
             <div style="margin:12px 0 8px 70px;"><label class="btn btn-outline btn-sm" style="cursor:pointer;">📎 Attach<input type="file" hidden onchange="handleEmailAttachmentSelect(this)"></label><div id="emailAttachList" class="outlook-attach-list">${emailAttachments.map((a, i) => `<span class="outlook-attach-chip">📎 ${a.name} <button type="button" class="btn btn-outline btn-sm" onclick="removeEmailAttachment(${i})">✕</button></span>`).join('')}</div></div>
             <div class="outlook-compose-row" style="align-items:start;"><label>${typeof t === 'function' ? t('comm.message') : 'Message'}</label><textarea class="form-control" id="emailComposeBody" rows="14">${pre.body || ''}</textarea></div>
             <div style="margin-left:70px;">
@@ -7677,6 +7678,10 @@ function populateInternalLinkSelect(selectId) {
     else if (type === 'truck' || type === 'car') options += Object.values(tripsDB).map(t => `<option value="${t.truck}">${t.truck} (${t.tripNumber})</option>`).join('');
     else if (type === 'user') options += getInternalCommContactList().map(u => `<option value="${u.email}">${u.name} — ${u.email}</option>`).join('');
     select.innerHTML = options;
+    const savedRef = selectId === 'emailComposeLinkRef'
+        ? (emailComposeData?.prefill?.relatedRef || '')
+        : (chatLinkDraft.ref || '');
+    if (savedRef) select.value = savedRef;
 }
 
 function populateEmailLinkSelect() {
@@ -7694,7 +7699,8 @@ function renderOutlookClient() {
             </div>
             <div class="outlook-list-pane">
                 <div class="outlook-list-toolbar">
-                    <div class="search-filter"><span>🔍</span><input type="text" id="emailSearchInput" placeholder="Search mail..." value="${emailSearchTerm}" onkeyup="emailSearchTerm=this.value;renderInternalCommunication(document.getElementById('contentArea'))"></div>
+                    <div class="search-filter"><span>🔍</span><input type="text" id="emailSearchInput" placeholder="Search mail..." value="${emailSearchTerm}" onkeyup="emailSearchTerm=this.value;refreshInternalCommView(true)"></div>
+                    <button class="btn btn-outline btn-sm" onclick="forceRefreshInternalCommMessages()" title="Refresh mail">🔄</button>
                     <button class="btn btn-outline btn-sm" onclick="exportListData('internalComm','all')">📥 Export</button>
                 </div>
                 <div class="outlook-email-list">${renderEmailListItems()}</div>
@@ -7711,7 +7717,10 @@ function getFilteredChatRooms() {
     const search = chatListSearch || (document.getElementById('waSearchInput')?.value || '').trim();
     if (search) {
         const term = search.toLowerCase();
-        items = items.filter(r => r.name.toLowerCase().includes(term) || r.lastMessage.toLowerCase().includes(term));
+        items = items.filter(r => {
+            const label = r.type === 'direct' ? getDirectChatPeerInfo(r).name : r.name;
+            return label.toLowerCase().includes(term) || (r.lastMessage || '').toLowerCase().includes(term);
+        });
     }
     return items;
 }
@@ -7720,14 +7729,36 @@ function selectChatRoom(roomId) {
     activeChatRoomId = roomId;
     chatReplyToId = null;
     chatComposeDraft = '';
-    if (typeof markCommRoomRead === 'function') markCommRoomRead(roomId);
-    else {
-        const room = chatRoomsDB.find(r => r.id === roomId);
-        if (room) room.unreadCount = 0;
+    const room = chatRoomsDB.find(r => r.id === roomId);
+    if (room) {
+        chatLinkDraft = { type: room.relatedType || '', ref: room.relatedRef || '' };
+        if (typeof normalizeDirectRoomForViewer === 'function') normalizeDirectRoomForViewer(room);
     }
+    if (typeof markCommRoomRead === 'function') markCommRoomRead(roomId);
+    else if (room) room.unreadCount = 0;
     if (typeof persistInternalComm === 'function') persistInternalComm();
     if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
     refreshInternalCommView(true);
+}
+
+function forceRefreshInternalCommMessages() {
+    captureInternalCommDrafts();
+    if (typeof refreshInternalComm === 'function') {
+        refreshInternalComm();
+        return;
+    }
+    if (typeof syncInternalCommFromApi === 'function') {
+        syncInternalCommFromApi().then(() => {
+            if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
+            refreshInternalCommView(true);
+            showToast('Messages refreshed', 'success');
+        });
+    }
+}
+if (typeof window !== 'undefined') {
+    window.forceRefreshInternalCommMessages = forceRefreshInternalCommMessages;
+    window.normalizeDirectRoomForViewer = normalizeDirectRoomForViewer;
+    window.getDirectChatPeerInfo = getDirectChatPeerInfo;
 }
 
 function getChatMessages(roomId) {
@@ -7736,24 +7767,24 @@ function getChatMessages(roomId) {
 
 function renderWaChatList() {
     return getFilteredChatRooms().map(r => {
-        const other = r.type === 'direct' ? r.memberNames.find(m => m !== getCurrentCommUserName()) : null;
-        const user = other ? systemUsersDB.find(u => u.name === other) : null;
-        const avatar = r.type === 'group' ? (r.avatar || '👥') : (user?.initials || r.avatar || '?');
+        const peer = getDirectChatPeerInfo(r);
+        const displayName = r.type === 'group' ? r.name : peer.name;
+        const avatar = r.type === 'group' ? (r.avatar || '👥') : peer.initials;
         return `
         <div class="wa-chat-item${activeChatRoomId === r.id ? ' active' : ''}" onclick="selectChatRoom('${r.id}')">
             <div class="wa-avatar${r.type === 'group' ? ' group' : ''}">${avatar}</div>
             <div class="wa-chat-info">
-                <div class="wa-chat-top"><span class="wa-chat-name">${r.pinned ? '📌 ' : ''}${r.name}${r.muted ? ' 🔇' : ''}</span><span class="wa-chat-time">${r.lastAt.split(' ')[1] || r.lastAt}</span></div>
+                <div class="wa-chat-top"><span class="wa-chat-name">${r.pinned ? '📌 ' : ''}${displayName}${r.muted ? ' 🔇' : ''}</span><span class="wa-chat-time">${r.lastAt.split(' ')[1] || r.lastAt}</span></div>
                 <div class="wa-chat-bottom"><span class="wa-chat-preview">${r.lastMessage}</span>${(typeof getRoomUnreadCount === 'function' ? getRoomUnreadCount(r) : r.unreadCount) ? `<span class="wa-unread-badge">${typeof getRoomUnreadCount === 'function' ? getRoomUnreadCount(r) : r.unreadCount}</span>` : ''}</div>
             </div>
         </div>`;
     }).join('');
 }
 
-function renderWaTicks(status) {
-    if (status === 'read') return '<span class="wa-ticks">✓✓</span>';
-    if (status === 'delivered') return '<span class="wa-ticks" style="color:#667781;">✓✓</span>';
-    return '✓';
+function renderWaTicks(status, readAt) {
+    if (status === 'read') return `<span class="wa-ticks read" title="Read ${readAt || ''}">✓✓</span>`;
+    if (status === 'delivered') return '<span class="wa-ticks delivered">✓✓</span>';
+    return '<span class="wa-ticks sent">✓</span>';
 }
 
 function renderWaMessages(roomId) {
@@ -7770,14 +7801,16 @@ function renderWaMessages(roomId) {
         return m.message;
     };
     return messages.map(m => {
-        const isSent = m.sender === getCurrentCommUserName();
+        const isSent = isCommMessageFromMe(m);
+        const unread = !isSent && isCommMessageUnread(m, roomId);
         const reply = m.replyTo ? chatMessagesDB.find(x => x.id === m.replyTo) : null;
+        const readHint = isSent && m.status === 'read' && m.readAt ? ` · Read ${m.readAt}` : '';
         return `
         <div class="wa-msg-row ${isSent ? 'sent' : 'received'}">
-            <div class="wa-bubble ${isSent ? 'sent' : 'received'}" ondblclick="setChatReply('${m.id}')" title="Double-click to reply">
+            <div class="wa-bubble ${isSent ? 'sent' : 'received'}${unread ? ' unread' : ' read'}" ondblclick="setChatReply('${m.id}')" title="Double-click to reply">
                 ${reply ? `<div class="wa-reply">${reply.sender}: ${reply.message.slice(0, 60)}</div>` : ''}
                 ${formatBody(m)}
-                <div class="wa-bubble-footer"><span>${m.sentAt.split(' ')[1] || m.sentAt}</span>${isSent ? renderWaTicks(m.status) : `<button type="button" class="btn btn-outline btn-sm" style="padding:0 6px;font-size:10px;margin-left:6px;" onclick="event.stopPropagation();setChatReply('${m.id}')">↩</button>`}</div>
+                <div class="wa-bubble-footer"><span>${m.sentAt.split(' ')[1] || m.sentAt}${readHint}</span>${isSent ? renderWaTicks(m.status, m.readAt) : `<button type="button" class="btn btn-outline btn-sm" style="padding:0 6px;font-size:10px;margin-left:6px;" onclick="event.stopPropagation();setChatReply('${m.id}')">↩</button>`}</div>
             </div>
         </div>`;
     }).join('');
@@ -7786,24 +7819,26 @@ function renderWaMessages(roomId) {
 function renderWaConversation() {
     const room = chatRoomsDB.find(r => r.id === activeChatRoomId);
     if (!room) return '<div class="wa-empty"><div><div style="font-size:48px;">💬</div><h3>TruckControl Chat</h3><p>Select a conversation or start a new chat</p></div></div>';
-    const other = room.type === 'direct' ? room.memberNames.find(m => m !== getCurrentCommUserName()) : null;
-    const user = other ? systemUsersDB.find(u => u.name === other) : null;
-    const statusText = room.type === 'group' ? `${room.memberNames.length} members · ${room.relatedRef}` : (user?.online ? 'online' : `last seen ${user?.lastSeen || 'recently'}`);
+    const peer = getDirectChatPeerInfo(room);
+    const statusText = room.type === 'group' ? `${room.memberNames.length} members · ${room.relatedRef}` : (peer.online ? 'online' : `last seen ${peer.lastSeen || 'recently'}`);
     const replyMsg = chatReplyToId ? chatMessagesDB.find(m => m.id === chatReplyToId) : null;
+    const tagType = chatLinkDraft.type || room.relatedType || '';
+    const tagRef = chatLinkDraft.ref || room.relatedRef || '';
     return `
         <div class="wa-conv-header">
-            <div class="wa-avatar${room.type === 'group' ? ' group' : ''}">${room.type === 'group' ? '👥' : (user?.initials || room.avatar)}</div>
-            <div class="wa-conv-title"><strong>${room.name}</strong><small>${statusText}</small></div>
+            <div class="wa-avatar${room.type === 'group' ? ' group' : ''}">${room.type === 'group' ? '👥' : peer.initials}</div>
+            <div class="wa-conv-title"><strong>${peer.name}</strong><small>${statusText}</small></div>
+            <button class="btn btn-outline btn-sm" onclick="forceRefreshInternalCommMessages()" title="Refresh messages">🔄</button>
             <button class="btn btn-outline btn-sm" onclick="openWaGroupInfo('${room.id}')">ℹ️</button>
             <button class="btn btn-outline btn-sm" onclick="toggleChatPin('${room.id}')">${room.pinned ? '📌' : '📍'}</button>
             <button class="btn btn-outline btn-sm" onclick="toggleChatMute('${room.id}')">${room.muted ? '🔔' : '🔇'}</button>
         </div>
-        ${replyMsg ? `<div class="wa-reply-bar"><span>Replying to <strong>${replyMsg.sender}</strong>: ${replyMsg.message.slice(0, 50)}</span><button class="btn btn-outline btn-sm" onclick="chatReplyToId=null;renderInternalCommunication(document.getElementById('contentArea'))">✕</button></div>` : ''}
+        ${replyMsg ? `<div class="wa-reply-bar"><span>Replying to <strong>${replyMsg.sender}</strong>: ${replyMsg.message.slice(0, 50)}</span><button class="btn btn-outline btn-sm" onclick="chatReplyToId=null;refreshInternalCommView(true)">✕</button></div>` : ''}
         <div class="wa-tag-bar">
-            <select class="form-control" id="chatComposeLinkType" onchange="populateInternalLinkSelect('chatComposeLinkRef')" style="max-width:120px;font-size:12px;">
-                <option value="">Tag…</option>${INTERNAL_LINK_TYPES.map(t => `<option value="${t}">${t}</option>`).join('')}
+            <select class="form-control" id="chatComposeLinkType" onchange="chatLinkDraft.type=this.value;captureInternalCommDrafts();populateInternalLinkSelect('chatComposeLinkRef')" style="max-width:120px;font-size:12px;">
+                <option value="">Tag…</option>${INTERNAL_LINK_TYPES.map(t => `<option value="${t}" ${tagType === t ? 'selected' : ''}>${t}</option>`).join('')}
             </select>
-            <select class="form-control" id="chatComposeLinkRef" style="flex:1;font-size:12px;"><option value="">Reference</option></select>
+            <select class="form-control" id="chatComposeLinkRef" onchange="chatLinkDraft.ref=this.value;captureInternalCommDrafts()" style="flex:1;font-size:12px;"><option value="">Reference</option></select>
         </div>
         <div class="wa-messages" id="waMessagesPane">${renderWaMessages(room.id)}</div>
         <div class="wa-input-bar">
@@ -7840,7 +7875,8 @@ function sendWaMessage() {
     const linkRef = document.getElementById('chatComposeLinkRef')?.value || '';
     const msg = {
         id: `CHAT-${String(nextChatMessageId++).padStart(3, '0')}`,
-        roomId, sender: getCurrentCommUserName(), message: text, type: 'text', fileName: null,
+        roomId, sender: getCurrentCommUserName(), senderEmail: getCurrentCommUserEmail().toLowerCase(),
+        message: text, type: 'text', fileName: null,
         status: 'delivered', replyTo: chatReplyToId, sentAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
     };
     const applyLocalMessage = () => {
@@ -7866,9 +7902,17 @@ function sendWaMessage() {
                 refreshInternalCommView(true);
                 setTimeout(() => { const pane = document.getElementById('waMessagesPane'); if (pane) pane.scrollTop = pane.scrollHeight; }, 50);
             } catch (e) {
-                chatMessagesDB = chatMessagesDB.filter(m => m.id !== msg.id);
-                refreshInternalCommView(true);
-                showToast(e.message || 'Failed to send message', 'warning');
+                if (typeof enqueueOfflineAction === 'function') {
+                    enqueueOfflineAction({ type: 'chat', payload: { id: msg.id, roomId, message: text, replyTo: msg.replyTo } });
+                    applyLocalMessage();
+                    if (typeof persistInternalComm === 'function') persistInternalComm();
+                    refreshInternalCommView(true);
+                    showToast('Saved offline — will send when online', 'warning');
+                } else {
+                    chatMessagesDB = chatMessagesDB.filter(m => m.id !== msg.id);
+                    refreshInternalCommView(true);
+                    showToast(e.message || 'Failed to send message', 'warning');
+                }
                 return;
             }
         }
@@ -7915,13 +7959,69 @@ function attachWaFile(input) {
 let internalCommContactsCache = null;
 let internalCommContactsRefreshGen = 0;
 let chatComposeDraft = '';
+let chatLinkDraft = { type: '', ref: '' };
+
+function getDirectChatPeerInfo(room) {
+    if (!room) return { name: 'Chat', initials: '?', online: false, lastSeen: '' };
+    if (room.type !== 'direct') {
+        return { name: room.name, initials: room.avatar || '👥', online: true, lastSeen: '' };
+    }
+    const myEmail = getCurrentCommUserEmail().toLowerCase();
+    const myName = getCurrentCommUserName();
+    const emails = (room.memberEmails || []).map(e => String(e).toLowerCase());
+    const names = room.memberNames || [];
+    let peerIdx = emails.findIndex(e => e && e !== myEmail);
+    if (peerIdx < 0) peerIdx = names.findIndex(n => n && n !== myName);
+    const peerEmail = peerIdx >= 0 ? emails[peerIdx] : '';
+    let peerName = peerIdx >= 0 ? names[peerIdx] : room.name;
+    const contact = findInternalCommContact(peerEmail) || findInternalCommContact(peerName);
+    const displayName = contact?.name || usernameToDisplayName(String(peerName).replace(/\s+/g, '_')) || peerName || 'Chat';
+    const initials = contact?.initials || initialsFromDisplayName(displayName);
+    return {
+        name: displayName,
+        email: peerEmail || contact?.email || '',
+        initials,
+        online: contact?.online !== false,
+        lastSeen: contact?.lastSeen || 'online'
+    };
+}
+
+function normalizeDirectRoomForViewer(room) {
+    if (!room || room.type !== 'direct') return room;
+    const peer = getDirectChatPeerInfo(room);
+    room.name = peer.name;
+    room.avatar = peer.initials;
+    return room;
+}
+
+function isCommMessageFromMe(msg) {
+    const myName = getCurrentCommUserName();
+    const myEmail = getCurrentCommUserEmail().toLowerCase();
+    return msg.sender === myName
+        || String(msg.senderEmail || '').toLowerCase() === myEmail
+        || usernameToDisplayName(String(msg.sender || '').replace(/\s+/g, '_')) === myName;
+}
+
+function isCommMessageUnread(msg, roomId) {
+    if (isCommMessageFromMe(msg)) return false;
+    const myEmail = getCurrentCommUserEmail().toLowerCase();
+    const room = chatRoomsDB.find(r => r.id === roomId);
+    const cursors = room?.readCursors || window.__commLastReadByRoom?.[roomId] || {};
+    const cursorId = cursors[myEmail] || (typeof cursors === 'string' ? cursors : null);
+    if (msg.readAt) return false;
+    if (!cursorId) return true;
+    const msgs = getChatMessages(roomId);
+    const cursorIdx = msgs.findIndex(m => m.id === cursorId);
+    const msgIdx = msgs.findIndex(m => m.id === msg.id);
+    return msgIdx > cursorIdx;
+}
 
 function shouldSkipInternalCommAutoRender() {
     if (typeof emailView !== 'undefined' && emailView === 'compose') return true;
     if (document.querySelector('.modal-overlay.show')) return true;
     const active = document.activeElement;
     if (!active) return false;
-    const keepIds = ['waMessageInput', 'emailComposeTo', 'emailComposeCc', 'emailComposeBcc', 'emailComposeSubject', 'emailComposeBody', 'chatContactSearch'];
+    const keepIds = ['waMessageInput', 'emailComposeTo', 'emailComposeCc', 'emailComposeBcc', 'emailComposeSubject', 'emailComposeBody', 'chatContactSearch', 'chatComposeLinkType', 'chatComposeLinkRef', 'emailComposeLinkType', 'emailComposeLinkRef'];
     if (keepIds.includes(active.id)) return true;
     return false;
 }
@@ -7943,6 +8043,10 @@ function captureInternalCommDrafts() {
             relatedRef: document.getElementById('emailComposeLinkRef')?.value || emailComposeData.prefill?.relatedRef || ''
         };
     }
+    const chatTypeEl = document.getElementById('chatComposeLinkType');
+    const chatRefEl = document.getElementById('chatComposeLinkRef');
+    if (chatTypeEl) chatLinkDraft.type = chatTypeEl.value || chatLinkDraft.type || '';
+    if (chatRefEl) chatLinkDraft.ref = chatRefEl.value || chatLinkDraft.ref || '';
     const wa = document.getElementById('waMessageInput');
     if (wa) chatComposeDraft = wa.value;
 }
@@ -7952,6 +8056,10 @@ function restoreInternalCommDrafts() {
         const wa = document.getElementById('waMessageInput');
         if (wa) wa.value = chatComposeDraft;
     }
+    const chatTypeEl = document.getElementById('chatComposeLinkType');
+    const chatRefEl = document.getElementById('chatComposeLinkRef');
+    if (chatTypeEl && chatLinkDraft.type) chatTypeEl.value = chatLinkDraft.type;
+    if (chatRefEl && chatLinkDraft.ref) chatRefEl.value = chatLinkDraft.ref;
 }
 
 function refreshInternalCommView(skipContactRefresh) {

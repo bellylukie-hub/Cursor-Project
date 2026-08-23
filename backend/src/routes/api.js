@@ -883,5 +883,13 @@ router.post('/internal-comm/chat/messages', (req, res) => {
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
+router.post('/internal-comm/chat/rooms/:roomId/read', (req, res) => {
+  try {
+    const sender = commSender(req);
+    const room = internalCommSvc().markRoomRead(req.params.roomId, sender.email, req.body?.lastMessageId);
+    res.json({ room });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
 
 module.exports = router;

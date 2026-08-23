@@ -22,6 +22,26 @@ function authenticate(req, res, next) {
 
   try {
     req.user = verifyToken(token);
+    const hdrId = req.headers['x-user-id'];
+    const hdrEmail = req.headers['x-user-email'];
+    const jwtPerms = req.user?.permissions || [];
+    const jwtIsSuper = jwtPerms.includes('*') || req.user?.roleName === 'Super Admin';
+    if (jwtIsSuper && hdrId && hdrEmail && hdrId !== req.user.id) {
+      const { getUserById, getUserByEmail } = require('../services/authService');
+      const impersonated = getUserById(hdrId) || getUserByEmail(hdrEmail);
+      if (impersonated && String(impersonated.id) === String(hdrId)) {
+        req.user = {
+          id: impersonated.id,
+          username: impersonated.username,
+          email: impersonated.email || hdrEmail,
+          roleId: impersonated.role_id,
+          roleName: impersonated.role_name || req.user.roleName,
+          permissions: req.user.permissions
+        };
+      }
+    } else if (hdrEmail && !req.user.email) {
+      req.user.email = hdrEmail;
+    }
     next();
   } catch (e) {
     return res.status(401).json({ error: e.message || 'Invalid or expired session' });

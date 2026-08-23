@@ -549,6 +549,18 @@ function migrateHelpdeskSchema() {
     CREATE INDEX IF NOT EXISTS idx_internal_emails_for_user ON internal_emails(for_user_email);
     CREATE INDEX IF NOT EXISTS idx_internal_chat_messages_room ON internal_chat_messages(room_id);
   `);
+  const emailCols = db.prepare('PRAGMA table_info(internal_emails)').all().map(c => c.name);
+  if (!emailCols.includes('read_at')) {
+    db.exec('ALTER TABLE internal_emails ADD COLUMN read_at TEXT');
+  }
+  const roomCols = db.prepare('PRAGMA table_info(internal_chat_rooms)').all().map(c => c.name);
+  if (!roomCols.includes('read_cursors')) {
+    db.exec('ALTER TABLE internal_chat_rooms ADD COLUMN read_cursors TEXT');
+  }
+  const msgCols = db.prepare('PRAGMA table_info(internal_chat_messages)').all().map(c => c.name);
+  if (!msgCols.includes('read_at')) {
+    db.exec('ALTER TABLE internal_chat_messages ADD COLUMN read_at TEXT');
+  }
   const cols = db.prepare('PRAGMA table_info(helpdesk_tickets)').all().map(c => c.name);
   if (!cols.includes('target_first_response_at')) {
     db.exec('ALTER TABLE helpdesk_tickets ADD COLUMN target_first_response_at TEXT');

@@ -46,15 +46,12 @@ function isAuthRequired() { return authRequired; }
 
 function apiHeaders() {
   const headers = { 'Content-Type': 'application/json' };
-  if (authToken) {
-    headers.Authorization = `Bearer ${authToken}`;
-    return headers;
-  }
-  const userId = typeof CURRENT_SESSION_USER_ID !== 'undefined' ? CURRENT_SESSION_USER_ID : 'ADM-001';
-  const user = typeof getCurrentAdminUser === 'function' ? getCurrentAdminUser() : null;
+  const sessionUser = typeof getCurrentAdminUser === 'function' ? getCurrentAdminUser() : null;
+  if (authToken) headers.Authorization = `Bearer ${authToken}`;
+  const userId = sessionUser?.id || (typeof CURRENT_SESSION_USER_ID !== 'undefined' ? CURRENT_SESSION_USER_ID : 'ADM-001');
   headers['X-User-Id'] = userId;
-  headers['X-Username'] = user?.username || 'super_admin';
-  if (user?.email) headers['X-User-Email'] = user.email;
+  headers['X-Username'] = sessionUser?.username || 'super_admin';
+  if (sessionUser?.email) headers['X-User-Email'] = sessionUser.email;
   else if (authUser?.email) headers['X-User-Email'] = authUser.email;
   return headers;
 }
@@ -629,5 +626,12 @@ async function sendInternalChatMessageApi(payload) {
   return data.message;
 }
 
+async function markInternalChatRoomReadApi(roomId, lastMessageId) {
+  const data = await apiRequest(`/internal-comm/chat/rooms/${encodeURIComponent(roomId)}/read`, {
+    method: 'POST',
+    body: JSON.stringify({ lastMessageId })
+  });
+  return data.room;
+}
 
 loadStoredAuth();

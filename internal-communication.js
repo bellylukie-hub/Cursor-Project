@@ -142,8 +142,32 @@
         const messages = (chatMessagesDB || []).filter(m => m.roomId === roomId);
         const last = messages[messages.length - 1];
         window.__commLastReadByRoom[roomId][userEmail] = last?.id || null;
+        const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
+        messages.forEach(m => {
+            if (!isCommMessageFromMeLocal(m) && last) {
+                const msgIdx = messages.findIndex(x => x.id === m.id);
+                const lastIdx = messages.findIndex(x => x.id === last.id);
+                if (msgIdx <= lastIdx) m.readAt = m.readAt || now;
+            }
+        });
         const room = chatRoomsDB.find(r => r.id === roomId);
-        if (room) room.unreadCount = 0;
+        if (room) {
+            room.unreadCount = 0;
+            if (!room.readCursors) room.readCursors = {};
+            room.readCursors[userEmail] = last?.id || null;
+        }
+        if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof markInternalChatRoomReadApi === 'function' && last) {
+            markInternalChatRoomReadApi(roomId, last.id).then(apiRoom => {
+                if (apiRoom && room) room.readCursors = apiRoom.readCursors || room.readCursors;
+            }).catch(() => {});
+        }
+        writeStore();
+    }
+
+    function isCommMessageFromMeLocal(msg) {
+        const name = getCurrentCommUserName();
+        const email = getCurrentCommUserEmail().toLowerCase();
+        return msg.sender === name || String(msg.senderEmail || '').toLowerCase() === email;
     }
 
     function lookupUserByRecipient(token) {
@@ -293,6 +317,9 @@
                 const chat = await fetchInternalChatApi();
                 if (chat?.rooms?.length) {
                     const mergedRooms = mergeRecordsById(chatRoomsDB, chat.rooms);
+                    mergedRooms.forEach(r => {
+                        if (typeof window.normalizeDirectRoomForViewer === 'function') window.normalizeDirectRoomForViewer(r);
+                    });
                     chatRoomsDB.splice(0, chatRoomsDB.length, ...mergedRooms);
                 }
                 if (chat?.messages?.length) {
@@ -480,7 +507,7 @@
                 <div class="comm-ribbon-group"><div class="comm-ribbon-group-label">Move</div><div class="comm-ribbon-group-btns">${ribbonBtn('Archive', '🗄️', selectedEmailId ? `markEmailAction('${selectedEmailId}','archive')` : '', !selectedEmailId)}${ribbonBtn('Delete', '🗑️', selectedEmailId ? `markEmailAction('${selectedEmailId}','trash')` : '', !selectedEmailId)}</div></div>
                 <div class="comm-ribbon-group"><div class="comm-ribbon-group-label">Tags</div><div class="comm-ribbon-group-btns">${ribbonBtn('Mark read', '✓', selectedEmailId ? `markEmailAction('${selectedEmailId}','read')` : '', !selectedEmailId)}${ribbonBtn('Star', '⭐', selectedEmailId ? `toggleEmailStar('${selectedEmailId}')` : '', !selectedEmailId)}</div></div>`;
             } else if (isChat) {
-                groups = `<div class="comm-ribbon-group"><div class="comm-ribbon-group-label">Chat</div><div class="comm-ribbon-group-btns">${ribbonBtn('New chat', '💬', 'openNewDirectChatPicker()')}${ribbonBtn('New group', '👥', 'openNewGroupChatForm()')}</div></div>
+                groups = `<div class="comm-ribbon-group"><div class="comm-ribbon-group-label">Chat</div><div class="comm-ribbon-group-btns">${ribbonBtn('New chat', '💬', 'openNewDirectChatPicker()')}${ribbonBtn('New group', '👥', 'openNewGroupChatForm()')}${ribbonBtn('Refresh', '🔄', 'forceRefreshInternalCommMessages()')}</div></div>
                 <div class="comm-ribbon-group"><div class="comm-ribbon-group-label">Room</div><div class="comm-ribbon-group-btns">${ribbonBtn('Pin', '📌', activeChatRoomId ? `toggleChatPin('${activeChatRoomId}')` : '', !activeChatRoomId)}${ribbonBtn('Mute', '🔇', activeChatRoomId ? `toggleChatMute('${activeChatRoomId}')` : '', !activeChatRoomId)}</div></div>`;
             }
         } else if (commRibbonTab === 'view') {
@@ -502,15 +529,23 @@
         if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
         refreshInternalCommContacts().then(() => {
             syncInternalCommFromApi().then(() => {
-            syncRoomUnreadCounts();
-            writeStore();
-            if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
-            if (typeof renderInternalCommunication === 'function' && currentPage === 'internal-communication') {
-                renderInternalCommunication(document.getElementById('contentArea'), true);
-            }
-            showToast('Mailbox synced', 'success');
+                syncRoomUnreadCounts();
+                writeStore();
+                if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
+                if (typeof refreshInternalCommView === 'function' && currentPage === 'internal-communication') {
+                    refreshInternalCommView(true);
+                }
+                showToast('Mailbox synced', 'success');
             });
         });
+    };
+
+    window.__resetInternalCommSession = function () {
+        commDataLoaded = false;
+        emailsDB.splice(0, emailsDB.length);
+        chatRoomsDB.splice(0, chatRoomsDB.length);
+        chatMessagesDB.splice(0, chatMessagesDB.length);
+        window.__commLastReadByRoom = {};
     };
 
     window.getCurrentCommUserName = getCurrentCommUserName;

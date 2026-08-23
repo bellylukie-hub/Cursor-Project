@@ -1,0 +1,42 @@
+{
+  "name": "truckcontrol-desktop",
+  "version": "2.5.16.0",
+  "description": "TruckControl desktop shell (Windows, Linux, macOS)",
+  "main": "main.js",
+  "author": "TruckControl",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux",
+    "dist:mac": "electron-builder --mac"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.truckcontrol.app",
+    "productName": "TruckControl",
+    "directories": { "output": "dist" },
+    "files": [
+      "main.js",
+      "preload.js",
+      "../index.html",
+      "../app.js",
+      "../api.js",
+      "../**/*",
+      "!../dist/**",
+      "!../node_modules/**",
+      "!../backend/node_modules/**"
+    ],
+    "extraResources": [
+      { "from": "../backend", "to": "backend", "filter": ["**/*", "!node_modules/**"] }
+    ],
+    "win": { "target": ["nsis", "zip"] },
+    "linux": { "target": ["AppImage", "zip"] },
+    "mac": { "target": ["dmg", "zip"] }
+  }
+}

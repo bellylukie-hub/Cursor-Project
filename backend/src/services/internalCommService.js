@@ -23,6 +23,7 @@ function rowToEmail(row) {
     body: row.body,
     sentAt: row.sent_at,
     read: !!row.read_flag,
+    readAt: row.read_at || null,
     starred: !!row.starred,
     important: !!row.important,
     attachments: parseJson(row.attachments, []),
@@ -50,6 +51,7 @@ function rowToRoom(row) {
     relatedType: row.related_type || 'user',
     relatedRef: row.related_ref || '',
     createdBy: row.created_by_name || '',
+    readCursors: parseJson(row.read_cursors, {}),
     unreadCount: 0
   };
 }
@@ -65,7 +67,8 @@ function rowToMessage(row) {
     sentAt: row.sent_at,
     status: row.status || 'delivered',
     replyTo: row.reply_to || null,
-    attachmentName: row.attachment_name || null
+    attachmentName: row.attachment_name || null,
+    readAt: row.read_at || null
   };
 }
 
@@ -253,8 +256,34 @@ function updateEmail(emailId, userEmail, patch) {
   const folder = patch.folder ?? row.folder;
   const readFlag = patch.read !== undefined ? (patch.read ? 1 : 0) : row.read_flag;
   const starred = patch.starred !== undefined ? (patch.starred ? 1 : 0) : row.starred;
-  db.prepare('UPDATE internal_emails SET folder = ?, read_flag = ?, starred = ? WHERE id = ?').run(folder, readFlag, starred, emailId);
+  const readAt = readFlag && !row.read_flag ? new Date().toISOString().slice(0, 16).replace('T', ' ') : (row.read_at || null);
+  db.prepare('UPDATE internal_emails SET folder = ?, read_flag = ?, starred = ?, read_at = ? WHERE id = ?').run(folder, readFlag, starred, readAt, emailId);
   return rowToEmail(db.prepare('SELECT * FROM internal_emails WHERE id = ?').get(emailId));
+}
+
+function applyReadReceiptsForRoom(room, messages, viewerEmail) {
+  const email = String(viewerEmail || '').toLowerCase();
+  const cursors = room.readCursors || {};
+  const memberEmails = (room.memberEmails || []).map(e => String(e).toLowerCase());
+  const peerEmails = memberEmails.filter(e => e && e !== email);
+  return messages.map(msg => {
+    const copy = { ...msg };
+    const senderEmail = String(msg.senderEmail || '').toLowerCase();
+    if (senderEmail === email) {
+      const readByPeer = peerEmails.some(peer => {
+        const cursorId = cursors[peer];
+        if (!cursorId) return false;
+        const cursorIdx = messages.findIndex(m => m.id === cursorId);
+        const msgIdx = messages.findIndex(m => m.id === msg.id);
+        return cursorIdx >= msgIdx;
+      });
+      if (readByPeer) {
+        copy.status = 'read';
+        if (!copy.readAt) copy.readAt = room.lastAt;
+      }
+    }
+    return copy;
+  });
 }
 
 function listChatData(userEmail) {
@@ -263,9 +292,14 @@ function listChatData(userEmail) {
     .map(rowToRoom)
     .filter(room => (room.memberEmails || []).some(e => String(e).toLowerCase() === email));
   const roomIds = rooms.map(r => r.id);
-  const messages = roomIds.length
+  let messages = roomIds.length
     ? db.prepare(`SELECT * FROM internal_chat_messages WHERE room_id IN (${roomIds.map(() => '?').join(',')}) ORDER BY sent_at ASC`).all(...roomIds).map(rowToMessage)
     : [];
+  messages = rooms.reduce((acc, room) => {
+    const roomMsgs = messages.filter(m => m.roomId === room.id);
+    const withReceipts = applyReadReceiptsForRoom(room, roomMsgs, email);
+    return acc.concat(withReceipts);
+  }, []);
   return { rooms, messages };
 }
 
@@ -332,12 +366,37 @@ function findOrCreateDirectRoom(otherEmail, sender) {
     type: 'direct',
     memberEmails: [senderEmail, other],
     memberNames: [
-      sender.displayName || sender.username,
+      displayNameFromUsername(sender.username || senderEmail),
       otherName
     ],
     avatar: otherName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
     lastMessage: 'Chat started'
   }, sender);
+}
+
+function markRoomRead(roomId, userEmail, lastMessageId) {
+  const email = String(userEmail || '').toLowerCase();
+  const room = db.prepare('SELECT * FROM internal_chat_rooms WHERE id = ?').get(roomId);
+  if (!room) throw new Error('Chat room not found');
+  const members = parseJson(room.member_emails, []).map(e => String(e).toLowerCase());
+  if (!members.includes(email)) throw new Error('Not a member of this chat room');
+  const cursors = parseJson(room.read_cursors, {});
+  if (lastMessageId) cursors[email] = lastMessageId;
+  db.prepare('UPDATE internal_chat_rooms SET read_cursors = ? WHERE id = ?').run(JSON.stringify(cursors), roomId);
+  const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  if (lastMessageId) {
+    const msgs = db.prepare('SELECT id FROM internal_chat_messages WHERE room_id = ? ORDER BY sent_at ASC').all(roomId);
+    const targetIdx = msgs.findIndex(m => m.id === lastMessageId);
+    if (targetIdx >= 0) {
+      msgs.slice(0, targetIdx + 1).forEach(m => {
+        db.prepare(`
+          UPDATE internal_chat_messages SET read_at = ?
+          WHERE id = ? AND LOWER(sender_email) != ?
+        `).run(now, m.id, email);
+      });
+    }
+  }
+  return rowToRoom(db.prepare('SELECT * FROM internal_chat_rooms WHERE id = ?').get(roomId));
 }
 
 module.exports = {
@@ -349,5 +408,6 @@ module.exports = {
   createChatRoom,
   sendChatMessage,
   findOrCreateDirectRoom,
-  resolveRecipient
+  resolveRecipient,
+  markRoomRead
 };

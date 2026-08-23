@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TruckControl</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="favicon.svg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
@@ -1990,6 +1991,12 @@
         .wa-bubble { max-width: 65%; padding: 8px 10px 6px; border-radius: 8px; box-shadow: 0 1px 1px rgba(0,0,0,0.08); position: relative; font-size: 14px; line-height: 1.45; }
         .wa-bubble.sent { background: #d9fdd3; border-top-right-radius: 0; }
         .wa-bubble.received { background: white; border-top-left-radius: 0; }
+        .wa-bubble.received.read { background: #e8f7e8; border: 1px solid #b7e4b7; }
+        .wa-bubble.received.unread { background: #eceff1; border: 1px solid #cfd8dc; color: #4b5563; }
+        .wa-bubble.sent.read .wa-ticks.read { color: #25d366; }
+        .wa-bubble.sent .wa-ticks.delivered { color: #8696a0; }
+        .wa-bubble.sent .wa-ticks.sent { color: #8696a0; }
+        .email-read-receipt { color: #16a34a; font-weight: 600; }
         .wa-bubble .wa-reply { background: rgba(0,0,0,0.06); border-left: 3px solid #25d366; padding: 6px 8px; border-radius: 6px; margin-bottom: 6px; font-size: 12px; color: #667781; }
         .wa-bubble .wa-file { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.05); padding: 8px; border-radius: 6px; margin-top: 4px; }
         .wa-bubble-footer { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin-top: 4px; font-size: 11px; color: #667781; }
@@ -3478,6 +3485,7 @@
     <!-- Optional for Vercel/static hosting: set window.TRUCKCONTROL_API before api.js (see docs/VERCEL-DEPLOY.md) -->
     <script>/* window.TRUCKCONTROL_API = 'https://your-api-server.com/api'; */</script>
     <script src="api.js"></script>
+    <script src="offline-sync.js"></script>
     <script src="i18n.js"></script>
     <script src="admin-persistence.js"></script>
     <script src="freight-admin-settings.js"></script>
