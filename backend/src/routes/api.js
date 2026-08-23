@@ -899,6 +899,12 @@ router.get('/admin/db/tables', requireSuperAdmin, (_req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+router.get('/admin/db/info', requireSuperAdmin, (_req, res) => {
+  try {
+    res.json(dbExplorerSvc().getDatabaseInfo());
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/admin/db/tables/:tableName/schema', requireSuperAdmin, (req, res) => {
   try {
     res.json(dbExplorerSvc().getTableSchema(req.params.tableName));

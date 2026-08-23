@@ -268,6 +268,7 @@
             applyAppTheme(s.activeTheme);
         }
         if (typeof refreshAppLogo === 'function') refreshAppLogo();
+        if (typeof applyLanguageFromSettings === 'function') applyLanguageFromSettings();
     };
 
     let sessionActivityAt = Date.now();

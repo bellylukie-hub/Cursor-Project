@@ -738,3 +738,5 @@ initSchema();
 migrateWorkshopAndFuelSchema();
 
 module.exports = db;
+module.exports.dbPath = dbPath;
+module.exports.dataDir = dataDir;

@@ -1,8 +1,10 @@
 /**
  * TruckControl — system language (EN / FR / PT)
+ * Team default: Admin → Language & Localization (systemSettingsDB.language)
+ * User override: top-bar language selector (localStorage truckcontrol_user_lang)
  */
 (function () {
-    const STORAGE_KEY = 'truckcontrol_lang';
+    const STORAGE_KEY_USER = 'truckcontrol_user_lang';
 
     const STRINGS = {
         en: {
@@ -30,6 +32,7 @@
             'nav.position-live': 'Position Live',
             'nav.admin-users': 'Manage Users',
             'nav.admin-settings': 'System Settings',
+            'nav.admin-language': 'Language & Localization',
             'nav.admin-themes': 'Themes',
             'nav.admin-kpi-settings': 'KPI Settings',
             'nav.reports.team-kpi': 'Team KPI Achievement',
@@ -42,6 +45,11 @@
             'login.demoOffline': 'Or open ?demo=1 for instant offline preview (no sign-in).',
             'search.placeholder': 'Search trucks, trips, orders...',
             'lang.label': 'Language',
+            'lang.personal': 'Your language',
+            'lang.personalHint': 'Personal preference — overrides the team default for your session.',
+            'lang.teamDefault': 'Team default language',
+            'lang.teamHint': 'Default for all users who have not chosen a personal language in the top bar.',
+            'lang.useTeamDefault': 'Use team default',
             'common.send': 'Send',
             'common.saveDraft': 'Save Draft',
             'common.discard': 'Discard',
@@ -90,6 +98,7 @@
             'nav.position-live': 'Position en direct',
             'nav.admin-users': 'Gérer les utilisateurs',
             'nav.admin-settings': 'Paramètres système',
+            'nav.admin-language': 'Langue & localisation',
             'nav.admin-themes': 'Thèmes',
             'nav.admin-kpi-settings': 'Paramètres KPI',
             'nav.reports.team-kpi': 'Performance KPI par équipe',
@@ -102,6 +111,11 @@
             'login.demoOffline': 'Ou ouvrez ?demo=1 pour un aperçu hors ligne instantané.',
             'search.placeholder': 'Rechercher camions, trajets, commandes...',
             'lang.label': 'Langue',
+            'lang.personal': 'Votre langue',
+            'lang.personalHint': 'Préférence personnelle — remplace la langue d\'équipe pour votre session.',
+            'lang.teamDefault': 'Langue par défaut de l\'équipe',
+            'lang.teamHint': 'Par défaut pour les utilisateurs sans préférence personnelle dans la barre supérieure.',
+            'lang.useTeamDefault': 'Utiliser la langue d\'équipe',
             'common.send': 'Envoyer',
             'common.saveDraft': 'Enregistrer brouillon',
             'common.discard': 'Abandonner',
@@ -150,6 +164,7 @@
             'nav.position-live': 'Posição ao vivo',
             'nav.admin-users': 'Gerir utilizadores',
             'nav.admin-settings': 'Configurações do sistema',
+            'nav.admin-language': 'Idioma & localização',
             'nav.admin-themes': 'Temas',
             'nav.admin-kpi-settings': 'Configurações KPI',
             'nav.reports.team-kpi': 'Desempenho KPI da equipa',
@@ -162,6 +177,11 @@
             'login.demoOffline': 'Ou abra ?demo=1 para pré-visualização offline instantânea.',
             'search.placeholder': 'Pesquisar camiões, viagens, pedidos...',
             'lang.label': 'Idioma',
+            'lang.personal': 'O seu idioma',
+            'lang.personalHint': 'Preferência pessoal — substitui o idioma da equipa na sua sessão.',
+            'lang.teamDefault': 'Idioma padrão da equipa',
+            'lang.teamHint': 'Padrão para utilizadores sem preferência pessoal na barra superior.',
+            'lang.useTeamDefault': 'Usar idioma da equipa',
             'common.send': 'Enviar',
             'common.saveDraft': 'Guardar rascunho',
             'common.discard': 'Descartar',
@@ -194,10 +214,24 @@
         return STRINGS[c] ? c : 'en';
     }
 
+    function langLabel(code) {
+        if (code === 'fr') return 'Français';
+        if (code === 'pt') return 'Português';
+        return 'English';
+    }
+
+    function hasUserLanguageOverride() {
+        try {
+            return !!localStorage.getItem(STORAGE_KEY_USER);
+        } catch (_) {
+            return false;
+        }
+    }
+
     function loadLang() {
         try {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) return normalizeLang(stored);
+            const userStored = localStorage.getItem(STORAGE_KEY_USER);
+            if (userStored) return normalizeLang(userStored);
             if (window.systemSettingsDB?.language) return normalizeLang(window.systemSettingsDB.language);
         } catch (_) {}
         return 'en';
@@ -212,15 +246,38 @@
 
     window.getAppLanguage = function () { return currentLang; };
 
+    window.hasUserLanguageOverride = hasUserLanguageOverride;
+
+    window.applyLanguageFromSettings = function () {
+        if (hasUserLanguageOverride()) return;
+        currentLang = normalizeLang(window.systemSettingsDB?.language || 'en');
+        const sel = document.getElementById('languageSelect');
+        if (sel) sel.value = currentLang;
+        applyI18n();
+    };
+
     window.setAppLanguage = function (lang, silent) {
         currentLang = normalizeLang(lang);
-        try { localStorage.setItem(STORAGE_KEY, currentLang); } catch (_) {}
-        if (window.systemSettingsDB) window.systemSettingsDB.language = currentLang;
+        try { localStorage.setItem(STORAGE_KEY_USER, currentLang); } catch (_) {}
         const sel = document.getElementById('languageSelect');
         if (sel) sel.value = currentLang;
         applyI18n();
         if (!silent && typeof showToast === 'function') {
-            showToast(`Language: ${currentLang === 'fr' ? 'Français' : currentLang === 'pt' ? 'Português' : 'English'}`, 'success');
+            showToast(`${t('lang.personal')}: ${langLabel(currentLang)}`, 'success');
+        }
+        if (typeof currentPage !== 'undefined' && typeof navigateTo === 'function') {
+            navigateTo(currentPage);
+        }
+    };
+
+    window.clearUserLanguagePreference = function (silent) {
+        try { localStorage.removeItem(STORAGE_KEY_USER); } catch (_) {}
+        currentLang = normalizeLang(window.systemSettingsDB?.language || 'en');
+        const sel = document.getElementById('languageSelect');
+        if (sel) sel.value = currentLang;
+        applyI18n();
+        if (!silent && typeof showToast === 'function') {
+            showToast(`${t('lang.useTeamDefault')}: ${langLabel(currentLang)}`, 'success');
         }
         if (typeof currentPage !== 'undefined' && typeof navigateTo === 'function') {
             navigateTo(currentPage);
@@ -261,6 +318,8 @@
         if (loginBtn && !loginBtn.disabled) loginBtn.textContent = t('login.submit');
         const search = document.getElementById('globalSearch');
         if (search) search.placeholder = t('search.placeholder');
+        const langSelect = document.getElementById('languageSelect');
+        if (langSelect) langSelect.title = t('lang.label');
 
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.dataset.i18n;

@@ -11,7 +11,8 @@ const DEFAULT_SYSTEM_SETTINGS = {
   backupSchedule: 'daily',
   backupRetentionDays: 30,
   appName: 'Truck Turnaround & Operations Control System',
-  supportEmail: 'support@truckcontrol.local'
+  supportEmail: 'support@truckcontrol.local',
+  language: 'en'
 };
 
 function getJsonSetting(key, fallback) {

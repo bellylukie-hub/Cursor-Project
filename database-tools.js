@@ -87,10 +87,25 @@
     window.renderDatabaseBrowser = async function (container) {
         if (!canUseDatabaseTools()) return renderAccessDenied(container);
 
+        let dbInfoHtml = '';
+        if (apiReady() && typeof fetchDbInfo === 'function') {
+            try {
+                const info = await fetchDbInfo();
+                if (info?.name) {
+                    dbInfoHtml = `<div class="rbac-info-banner" style="margin-top:12px;margin-bottom:0;">
+                        <strong>Database:</strong> <code>${escHtml(info.name)}</code>
+                        ${info.engine ? `<span style="margin-left:8px;color:var(--text-secondary);">${escHtml(info.engine)}</span>` : ''}
+                        ${info.path ? `<br><span style="font-size:12px;color:var(--text-secondary);">Path: <code>${escHtml(info.path)}</code></span>` : ''}
+                    </div>`;
+                }
+            } catch (_) { /* shown after tables load */ }
+        }
+
         container.innerHTML = `<div class="page-header">
             <h1>🗄️ Database Browser</h1>
             ${typeof renderAdminBreadcrumb === 'function' ? renderAdminBreadcrumb('Database Browser') : ''}
             <p class="page-subtitle" style="margin-top:8px;color:var(--text-secondary);">Browse SQLite tables, columns, and row data from the live database (read-only).</p>
+            ${dbInfoHtml}
         </div>
         <div id="dbBrowserRoot"><p style="padding:24px;color:var(--text-secondary);">Loading tables…</p></div>`;
 

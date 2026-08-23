@@ -1870,6 +1870,54 @@
         return { total, remaining, allocated: total - remaining };
     }
 
+    function normLoc(s) {
+        return String(s || '').trim().toLowerCase();
+    }
+
+    function validateAllocationLocal(payload) {
+        const order = getOrderById(payload.orderId);
+        const unit = fleetUnitsDB.find(u => u.id === payload.fleetUnitId);
+        if (!order || !unit) {
+            return { ok: false, code: 'NOT_FOUND', message: 'Order or fleet unit not found.' };
+        }
+        const loads = getOrderLoadsInfo(order);
+        const loadQty = Number(payload.loadQty || 1);
+        if (loads.remaining <= 0) {
+            return { ok: false, code: 'NO_CARGO_LEFT', message: 'No loads remaining on this order — cargo fully allocated.' };
+        }
+        if (loadQty > loads.remaining) {
+            return { ok: false, code: 'EXCESS_QTY', message: `Only ${loads.remaining} load(s) remaining; requested ${loadQty}.` };
+        }
+        const orderOrigin = normLoc(order.origin);
+        const lastDest = normLoc(unit.lastDestination);
+        if (lastDest && orderOrigin && lastDest !== orderOrigin && !payload.emptyTripAcknowledged) {
+            return {
+                ok: false,
+                code: 'EMPTY_TRIP_REQUIRED',
+                message: `Truck last destination is "${unit.lastDestination}". Empty repositioning to "${order.origin}" required before loading this order.`,
+                emptyTrip: { from: unit.lastDestination, to: order.origin }
+            };
+        }
+        const ld = order.loadDetails || {};
+        const qtyPerTruck = Number(ld.qtyPerTruck || 34);
+        const maxLegal = 56;
+        if (qtyPerTruck > maxLegal && !payload.weightOverrideAcknowledged) {
+            return {
+                ok: false,
+                code: 'WEIGHT_WARNING',
+                message: `Load ${qtyPerTruck}t may exceed typical legal limit ${maxLegal}t — user validation required.`,
+                weightPlan: { totalWeightMt: qtyPerTruck, maxLegalMt: maxLegal }
+            };
+        }
+        return {
+            ok: true,
+            loads: { remaining: loads.remaining - loadQty, total: loads.total, allocated: loads.allocated + loadQty },
+            weightPlan: { totalWeightMt: qtyPerTruck, maxLegalMt: maxLegal, compliant: qtyPerTruck <= maxLegal }
+        };
+    }
+
+    window.validateAllocationLocal = validateAllocationLocal;
+
     window.previewAllocationValidation = async function () {
         const orderId = document.getElementById('allocateOrderId')?.value;
         const fleetUnitId = document.getElementById('allocateFleetUnit')?.value;

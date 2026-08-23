@@ -20,7 +20,7 @@ copy_item() {
 copy_item \
   index.html app.js api.js offline-sync.js i18n.js internal-communication.js manifest.webmanifest favicon.svg images \
   live-operations.js admin-persistence.js control-room-ui.js fleet-orders.js fleet-vehicle-spec.js \
-  route-catalog.js trip-scheduler.js freight-admin-settings.js helpdesk.js fleet-map.js \
+  route-catalog.js trip-scheduler.js freight-admin-settings.js helpdesk.js fleet-map.js workshop.js fuel-control.js \
   custom-reports.js themes.js process-guide.js help-assistant.js report-export.js \
   soft-delete.js bulk-actions.js database-tools.js mobile backend \
   README.md docs

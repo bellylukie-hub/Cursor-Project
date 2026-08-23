@@ -1894,6 +1894,7 @@ function canAccessAdminPage(page) {
         case 'admin-users': return canUser('manage_users');
         case 'admin-roles': return canUser('manage_roles');
         case 'admin-settings': return canUser('manage_settings');
+        case 'admin-language': return canUser('manage_settings');
         case 'admin-themes': return canUser('manage_settings');
         case 'admin-kpi-settings': return canUser('manage_settings');
         case 'admin-audit-logs': return canUser('view_logs');
@@ -2225,6 +2226,7 @@ const PAGE_DISPLAY_TITLES = {
     'admin-users': 'Manage Users',
     'admin-roles': 'Role Manager',
     'admin-settings': 'System Settings',
+    'admin-language': 'Language & Localization',
     'admin-themes': 'Themes',
     'admin-kpi-settings': 'KPI Settings',
     'admin-audit-logs': 'Audit Logs',
@@ -2619,6 +2621,7 @@ function navigateTo(page) {
         case 'admin-users': renderAdminUsers(ca); break;
         case 'admin-roles': renderAdminRoles(ca); break;
         case 'admin-settings': renderAdminSettings(ca); break;
+        case 'admin-language': renderAdminLanguage(ca); break;
         case 'admin-themes': renderAdminThemes(ca); break;
         case 'admin-kpi-settings': renderAdminKpiSettings(ca); break;
         case 'admin-audit-logs': renderAdminAuditLogs(ca); break;
@@ -9141,16 +9144,9 @@ function renderAdminSettings(container) {
                 </div>
             </div>
             <div class="settings-card">
-                <h3>🌐 ${typeof t === 'function' ? t('settings.language') : 'System language'}</h3>
-                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">${typeof t === 'function' ? t('settings.languageHint') : 'Applies to menus, buttons, and main screens.'}</p>
-                <div class="setting-row">
-                    <div><strong>Default UI language</strong></div>
-                    <select class="form-control setting-input" id="settingLanguage" onchange="updateSystemSetting('language', this.value); if(typeof setAppLanguage==='function') setAppLanguage(this.value, true);">
-                        <option value="en" ${(s.language || 'en') === 'en' ? 'selected' : ''}>English</option>
-                        <option value="fr" ${s.language === 'fr' ? 'selected' : ''}>Français</option>
-                        <option value="pt" ${s.language === 'pt' ? 'selected' : ''}>Português</option>
-                    </select>
-                </div>
+                <h3>🌐 Language</h3>
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Team default and localization are managed under Admin → Language & Localization.</p>
+                <button class="btn btn-outline" onclick="navigateToAdmin('admin-language')">Open Language Settings</button>
             </div>
             <div class="settings-card">
                 <h3>💾 Database Backup</h3>
@@ -9175,6 +9171,63 @@ function renderAdminSettings(container) {
                     <option value="">— Switch to user —</option>
                     ${adminUsersDB.filter(u => u.status === 'active').map(u => `<option value="${u.id}">${u.username} (${getRoleById(u.roleId)?.name})</option>`).join('')}
                 </select>
+            </div>
+        </div>`;
+}
+
+function renderAdminLanguage(container) {
+    if (!canAccessAdminPage('admin-language')) {
+        container.innerHTML = `<div class="access-denied"><h2>🚫 Access Denied</h2><p>Language settings require Manager or Super Admin privileges.</p><button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">Back to Dashboard</button></div>`;
+        return;
+    }
+    const s = systemSettingsDB;
+    const teamLang = s.language || 'en';
+    const userOverride = typeof hasUserLanguageOverride === 'function' && hasUserLanguageOverride();
+    const activeLang = typeof getAppLanguage === 'function' ? getAppLanguage() : teamLang;
+    container.innerHTML = `
+        ${renderAdminBreadcrumb('Language & Localization')}
+        <div class="page-header">
+            <h1>🌐 ${typeof t === 'function' ? t('nav.admin-language') : 'Language & Localization'}</h1>
+            <p class="page-subtitle">Set the team default language for all users. Each user can override this from the language selector in the top bar.</p>
+        </div>
+        <div class="admin-settings-grid">
+            <div class="settings-card">
+                <h3>${typeof t === 'function' ? t('lang.teamDefault') : 'Team default language'}</h3>
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">${typeof t === 'function' ? t('lang.teamHint') : 'Default for users without a personal preference.'}</p>
+                <div class="setting-row">
+                    <div><strong>Default UI language</strong></div>
+                    <select class="form-control setting-input" id="adminTeamLanguage" onchange="updateTeamDefaultLanguage(this.value)">
+                        <option value="en" ${teamLang === 'en' ? 'selected' : ''}>English</option>
+                        <option value="fr" ${teamLang === 'fr' ? 'selected' : ''}>Français</option>
+                        <option value="pt" ${teamLang === 'pt' ? 'selected' : ''}>Português</option>
+                    </select>
+                </div>
+                <p style="font-size:12px;color:var(--text-secondary);margin-top:12px;">Current team default: <strong>${teamLang.toUpperCase()}</strong></p>
+            </div>
+            <div class="settings-card">
+                <h3>${typeof t === 'function' ? t('lang.personal') : 'Your language'}</h3>
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">${typeof t === 'function' ? t('lang.personalHint') : 'Personal preference from the top bar.'}</p>
+                <div class="setting-row">
+                    <div><strong>Active for your session</strong></div>
+                    <span style="font-weight:600;">${activeLang.toUpperCase()}${userOverride ? '' : ' (team default)'}</span>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+                    <select class="form-control setting-input" id="adminPersonalLanguagePreview" onchange="if(typeof setAppLanguage==='function') setAppLanguage(this.value)">
+                        <option value="en" ${activeLang === 'en' ? 'selected' : ''}>English</option>
+                        <option value="fr" ${activeLang === 'fr' ? 'selected' : ''}>Français</option>
+                        <option value="pt" ${activeLang === 'pt' ? 'selected' : ''}>Português</option>
+                    </select>
+                    ${userOverride ? `<button class="btn btn-outline btn-sm" onclick="clearUserLanguagePreference()">${typeof t === 'function' ? t('lang.useTeamDefault') : 'Use team default'}</button>` : ''}
+                </div>
+            </div>
+            <div class="settings-card">
+                <h3>Supported languages</h3>
+                <ul style="margin:0;padding-left:20px;font-size:14px;color:var(--text-secondary);">
+                    <li><strong>EN</strong> — English (menus, login, communication)</li>
+                    <li><strong>FR</strong> — Français</li>
+                    <li><strong>PT</strong> — Português</li>
+                </ul>
+                <p style="font-size:12px;color:var(--text-secondary);margin-top:12px;">Users change language from the top bar selector (EN / FR / PT). Admins set the team default here.</p>
             </div>
         </div>`;
 }
@@ -9570,6 +9623,12 @@ function deleteAdminRole(roleId) {
             showToast(e.message, 'warning');
         }
     })();
+}
+
+function updateTeamDefaultLanguage(value) {
+    updateSystemSetting('language', value);
+    if (typeof applyLanguageFromSettings === 'function') applyLanguageFromSettings();
+    if (currentPage === 'admin-language') renderAdminLanguage(document.getElementById('contentArea'));
 }
 
 function updateSystemSetting(key, value) {

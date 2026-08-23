@@ -569,6 +569,10 @@ async function fetchDbTables() {
   return data.tables || [];
 }
 
+async function fetchDbInfo() {
+  return apiRequest('/admin/db/info');
+}
+
 async function fetchDbTableSchema(tableName) {
   return apiRequest(`/admin/db/tables/${encodeURIComponent(tableName)}/schema`);
 }

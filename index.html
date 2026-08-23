@@ -2684,6 +2684,9 @@
                     <a class="nav-item" onclick="navigateToAdmin('admin-settings')" data-page="admin-settings">
                         <span class="icon">⚙️</span> System Settings
                     </a>
+                    <a class="nav-item" onclick="navigateToAdmin('admin-language')" data-page="admin-language">
+                        <span class="icon">🌐</span> Language &amp; Localization
+                    </a>
                     <a class="nav-item" onclick="navigateToAdmin('admin-themes')" data-page="admin-themes">
                         <span class="icon">🎨</span> Themes
                     </a>
@@ -2741,7 +2744,7 @@
                     <div class="global-search-dropdown" id="globalSearchDropdown" role="listbox" aria-label="Search results"></div>
                 </div>
                 <div class="top-bar-actions">
-                    <select id="languageSelect" class="form-control top-bar-lang-select" title="Language" aria-label="Language" onchange="setAppLanguage(this.value)">
+                    <select id="languageSelect" class="form-control top-bar-lang-select" title="Language" aria-label="Language" data-i18n-title="lang.label" onchange="setAppLanguage(this.value)">
                         <option value="en">EN</option>
                         <option value="fr">FR</option>
                         <option value="pt">PT</option>

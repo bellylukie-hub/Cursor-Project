@@ -1,5 +1,7 @@
+const path = require('path');
 const db = require('../db/database');
 const adminService = require('./adminService');
+const env = require('../config/env');
 
 const MAX_ROWS = 500;
 const MAX_PAGE_SIZE = 200;
@@ -115,11 +117,22 @@ function runSelectQuery(sql, user, { maxRows = MAX_ROWS } = {}) {
   };
 }
 
+function getDatabaseInfo() {
+  const dbPath = db.dbPath || path.join(env.dataDir, 'truckcontrol.db');
+  return {
+    name: path.basename(dbPath),
+    path: dbPath,
+    dataDir: env.dataDir,
+    engine: 'SQLite'
+  };
+}
+
 module.exports = {
   listTables,
   getTableSchema,
   browseTable,
   runSelectQuery,
+  getDatabaseInfo,
   assertSuperAdmin,
   MAX_ROWS,
   MAX_PAGE_SIZE
