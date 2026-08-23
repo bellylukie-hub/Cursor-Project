@@ -21,7 +21,8 @@ function rowToUnit(r, driver) {
     vehicleType: r.vehicle_type, driverId: r.driver_id, driver: driver || null,
     gpsDeviceId: r.gps_device_id, gpsLat: r.gps_lat, gpsLng: r.gps_lng, gpsLabel: r.gps_label,
     gpsUpdatedAt: r.gps_updated_at, ownerId: r.owner_id, status: r.status, notes: r.notes,
-    createdAt: r.created_at
+    lastDestination: r.last_destination || '', lastOrigin: r.last_origin || '',
+    odometerKm: r.odometer_km, createdAt: r.created_at
   };
 }
 
@@ -118,21 +119,26 @@ function upsertFleetUnit(body) {
   if (!plate) throw new Error('Truck plate is required');
   db.prepare(`
     INSERT INTO fleet_units (id, truck_plate, trailer_plate, horse_plate, vehicle_type, driver_id,
-      gps_device_id, gps_lat, gps_lng, gps_label, gps_updated_at, owner_id, status, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      gps_device_id, gps_lat, gps_lng, gps_label, gps_updated_at, owner_id, status, notes,
+      last_destination, last_origin, odometer_km)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       truck_plate = excluded.truck_plate, trailer_plate = excluded.trailer_plate,
       horse_plate = excluded.horse_plate, vehicle_type = excluded.vehicle_type,
       driver_id = excluded.driver_id, gps_device_id = excluded.gps_device_id,
       gps_lat = excluded.gps_lat, gps_lng = excluded.gps_lng, gps_label = excluded.gps_label,
       gps_updated_at = excluded.gps_updated_at, owner_id = excluded.owner_id,
-      status = excluded.status, notes = excluded.notes
+      status = excluded.status, notes = excluded.notes,
+      last_destination = COALESCE(excluded.last_destination, fleet_units.last_destination),
+      last_origin = COALESCE(excluded.last_origin, fleet_units.last_origin),
+      odometer_km = COALESCE(excluded.odometer_km, fleet_units.odometer_km)
   `).run(
     id, plate, body.trailerPlate || '', body.horsePlate || '', body.vehicleType || 'Truck',
     body.driverId || null, body.gpsDeviceId || null,
     body.gpsLat != null ? body.gpsLat : null, body.gpsLng != null ? body.gpsLng : null,
     body.gpsLabel || '', body.gpsUpdatedAt || (body.gpsLat != null ? new Date().toISOString() : null),
-    body.ownerId || null, body.status || 'available', body.notes || ''
+    body.ownerId || null, body.status || 'available', body.notes || '',
+    body.lastDestination || '', body.lastOrigin || '', body.odometerKm != null ? body.odometerKm : null
   );
   return getUnitById(id);
 }
@@ -210,6 +216,15 @@ function listOrderAllocations(orderId) {
 }
 
 function createOrderAllocation(body, user) {
+  const allocRules = require('./allocationRulesService');
+  const validation = allocRules.validateAllocation(body.orderId, body.fleetUnitId, body.details || body);
+  if (!validation.ok) {
+    const err = new Error(validation.message);
+    err.code = validation.code;
+    err.details = validation;
+    throw err;
+  }
+
   const id = body.id || `ALL-${Date.now()}`;
   const order = getOrderById(body.orderId);
   const unit = getUnitById(body.fleetUnitId);
@@ -219,21 +234,37 @@ function createOrderAllocation(body, user) {
     .get(body.orderId, body.fleetUnitId);
   if (existing && existing.id !== id) throw new Error('This fleet unit is already allocated to this order');
 
-  db.prepare(`
-    INSERT INTO order_allocations (id, order_id, fleet_unit_id, scheduled_date, status, allocated_by, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET
-      scheduled_date = excluded.scheduled_date, status = excluded.status, notes = excluded.notes
-  `).run(id, body.orderId, body.fleetUnitId, body.scheduledDate || '', body.status || 'scheduled',
-    user?.username || 'system', body.notes || '');
+  const loadQty = Number(body.loadQty || body.details?.loadQty || 1);
+  const detailsJson = JSON.stringify({
+    containers: body.containers || body.details?.containers || [],
+    trailerPosition: body.trailerPosition || body.details?.trailerPosition || '',
+    weightPlan: validation.weightPlan,
+    emptyTripAcknowledged: body.emptyTripAcknowledged || body.details?.emptyTripAcknowledged,
+    weightOverrideAcknowledged: body.weightOverrideAcknowledged || body.details?.weightOverrideAcknowledged,
+    userValidated: body.userValidated || true
+  });
 
-  db.prepare(`UPDATE client_orders SET status = 'allocated', updated_at = datetime('now') WHERE id = ? AND status IN ('draft', 'confirmed')`)
+  db.prepare(`
+    INSERT INTO order_allocations (id, order_id, fleet_unit_id, scheduled_date, status, allocated_by, notes, load_qty, allocation_details_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      scheduled_date = excluded.scheduled_date, status = excluded.status, notes = excluded.notes,
+      load_qty = excluded.load_qty, allocation_details_json = excluded.allocation_details_json
+  `).run(id, body.orderId, body.fleetUnitId, body.scheduledDate || '', body.status || 'scheduled',
+    user?.username || 'system', body.notes || '', loadQty, detailsJson);
+
+  allocRules.applyAllocationLoadDecrement(body.orderId, loadQty);
+
+  const loads = allocRules.getOrderLoadsState(order);
+  db.prepare(`UPDATE client_orders SET status = 'allocated', updated_at = datetime('now') WHERE id = ? AND status IN ('draft', 'confirmed', 'allocated')`)
     .run(body.orderId);
-  db.prepare(`UPDATE fleet_units SET status = 'allocated' WHERE id = ?`).run(body.fleetUnitId);
+
+  db.prepare(`UPDATE fleet_units SET status = 'allocated', last_origin = ?, last_destination = ? WHERE id = ?`)
+    .run(order.origin || '', order.destination || '', body.fleetUnitId);
 
   return rowToAllocation(
     db.prepare('SELECT * FROM order_allocations WHERE id = ?').get(id),
-    order, unit
+    getOrderById(body.orderId), getUnitById(body.fleetUnitId)
   );
 }
 
@@ -289,6 +320,7 @@ function seedFleetOrderData() {
         descriptionOfGoods: 'Copper cathodes — bulk loose',
         orderLoadType: 'Normal', commodityRateType: 'Standard',
         packing: 'Bulk', quantity: 1200, qtyPerTruck: 34, tonnage: 1200, noOfLoads: 35,
+        loadsTotal: 35, loadsAllocated: 0, loadsRemaining: 35,
         isHaz: false
       }
     },

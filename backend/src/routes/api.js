@@ -605,7 +605,121 @@ router.post('/order-allocations', (req, res) => {
   try {
     const allocation = fleetOrderSvc().createOrderAllocation(req.body, getUser(req));
     res.status(201).json({ allocation });
+  } catch (e) {
+    res.status(400).json({ error: e.message, code: e.code, details: e.details });
+  }
+});
+
+router.post('/order-allocations/validate', (req, res) => {
+  try {
+    const allocRules = require('../services/allocationRulesService');
+    const result = allocRules.validateAllocation(req.body.orderId, req.body.fleetUnitId, req.body);
+    res.json(result);
   } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.post('/empty-trip-legs', (req, res) => {
+  try {
+    const leg = require('../services/allocationRulesService').createEmptyTripLeg(req.body, getUser(req));
+    res.status(201).json({ leg });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.post('/allocation/weight-plan', (req, res) => {
+  try {
+    const order = fleetOrderSvc().getOrderById(req.body.orderId);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    const plan = require('../services/allocationRulesService').buildWeightPlan(
+      order, req.body.fleetUnitId, req.body.containers, req.body.countries
+    );
+    res.json({ plan });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+// Workshop — maintenance, repairs, parts store
+const workshopSvc = () => require('../services/workshopService');
+
+router.get('/workshop/bundle', (_req, res) => {
+  try { res.json(workshopSvc().getWorkshopBundle()); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/workshop/work-orders', (req, res) => {
+  try { res.json({ workOrders: workshopSvc().listWorkOrders(req.query.status) }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/workshop/work-orders', (req, res) => {
+  try {
+    const wo = workshopSvc().openWorkOrder(req.body, getUser(req));
+    res.status(201).json({ workOrder: wo });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.patch('/workshop/work-orders/:id', (req, res) => {
+  try {
+    const wo = workshopSvc().updateWorkOrder(req.params.id, req.body);
+    res.json({ workOrder: wo });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.post('/workshop/schedules', (req, res) => {
+  try {
+    const schedule = workshopSvc().upsertMaintenanceSchedule(req.body);
+    res.status(201).json({ schedule });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.post('/workshop/parts', (req, res) => {
+  try {
+    const part = workshopSvc().upsertPart(req.body);
+    res.status(201).json({ part });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.post('/workshop/parts/issue', (req, res) => {
+  try {
+    const issue = workshopSvc().issuePartToWorkOrder(req.body, getUser(req));
+    res.status(201).json({ issue });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.post('/workshop/stock/adjust', (req, res) => {
+  try {
+    const stock = workshopSvc().adjustStock(req.body.partId, req.body.warehouse, Number(req.body.delta || 0), getUser(req));
+    res.json({ stock });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+// Fuel control
+const fuelSvc = () => require('../services/fuelService');
+
+router.get('/fuel/transactions', (req, res) => {
+  try { res.json({ transactions: fuelSvc().listFuelTransactions(req.query.fleetUnitId) }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/fuel/transactions', (req, res) => {
+  try {
+    const tx = fuelSvc().recordFuelTransaction(req.body, getUser(req));
+    res.status(201).json({ transaction: tx });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.get('/fuel/analysis/:fleetUnitId', (req, res) => {
+  try { res.json(fuelSvc().getFuelAnalysis(req.params.fleetUnitId)); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/fuel/overview', (_req, res) => {
+  try { res.json({ fleet: fuelSvc().getFuelFleetOverview() }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/weight-regulations', (_req, res) => {
+  try {
+    res.json({ regulations: require('../services/allocationRulesService').listWeightRegulations() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // Route catalog (stations, loading/offloading points, pre-defined routes)

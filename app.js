@@ -1769,6 +1769,8 @@ function verifyManagementModulesLoaded() {
         { page: 'route-catalog', fn: 'renderRouteCatalog', file: 'route-catalog.js' },
         { page: 'trip-scheduler', fn: 'renderTripScheduler', file: 'trip-scheduler.js' },
         { page: 'fleet-registry', fn: 'renderFleetRegistry', file: 'fleet-orders.js' },
+        { page: 'workshop', fn: 'renderWorkshop', file: 'workshop.js' },
+        { page: 'fuel-control', fn: 'renderFuelControl', file: 'fuel-control.js' },
         { page: 'helpdesk', fn: 'renderHelpdesk', file: 'helpdesk.js' },
         { page: 'admin-database-browser', fn: 'renderDatabaseBrowser', file: 'database-tools.js' },
         { page: 'admin-query-developer', fn: 'renderQueryDeveloper', file: 'database-tools.js' }
@@ -1928,6 +1930,8 @@ const OPERATIONAL_MODULES = [
     { id: 'route-catalog', label: 'Route Catalog', icon: '🗺️', global: true },
     { id: 'trip-scheduler', label: 'Trip Scheduler', icon: '📅', global: true },
     { id: 'fleet-registry', label: 'Fleet Registry', icon: '🚛', global: true },
+    { id: 'workshop', label: 'Workshop & Parts', icon: '🔧', global: true },
+    { id: 'fuel-control', label: 'Fuel Control', icon: '⛽', global: true },
     { id: 'runner-fees', label: 'Runner Fees', icon: '💰', global: true },
     { id: 'reports', label: 'Reports', icon: '📈', global: true },
     { id: 'turnarounds', label: 'Turnarounds', icon: '🔄', global: true },
@@ -1954,6 +1958,8 @@ const PAGE_MODULE_MAP = {
     'route-catalog': 'route-catalog',
     'trip-scheduler': 'trip-scheduler',
     'fleet-registry': 'fleet-registry',
+    'workshop': 'workshop',
+    'fuel-control': 'fuel-control',
     'runner-fees': 'runner-fees',
     reports: 'reports',
     'report-detail': 'reports',
@@ -2599,6 +2605,14 @@ function navigateTo(page) {
         case 'fleet-registry':
             if (typeof renderFleetRegistry === 'function') renderFleetRegistry(ca);
             else renderMissingModulePage(ca, 'fleet-registry');
+            break;
+        case 'workshop':
+            if (typeof renderWorkshop === 'function') renderWorkshop(ca);
+            else renderMissingModulePage(ca, 'workshop');
+            break;
+        case 'fuel-control':
+            if (typeof renderFuelControl === 'function') renderFuelControl(ca);
+            else renderMissingModulePage(ca, 'fuel-control');
             break;
         case 'runner-fees': renderRunnerFees(ca); break;
         case 'reports': renderReports(ca); break;

@@ -585,8 +585,156 @@ function migrateFleetUnitsSchema() {
   add('truck_id', 'TEXT');
   add('trailer_id', 'TEXT');
   add('second_trailer_id', 'TEXT');
+  add('last_destination', 'TEXT');
+  add('last_origin', 'TEXT');
+  add('odometer_km', 'REAL DEFAULT 0');
+  add('engine_spec_json', "TEXT DEFAULT '{}'");
+}
+
+function migrateWorkshopAndFuelSchema() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS maintenance_schedules (
+      id TEXT PRIMARY KEY,
+      asset_type TEXT NOT NULL,
+      asset_id TEXT NOT NULL,
+      trigger_type TEXT NOT NULL,
+      interval_value REAL,
+      interval_unit TEXT,
+      task_name TEXT NOT NULL,
+      task_description TEXT,
+      parts_hint TEXT,
+      active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS maintenance_work_orders (
+      id TEXT PRIMARY KEY,
+      asset_type TEXT NOT NULL,
+      asset_id TEXT NOT NULL,
+      fleet_unit_id TEXT,
+      trip_id TEXT,
+      trigger_type TEXT,
+      title TEXT NOT NULL,
+      description TEXT,
+      status TEXT DEFAULT 'open',
+      priority TEXT DEFAULT 'normal',
+      odometer_km REAL,
+      opened_at TEXT DEFAULT (datetime('now')),
+      closed_at TEXT,
+      opened_by TEXT,
+      assigned_to TEXT,
+      labor_hours REAL DEFAULT 0,
+      labor_cost REAL DEFAULT 0,
+      parts_cost REAL DEFAULT 0,
+      notes TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS parts_catalog (
+      id TEXT PRIMARY KEY,
+      sku TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      category TEXT,
+      unit TEXT DEFAULT 'pcs',
+      unit_cost REAL DEFAULT 0,
+      compatible_assets TEXT,
+      min_stock REAL DEFAULT 0,
+      notes TEXT,
+      active INTEGER DEFAULT 1
+    );
+
+    CREATE TABLE IF NOT EXISTS parts_stock (
+      id TEXT PRIMARY KEY,
+      part_id TEXT NOT NULL REFERENCES parts_catalog(id),
+      warehouse TEXT DEFAULT 'main',
+      quantity REAL DEFAULT 0,
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS parts_issues (
+      id TEXT PRIMARY KEY,
+      work_order_id TEXT REFERENCES maintenance_work_orders(id),
+      part_id TEXT NOT NULL REFERENCES parts_catalog(id),
+      quantity REAL NOT NULL,
+      issued_to TEXT,
+      issued_at TEXT DEFAULT (datetime('now')),
+      notes TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS fuel_transactions (
+      id TEXT PRIMARY KEY,
+      fleet_unit_id TEXT NOT NULL,
+      driver_id TEXT,
+      trip_id TEXT,
+      transaction_type TEXT DEFAULT 'issue',
+      fuel_station TEXT,
+      litres REAL NOT NULL,
+      cost REAL DEFAULT 0,
+      odometer_km REAL,
+      gps_lat REAL,
+      gps_lng REAL,
+      tank_level_before REAL,
+      tank_level_after REAL,
+      satellite_source TEXT,
+      recorded_at TEXT DEFAULT (datetime('now')),
+      recorded_by TEXT,
+      notes TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS weight_regulations (
+      id TEXT PRIMARY KEY,
+      country_code TEXT NOT NULL,
+      name TEXT NOT NULL,
+      gvw_max_mt REAL,
+      gcm_max_mt REAL,
+      axle_limits_json TEXT,
+      container_rules_json TEXT,
+      notes TEXT,
+      active INTEGER DEFAULT 1
+    );
+
+    CREATE TABLE IF NOT EXISTS empty_trip_legs (
+      id TEXT PRIMARY KEY,
+      fleet_unit_id TEXT NOT NULL,
+      from_location TEXT NOT NULL,
+      to_location TEXT NOT NULL,
+      status TEXT DEFAULT 'planned',
+      trip_reference TEXT,
+      scheduled_date TEXT,
+      completed_at TEXT,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_mwo_asset ON maintenance_work_orders(asset_type, asset_id);
+    CREATE INDEX IF NOT EXISTS idx_fuel_unit ON fuel_transactions(fleet_unit_id);
+    CREATE INDEX IF NOT EXISTS idx_empty_trip_unit ON empty_trip_legs(fleet_unit_id);
+  `);
+
+  const allocCols = db.prepare('PRAGMA table_info(order_allocations)').all().map(c => c.name);
+  if (!allocCols.includes('allocation_details_json')) {
+    db.exec('ALTER TABLE order_allocations ADD COLUMN allocation_details_json TEXT DEFAULT \'{}\'');
+  }
+  if (!allocCols.includes('load_qty')) {
+    db.exec('ALTER TABLE order_allocations ADD COLUMN load_qty REAL DEFAULT 1');
+  }
+
+  const wrCount = db.prepare('SELECT COUNT(*) AS c FROM weight_regulations').get().c;
+  if (wrCount === 0) {
+    const seed = [
+      { id: 'WR-ZA', country_code: 'ZA', name: 'South Africa', gvw_max_mt: 56, gcm_max_mt: 56, axle_limits_json: JSON.stringify({ drive: 9.5, trailer: 9.5, gross: 56 }), container_rules_json: '{}' },
+      { id: 'WR-ZM', country_code: 'ZM', name: 'Zambia', gvw_max_mt: 48, gcm_max_mt: 48, axle_limits_json: JSON.stringify({ drive: 8, trailer: 8, gross: 48 }), container_rules_json: '{}' },
+      { id: 'WR-CD', country_code: 'CD', name: 'DRC', gvw_max_mt: 40, gcm_max_mt: 40, axle_limits_json: JSON.stringify({ drive: 7, trailer: 7, gross: 40 }), container_rules_json: '{}' },
+      { id: 'WR-TZ', country_code: 'TZ', name: 'Tanzania', gvw_max_mt: 52, gcm_max_mt: 52, axle_limits_json: JSON.stringify({ drive: 9, trailer: 9, gross: 52 }), container_rules_json: '{}' }
+    ];
+    const ins = db.prepare(`
+      INSERT INTO weight_regulations (id, country_code, name, gvw_max_mt, gcm_max_mt, axle_limits_json, container_rules_json, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    seed.forEach(r => ins.run(r.id, r.country_code, r.name, r.gvw_max_mt, r.gcm_max_mt, r.axle_limits_json, r.container_rules_json, 'System default — validate in Admin'));
+  }
 }
 
 initSchema();
+migrateWorkshopAndFuelSchema();
 
 module.exports = db;

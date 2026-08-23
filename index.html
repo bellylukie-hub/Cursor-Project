@@ -2651,6 +2651,12 @@
                     <a class="nav-item" onclick="navigateTo('fleet-registry')" data-page="fleet-registry">
                         <span class="icon">🚛</span> Fleet Registry
                     </a>
+                    <a class="nav-item" onclick="navigateTo('workshop')" data-page="workshop">
+                        <span class="icon">🔧</span> Workshop & Parts
+                    </a>
+                    <a class="nav-item" onclick="navigateTo('fuel-control')" data-page="fuel-control">
+                        <span class="icon">⛽</span> Fuel Control
+                    </a>
                     <a class="nav-item" onclick="navigateTo('runner-fees')" data-page="runner-fees">
                         <span class="icon">💰</span> Runner Fees
                     </a>
@@ -3358,10 +3364,16 @@
             <div class="modal-header"><h3>🚛 Schedule Truck to Order</h3><button class="btn btn-outline" onclick="closeModal('allocateFleetModal')">✕</button></div>
             <div class="modal-body">
                 <input type="hidden" id="allocateOrderId">
-                <p id="allocateOrderLabel" style="font-weight:600;margin-bottom:16px;"></p>
-                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Select a registered <strong>truck + trailer + driver</strong> fleet set to allocate to this client order.</p>
-                <div class="form-group"><label>Fleet Set (Truck / Trailer / Driver)</label><select class="form-control" id="allocateFleetUnit"></select></div>
+                <p id="allocateOrderLabel" style="font-weight:600;margin-bottom:8px;"></p>
+                <p id="allocateLoadsRemaining" style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;"></p>
+                <div id="allocateValidationPanel" style="margin-bottom:12px;"></div>
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Select fleet set. System checks empty repositioning, load balance, and weight regulations.</p>
+                <div class="form-group"><label>Fleet Set (Truck / Trailer / Driver)</label><select class="form-control" id="allocateFleetUnit" onchange="previewAllocationValidation()"></select></div>
+                <div class="form-group"><label>Loads to allocate (qty)</label><input class="form-control" id="allocateLoadQty" type="number" min="1" value="1" onchange="previewAllocationValidation()"></div>
+                <div class="form-group"><label>Trailer position (containers)</label><select class="form-control" id="allocateTrailerPosition"><option value="Front">Front</option><option value="Middle">Middle</option><option value="Rear">Rear</option></select></div>
                 <div class="form-group"><label>Scheduled Date</label><input class="form-control" id="allocateScheduledDate" type="date"></div>
+                <input type="hidden" id="allocateEmptyTripAck" value="0">
+                <input type="hidden" id="allocateWeightOverride" value="0">
             </div>
             <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('allocateFleetModal')">Cancel</button><button class="btn btn-primary" onclick="submitAllocateFleetForm()">Allocate & Schedule</button></div>
         </div>
@@ -3493,6 +3505,8 @@
     <script src="route-catalog.js"></script>
     <script src="fleet-vehicle-spec.js"></script>
     <script src="fleet-orders.js"></script>
+    <script src="workshop.js"></script>
+    <script src="fuel-control.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="fleet-map.js"></script>
     <script src="trip-scheduler.js"></script>

@@ -1863,19 +1863,109 @@
         } catch (e) { showToast(e.message, 'error'); }
     };
 
+    function getOrderLoadsInfo(o) {
+        const ld = o.loadDetails || {};
+        const total = Number(ld.loadsTotal || ld.noOfLoads || 0) || Math.ceil(Number(ld.tonnage || 0) / Number(ld.qtyPerTruck || 34) || 1);
+        const remaining = Number(ld.loadsRemaining != null ? ld.loadsRemaining : total - Number(ld.loadsAllocated || 0));
+        return { total, remaining, allocated: total - remaining };
+    }
+
+    window.previewAllocationValidation = async function () {
+        const orderId = document.getElementById('allocateOrderId')?.value;
+        const fleetUnitId = document.getElementById('allocateFleetUnit')?.value;
+        const loadQty = Number(document.getElementById('allocateLoadQty')?.value || 1);
+        const panel = document.getElementById('allocateValidationPanel');
+        if (!panel || !orderId || !fleetUnitId) return;
+        panel.innerHTML = '<p style="font-size:12px;">Checking allocation rules…</p>';
+        const payload = {
+            orderId, fleetUnitId, loadQty,
+            trailerPosition: document.getElementById('allocateTrailerPosition')?.value,
+            emptyTripAcknowledged: document.getElementById('allocateEmptyTripAck')?.value === '1',
+            weightOverrideAcknowledged: document.getElementById('allocateWeightOverride')?.value === '1'
+        };
+        try {
+            let result = null;
+            if (typeof validateOrderAllocationApi === 'function' && isApiAvailable()) {
+                result = await validateOrderAllocationApi(payload);
+            } else if (typeof validateAllocationLocal === 'function') {
+                result = validateAllocationLocal(payload);
+            }
+            if (!result) { panel.innerHTML = ''; return; }
+            if (result.ok) {
+                panel.innerHTML = `<div style="background:#ecfdf5;border:1px solid #6ee7b7;padding:10px;border-radius:8px;font-size:13px;">
+                    ✓ Allocation allowed · ${result.loads?.remaining || ''} load(s) remaining after this allocation
+                    ${result.weightPlan ? `<br>Weight: ${result.weightPlan.totalWeightMt?.toFixed(1)}t / max ${result.weightPlan.maxLegalMt}t` : ''}
+                </div>`;
+            } else if (result.code === 'EMPTY_TRIP_REQUIRED') {
+                panel.innerHTML = `<div style="background:#fff7ed;border:1px solid #fdba74;padding:10px;border-radius:8px;font-size:13px;">
+                    ⚠️ Empty trip required: ${result.emptyTrip?.from} → ${result.emptyTrip?.to}
+                    <button class="btn btn-outline btn-sm" style="margin-top:8px;" onclick="ackEmptyTripForAllocation()">Plan empty trip & continue</button>
+                </div>`;
+            } else if (result.code === 'WEIGHT_WARNING') {
+                panel.innerHTML = `<div style="background:#fef2f2;border:1px solid #fca5a5;padding:10px;border-radius:8px;font-size:13px;">
+                    ⚠️ ${result.message}
+                    <button class="btn btn-outline btn-sm" style="margin-top:8px;" onclick="ackWeightOverrideForAllocation()">User validates — proceed anyway</button>
+                </div>`;
+            } else {
+                panel.innerHTML = `<div style="background:#fef2f2;border:1px solid #fca5a5;padding:10px;border-radius:8px;font-size:13px;">✕ ${result.message}</div>`;
+            }
+        } catch (e) {
+            panel.innerHTML = `<div style="color:var(--danger);font-size:13px;">${e.message}</div>`;
+        }
+    };
+
+    window.ackEmptyTripForAllocation = async function () {
+        const fleetUnitId = document.getElementById('allocateFleetUnit')?.value;
+        const panel = document.getElementById('allocateValidationPanel');
+        const from = panel?.textContent?.match(/→/) ? null : null;
+        document.getElementById('allocateEmptyTripAck').value = '1';
+        try {
+            if (typeof validateOrderAllocationApi === 'function') {
+                const last = await validateOrderAllocationApi({
+                    orderId: document.getElementById('allocateOrderId').value,
+                    fleetUnitId,
+                    loadQty: Number(document.getElementById('allocateLoadQty')?.value || 1),
+                    emptyTripAcknowledged: true
+                });
+                if (last.emptyTrip) {
+                    await createEmptyTripLegApi({
+                        fleetUnitId,
+                        fromLocation: last.emptyTrip.from,
+                        toLocation: last.emptyTrip.to,
+                        scheduledDate: document.getElementById('allocateScheduledDate')?.value
+                    });
+                }
+            }
+            previewAllocationValidation();
+        } catch (e) { showToast(e.message, 'warning'); }
+    };
+
+    window.ackWeightOverrideForAllocation = function () {
+        document.getElementById('allocateWeightOverride').value = '1';
+        previewAllocationValidation();
+    };
+
     window.openAllocateFleetModal = function (orderId) {
         const o = getOrderById(orderId);
         if (!o) return;
         document.getElementById('allocateOrderId').value = orderId;
         document.getElementById('allocateOrderLabel').textContent = `${o.orderNumber} — ${getClientById(o.clientId)?.name || ''}`;
+        const loads = getOrderLoadsInfo(o);
+        document.getElementById('allocateLoadsRemaining').textContent = `Cargo loads: ${loads.remaining} remaining of ${loads.total} total · ${loads.allocated} already allocated`;
+        document.getElementById('allocateEmptyTripAck').value = '0';
+        document.getElementById('allocateWeightOverride').value = '0';
         const sel = document.getElementById('allocateFleetUnit');
         const available = fleetUnitsDB.filter(u => u.status === 'available' || getAllocationsForOrder(orderId).some(a => a.fleetUnitId === u.id));
         sel.innerHTML = available.map(u => {
             const d = getDriverForUnit(u);
-            return `<option value="${u.id}">${u.truckPlate}${u.trailerPlate ? ' + ' + u.trailerPlate : ''} — ${d?.name || 'No driver'}${u.gpsDeviceId ? ' [GPS]' : ''}</option>`;
+            const dest = u.lastDestination ? ` · last dest: ${u.lastDestination}` : '';
+            return `<option value="${u.id}">${u.truckPlate}${u.trailerPlate ? ' + ' + u.trailerPlate : ''} — ${d?.name || 'No driver'}${dest}</option>`;
         }).join('') || '<option value="">No available fleet units — register in Fleet Registry</option>';
         document.getElementById('allocateScheduledDate').value = o.requiredDate || new Date().toISOString().slice(0, 10);
+        document.getElementById('allocateLoadQty').value = '1';
+        document.getElementById('allocateValidationPanel').innerHTML = '';
         openModal('allocateFleetModal');
+        setTimeout(() => previewAllocationValidation(), 100);
     };
 
     window.submitAllocateFleetForm = async function () {
@@ -1883,7 +1973,12 @@
             orderId: document.getElementById('allocateOrderId').value,
             fleetUnitId: document.getElementById('allocateFleetUnit').value,
             scheduledDate: document.getElementById('allocateScheduledDate').value,
-            status: 'scheduled'
+            status: 'scheduled',
+            loadQty: Number(document.getElementById('allocateLoadQty').value || 1),
+            trailerPosition: document.getElementById('allocateTrailerPosition').value,
+            emptyTripAcknowledged: document.getElementById('allocateEmptyTripAck').value === '1',
+            weightOverrideAcknowledged: document.getElementById('allocateWeightOverride').value === '1',
+            userValidated: true
         };
         if (!payload.fleetUnitId) { showToast('Select a fleet unit', 'warning'); return; }
         try {
@@ -1894,16 +1989,34 @@
                 payload.id = uid('ALL');
                 payload.allocatedBy = typeof getCurrentUser === 'function' ? getCurrentUser()?.username : 'user';
                 orderAllocationsDB.push(payload);
+                const oidx = clientOrdersDB.findIndex(o => o.id === payload.orderId);
+                if (oidx >= 0) {
+                    const ld = clientOrdersDB[oidx].loadDetails || {};
+                    const total = Number(ld.loadsTotal || ld.noOfLoads || 1);
+                    ld.loadsAllocated = Number(ld.loadsAllocated || 0) + payload.loadQty;
+                    ld.loadsRemaining = Math.max(0, total - ld.loadsAllocated);
+                    ld.loadsTotal = total;
+                    clientOrdersDB[oidx].loadDetails = ld;
+                    clientOrdersDB[oidx].status = ld.loadsRemaining > 0 ? 'allocated' : 'allocated';
+                }
             }
-            const oidx = clientOrdersDB.findIndex(o => o.id === payload.orderId);
-            if (oidx >= 0) clientOrdersDB[oidx].status = 'allocated';
             const uidx = fleetUnitsDB.findIndex(u => u.id === payload.fleetUnitId);
-            if (uidx >= 0) fleetUnitsDB[uidx].status = 'allocated';
+            if (uidx >= 0) {
+                fleetUnitsDB[uidx].status = 'allocated';
+                const ord = getOrderById(payload.orderId);
+                if (ord) {
+                    fleetUnitsDB[uidx].lastOrigin = ord.origin;
+                    fleetUnitsDB[uidx].lastDestination = ord.destination;
+                }
+            }
             saveLocal();
             closeModal('allocateFleetModal');
             showToast('Truck scheduled and allocated to order', 'success');
             refreshFleetPages();
-        } catch (e) { showToast(e.message, 'error'); }
+        } catch (e) {
+            if (e.message && typeof previewAllocationValidation === 'function') previewAllocationValidation();
+            showToast(e.message || 'Allocation failed', 'error');
+        }
     };
 
     function refreshFleetPages() {
@@ -1914,6 +2027,8 @@
         else if (currentPage === 'fleet-registry') renderFleetRegistry(ca);
         else if (currentPage === 'route-catalog' && typeof renderRouteCatalog === 'function') renderRouteCatalog(ca);
         else if (currentPage === 'trip-scheduler' && typeof renderTripScheduler === 'function') renderTripScheduler(ca);
+        else if (currentPage === 'workshop' && typeof renderWorkshop === 'function') renderWorkshop(ca);
+        else if (currentPage === 'fuel-control' && typeof renderFuelControl === 'function') renderFuelControl(ca);
         else if (currentPage === 'dashboard' && typeof renderDashboard === 'function') renderDashboard(ca);
         if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
     }

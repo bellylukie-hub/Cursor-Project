@@ -634,4 +634,59 @@ async function markInternalChatRoomReadApi(roomId, lastMessageId) {
   return data.room;
 }
 
+async function validateOrderAllocationApi(payload) {
+  return apiRequest('/order-allocations/validate', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+async function fetchWeightPlanApi(payload) {
+  return apiRequest('/allocation/weight-plan', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+async function createEmptyTripLegApi(payload) {
+  const data = await apiRequest('/empty-trip-legs', { method: 'POST', body: JSON.stringify(payload) });
+  return data.leg;
+}
+
+async function fetchWorkshopBundleApi() {
+  return apiRequest('/workshop/bundle');
+}
+
+async function openWorkOrderApi(payload) {
+  const data = await apiRequest('/workshop/work-orders', { method: 'POST', body: JSON.stringify(payload) });
+  return data.workOrder;
+}
+
+async function updateWorkOrderApi(id, payload) {
+  const data = await apiRequest(`/workshop/work-orders/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(payload) });
+  return data.workOrder;
+}
+
+async function upsertPartApi(payload) {
+  const data = await apiRequest('/workshop/parts', { method: 'POST', body: JSON.stringify(payload) });
+  return data.part;
+}
+
+async function issuePartApi(payload) {
+  const data = await apiRequest('/workshop/parts/issue', { method: 'POST', body: JSON.stringify(payload) });
+  return data.issue;
+}
+
+async function adjustPartStockApi(payload) {
+  const data = await apiRequest('/workshop/stock/adjust', { method: 'POST', body: JSON.stringify(payload) });
+  return data.stock;
+}
+
+async function fetchFuelOverviewApi() {
+  return apiRequest('/fuel/overview');
+}
+
+async function fetchFuelAnalysisApi(fleetUnitId) {
+  return apiRequest(`/fuel/analysis/${encodeURIComponent(fleetUnitId)}`);
+}
+
+async function recordFuelTransactionApi(payload) {
+  const data = await apiRequest('/fuel/transactions', { method: 'POST', body: JSON.stringify(payload) });
+  return data.transaction;
+}
+
 loadStoredAuth();
