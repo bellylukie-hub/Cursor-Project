@@ -1528,7 +1528,8 @@ const systemSettingsDB = {
     backupRetentionDays: 30,
     appName: 'Truck Turnaround & Operations Control System',
     supportEmail: 'support@truckcontrol.local',
-    activeTheme: 'ocean-blue'
+    activeTheme: 'ocean-blue',
+    language: 'en'
 };
 
 const auditLogsDB = [
@@ -1823,6 +1824,7 @@ async function bootApplication() {
     }
     if (typeof initControlRoomUi === 'function') initControlRoomUi();
     ensureDemoSidebarVisible();
+    if (typeof applyI18n === 'function') applyI18n();
     navigateTo('dashboard');
     updateSidebarBadges();
     updateAdminNavVisibility();
@@ -7446,17 +7448,36 @@ function removeEmailAttachment(index) {
     if (list) list.innerHTML = emailAttachments.map((a, i) => `<span class="outlook-attach-chip">📎 ${a.name} <button type="button" class="btn btn-outline btn-sm" onclick="removeEmailAttachment(${i})">✕</button></span>`).join('');
 }
 
+function findInternalCommContact(token) {
+    const t = String(token || '').trim();
+    if (!t) return null;
+    return getInternalCommContactList().find(c =>
+        c.email.toLowerCase() === t.toLowerCase()
+        || (c.username && c.username.toLowerCase() === t.toLowerCase())
+        || c.name.toLowerCase() === t.toLowerCase()
+    );
+}
+
 function resolveEmailTokens(tokens) {
     return (tokens || []).map(token => {
         const t = String(token || '').trim();
         if (!t) return '';
-        const contact = getInternalCommContactList().find(c =>
-            c.email.toLowerCase() === t.toLowerCase()
-            || c.username.toLowerCase() === t.toLowerCase()
-            || c.name.toLowerCase() === t.toLowerCase()
-        );
+        const contact = findInternalCommContact(t);
         return contact ? contact.email : t;
     }).filter(Boolean);
+}
+
+function formatRecipientDisplayList(tokens) {
+    return (tokens || []).map(token => {
+        const t = String(token || '').trim();
+        if (!t) return '';
+        const contact = findInternalCommContact(t);
+        return contact ? contact.name : t;
+    }).filter(Boolean).join(', ');
+}
+
+function parseRecipientFieldValue(raw) {
+    return String(raw || '').split(',').map(s => s.trim()).filter(Boolean);
 }
 
 function sendEmailFromCompose(saveAsDraft) {
@@ -7602,23 +7623,27 @@ function renderEmailComposePane() {
     const pre = emailComposeData?.prefill || {};
     const contacts = getInternalCommContactList();
     const datalistOptions = contacts.map(u => `<option value="${u.email}">${u.name} (${u.username})</option>`).join('');
+    const sendLbl = typeof t === 'function' ? t('common.send') : 'Send';
+    const draftLbl = typeof t === 'function' ? t('common.saveDraft') : 'Save Draft';
+    const discardLbl = typeof t === 'function' ? t('common.discard') : 'Discard';
+    const quickLbl = typeof t === 'function' ? t('comm.quickAdd') : 'System users — click to add to To:';
     return `
         <div class="outlook-read-toolbar">
-            <button class="btn btn-primary btn-sm" onclick="sendEmailFromCompose(false)">📤 Send</button>
-            <button class="btn btn-outline btn-sm" onclick="sendEmailFromCompose(true)">📝 Save Draft</button>
-            <button class="btn btn-outline btn-sm" onclick="emailView='list';emailComposeData=null;renderInternalCommunication(document.getElementById('contentArea'))">✕ Discard</button>
+            <button class="btn btn-primary btn-sm" onclick="sendEmailFromCompose(false)">📤 ${sendLbl}</button>
+            <button class="btn btn-outline btn-sm" onclick="sendEmailFromCompose(true)">📝 ${draftLbl}</button>
+            <button class="btn btn-outline btn-sm" onclick="emailView='list';emailComposeData=null;refreshInternalCommView(true)">✕ ${discardLbl}</button>
         </div>
         <div class="outlook-compose-pane">
             <datalist id="internalCommUserList">${datalistOptions}</datalist>
-            <div class="outlook-compose-row"><label>To</label><input type="text" class="form-control" id="emailComposeTo" list="internalCommUserList" value="${(pre.to || []).join(', ')}" placeholder="Select colleagues — use email or name"></div>
-            <div class="outlook-compose-row"><label>CC</label><input type="text" class="form-control" id="emailComposeCc" list="internalCommUserList" value="${(pre.cc || []).join(', ')}" placeholder="CC recipients"></div>
-            <div class="outlook-compose-row"><label>BCC</label><input type="text" class="form-control" id="emailComposeBcc" list="internalCommUserList" value="${(pre.bcc || []).join(', ')}" placeholder="BCC recipients"></div>
-            <div class="outlook-compose-row"><label>Subject</label><input type="text" class="form-control" id="emailComposeSubject" value="${pre.subject || ''}"></div>
+            <div class="outlook-compose-row"><label>${typeof t === 'function' ? t('comm.to') : 'To'}</label><input type="text" class="form-control" id="emailComposeTo" list="internalCommUserList" value="${formatRecipientDisplayList(pre.to || [])}" placeholder="Select colleagues — use email or name" oninput="captureInternalCommDrafts()"></div>
+            <div class="outlook-compose-row"><label>${typeof t === 'function' ? t('comm.cc') : 'CC'}</label><input type="text" class="form-control" id="emailComposeCc" list="internalCommUserList" value="${formatRecipientDisplayList(pre.cc || [])}" placeholder="CC recipients" oninput="captureInternalCommDrafts()"></div>
+            <div class="outlook-compose-row"><label>${typeof t === 'function' ? t('comm.bcc') : 'BCC'}</label><input type="text" class="form-control" id="emailComposeBcc" list="internalCommUserList" value="${formatRecipientDisplayList(pre.bcc || [])}" placeholder="BCC recipients" oninput="captureInternalCommDrafts()"></div>
+            <div class="outlook-compose-row"><label>${typeof t === 'function' ? t('comm.subject') : 'Subject'}</label><input type="text" class="form-control" id="emailComposeSubject" value="${pre.subject || ''}"></div>
             <div class="outlook-compose-row"><label>Link</label><div style="display:flex;gap:8px;"><select class="form-control" id="emailComposeLinkType" onchange="populateInternalLinkSelect('emailComposeLinkRef')" style="max-width:140px;"><option value="">None</option>${INTERNAL_LINK_TYPES.map(t => `<option value="${t}" ${pre.relatedType === t ? 'selected' : ''}>${t}</option>`).join('')}</select><select class="form-control" id="emailComposeLinkRef" style="flex:1;"><option value="">Reference</option></select></div></div>
             <div style="margin:12px 0 8px 70px;"><label class="btn btn-outline btn-sm" style="cursor:pointer;">📎 Attach<input type="file" hidden onchange="handleEmailAttachmentSelect(this)"></label><div id="emailAttachList" class="outlook-attach-list">${emailAttachments.map((a, i) => `<span class="outlook-attach-chip">📎 ${a.name} <button type="button" class="btn btn-outline btn-sm" onclick="removeEmailAttachment(${i})">✕</button></span>`).join('')}</div></div>
-            <div class="outlook-compose-row" style="align-items:start;"><label>Message</label><textarea class="form-control" id="emailComposeBody" rows="14">${pre.body || ''}</textarea></div>
+            <div class="outlook-compose-row" style="align-items:start;"><label>${typeof t === 'function' ? t('comm.message') : 'Message'}</label><textarea class="form-control" id="emailComposeBody" rows="14">${pre.body || ''}</textarea></div>
             <div style="margin-left:70px;">
-                <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">System users (${contacts.length}) — click to add to To:</div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">${quickLbl} (${contacts.length})</div>
                 <div class="internal-comm-contact-pick">${contacts.map(u => `<button type="button" class="btn btn-outline btn-sm" style="margin:2px;" onclick="appendEmailRecipient('${u.email.replace(/'/g, "\\'")}', true)" title="${u.email}">${u.name}</button>`).join('') || '<span style="color:var(--text-secondary);">No other users — add users in Admin → Manage Users</span>'}</div>
             </div>
         </div>`;
@@ -7627,16 +7652,14 @@ function renderEmailComposePane() {
 function appendEmailRecipient(token, useEmail) {
     const el = document.getElementById('emailComposeTo');
     if (!el) return;
-    const current = el.value.split(',').map(s => s.trim()).filter(Boolean);
-    const contact = getInternalCommContactList().find(u =>
-        u.email.toLowerCase() === String(token).toLowerCase()
-        || u.username.toLowerCase() === String(token).toLowerCase()
-        || u.name.toLowerCase() === String(token).toLowerCase()
-    );
-    const value = (useEmail !== false && contact?.email) ? contact.email : (contact?.email || String(token || '').trim());
-    if (!value) return;
-    if (!current.some(v => v.toLowerCase() === value.toLowerCase())) current.push(value);
-    el.value = current.join(', ');
+    const contact = findInternalCommContact(token);
+    const email = (useEmail !== false && contact?.email) ? contact.email : (contact?.email || String(token || '').trim());
+    if (!email) return;
+    if (!emailComposeData) emailComposeData = { mode: 'new', prefill: {} };
+    const stored = resolveEmailTokens([...(emailComposeData.prefill?.to || []), email]);
+    emailComposeData.prefill = { ...(emailComposeData.prefill || {}), to: stored };
+    el.value = formatRecipientDisplayList(stored);
+    captureInternalCommDrafts();
 }
 
 function populateInternalLinkSelect(selectId) {
@@ -7696,6 +7719,7 @@ function getFilteredChatRooms() {
 function selectChatRoom(roomId) {
     activeChatRoomId = roomId;
     chatReplyToId = null;
+    chatComposeDraft = '';
     if (typeof markCommRoomRead === 'function') markCommRoomRead(roomId);
     else {
         const room = chatRoomsDB.find(r => r.id === roomId);
@@ -7703,7 +7727,7 @@ function selectChatRoom(roomId) {
     }
     if (typeof persistInternalComm === 'function') persistInternalComm();
     if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
-    renderInternalCommunication(document.getElementById('contentArea'));
+    refreshInternalCommView(true);
 }
 
 function getChatMessages(roomId) {
@@ -7785,7 +7809,7 @@ function renderWaConversation() {
         <div class="wa-input-bar">
             <button class="wa-icon-btn" title="Attach" onclick="document.getElementById('waFileInput').click()">📎</button>
             <input type="file" id="waFileInput" hidden onchange="attachWaFile(this)">
-            <textarea id="waMessageInput" placeholder="Type a message" rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendWaMessage();}"></textarea>
+            <textarea id="waMessageInput" placeholder="${typeof t === 'function' ? t('comm.typeMessage') : 'Type a message'}" rows="1" oninput="captureInternalCommDrafts()" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendWaMessage();}"></textarea>
             <button class="wa-send-btn" onclick="sendWaMessage()" title="Send">➤</button>
         </div>`;
 }
@@ -7795,9 +7819,9 @@ function renderWhatsAppClient() {
         <div class="whatsapp-client">
             <div class="wa-sidebar">
                 <div class="wa-sidebar-header">
-                    <div class="search-filter" style="flex:1;"><span>🔍</span><input type="text" id="waSearchInput" placeholder="Search chats..." value="${chatListSearch}" onkeyup="chatListSearch=this.value;renderInternalCommunication(document.getElementById('contentArea'))"></div>
-                    <button class="btn btn-outline btn-sm" onclick="openNewDirectChatPicker()" title="New chat">💬</button>
-                    <button class="btn btn-outline btn-sm" onclick="openNewGroupChatForm()" title="New group">👥</button>
+                    <div class="search-filter" style="flex:1;"><span>🔍</span><input type="text" id="waSearchInput" placeholder="Search chats..." value="${chatListSearch}" onkeyup="chatListSearch=this.value;captureInternalCommDrafts();refreshInternalCommView(true)"></div>
+                    <button class="btn btn-outline btn-sm" onclick="openNewDirectChatPicker()" title="${typeof t === 'function' ? t('comm.newChat') : 'New chat'}">💬</button>
+                    <button class="btn btn-outline btn-sm" onclick="openNewGroupChatForm()" title="${typeof t === 'function' ? t('comm.newGroup') : 'New group'}">👥</button>
                 </div>
                 <div class="wa-chat-list">${renderWaChatList()}</div>
             </div>
@@ -7819,34 +7843,37 @@ function sendWaMessage() {
         roomId, sender: getCurrentCommUserName(), message: text, type: 'text', fileName: null,
         status: 'delivered', replyTo: chatReplyToId, sentAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
     };
+    const applyLocalMessage = () => {
+        if (!chatMessagesDB.some(m => m.id === msg.id)) chatMessagesDB.push(msg);
+        const room = chatRoomsDB.find(r => r.id === roomId);
+        if (room) {
+            room.lastMessage = text;
+            room.lastAt = msg.sentAt;
+            if (linkType && linkRef) { room.relatedType = linkType; room.relatedRef = linkRef; }
+        }
+    };
+    applyLocalMessage();
+    chatReplyToId = null;
+    chatComposeDraft = '';
+    if (input) input.value = '';
+    refreshInternalCommView(true);
+    setTimeout(() => { const pane = document.getElementById('waMessagesPane'); if (pane) pane.scrollTop = pane.scrollHeight; }, 50);
     (async () => {
         if (typeof isApiAvailable === 'function' && isApiAvailable() && typeof sendInternalChatMessageApi === 'function') {
             try {
-                await sendInternalChatMessageApi({ id: msg.id, roomId, message: text, replyTo: chatReplyToId });
-                if (linkType && linkRef) {
-                    const room = chatRoomsDB.find(r => r.id === roomId);
-                    if (room) { room.relatedType = linkType; room.relatedRef = linkRef; }
-                }
+                await sendInternalChatMessageApi({ id: msg.id, roomId, message: text, replyTo: msg.replyTo });
                 if (typeof syncInternalCommFromApi === 'function') await syncInternalCommFromApi();
+                refreshInternalCommView(true);
+                setTimeout(() => { const pane = document.getElementById('waMessagesPane'); if (pane) pane.scrollTop = pane.scrollHeight; }, 50);
             } catch (e) {
+                chatMessagesDB = chatMessagesDB.filter(m => m.id !== msg.id);
+                refreshInternalCommView(true);
                 showToast(e.message || 'Failed to send message', 'warning');
                 return;
             }
-        } else {
-            chatMessagesDB.push(msg);
-            const room = chatRoomsDB.find(r => r.id === roomId);
-            if (room) {
-                room.lastMessage = text;
-                room.lastAt = msg.sentAt;
-                if (linkType && linkRef) { room.relatedType = linkType; room.relatedRef = linkRef; }
-            }
         }
-        chatReplyToId = null;
-        if (input) input.value = '';
         if (typeof persistInternalComm === 'function') persistInternalComm();
         if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
-        renderInternalCommunication(document.getElementById('contentArea'));
-        setTimeout(() => { const pane = document.getElementById('waMessagesPane'); if (pane) pane.scrollTop = pane.scrollHeight; }, 50);
     })();
 }
 
@@ -7880,13 +7907,61 @@ function attachWaFile(input) {
         input.value = '';
         if (typeof persistInternalComm === 'function') persistInternalComm();
         if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
-        renderInternalCommunication(document.getElementById('contentArea'));
+        refreshInternalCommView(true);
         showToast(`File ${file.name} sent`, 'success');
     })();
 }
 
 let internalCommContactsCache = null;
 let internalCommContactsRefreshGen = 0;
+let chatComposeDraft = '';
+
+function shouldSkipInternalCommAutoRender() {
+    if (typeof emailView !== 'undefined' && emailView === 'compose') return true;
+    if (document.querySelector('.modal-overlay.show')) return true;
+    const active = document.activeElement;
+    if (!active) return false;
+    const keepIds = ['waMessageInput', 'emailComposeTo', 'emailComposeCc', 'emailComposeBcc', 'emailComposeSubject', 'emailComposeBody', 'chatContactSearch'];
+    if (keepIds.includes(active.id)) return true;
+    return false;
+}
+if (typeof window !== 'undefined') window.shouldSkipInternalCommAutoRender = shouldSkipInternalCommAutoRender;
+
+function captureInternalCommDrafts() {
+    if (emailView === 'compose') {
+        if (!emailComposeData) emailComposeData = { mode: 'new', prefill: {} };
+        const toRaw = parseRecipientFieldValue(document.getElementById('emailComposeTo')?.value);
+        const ccRaw = parseRecipientFieldValue(document.getElementById('emailComposeCc')?.value);
+        const bccRaw = parseRecipientFieldValue(document.getElementById('emailComposeBcc')?.value);
+        emailComposeData.prefill = {
+            to: resolveEmailTokens(toRaw.length ? toRaw : (emailComposeData.prefill?.to || [])),
+            cc: resolveEmailTokens(ccRaw),
+            bcc: resolveEmailTokens(bccRaw),
+            subject: document.getElementById('emailComposeSubject')?.value || emailComposeData.prefill?.subject || '',
+            body: document.getElementById('emailComposeBody')?.value || emailComposeData.prefill?.body || '',
+            relatedType: document.getElementById('emailComposeLinkType')?.value || emailComposeData.prefill?.relatedType || '',
+            relatedRef: document.getElementById('emailComposeLinkRef')?.value || emailComposeData.prefill?.relatedRef || ''
+        };
+    }
+    const wa = document.getElementById('waMessageInput');
+    if (wa) chatComposeDraft = wa.value;
+}
+
+function restoreInternalCommDrafts() {
+    if (chatComposeDraft) {
+        const wa = document.getElementById('waMessageInput');
+        if (wa) wa.value = chatComposeDraft;
+    }
+}
+
+function refreshInternalCommView(skipContactRefresh) {
+    const container = document.getElementById('contentArea');
+    if (!container || currentPage !== 'internal-communication') return;
+    captureInternalCommDrafts();
+    renderInternalCommunication(container, skipContactRefresh);
+    restoreInternalCommDrafts();
+}
+if (typeof window !== 'undefined') window.refreshInternalCommView = refreshInternalCommView;
 
 function usernameToDisplayName(username) {
     return String(username || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -8039,6 +8114,7 @@ function startDirectChat(userName, userEmail) {
         if (userEmail && typeof isApiAvailable === 'function' && isApiAvailable() && typeof createInternalDirectChatApi === 'function') {
             try {
                 room = await createInternalDirectChatApi(userEmail);
+                if (room && !chatRoomsDB.some(r => r.id === room.id)) chatRoomsDB.unshift(room);
                 if (typeof syncInternalCommFromApi === 'function') await syncInternalCommFromApi();
             } catch (e) {
                 showToast(e.message || 'Could not start chat', 'warning');
@@ -8194,6 +8270,7 @@ function getInternalCommExportData() {
 
 function renderInternalCommunication(container, skipContactRefresh) {
     try {
+        captureInternalCommDrafts();
         if (typeof syncAdminUsersToInternalComm === 'function') syncAdminUsersToInternalComm();
         if (typeof initInternalComm === 'function') initInternalComm();
         if (internalCommFilter === 'chat' && (!activeChatRoomId || !chatRoomsDB.find(r => r.id === activeChatRoomId))) {
@@ -8217,26 +8294,30 @@ function renderInternalCommunication(container, skipContactRefresh) {
             <div class="kpi-card kpi-card-clickable" onclick="navigateToInternalCommKpi('direct-chats')" title="View direct chats"><div class="kpi-header"><span class="kpi-title">Direct Chats</span></div><div class="kpi-value">${stats.directChats}</div><div class="kpi-trend">1-to-1 conversations</div></div>
         </div>
         <div class="comm-app-tabs">
-            <button class="comm-app-tab${internalCommFilter === 'email' ? ' active' : ''}" onclick="chatTypeFilter='all';chatShowUnreadOnly=false;navigateToInternalComm('email')">📧 Email (Outlook)</button>
-            <button class="comm-app-tab${internalCommFilter === 'chat' ? ' active' : ''}" onclick="emailShowUnreadOnly=false;navigateToInternalComm('chat')">💬 Chat</button>
+            <button class="comm-app-tab${internalCommFilter === 'email' ? ' active' : ''}" onclick="chatTypeFilter='all';chatShowUnreadOnly=false;navigateToInternalComm('email')">📧 ${typeof t === 'function' ? t('comm.email') : 'Email'}</button>
+            <button class="comm-app-tab${internalCommFilter === 'chat' ? ' active' : ''}" onclick="emailShowUnreadOnly=false;navigateToInternalComm('chat')">💬 ${typeof t === 'function' ? t('comm.chat') : 'Chat'}</button>
         </div>
-        <div style="font-size:12px;color:var(--text-secondary);margin:0 0 8px;">${contactCount} colleague(s) available for email &amp; chat · <button type="button" class="btn btn-outline btn-sm" onclick="refreshInternalCommContacts().then(()=>renderInternalCommunication(document.getElementById('contentArea'),true))">🔄 Refresh contacts</button></div>
+        <div style="font-size:12px;color:var(--text-secondary);margin:0 0 8px;">${contactCount} ${typeof t === 'function' ? t('comm.colleagues') : 'colleague(s) available'} · <button type="button" class="btn btn-outline btn-sm" onclick="refreshInternalCommContacts().then(()=>refreshInternalCommView(true))">🔄 ${typeof t === 'function' ? t('comm.refreshContacts') : 'Refresh contacts'}</button></div>
         ${typeof renderCommRibbon === 'function' ? renderCommRibbon() : ''}
         ${emailShowUnreadOnly ? `<div style="background:#fffaf0;border:1px solid #f6ad55;padding:10px 16px;margin-bottom:12px;border-radius:8px;font-size:13px;">Showing <strong>unread emails only</strong> in Inbox. <button class="btn btn-outline btn-sm" onclick="emailShowUnreadOnly=false;renderInternalCommunication(document.getElementById('contentArea'))">Show all</button></div>` : ''}
         ${chatShowUnreadOnly ? `<div style="background:#fffaf0;border:1px solid #f6ad55;padding:10px 16px;margin-bottom:12px;border-radius:8px;font-size:13px;">Showing <strong>chats with unread messages</strong>. <button class="btn btn-outline btn-sm" onclick="chatShowUnreadOnly=false;renderInternalCommunication(document.getElementById('contentArea'))">Show all chats</button></div>` : ''}
         ${chatTypeFilter !== 'all' ? `<div style="background:#ebf8ff;border:1px solid #90cdf4;padding:10px 16px;margin-bottom:12px;border-radius:8px;font-size:13px;">Showing <strong>${chatTypeFilter === 'group' ? 'group' : 'direct'} chats only</strong>. <button class="btn btn-outline btn-sm" onclick="chatTypeFilter='all';renderInternalCommunication(document.getElementById('contentArea'))">Show all</button></div>` : ''}
         <div class="comm-shell${typeof getCommTheme === 'function' && getCommTheme() === 'dark' ? ' comm-dark' : ''}">${internalCommFilter === 'chat' ? renderWhatsAppClient() : renderOutlookClient()}</div>
-        <button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">⬅️ Back to Dashboard</button>
+        <button class="btn btn-outline mt-20" onclick="navigateTo('dashboard')">⬅️ ${typeof t === 'function' ? t('common.back') : 'Back to Dashboard'}</button>
     `;
     if (emailView === 'compose') populateEmailLinkSelect();
     if (internalCommFilter === 'chat') setTimeout(() => { const pane = document.getElementById('waMessagesPane'); if (pane) pane.scrollTop = pane.scrollHeight; }, 50);
     updateSidebarBadges();
+    restoreInternalCommDrafts();
     if (!skipContactRefresh) {
         const gen = ++internalCommContactsRefreshGen;
         refreshInternalCommContacts().then(() => {
-            if (gen === internalCommContactsRefreshGen && currentPage === 'internal-communication') {
-                renderInternalCommunication(container, true);
+            if (gen !== internalCommContactsRefreshGen || currentPage !== 'internal-communication') return;
+            if (shouldSkipInternalCommAutoRender()) {
+                restoreInternalCommDrafts();
+                return;
             }
+            renderInternalCommunication(container, true);
         });
     }
     } catch (e) {
@@ -8935,6 +9016,18 @@ function renderAdminSettings(container) {
                 <div class="setting-row">
                     <div><strong>Application Name</strong></div>
                     <input type="text" class="form-control setting-input-wide" value="${s.appName}" onchange="updateSystemSetting('appName', this.value)">
+                </div>
+            </div>
+            <div class="settings-card">
+                <h3>🌐 ${typeof t === 'function' ? t('settings.language') : 'System language'}</h3>
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">${typeof t === 'function' ? t('settings.languageHint') : 'Applies to menus, buttons, and main screens.'}</p>
+                <div class="setting-row">
+                    <div><strong>Default UI language</strong></div>
+                    <select class="form-control setting-input" id="settingLanguage" onchange="updateSystemSetting('language', this.value); if(typeof setAppLanguage==='function') setAppLanguage(this.value, true);">
+                        <option value="en" ${(s.language || 'en') === 'en' ? 'selected' : ''}>English</option>
+                        <option value="fr" ${s.language === 'fr' ? 'selected' : ''}>Français</option>
+                        <option value="pt" ${s.language === 'pt' ? 'selected' : ''}>Português</option>
+                    </select>
                 </div>
             </div>
             <div class="settings-card">

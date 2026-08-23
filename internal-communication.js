@@ -267,6 +267,17 @@
         return (chatRoomsDB || []).reduce((sum, room) => sum + getRoomUnreadCount(room), 0);
     }
 
+    function mergeRecordsById(localList, apiList) {
+        const map = new Map();
+        (localList || []).forEach(item => {
+            if (item?.id) map.set(item.id, item);
+        });
+        (apiList || []).forEach(item => {
+            if (item?.id) map.set(item.id, item);
+        });
+        return Array.from(map.values());
+    }
+
     async function syncInternalCommFromApi() {
         if (typeof isApiAvailable !== 'function' || !isApiAvailable() || typeof fetchInternalMailboxApi !== 'function') {
             mergeSharedMailboxIntoLocal();
@@ -281,10 +292,13 @@
             if (typeof fetchInternalChatApi === 'function') {
                 const chat = await fetchInternalChatApi();
                 if (chat?.rooms?.length) {
-                    chatRoomsDB.splice(0, chatRoomsDB.length, ...chat.rooms);
+                    const mergedRooms = mergeRecordsById(chatRoomsDB, chat.rooms);
+                    chatRoomsDB.splice(0, chatRoomsDB.length, ...mergedRooms);
                 }
                 if (chat?.messages?.length) {
-                    chatMessagesDB.splice(0, chatMessagesDB.length, ...chat.messages);
+                    const mergedMsgs = mergeRecordsById(chatMessagesDB, chat.messages);
+                    mergedMsgs.sort((a, b) => String(a.sentAt || '').localeCompare(String(b.sentAt || '')));
+                    chatMessagesDB.splice(0, chatMessagesDB.length, ...mergedMsgs);
                 }
             }
             syncRoomUnreadCounts();
@@ -332,8 +346,16 @@
         requestCommNotificationPermission();
         commPollTimer = setInterval(() => {
             syncInternalCommFromApi().then(() => {
-                if (typeof currentPage !== 'undefined' && currentPage === 'internal-communication' && typeof renderInternalCommunication === 'function') {
-                    renderInternalCommunication(document.getElementById('contentArea'));
+                if (typeof currentPage !== 'undefined' && currentPage === 'internal-communication') {
+                    if (typeof shouldSkipInternalCommAutoRender === 'function' && shouldSkipInternalCommAutoRender()) {
+                        if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
+                        return;
+                    }
+                    if (typeof refreshInternalCommView === 'function') {
+                        refreshInternalCommView(true);
+                    } else if (typeof renderInternalCommunication === 'function') {
+                        renderInternalCommunication(document.getElementById('contentArea'), true);
+                    }
                 }
             });
         }, 5000);
@@ -402,9 +424,12 @@
             commDataLoaded = true;
             writeStore();
             startCommPolling();
-            if (typeof currentPage !== 'undefined' && currentPage === 'internal-communication'
-                && typeof renderInternalCommunication === 'function') {
-                renderInternalCommunication(document.getElementById('contentArea'), true);
+            if (typeof currentPage !== 'undefined' && currentPage === 'internal-communication') {
+                if (typeof refreshInternalCommView === 'function') {
+                    refreshInternalCommView(true);
+                } else if (typeof renderInternalCommunication === 'function') {
+                    renderInternalCommunication(document.getElementById('contentArea'), true);
+                }
             }
         });
     }
@@ -418,16 +443,20 @@
 
     window.toggleCommTheme = function () {
         applyCommTheme(commTheme === 'dark' ? 'light' : 'dark');
-        if (typeof renderInternalCommunication === 'function' && currentPage === 'internal-communication') {
-            renderInternalCommunication(document.getElementById('contentArea'));
+        if (typeof refreshInternalCommView === 'function' && currentPage === 'internal-communication') {
+            refreshInternalCommView(true);
+        } else if (typeof renderInternalCommunication === 'function' && currentPage === 'internal-communication') {
+            renderInternalCommunication(document.getElementById('contentArea'), true);
         }
         showToast(`${commTheme === 'dark' ? 'Dark' : 'Light'} mode enabled for email & chat`, 'success');
     };
 
     window.setCommRibbonTab = function (tab) {
         commRibbonTab = tab;
-        if (typeof renderInternalCommunication === 'function' && currentPage === 'internal-communication') {
-            renderInternalCommunication(document.getElementById('contentArea'));
+        if (typeof refreshInternalCommView === 'function' && currentPage === 'internal-communication') {
+            refreshInternalCommView(true);
+        } else if (typeof renderInternalCommunication === 'function' && currentPage === 'internal-communication') {
+            renderInternalCommunication(document.getElementById('contentArea'), true);
         }
     };
 
@@ -455,7 +484,7 @@
                 <div class="comm-ribbon-group"><div class="comm-ribbon-group-label">Room</div><div class="comm-ribbon-group-btns">${ribbonBtn('Pin', '📌', activeChatRoomId ? `toggleChatPin('${activeChatRoomId}')` : '', !activeChatRoomId)}${ribbonBtn('Mute', '🔇', activeChatRoomId ? `toggleChatMute('${activeChatRoomId}')` : '', !activeChatRoomId)}</div></div>`;
             }
         } else if (commRibbonTab === 'view') {
-            groups = `<div class="comm-ribbon-group"><div class="comm-ribbon-group-label">Layout</div><div class="comm-ribbon-group-btns">${ribbonBtn('Unread only', '📩', isEmail ? "emailShowUnreadOnly=!emailShowUnreadOnly;renderInternalCommunication(document.getElementById('contentArea'))" : "chatShowUnreadOnly=!chatShowUnreadOnly;renderInternalCommunication(document.getElementById('contentArea'))")}${ribbonBtn('Sync', '🔄', 'refreshInternalComm()')}</div></div>
+            groups = `<div class="comm-ribbon-group"><div class="comm-ribbon-group-label">Layout</div><div class="comm-ribbon-group-btns">${ribbonBtn('Unread only', '📩', isEmail ? "emailShowUnreadOnly=!emailShowUnreadOnly;refreshInternalCommView(true)" : "chatShowUnreadOnly=!chatShowUnreadOnly;refreshInternalCommView(true)")}${ribbonBtn('Sync', '🔄', 'refreshInternalComm()')}</div></div>
             <div class="comm-ribbon-group"><div class="comm-ribbon-group-label">Theme</div><div class="comm-ribbon-group-btns">${ribbonBtn(commTheme === 'dark' ? 'Light mode' : 'Dark mode', commTheme === 'dark' ? '☀️' : '🌙', 'toggleCommTheme()')}</div></div>`;
         } else {
             groups = `<div class="comm-ribbon-group"><div class="comm-ribbon-group-label">Help</div><div class="comm-ribbon-group-btns">${ribbonBtn('Help', '❓', "typeof toggleHelpAssistant==='function'&&toggleHelpAssistant(true)")}${ribbonBtn('Tips', '💡', "showToast('Link emails to trips, areas, or assets from the compose Link field.','success')")}${ribbonBtn('Support', '🎧', "navigateTo('helpdesk')")}${ribbonBtn('Feedback', '💬', "openEmailCompose('new');setTimeout(()=>{const s=document.getElementById('emailComposeSubject');if(s)s.value='TruckControl feedback';},50)")}</div></div>`;

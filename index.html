@@ -2479,6 +2479,16 @@
             color: var(--text-secondary);
         }
         .top-bar-theme-btn:hover { border-color: #f97316; }
+        .top-bar-lang-select {
+            width: auto;
+            min-width: 58px;
+            padding: 6px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-card, #fff);
+        }
         .theme-picker-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -2718,6 +2728,11 @@
                     <div class="global-search-dropdown" id="globalSearchDropdown" role="listbox" aria-label="Search results"></div>
                 </div>
                 <div class="top-bar-actions">
+                    <select id="languageSelect" class="form-control top-bar-lang-select" title="Language" aria-label="Language" onchange="setAppLanguage(this.value)">
+                        <option value="en">EN</option>
+                        <option value="fr">FR</option>
+                        <option value="pt">PT</option>
+                    </select>
                     <button type="button" class="top-bar-theme-btn" title="Change theme" onclick="openThemePicker()" aria-label="Change theme">🎨</button>
                     <button type="button" class="top-bar-help-btn" title="Help & procedures" onclick="toggleHelpAssistant(true)" aria-label="Open help assistant">❓</button>
                     <button type="button" class="notification-btn" id="notificationBellBtn" onclick="toggleAlerts()" title="System alerts and notifications">
@@ -3463,6 +3478,7 @@
     <!-- Optional for Vercel/static hosting: set window.TRUCKCONTROL_API before api.js (see docs/VERCEL-DEPLOY.md) -->
     <script>/* window.TRUCKCONTROL_API = 'https://your-api-server.com/api'; */</script>
     <script src="api.js"></script>
+    <script src="i18n.js"></script>
     <script src="admin-persistence.js"></script>
     <script src="freight-admin-settings.js"></script>
     <script src="live-operations.js"></script>
